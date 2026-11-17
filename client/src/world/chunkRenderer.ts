@@ -10,6 +10,8 @@ import { CANOPY_DECOR, Decor, pointInPoly, Tile, tileHash, type Box, type BuiltB
 import { buildDecorSprites, DECOR_SPRITE } from './tileset';
 
 const CHUNK = 16; // tiles per chunk side (512 px)
+/** Each chunk texture extends this many tiles past its edges so neighbours overlap (no seams). */
+const BLEED = 0.25;
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -320,7 +322,7 @@ export class ChunkRenderer {
 
   private createChunk(cx: number, cy: number, now: number) {
     const T = this.map.tileSize;
-    const px = CHUNK * T * this.res;
+    const px = Math.ceil((CHUNK + BLEED * 2) * T * this.res);
     const keyBase = `chunk_${cx}_${cy}_${Math.random().toString(36).slice(2, 7)}`;
     const ground = document.createElement('canvas');
     ground.width = ground.height = px;
@@ -329,17 +331,17 @@ export class ChunkRenderer {
     canopyCanvas.width = canopyCanvas.height = px;
     const cctx = canopyCanvas.getContext('2d')!;
     const scale = T * this.res;
-    for (const ctx of [gctx, cctx]) ctx.setTransform(scale, 0, 0, scale, -cx * CHUNK * scale, -cy * CHUNK * scale);
+    for (const ctx of [gctx, cctx]) ctx.setTransform(scale, 0, 0, scale, -(cx * CHUNK - BLEED) * scale, -(cy * CHUNK - BLEED) * scale);
     const hasCanopy = this.drawChunk(gctx, cctx, cx, cy);
 
     const keys = [`${keyBase}_g`];
     this.scene.textures.addCanvas(keys[0], ground);
-    const img = this.scene.add.image(cx * CHUNK * T, cy * CHUNK * T, keys[0]).setOrigin(0).setScale(1 / this.res).setDepth(-1000);
+    const img = this.scene.add.image((cx * CHUNK - BLEED) * T, (cy * CHUNK - BLEED) * T, keys[0]).setOrigin(0).setScale(1 / this.res).setDepth(-1000);
     let canopy: Phaser.GameObjects.Image | null = null;
     if (hasCanopy) {
       keys.push(`${keyBase}_c`);
       this.scene.textures.addCanvas(keys[1], canopyCanvas);
-      canopy = this.scene.add.image(cx * CHUNK * T, cy * CHUNK * T, keys[1]).setOrigin(0).setScale(1 / this.res).setDepth(1_000_000).setAlpha(0.72);
+      canopy = this.scene.add.image((cx * CHUNK - BLEED) * T, (cy * CHUNK - BLEED) * T, keys[1]).setOrigin(0).setScale(1 / this.res).setDepth(1_000_000).setAlpha(0.72);
     }
     this.live.set(`${cx},${cy}`, { ground: img, canopy, keys, lastUsed: now });
   }
@@ -354,7 +356,7 @@ export class ChunkRenderer {
 
     // 1. grass with soft blotches
     g.fillStyle = COLORS.grass;
-    g.fillRect(x0, y0, CHUNK, CHUNK);
+    g.fillRect(x0 - BLEED, y0 - BLEED, CHUNK + BLEED * 2, CHUNK + BLEED * 2);
     for (let i = 0; i < 18; i++) {
       const h1 = tileHash(cx * 31 + i, cy * 17 + i, 3), h2 = tileHash(cx * 13 + i, cy * 29 + i, 5);
       g.fillStyle = i % 2 ? 'rgba(255,255,255,0.05)' : 'rgba(0,60,0,0.06)';
@@ -701,6 +703,33 @@ export class ChunkRenderer {
       g.strokeStyle = '#ffd43b';
       g.lineWidth = 0.35;
       g.stroke();
+    } else if (area > 150 && b.kind !== 'parking') {
+      // parapet band + rooftop plant (AC units, skylights) spread over big roofs
+      g.save();
+      tracePoly(g, p);
+      g.clip();
+      tracePoly(g, p);
+      g.strokeStyle = shade(roof, 0.25);
+      g.lineWidth = 0.9;
+      g.stroke();
+      for (let ty = Math.ceil(b.bbox.y0 / 5) * 5; ty < b.bbox.y1; ty += 5) {
+        for (let tx = Math.ceil(b.bbox.x0 / 5) * 5; tx < b.bbox.x1; tx += 5) {
+          const hh = tileHash(tx, ty, 13);
+          if (hh > 0.55 || !pointInPoly(tx + 1, ty + 1, p)) continue;
+          if (hh < 0.2) {
+            g.fillStyle = 'rgba(170,215,240,0.8)';
+            g.fillRect(tx, ty, 2.2, 1.4);
+          } else {
+            g.fillStyle = 'rgba(205,210,215,0.95)';
+            g.fillRect(tx, ty, 1.1, 0.9);
+            g.fillStyle = 'rgba(120,125,130,0.9)';
+            g.beginPath();
+            g.arc(tx + 0.55, ty + 0.45, 0.28, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
+      }
+      g.restore();
     } else if (area > 40 && b.kind !== 'parking') {
       const h = tileHash(Math.round(mx), Math.round(my), 9);
       g.fillStyle = 'rgba(200,205,210,0.9)';

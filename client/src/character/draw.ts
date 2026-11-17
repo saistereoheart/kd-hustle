@@ -89,6 +89,8 @@ function line(ctx: Ctx, pts: number[], color: string, lw: number) {
 interface M {
   a: Appearance;
   hair: HairStyle;
+  /** Wearing a cap/beanie/songkok (not a tudung). */
+  hatted: boolean;
   cover: boolean;
   bw: number;
   legLen: number;
@@ -110,10 +112,21 @@ function metrics(a: Appearance, cfg: CharacterConfig): M {
   const torsoLen = 13 * hs;
   const hipY = FEET_Y - 2 - legLen;
   const shoulderY = hipY - torsoLen;
+  const cover = cfg.headwear.find((h) => h.id === a.headwear)?.coversHair ?? false;
+  let hair = HAIR_STYLES[a.hair] ?? HAIR_STYLES.crew;
+  const hatted = !cover && a.headwear !== 'none';
+  if (hatted) {
+    // Under a hat the hair is "flattened": nothing pokes through the crown, but fringe,
+    // side hair and anything hanging below the hat still shows.
+    const flatCap = hair.cap === 'spiky' || hair.cap === 'mohawk' || hair.cap === 'curly' || hair.cap === 'volume' ? 'normal' : hair.cap;
+    const extra = hair.extra === 'bun' || hair.extra === 'topknot' || hair.extra === 'quiff' ? undefined : hair.extra;
+    hair = { ...hair, cap: flatCap, extra };
+  }
   return {
     a,
-    hair: HAIR_STYLES[a.hair] ?? HAIR_STYLES.crew,
-    cover: cfg.headwear.find((h) => h.id === a.headwear)?.coversHair ?? false,
+    hair,
+    hatted,
+    cover,
     bw,
     legLen,
     hipY,
@@ -294,6 +307,15 @@ function drawTorso(ctx: Ctx, m: M, view: View) {
   ctx.quadraticCurveTo(x0, top, x0 + 2, top);
   ctx.closePath();
   fillStroke(ctx, c, dk, 0.9);
+  ctx.save();
+  ctx.clip();
+  const tg = ctx.createLinearGradient(x0, top, x0 + w, bottom);
+  tg.addColorStop(0, 'rgba(255,255,255,0.16)');
+  tg.addColorStop(0.5, 'rgba(255,255,255,0)');
+  tg.addColorStop(1, 'rgba(0,0,0,0.16)');
+  ctx.fillStyle = tg;
+  ctx.fillRect(x0 - 1, top - 1, w + 2, bottom - top + 2);
+  ctx.restore();
 
   if (side) {
     if (a.top === 'hoodie') ellipse(ctx, x0 + w - 0.5, shoulderY + 1.5, 3, 2.5, dk);
@@ -552,6 +574,11 @@ function drawEye(ctx: Ctx, style: string, x: number, y: number, color: string, s
       ellipse(ctx, x, y, 1.9, 2.4, color);
       ellipse(ctx, x, y + 0.3, 1.1, 1.5, INK);
       highlight(x - 0.6, y - 0.9, 0.6);
+      ctx.beginPath();
+      ctx.arc(x, y + 0.5, 2.3, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = INK;
+      ctx.stroke();
       if (style === 'lashes') {
         line(ctx, [x + s * 1.6, y - 1.8, x + s * 2.8, y - 2.8], INK, 0.7);
         line(ctx, [x + s * 0.4, y - 2.4, x + s * 1, y - 3.6], INK, 0.7);
@@ -869,7 +896,13 @@ function capPath(ctx: Ctx, m: M, cx: number, cy: number) {
 function hairFill(ctx: Ctx, m: M) {
   const c = m.a.hairColor;
   ctx.globalAlpha = m.hair.cap === 'buzz' || m.hair.cap === 'mohawk' ? 0.72 : 1;
-  ctx.fillStyle = c;
+  // Soft light from the top-left: lighter crown, darker ends.
+  const top = m.headCY - m.ry - 8;
+  const grad = ctx.createLinearGradient(CX - 8, top, CX + 8, m.headCY + 14);
+  grad.addColorStop(0, shade(c, 0.22));
+  grad.addColorStop(0.45, c);
+  grad.addColorStop(1, shade(c, -0.25));
+  ctx.fillStyle = grad;
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.lineWidth = 0.9;
@@ -1024,10 +1057,82 @@ function drawHairFront(ctx: Ctx, m: M) {
   } else {
     capPath(ctx, m, CX, cy);
     hairFill(ctx, m);
+    ctx.clip();
+    drawHairStrands(ctx, m, CX);
   }
   ctx.restore();
+  drawSideLocks(ctx, m);
   drawHairTopExtras(ctx, m, CX);
   drawHairHighlight(ctx, m, CX);
+}
+
+/** Strand lines + a shine arc, drawn while clipped to the hair cap. */
+function drawHairStrands(ctx: Ctx, m: M, cx: number) {
+  const cap = m.hair.cap;
+  if (cap === 'none' || cap === 'buzz') return;
+  const cy = m.headCY;
+  const v = CAP_VOLUME[cap];
+  const top = cy - m.ry - v;
+  const c = m.a.hairColor;
+  if (cap === 'afro' || cap === 'curly') {
+    ctx.strokeStyle = shade(c, -0.35);
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 0.6;
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const r = (m.rx + v) * (0.35 + (i % 3) * 0.2);
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * r, cy - 4 + Math.sin(a) * r * 0.8, 1.6, 0, Math.PI * 1.3);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.strokeStyle = shade(c, -0.38);
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 0.55;
+    ctx.lineCap = 'round';
+    for (let k = -3; k <= 3; k++) {
+      if (k === 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(cx + k * 1.1, top + 1.5);
+      ctx.quadraticCurveTo(cx + k * 3.1, cy - 8, cx + k * 4.4, cy - 1.5);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // shine
+  ctx.beginPath();
+  ctx.ellipse(cx - 3.5, cy - 6.5, m.rx * 0.55, 2.4, -0.35, Math.PI * 1.08, Math.PI * 1.88);
+  ctx.strokeStyle = shade(c, 0.5);
+  ctx.globalAlpha = 0.65;
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+/** Hair at the temples that frames the face and covers the top of the ears. */
+function drawSideLocks(ctx: Ctx, m: M) {
+  const h = m.hair;
+  if (h.cap === 'none' || h.cap === 'buzz' || h.cap === 'mohawk' || h.cap === 'undercut') return;
+  const cy = m.headCY;
+  const rx = m.rx;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    if (h.back >= 2) {
+      const bottom = Math.min(backLengthY(m) - 1, cy + 15);
+      ctx.moveTo(CX + s * (rx - 2.5), cy - 5);
+      ctx.quadraticCurveTo(CX + s * (rx + 2.4), cy - 2, CX + s * (rx + 1.6), bottom);
+      ctx.quadraticCurveTo(CX + s * (rx - 0.2), bottom - 1.5, CX + s * (rx - 1.6), cy + 6);
+      ctx.quadraticCurveTo(CX + s * (rx - 2.4), cy + 1, CX + s * (rx - 2.5), cy - 5);
+    } else {
+      ctx.moveTo(CX + s * (rx - 2), cy - 5);
+      ctx.quadraticCurveTo(CX + s * (rx + 1.2), cy - 3, CX + s * (rx + 0.6), cy + 2.5);
+      ctx.lineTo(CX + s * (rx - 0.9), cy + 1.5);
+      ctx.quadraticCurveTo(CX + s * (rx - 1.4), cy - 2, CX + s * (rx - 2), cy - 5);
+    }
+    ctx.closePath();
+    hairFill(ctx, m);
+  }
 }
 
 function drawHairBackView(ctx: Ctx, m: M) {
@@ -1184,16 +1289,14 @@ function drawTudungFront(ctx: Ctx, m: M, view: View) {
   const cy = m.headCY;
   ctx.save();
   if (view === 'side') {
-    ctx.beginPath();
-    ctx.ellipse(CX + 1, cy - 0.5, m.rx + 3, m.ry + 3, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.beginPath();
-    ctx.rect(CX - 1, -20, 40, 100);
-    ctx.rect(-10, -20, 60, cy - 4.5 + 20);
-    ctx.fillStyle = c;
-    ctx.fill();
     ctx.restore();
-    line(ctx, [CX - m.rx - 1, cy - 4.5, CX - 1, cy - 4.5, CX - 1, cy + 10], dk, 0.8);
+    // fabric edge around the face opening + a fold at the back
+    ctx.beginPath();
+    ctx.ellipse(CX - 3.6, cy + 1.6, m.rx * 0.62 + 0.5, m.ry * 0.8 + 0.5, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = dk;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    line(ctx, [CX + 5, cy - 8, CX + 8, cy + 2, CX + 6, cy + 11], shade(c, -0.18), 0.8);
     return;
   }
   ctx.beginPath();
@@ -1227,11 +1330,14 @@ function drawHat(ctx: Ctx, m: M, view: View) {
   const c = m.a.headwearColor;
   const dk = shade(c, -0.3);
   const cy = m.headCY;
-  const top = cy - m.ry;
+  // Size the hat to the hair under it so hair never pokes through the crown.
+  const vol = m.hair.cap === 'afro' ? 7 : Math.min(3, CAP_VOLUME[m.hair.cap]);
+  const hr = m.rx + vol + 0.8;
+  const top = cy - m.ry - vol;
   const cx = view === 'side' ? CX + 1 : CX;
   if (id === 'cap' || id === 'cap_back') {
     ctx.beginPath();
-    ctx.ellipse(cx, cy - 3, m.rx + 1.6, m.ry - 1, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(cx, cy - 3, hr, m.ry - 1 + vol * 0.8, 0, Math.PI, Math.PI * 2);
     ctx.closePath();
     fillStroke(ctx, c, dk, 0.9);
     ellipse(ctx, cx, top + 0.6, 1.2, 0.8, dk);
@@ -1239,11 +1345,11 @@ function drawHat(ctx: Ctx, m: M, view: View) {
     if (view === 'side') {
       const dir = id === 'cap' ? -1 : 1;
       ctx.beginPath();
-      ctx.ellipse(cx + dir * (m.rx + 1), cy - 3, 6, 1.6, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + dir * (hr - 0.5), cy - 3, 6.5, 1.7, 0, 0, Math.PI * 2);
       fillStroke(ctx, dk);
     } else if (brimFront) {
       ctx.beginPath();
-      ctx.ellipse(cx, cy - 2.6, m.rx + 1.5, 3, 0, 0, Math.PI);
+      ctx.ellipse(cx, cy - 2.6, hr - 0.2, 3.2, 0, 0, Math.PI);
       fillStroke(ctx, dk);
     } else {
       rrect(ctx, cx - 3, cy - 4.5, 6, 2.2, 1);
@@ -1251,16 +1357,17 @@ function drawHat(ctx: Ctx, m: M, view: View) {
     }
   } else if (id === 'beanie') {
     ctx.beginPath();
-    ctx.ellipse(cx, cy - 2, m.rx + 1.5, m.ry + 0.5, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(cx, cy - 2, hr, m.ry + 0.5 + vol, 0, Math.PI, Math.PI * 2);
     ctx.closePath();
     fillStroke(ctx, c, dk, 0.9);
-    rrect(ctx, cx - m.rx - 1.5, cy - 4, 2 * m.rx + 3, 3.6, 1.5);
+    for (let k = -2; k <= 2; k++) line(ctx, [cx + k * 3, cy - 4, cx + k * 2.2, top + 2], shade(c, -0.15), 0.6);
+    rrect(ctx, cx - hr, cy - 4, 2 * hr, 3.6, 1.5);
     fillStroke(ctx, dk);
     ellipse(ctx, cx, top - 2.5, 2.4, 2.4, shade(c, 0.3), dk, 0.6);
   } else if (id === 'songkok') {
-    rrect(ctx, cx - m.rx + 1, top - 2.5, 2 * m.rx - 2, m.ry - 1, 1.5);
+    rrect(ctx, cx - hr + 1.5, top - 1.5, 2 * hr - 3, cy - 3 - (top - 1.5), 1.5);
     fillStroke(ctx, c, dk, 0.9);
-    ellipse(ctx, cx, top - 2.3, m.rx - 1, 1.6, shade(c, 0.12), dk, 0.6);
+    ellipse(ctx, cx, top - 1.3, hr - 1.5, 1.6, shade(c, 0.12), dk, 0.6);
   }
 }
 
@@ -1270,11 +1377,28 @@ function drawHeadFront(ctx: Ctx, m: M, p: Pose) {
   if (!m.cover) {
     rrect(ctx, CX - 3, cy + 7, 6, m.shoulderY - cy - 6, 2);
     fillStroke(ctx, shade(a.skin, -0.1));
-    ellipse(ctx, CX - rx, cy + 1.5, 2.6, 3, a.skin, m.skinLine, 0.8);
-    ellipse(ctx, CX + rx, cy + 1.5, 2.6, 3, a.skin, m.skinLine, 0.8);
+    ellipse(ctx, CX, cy + ry - 0.5, 3.4, 2, 'rgba(0,0,0,0.2)');
+    for (const s of [-1, 1]) {
+      ellipse(ctx, CX + s * rx, cy + 1.5, 2.6, 3, a.skin, m.skinLine, 0.8);
+      ctx.beginPath();
+      ctx.arc(CX + s * rx, cy + 1.6, 1.2, s < 0 ? Math.PI * 0.6 : -Math.PI * 0.4, s < 0 ? Math.PI * 1.4 : Math.PI * 0.4);
+      ctx.strokeStyle = shade(a.skin, -0.25);
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
   }
   faceShape(ctx, a.face, CX, cy, rx, ry);
   fillStroke(ctx, a.skin, m.skinLine, 1);
+  ctx.save();
+  faceShape(ctx, a.face, CX, cy, rx, ry);
+  ctx.clip();
+  const fg = ctx.createLinearGradient(CX - rx, cy - ry, CX + rx * 0.6, cy + ry);
+  fg.addColorStop(0, 'rgba(255,255,255,0.14)');
+  fg.addColorStop(0.55, 'rgba(255,255,255,0)');
+  fg.addColorStop(1, 'rgba(60,20,0,0.12)');
+  ctx.fillStyle = fg;
+  ctx.fillRect(CX - rx - 2, cy - ry - 2, rx * 2 + 4, ry * 2 + 4);
+  ctx.restore();
   if (a.blush || p.eyes === 'happy') {
     ellipse(ctx, CX - 7.5, cy + 5, 2.6, 1.5, 'rgba(255,105,120,0.35)');
     ellipse(ctx, CX + 7.5, cy + 5, 2.6, 1.5, 'rgba(255,105,120,0.35)');
@@ -1318,10 +1442,13 @@ function drawHeadSide(ctx: Ctx, m: M, p: Pose) {
     rrect(ctx, CX - 2, cy + 7, 5, m.shoulderY - cy - 6, 2);
     fillStroke(ctx, shade(a.skin, -0.1));
   }
-  ellipse(ctx, hx, cy, rx * 0.9, ry, a.skin, m.skinLine, 1);
+  // With a tudung only the face shows, as an oval opening at the front.
+  const faceRx = m.cover ? rx * 0.62 : rx * 0.9;
+  const fx = m.cover ? CX - 3.6 : hx;
+  ellipse(ctx, fx, m.cover ? cy + 1.6 : cy, faceRx, m.cover ? ry * 0.8 : ry, a.skin, m.skinLine, 1);
   // nose bump
-  ellipse(ctx, hx - rx * 0.9 + 0.4, cy + 4, 1.8, 1.5, a.skin, m.skinLine, 0.7);
-  ellipse(ctx, hx - rx * 0.9 + 1.9, cy + 4, 1.5, 1.8, a.skin);
+  ellipse(ctx, fx - faceRx + 0.4, cy + 4, 1.8, 1.5, a.skin, m.skinLine, 0.7);
+  ellipse(ctx, fx - faceRx + 1.9, cy + 4, 1.5, 1.8, a.skin);
   if (!m.cover) ellipse(ctx, CX + 3, cy + 1.5, 2.3, 2.8, a.skin, m.skinLine, 0.8);
   if (a.blush || p.eyes === 'happy') ellipse(ctx, CX - 5.5, cy + 5, 2.2, 1.4, 'rgba(255,105,120,0.35)');
   if (a.freckles) for (const [x, y] of [[-6, 3.6], [-4.5, 4.6]]) ellipse(ctx, CX + x, cy + y, 0.45, 0.45, shade(a.skin, -0.35));

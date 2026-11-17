@@ -4,15 +4,61 @@ _Last updated: 2026-11-17_
 
 ## Status
 
-**Phase 1 (Foundation): done.** Phase 2 (money, jobs and the gacha core) is next.
+**Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
+Phase 2 (money, jobs and the gacha core, with the first driveable vehicle) is next.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 34 unit tests |
+| `npm test` (Vitest) | ✅ 40 unit tests (incl. map validator: reachability, doors, landmarks, no brand names) |
 | `npm run e2e` (Playwright, 2 browsers: desktop 1920×1080 + phone 390×844) | ✅ passes on the dev server and on the production build |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
 | Real phone on the LAN | ⏳ needs you (see below) |
+
+---
+
+## Phase 1.5: what changed (and what to check)
+
+### Real-scale map from OpenStreetMap
+- The map is now built from **OpenStreetMap** at **2 m per tile**: **768 × 576 tiles ≈ 1.5 × 1.15 km**, covering
+  The Strand, Dataran Sunway, Mitraland, Surian MRT / Ayu Mall, PJU 3 / Palm Spring, Taman Kota and Gugusan Dedap.
+  The 2× map (512×384) would have cut off Surian MRT, so I went with your 3× size straight away.
+- **Real roads:** lane counts from OSM (3.5 m lanes), sidewalks, lane markings (dashed lanes, centre lines), zebra
+  crossings, street-name labels, underpasses and the Persiaran Surian bridge over the NKVE, the DASH and the elevated MRT.
+- **Real buildings:** 714 OSM footprints (polygons) with roof colours, shadows scaled by height, south-facing facades
+  with windows, rooftop AC units and skylights, and doors facing the street.
+- **Fixed world origin = Menara Mitraland (tile 0,0).** Growing the map later only extends the bounds. Positions,
+  building ids (= OSM ids) and future property ownership never move.
+- **Terrain speeds** (`shared/config/terrain.json`) are ready for vehicles: road 1.0×, grass 0.4×, forest 0.25×,
+  highway drive-only, buildings and water blocked.
+- **Map data licence:** ODbL, with "© OpenStreetMap contributors" shown in-game (bottom-right and on the full map).
+- Rendering is chunked (512 px pieces drawn on demand near the camera, old ones freed), so phones only hold what's nearby.
+
+**Check:** walk from Dataran Sunway (spawn) to Menara Mitraland, across the bridge to PJU 3, and down to Surian MRT.
+The full map (🗺️) shows the whole area with district names.
+
+### Character polish (chibi, more detailed)
+- **Hats are sized to the hair** and the hair under them is flattened: no more spikes, buns or quiffs poking through
+  caps, beanies or songkok. Fringe, side hair, tails and braids still show.
+- **Hair:** gradient shading, strand lines, shine highlight, and side locks that frame the face and cover the ears
+  (this fixes the ear clipping).
+- **Face/clothes:** soft shading, chin shadow, ear detail, upper eyelid lines, shading on tops.
+- **Tudung side view:** a rounded face opening instead of the boxy look.
+
+**Check:** ⚙️ Settings → Edit character, then try caps/beanie/songkok over spiky, afro, bun and long hair, and rotate the preview.
+
+### One-time note
+Accounts created before this update had positions on the old map, so they **spawn in Dataran Sunway once** on their
+next login (the server logs `Placed <name> at a safe spot (map-version)`). Characters and accounts are kept.
+
+### Map maintenance (optional, only if you want fresh OSM data)
+```bash
+npm run fetch-osm     # downloads OSM tiles into data-src/ (git-ignored, ~5 MB)
+npm run import-map    # regenerates shared/map/kd.osm.json
+npm run map-preview   # writes test-results/map-preview.png (the collision grid) to eyeball changes
+npm test              # the map validator must stay green
+```
+Landmark parody names, districts and spawn live in `shared/map/town.overrides.json` (see `shared/map/README.md`).
 
 ---
 
@@ -125,6 +171,27 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 1.5**
+- **3× map size now (768×576 tiles at 2 m)** instead of 2×: at real scale the 2× map couldn't fit Surian MRT and the
+  south of Dataran Sunway.
+- **Origin = the actual Menara Mitraland building** (OSM way 1030583397, 3.15494 N, 101.597374 E).
+- **The Phase 1 hand-drawn map is retired.** Districts are now The Strand, Dataran Sunway, Mitraland, Surian MRT &
+  Ayu Mall, Taman Kota, Gugusan Dedap, PJU 3 & Palm Spring. The forest reserve and Rymba Hills come with the next
+  map expansion.
+- **Parody landmarks on real buildings:** Piramid Mall, Ayu Mall Damansara, The Strand Mall, Lucky Strand Casino,
+  Gergasi Hypermarket, Mitraland Podium, Sunrise Medical Centre, Bank Kota, Kedai Runcit Pak Abu, The Cascades,
+  Ant Palms A–F, Kota Bazaar.
+- **Elevated roads** (DASH, flyovers) don't block the ground. Where a flyover passes over a highway it becomes a
+  walkable bridge. Underpasses are kept as ground roads.
+- **Walking speed unchanged** (≈ a jog at real scale). Crossing the map on foot takes about 2.5 minutes, which is
+  intended, so vehicles matter later.
+- **Trees:** OSM has almost no tree data here, so trees are placed by a deterministic pattern in parks, grass and
+  forest. Canopies are semi-transparent so players under them stay visible.
+- **The spawn fountain is removed for now** (on the real map it landed on a road). It comes back with a proper plaza.
+- **The client gets the map as ~225 KB of JSON (~55 KB gzipped)** and builds the grid itself (~100 ms), using the same code as the server.
+
+**Phase 1**
+
 1. **Map follows the real geography in the screenshots.** The Strand sits directly **north** of Dataran Sunway
    (adjacent, not "~1 km away"), and Mitraland sits between Jalan PJU 5/1 and the AH2 highway at the **map centre**.
    Gergasi Hypermarket is in the Mitraland block, which satisfies "Mitraland next to the hypermarket".
@@ -156,6 +223,13 @@ Simple options picked where the spec was open, per CLAUDE.md:
 16. **`?profile=<name>` URL param** keeps a separate login per tab (testing convenience).
 
 ## Known issues / limitations
+
+- **Phase 1.5:** chunk drawing is spread over frames (8 ms budget per frame), but on slow phones you may see the map
+  fill in while walking fast. Tell me if it stutters and I'll move chunk drawing to a background worker.
+- **Phase 1.5:** buildings cut off by the map edge have no door, and 7 inside the map have none because their OSM
+  footprints overlap.
+- **Phase 1.5:** characters are cartoon-sized compared with the real-scale roads (a person is about half a 2-lane road
+  wide). This is intentional for the chibi style. Say if you want them smaller.
 
 - **Dev only:** when `tsx watch` restarts the server after a code change on Windows, the process is killed without the
   graceful handler, so up to 60 s of movement can be lost. Ctrl+C and production are fine.

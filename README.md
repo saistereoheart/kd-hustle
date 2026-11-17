@@ -10,8 +10,8 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
 ## What works now (Phase 1)
 - Accounts (register / login / auto-login / one session per account) with autosave
 - A chibi vector character creator: face shapes, 23 hairstyles, tudung styles, baju kurung / baju melayu and more
-- A big 256×192-tile town centred on Menara Mitraland: Dataran Sunway, The Strand, Mitraland & The Cascades,
-  Surian MRT, PJU 3, Rymba Hills, the Community Forest Reserve…
+- A real-scale Kota Damansara built from **OpenStreetMap** (2 m per tile, ~1.5 × 1.15 km): The Strand, Dataran
+  Sunway, Mitraland, Surian MRT, PJU 3 / Palm Spring, with real roads, lanes and building footprints
 - Walk around with friends (keyboard or touch joystick), see each other in real time, chat with speech bubbles, emotes
 - Minimap + full map, district banners, saving (autosave every 60 s, on logout/disconnect/shutdown) and DB backups
 
@@ -53,6 +53,8 @@ same network, and check that your router doesn't have AP/client isolation turned
 | `npm run backup` | Copy the DB to `server/backups/` with a timestamp |
 | `npm run seed` | Create test accounts `tester1`–`tester4` (password `test123`) |
 | `npm run sim` | Economy balance simulator (arrives in Phase 3) |
+| `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
+| `npm run map-preview` | PNG of the collision grid, for map editing |
 
 ## Project layout
 ```
@@ -66,9 +68,13 @@ docs/     Spec, progress log, credits
 Balance and content live in `shared/config/*.json`, and the town layout lives in `shared/map/town.json`.
 Restart the server after editing them.
 
+## Map data
+Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the ODbL.
+The generated map files in `shared/map/` are ODbL; the code is MIT.
+
 ## Disclaimer
 All in-game money is virtual and has no real-world value. There are no real-money purchases.
 Real place names are used for inspiration only; all shops and brands in the game are fictional parodies.
 
 ## License
-MIT. See [LICENSE](LICENSE). Third-party licences: [`docs/CREDITS.md`](docs/CREDITS.md).
+Code: MIT. See [LICENSE](LICENSE). Map data: ODbL (see above). Third-party licences: [`docs/CREDITS.md`](docs/CREDITS.md).
