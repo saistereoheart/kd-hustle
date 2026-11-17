@@ -1,0 +1,198 @@
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import type { RandInt } from '@kh/shared';
+import { loadConfig } from '../../config/loadConfig';
+import { openDatabase } from '../../db/db';
+import { createRepos } from '../../db/repos';
+import type { OnlinePlayer } from '../../game/world';
+import { ROOT } from '../../paths';
+import { Gacha } from '../gacha/gacha';
+import { InventorySystem } from '../inventory/inventory';
+import { carwashPay, deliveryPay, gradeCarwash, jobLevel } from '../jobs/jobs';
+import { Economy, GameError } from './economy';
+
+const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
+
+function seeded(seed: number): RandInt {
+  let a = seed >>> 0;
+  return (max: number) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * max);
+  };
+}
+
+function setup(walletSen = 30000, seed = 1) {
+  const db = openDatabase(':memory:');
+  const repos = createRepos(db);
+  const id = repos.accounts.create(`p${seed}`, 'h', false, { x: 0, y: 0 }, 2, walletSen);
+  const p = {
+    id, name: `p${seed}`, walletSen, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set<string>(),
+    pages: new Set<string>(), pity: {}, jobs: {}, job: null, vehicle: null,
+  } as unknown as OnlinePlayer;
+  const econ = new Economy(repos, cfg);
+  const gacha = new Gacha(repos, cfg, econ, seeded(seed));
+  const inv = new InventorySystem(cfg, econ);
+  const txSum = () => (db.prepare('SELECT COALESCE(SUM(delta_sen),0) AS s FROM transactions WHERE account_id = ?').get(id) as { s: number }).s;
+  return { db, repos, p, econ, gacha, inv, txSum };
+}
+
+describe('crate rolls', () => {
+  it('charges exactly price × count, grants items and logs everything', () => {
+    const { p, gacha, repos, txSum } = setup(30000);
+    const batch = gacha.roll(p, 'capsule', 10);
+    expect(batch.results).toHaveLength(10);
+    expect(p.walletSen).toBe(30000 - 2000 * 10 + (batch.pageReward?.sen ?? 0));
+    expect(p.inventory).toHaveLength(10);
+    expect(repos.inventory.list(p.id)).toHaveLength(10);
+    expect(repos.econ.load(p.id).walletSen).toBe(p.walletSen);
+    expect(30000 + txSum()).toBe(p.walletSen); // the economy log adds up
+    expect(Number.isSafeInteger(p.walletSen)).toBe(true);
+  });
+
+  it('refuses a roll you cannot afford and changes nothing', () => {
+    const { p, gacha, repos } = setup(1500);
+    expect(() => gacha.roll(p, 'capsule', 1)).toThrow(GameError);
+    expect(p.walletSen).toBe(1500);
+    expect(p.inventory).toHaveLength(0);
+    expect(repos.econ.load(p.id).walletSen).toBe(1500);
+  });
+
+  it('rolls back the DB and the in-memory player if something fails mid-transaction', () => {
+    const { p, econ, repos } = setup(10000);
+    expect(() =>
+      econ.run(p, () => {
+        econ.change(p, -5000, 0, 'test');
+        econ.grant(p, 'rubber_duck', 'normal', null);
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+    expect(p.walletSen).toBe(10000);
+    expect(p.inventory).toHaveLength(0);
+    expect(p.index.size).toBe(0);
+    expect(repos.econ.load(p.id).walletSen).toBe(10000);
+    expect(repos.inventory.list(p.id)).toHaveLength(0);
+  });
+
+  it('keeps and persists pity counters per crate', () => {
+    const { p, gacha, repos } = setup(10_000_000);
+    gacha.roll(p, 'capsule', 5);
+    const pity = p.pity.capsule;
+    expect(pity.sinceEpic + pity.sinceLegendary).toBeGreaterThan(0);
+    expect(repos.econ.load(p.id).pity.capsule).toEqual(pity);
+  });
+
+  it('gives limited items rising serial numbers and stops at the limit', () => {
+    const { p, econ, gacha } = setup(1);
+    // Simulate the server having already handed out 4 of the 5 Durian Crowns.
+    const g = gacha as unknown as { limitedCount: Map<string, number> };
+    g.limitedCount.set('durian_crown', 5);
+    econ.run(p, () => econ.change(p, 1_000_000_000, 0, 'test'));
+    for (let i = 0; i < 30; i++) {
+      for (const r of gacha.roll(p, 'mallbox', 10).results) expect(r.itemId).not.toBe('durian_crown');
+    }
+  });
+
+  it('pays the Item Index page reward once when a crate page is completed', () => {
+    const { p, econ, gacha } = setup(1_000_000_000);
+    const crate = cfg.crateById.get('capsule')!;
+    // Already found everything except one item...
+    econ.run(p, () => {
+      for (const id of crate.pool.slice(1)) econ.grant(p, id, 'normal', null);
+    });
+    let reward: { sen: number } | undefined;
+    for (let i = 0; i < 400 && !reward; i++) reward = gacha.roll(p, 'capsule', 10).pageReward;
+    expect(reward?.sen).toBe(crate.priceSen * cfg.economy.indexPageRewardMultiplier);
+    expect(p.pages.has('capsule')).toBe(true);
+    expect(gacha.roll(p, 'capsule', 1).pageReward).toBeUndefined();
+  });
+});
+
+describe('inventory, pawn shop and shards', () => {
+  it('equips cosmetics only, and unequips when sold', () => {
+    const { p, econ, inv } = setup(0);
+    const { item: hat } = econ.run(p, () => econ.grant(p, 'party_hat', 'golden', null));
+    const { item: duck } = econ.run(p, () => econ.grant(p, 'rubber_duck', 'normal', null));
+    expect(inv.equip(p, hat.iid)).toBe(true);
+    expect(p.cosmetics.hat).toEqual({ itemId: 'party_hat', variant: 'golden' });
+    expect(() => inv.equip(p, duck.iid)).toThrow(GameError);
+    const r = inv.sell(p, 'party_hat', 'golden', 1);
+    expect(r.cosmeticsChanged).toBe(true);
+    expect(p.cosmetics.hat).toBeUndefined();
+    // Golden = 5× value; Capsule common = RM 20 × 0.3 = RM 6; pawn pays 50%.
+    expect(r.gainedSen).toBe(Math.floor(2000 * 0.3 * 5 * cfg.economy.pawnRate));
+    expect(p.walletSen).toBe(r.gainedSen);
+  });
+
+  it('scraps into shards and buys discovered items in the Shard Shop', () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => {
+      for (let i = 0; i < 12; i++) econ.grant(p, 'rubber_duck', 'normal', null);
+    });
+    const r = inv.scrap(p, 'rubber_duck', 'normal', 12);
+    expect(r.gainedShards).toBe(12);
+    expect(() => inv.shardBuy(p, 'bucket_hat')).toThrow(/Discover/); // not found yet
+    expect(() => inv.scrap(p, 'rubber_duck', 'normal', 1)).toThrow(GameError);
+    const shardsBefore = p.shards;
+    inv.shardBuy(p, 'rubber_duck'); // common = 10 shards
+    expect(p.shards).toBe(shardsBefore - 10);
+    expect(() => inv.shardBuy(p, 'halo')).toThrow(GameError); // mythic isn't sold
+  });
+
+  it("can't sell more than you have", () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => econ.grant(p, 'rubber_duck', 'normal', null));
+    expect(() => inv.sell(p, 'rubber_duck', 'normal', 2)).toThrow(/only have 1/);
+  });
+});
+
+describe('job pay and grading', () => {
+  const jobs = cfg.jobs;
+
+  it('levels up every N jobs', () => {
+    expect(jobLevel(jobs, 0)).toBe(1);
+    expect(jobLevel(jobs, jobs.levelUpEvery)).toBe(2);
+    expect(jobLevel(jobs, 10_000)).toBe(jobs.maxLevel);
+  });
+
+  it('pays deliveries by distance, tips fast riders and docks late ones', () => {
+    const fast = deliveryPay(jobs, 400, 1, 10_000, 60_000);
+    const slow = deliveryPay(jobs, 400, 1, 55_000, 60_000);
+    const late = deliveryPay(jobs, 400, 1, 70_000, 60_000);
+    expect(fast.paySen).toBe(jobs.delivery.baseSen + jobs.delivery.perMeterSen * 400);
+    expect(fast.tipSen).toBeGreaterThan(slow.tipSen);
+    expect(late.tipSen).toBe(0);
+    expect(late.paySen).toBeLessThan(fast.paySen);
+    expect(deliveryPay(jobs, 400, 5, 10_000, 60_000).paySen).toBeGreaterThan(fast.paySen);
+  });
+
+  const spots: Array<[number, number]> = [[0.3, 0.5], [0.7, 0.5]];
+  const scrub = (cx: number, cy: number, t0: number, n: number) => {
+    const pts: number[] = [];
+    for (let i = 0; i < n; i++) pts.push(cx + (i % 2 ? 0.02 : -0.02), cy, t0 + i * 40);
+    return pts;
+  };
+
+  it('grades car wash scrubbing from raw input', () => {
+    const pts = [...scrub(0.3, 0.5, 0, 12), ...scrub(0.7, 0.5, 600, 12)];
+    const g = gradeCarwash(jobs.carwash, spots, pts, 5000);
+    expect(g).toMatchObject({ cleaned: 1, valid: true });
+    const half = gradeCarwash(jobs.carwash, spots, scrub(0.3, 0.5, 0, 12), 5000);
+    expect(half.cleaned).toBe(0.5);
+    expect(carwashPay(jobs, 1, 2000, 1)).toBeGreaterThan(carwashPay(jobs, 1, 20000, 1));
+    expect(carwashPay(jobs, 0.1, 2000, 1)).toBe(0);
+  });
+
+  it('rejects impossible car wash input', () => {
+    // Timestamps from the future (longer than the server says the game has run).
+    expect(gradeCarwash(jobs.carwash, spots, scrub(0.3, 0.5, 0, 12).map((v, i) => (i % 3 === 2 ? v + 20000 : v)), 3000).valid).toBe(false);
+    // Out-of-order timestamps.
+    expect(gradeCarwash(jobs.carwash, spots, [0.3, 0.5, 100, 0.32, 0.5, 50], 3000).valid).toBe(false);
+    // Superhuman speed: 2,000 points in 1 second.
+    const bot: number[] = [];
+    for (let i = 0; i < 2000; i++) bot.push(0.3 + (i % 2) * 0.01, 0.5, i * 0.5);
+    expect(gradeCarwash(jobs.carwash, spots, bot, 3000).valid).toBe(false);
+  });
+});

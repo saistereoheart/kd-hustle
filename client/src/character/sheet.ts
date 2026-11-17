@@ -3,7 +3,7 @@
 //   0-5   front: idle0 idle1 walk0..3      6-11 back      12-17 side (faces left)
 //   18+   emotes (front view), 4 frames each, in EMOTE_ORDER
 import type { Appearance, CharacterConfig } from '@kh/shared';
-import { drawCharacter, FRAME_H, FRAME_W, type Pose, type View } from './draw';
+import { drawCharacter, FRAME_H, FRAME_W, type Pose, type View, type WornCosmetics } from './draw';
 
 export const RES = 2;
 export const COLS = 8;
@@ -105,7 +105,7 @@ export function poseForFrame(i: number): Pose {
   return EMOTE_POSES[EMOTE_ORDER[e]]?.[(i - 18) % 4] ?? { view: 'front' };
 }
 
-export function renderSheet(a: Appearance, cfg: CharacterConfig): HTMLCanvasElement {
+export function renderSheet(a: Appearance, cfg: CharacterConfig, worn?: WornCosmetics): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = COLS * FRAME_PX_W;
   canvas.height = Math.ceil(FRAME_COUNT / COLS) * FRAME_PX_H;
@@ -117,7 +117,7 @@ export function renderSheet(a: Appearance, cfg: CharacterConfig): HTMLCanvasElem
     ctx.beginPath();
     ctx.rect(0, 0, FRAME_W, FRAME_H);
     ctx.clip();
-    drawCharacter(ctx, a, cfg, poseForFrame(i));
+    drawCharacter(ctx, a, cfg, poseForFrame(i), worn);
     ctx.restore();
   }
   return canvas;

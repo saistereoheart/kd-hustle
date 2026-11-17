@@ -16,6 +16,13 @@ window.__kh = {
   remotes: () => app.town?.debugRemotes() ?? [],
   chat: () => app.chat?.lines() ?? [],
   lastSavedAt: () => app.lastSavedAt,
+  wallet: () => ({ sen: app.store.walletSen, shards: app.store.shards, items: app.store.inventory.length }),
+  job: () => app.store.job,
+  /** Open the UI of an interactable by id (the server still checks you are standing there). */
+  open: (id: string) => {
+    const it = app.map?.interactables.find((i) => i.id === id);
+    if (it) app.openInteractable(it);
+  },
   // Dev only: move the CAMERA (not the player) to look around, for screenshots.
   ...(import.meta.env.DEV ? { peek: (x: number, y: number) => app.town?.debugPeek(x, y) } : {}),
 };

@@ -1,5 +1,6 @@
 import type { Joystick } from '../input/joystick';
-import { el, uiRoot } from './dom';
+import { formatMoney, formatMoneyExact } from '@kh/shared';
+import { el, toast, uiRoot } from './dom';
 
 export interface HudOptions {
   name: string;
@@ -10,6 +11,7 @@ export interface HudOptions {
   onMap: () => void;
   onSettings: () => void;
   onInteract: () => void;
+  onBag: () => void;
   /** Map data credit, e.g. "© OpenStreetMap contributors" (required by the ODbL). */
   attribution: string;
 }
@@ -17,6 +19,9 @@ export interface HudOptions {
 export class Hud {
   readonly root: HTMLElement;
   private district: HTMLElement;
+  private wallet: HTMLElement;
+  private shards: HTMLElement;
+  private walletSen = 0;
   private banner: HTMLElement;
   private prompt: HTMLElement;
   private saved: HTMLElement;
@@ -34,6 +39,9 @@ export class Hud {
       return b;
     };
     this.district = el('span', { class: 'hud-district' });
+    this.wallet = el('span', { class: 'hud-wallet', 'data-testid': 'wallet', title: 'Tap for the exact amount' }, 'RM 0');
+    this.shards = el('span', { class: 'hud-shards', title: 'Shards' }, '💎 0');
+    this.wallet.addEventListener('click', () => toast(formatMoneyExact(this.walletSen)));
     this.banner = el('div', { class: 'district-banner hidden' });
     this.prompt = el('div', { class: 'interact-prompt hidden' });
     this.saved = el('div', { class: 'saved-chip hidden', 'data-testid': 'saved' }, 'Saved ✓');
@@ -45,12 +53,13 @@ export class Hud {
         'div',
         { class: 'pill' },
         el('span', { class: 'lv-badge' }, `Lv ${opts.level}`),
-        el('div', {}, el('div', { class: 'hud-name' }, opts.name), this.district),
+        el('div', {}, el('div', { class: 'hud-name' }, opts.name), el('div', { class: 'hud-money' }, this.wallet, this.shards), this.district),
       ),
       el('div', { class: 'hud-spacer' }),
       el(
         'div',
         { class: 'hud-buttons' },
+        btn('🎒', 'Bag (B)', 'bag', opts.onBag),
         btn('💬', 'Chat (Enter)', 'chat', opts.onChat),
         btn('😀', 'Emotes (Q)', 'emote', opts.onEmote),
         btn('🗺️', 'Map (M)', 'map', opts.onMap),
@@ -81,6 +90,22 @@ export class Hud {
       }
     }
     uiRoot().append(this.root);
+  }
+
+  setWallet(sen: number, shards: number) {
+    this.walletSen = sen;
+    this.wallet.textContent = formatMoney(sen);
+    this.shards.textContent = `💎 ${shards.toLocaleString('en-US')}`;
+  }
+
+  /** A floating +RM number by the wallet. */
+  floatMoney(sen: number) {
+    const f = el('div', { class: 'float-money' }, `+${formatMoney(sen)}`);
+    const r = this.wallet.getBoundingClientRect();
+    f.style.left = `${r.left}px`;
+    f.style.top = `${r.bottom}px`;
+    uiRoot().append(f);
+    setTimeout(() => f.remove(), 1500);
   }
 
   setDistrict(name: string, announce: boolean) {

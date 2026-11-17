@@ -94,17 +94,26 @@ describe('town map v2 (OSM, real scale)', () => {
     }
   });
 
-  it('highways block walking but footbridges/flyovers cross them', () => {
-    let highway = 0, bridge = 0;
+  it('highways block walking but not vehicles; buildings block both', () => {
+    let highway = 0;
     for (let i = 0; i < map.terrain.length; i++) {
       if (map.terrain[i] === Tile.Highway) {
         highway++;
         expect(map.solid[i]).toBe(1);
+        expect(map.driveSolid[i]).toBe(0);
       }
-      if (map.terrain[i] === Tile.Bridge) bridge++;
+      if (map.terrain[i] === Tile.Building) expect(map.driveSolid[i]).toBe(1);
     }
     expect(highway).toBeGreaterThan(1000);
-    expect(bridge).toBeGreaterThan(0);
+  });
+
+  it('places every interactable on reachable ground', () => {
+    const seen = floodFromSpawn();
+    for (const it of map.interactables) {
+      const i = gridIndexAt(map, it.x * map.tileSize, it.y * map.tileSize);
+      expect(seen[i], it.id).toBe(1);
+    }
+    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
   });
 
   it('builds identical maps every time (client and server agree)', () => {

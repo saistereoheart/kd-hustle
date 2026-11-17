@@ -5,15 +5,65 @@ _Last updated: 2026-11-17_
 ## Status
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
-Phase 2 (money, jobs and the gacha core, with the first driveable vehicle) is next.
+**Phase 2 (money, jobs and the gacha core): done.** Phase 3 (progression: XP, levels, titles, Hustle Skills, potions,
+daily quests, HustlePhone, balance simulator) is next.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 43 unit tests (incl. map validator and emote state) |
-| `npm run e2e` (Playwright, 2 browsers: desktop 1920×1080 + phone 390×844) | ✅ passes on the dev server and on the production build |
+| `npm test` (Vitest) | ✅ 70 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, map, emotes) |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
 | Real phone on the LAN | ⏳ needs you (see below) |
+
+---
+
+## Phase 2: money, jobs and the gacha core
+
+### How to test it (PC + phone)
+1. `npm run dev`, then open the printed URL on the PC and the phone (see "How to test Phase 1" below for firewall/WiFi).
+2. You spawn on the Dataran Sunway sidewalk with **RM 300**, shown under your name (tap it for the exact amount).
+   Next to you are the **📋 Jobs Board**, **🎰 Capsule Machine** (Kedai Runcit), **🏪 Kedai Pajak Untung** (pawn shop),
+   and across the lane the **🧧 Lucky Bag Stall**. The **🎁 Mall Mystery Box** is at Piramid Mall (south, ~200 m).
+   Stand near one and press **E** (or the E button on the phone).
+3. **Roll crates:** the panel shows every tier's chance and "1 in X", the pity counters and the item pool
+   (silhouettes until found). Try ×1 (the reel) and ×5/×10 (the flip grid). Skip with the button.
+4. **🎒 Bag (B):** tap an item and press **Wear** (hats, glasses, auras, wings/capes, name colours). The other device
+   should see it on your character. The **Item Index** tab shows your collection; completing a crate's page pays
+   50× its price (Capsule: RM 1,000).
+5. **Kedai Pajak:** sell items (50% of value), scrap them into 💎 shards, or buy items you've discovered in the Shard Shop.
+6. **Jobs Board → Car Wash:** drag over every brown dirt spot before time runs out (mouse or finger).
+7. **Jobs Board → Delivery:** you hop on a kapcai. Follow the yellow arrow and marker to the shop (pickup is automatic
+   when you arrive), then to the home before the timer runs out for a tip. Roads are fast, grass is slow, highways are
+   rideable. Your friend sees you on the bike.
+8. **Admin test commands** (the first registered account is admin): in chat type
+   `/give me money 100000`, `/give me item halo rainbow`, `/give <name> shards 500`.
+   Use these to try the Mall Mystery Box and to see a **Legendary+ announcement** banner (Divine/Secret get a
+   fireworks takeover for everyone).
+9. Refresh: money, items, what you're wearing and pity counters are all kept (they're saved instantly on the server).
+
+### What was built
+- **Wallet** in integer sen, short format on the HUD, floating "+RM" on earnings. Every change is logged in a
+  `transactions` table inside one SQLite transaction; the in-memory player rolls back too if anything fails.
+- **Rarities + luck** (`shared/src/luck.ts`): 8 tiers at the spec's odds, luck multiplies Rare+ then renormalises,
+  sources multiply within a type and add across types, capped at 50×. Variants Shiny 1/20, Golden 1/100,
+  Rainbow 1/1000. Limited items get serial numbers ("Durian King Crown #2 of 5"; Tan Sri's Songkok is 1 of 1).
+- **3 crates** (`shared/config/crates.json`): Capsule Machine RM 20, Lucky Bag RM 150, Mall Mystery Box RM 1,500;
+  ×1/×5/×10; pity (Epic+ every 50, Legendary+ every 300; Mall box 40/250). Rolls use `crypto.randomInt` on the
+  server and only work when you're standing at the machine. Every roll is in `roll_log`; Legendary+ also in the server log.
+- **48 items** (`shared/config/items.json`), all drawn in code: 17 hats, 5 face items, 6 auras (particle effects),
+  6 back items (wings, cape, jetpack, backpack), 3 name colours, plus trinkets, furniture and boosters
+  (usable in later phases).
+- **The roll experience:** CS:GO reel with near misses and ticks, ×10 flip grid, rarity reveals (pop → purple flash
+  → gold burst + screen shake → Mythic+ darkened slow-mo with light rays), WebAudio sounds, server-wide banners,
+  and the Divine/Secret fireworks takeover.
+- **Equipping** (hat, face, aura, back, name colour) is visible to everyone; Golden/Rainbow/Shiny change the look.
+- **Item Index** with page rewards, **Kedai Pajak** (sell/scrap), **Shard Shop**.
+- **Jobs:** Delivery Rider (real shop door → real home door, distance-based pay, time tips, the **first driveable
+  vehicle**) and Car Wash Helper (server grades your raw strokes). Job levels raise pay by 8%/level.
+- **Vehicles:** the server checks bike speed against a separate "drivable" collision grid (highways yes,
+  buildings/water no). Flyovers are drivable; the client applies terrain speed (road 1.0×, grass 0.4×…).
+- **Admin `/give`** (spec §17) for testing.
 
 ---
 
@@ -186,6 +236,31 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 2**
+- **Luck is ×1 for now.** The formula and its tests exist; the sources (upgrades, potions, titles, events, index
+  rewards) arrive in Phase 3. **×5/×10 are available to everyone** until the Hustle Skills tree can unlock them.
+- **Crate places:** Capsule Machine at Kedai Runcit Pak Abu, Lucky Bag at a pasar malam stall on the grass verge
+  next to spawn (the real pasar malam comes with Phase 4), Mall Mystery Box at Piramid Mall.
+  You must stand within 8 tiles (16 m) to roll; the server checks.
+- **Spawn moved 4 tiles east** so the Jobs Board, Capsule Machine and pawn shop are all within reach.
+- **Each item belongs to exactly one crate.** Tiers a crate has no items for show "not in this crate" (0%), so
+  the advertised odds are exactly what can drop. Capsule has no Divine/Secret; Lucky Bag has no Secret.
+- **Item value = crate price × rarity factor × variant multiplier** (`rarities.json`). The pawn shop pays 50%, so the
+  expected pawn value of a roll is below its price (house edge; a unit test checks this for every crate).
+- **Item Index page reward = 50× crate price** (luck and title rewards in Phase 3).
+- **Shard Shop** sells only items you've discovered, Common to Epic, never limited ones. Limited (serial-numbered)
+  items can't be pawned or scrapped (they're trophies; trading comes in Phase 7).
+- **Money is saved instantly** in DB transactions (not by the 60 s autosave), so a crash never loses a roll or a sale.
+- **The delivery motorbike only exists during a delivery** (owning vehicles comes later). Bike speed 430 px/s
+  ≈ 27 m/s on roads. The timer starts at pickup; arriving early gives up to a 60% tip, late pays 70%.
+  Destinations are only doors a bike can actually reach.
+- **Announcements wait 4.2 s** so the roller's reel finishes before everyone else sees the banner.
+- **Trinkets, furniture and boosters** can be collected, sold and scrapped now; they become usable in their phases
+  (boosters in Phase 4 stalls, furniture in Phase 5 Airbnbs).
+- **Pets, outfits and emote packs** from the spec's crate highlights are deferred (pets need follow AI) and will join
+  the pools in later phases without changing the odds format.
+- `KH_TEST_ALL_ADMIN=1` makes every account an admin. It's only set by the automated tests, never in normal runs.
+
 **Phase 1.5**
 - **3× map size now (768×576 tiles at 2 m)** instead of 2×: at real scale the 2× map couldn't fit Surian MRT and the
   south of Dataran Sunway.
@@ -238,6 +313,12 @@ Simple options picked where the spec was open, per CLAUDE.md:
 16. **`?profile=<name>` URL param** keeps a separate login per tab (testing convenience).
 
 ## Known issues / limitations
+
+- **Phase 2:** the economy isn't balanced yet. Phase 3's simulator will tune job pay and prices against the spec's
+  pacing (Stage 2 in ~20 min). Right now a car wash pays ~RM 28–36 and a delivery ~RM 50–90.
+- **Phase 2:** only the desktop and phone browser tests have exercised the reel and car wash. Please try the
+  car wash with a finger on your phone and tell me if the dirt spots feel too small.
+- **Phase 2:** a delivery that's in progress is cancelled if you disconnect (you get off the bike, no pay).
 
 - **Phase 1.5:** chunk drawing is spread over frames (8 ms budget per frame), but on slow phones you may see the map
   fill in while walking fast. Tell me if it stutters and I'll move chunk drawing to a background worker.

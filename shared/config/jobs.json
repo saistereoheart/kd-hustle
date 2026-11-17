@@ -1,0 +1,28 @@
+{
+  "levelUpEvery": 5,
+  "maxLevel": 20,
+  "payPerLevel": 0.08,
+  "delivery": {
+    "name": "Food Delivery Rider",
+    "baseSen": 2500,
+    "perMeterSen": 8,
+    "minMeters": 120,
+    "maxMeters": 650,
+    "timeBudgetFactor": 1.6,
+    "timeBudgetSlackSec": 25,
+    "maxTip": 0.6,
+    "pickupRadiusTiles": 4,
+    "vehicle": "motorbike"
+  },
+  "carwash": {
+    "name": "Car Wash Helper",
+    "baseSen": 2800,
+    "timeLimitSec": 25,
+    "spots": 12,
+    "hitsPerSpot": 6,
+    "spotRadius": 0.07,
+    "maxPointsPerSec": 90,
+    "minCleanToPay": 0.3,
+    "speedBonus": 0.3
+  }
+}

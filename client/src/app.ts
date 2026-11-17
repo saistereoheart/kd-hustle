@@ -1,6 +1,14 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
-import { buildMap, randomAppearance, type Appearance, type BuiltMap, type InitPayload, type PublicConfig } from '@kh/shared';
+import { buildMap, randomAppearance, type Appearance, type BuiltMap, type CrateDef, type InitPayload, type ItemDef, type PublicConfig } from '@kh/shared';
+import { Store } from './state/store';
+import { showAnnouncement } from './ui/announce';
+import { openCratePanel } from './ui/cratePanel';
+import { openInventoryPanel } from './ui/inventoryPanel';
+import { DeliveryHud, openJobsPanel } from './ui/jobs';
+import { closePanel, isPanelOpen } from './ui/panel';
+import { openPawnPanel } from './ui/pawnPanel';
+import { sfx } from './ui/sound';
 import { Joystick } from './input/joystick';
 import { Keyboard } from './input/keyboard';
 import { clearToken, fetchPublicConfig, loadToken } from './net/api';
@@ -24,6 +32,11 @@ export class App {
   readonly keyboard = new Keyboard();
   readonly joystick: Joystick | null = this.touch ? new Joystick() : null;
   hud: Hud | null = null;
+  readonly store = new Store();
+  items = new Map<string, ItemDef>();
+  crates = new Map<string, CrateDef>();
+  cratesOfItem = new Map<string, CrateDef>();
+  jobHud: DeliveryHud | null = null;
   chat: Chat | null = null;
   minimap: Minimap | null = null;
   emotes: EmoteWheel | null = null;
@@ -49,6 +62,10 @@ export class App {
       return;
     }
     this.map = buildMap(this.cfg.map, this.cfg.terrain);
+    this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
+    this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
+    for (const c of this.cfg.crates.crates) for (const id of c.pool) this.cratesOfItem.set(id, c);
+    this.store.on(() => this.hud?.setWallet(this.store.walletSen, this.store.shards));
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
@@ -70,7 +87,7 @@ export class App {
   }
 
   inputVector() {
-    if (this.chat?.isOpen || this.creatorOpen || this.settings) return { x: 0, y: 0 };
+    if (this.chat?.isOpen || this.creatorOpen || this.settings || isPanelOpen() || document.querySelector('.reveal-overlay')) return { x: 0, y: 0 };
     const k = this.keyboard.vector();
     if (k.x || k.y) return k;
     return this.joystick?.vector() ?? { x: 0, y: 0 };
@@ -87,6 +104,7 @@ export class App {
     this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggle());
     this.keyboard.onPress('KeyE', () => inTown() && this.town?.interact());
     this.keyboard.onPress('Tab', () => inTown() && this.openSettings());
+    this.keyboard.onPress('KeyB', () => inTown() && !isPanelOpen() && openInventoryPanel(this));
     this.keyboard.onPress('Escape', () => {
       this.emotes?.close();
       this.minimap?.closeFull();
@@ -127,6 +145,23 @@ export class App {
       messageOverlay('Disconnected', reason, { label: 'Reload', onClick: () => location.reload() });
     });
     socket.on('init', (p) => this.onInit(p));
+    socket.on('wallet', (w) => {
+      const gained = w.walletSen - this.store.walletSen;
+      this.store.walletSen = w.walletSen;
+      this.store.shards = w.shards;
+      this.store.emit();
+      if (gained > 0) this.hud?.floatMoney(gained);
+    });
+    socket.on('inv:added', ({ items, index }) => {
+      this.store.addItems(items, index);
+      sfx.coin();
+    });
+    socket.on('job:update', ({ job, jobs }) => {
+      this.store.job = job;
+      this.store.jobs = jobs;
+      this.store.emit();
+    });
+    socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
     socket.on('saved', ({ at }) => {
       this.lastSavedAt = at;
       this.hud?.showSaved();
@@ -144,6 +179,7 @@ export class App {
 
   private onInit(p: InitPayload) {
     this.lastInit = p;
+    this.store.load(p.you);
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {
       this.leaveTown();
@@ -197,8 +233,11 @@ export class App {
         onMap: () => this.minimap?.openFull(),
         onSettings: () => this.openSettings(),
         onInteract: () => this.town?.interact(),
+        onBag: () => openInventoryPanel(this),
         attribution: this.map.attribution,
       });
+      this.hud.setWallet(this.store.walletSen, this.store.shards);
+      this.jobHud = new DeliveryHud(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
@@ -231,6 +270,13 @@ export class App {
     else this.socket.emit('emote', { emote: id });
   }
 
+  /** Open the UI for a crate machine / Jobs Board / pawn shop the player is standing at. */
+  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn'; crate?: string }) {
+    if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
+    else if (it.type === 'jobs') openJobsPanel(this);
+    else if (it.type === 'pawn') openPawnPanel(this);
+  }
+
   onTownReady(scene: TownScene) {
     this.town = scene;
   }
@@ -240,6 +286,9 @@ export class App {
     this.town = null;
     this.settings?.close();
     this.settings = null;
+    closePanel();
+    this.jobHud?.destroy();
+    this.jobHud = null;
     this.hud?.destroy();
     this.chat?.destroy();
     this.minimap?.destroy();

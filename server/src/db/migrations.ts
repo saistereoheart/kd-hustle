@@ -42,4 +42,67 @@ export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
     // invalidates old coordinates, players are moved to a safe spot on next login.
     sql: `ALTER TABLE players ADD COLUMN map_version INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    id: 3,
+    name: 'economy_inventory_gacha',
+    sql: `
+      ALTER TABLE players ADD COLUMN wallet_sen INTEGER NOT NULL DEFAULT 30000;
+      ALTER TABLE players ADD COLUMN shards INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN equipped_json TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE players ADD COLUMN pity_json TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE players ADD COLUMN jobs_json TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE players ADD COLUMN pages_json TEXT NOT NULL DEFAULT '[]';
+
+      CREATE TABLE inventory_items (
+        iid         INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        item_id     TEXT NOT NULL,
+        variant     TEXT NOT NULL,
+        serial      INTEGER,
+        obtained_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_inventory_account ON inventory_items(account_id);
+
+      CREATE TABLE collection_index (
+        account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        item_id        TEXT NOT NULL,
+        first_found_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, item_id)
+      );
+
+      -- Every roll is logged (CLAUDE.md asks for every Legendary+; all of them is cheap).
+      CREATE TABLE roll_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id INTEGER NOT NULL,
+        crate_id   TEXT NOT NULL,
+        item_id    TEXT NOT NULL,
+        tier       TEXT NOT NULL,
+        variant    TEXT NOT NULL,
+        serial     INTEGER,
+        rolled_at  INTEGER NOT NULL
+      );
+      CREATE INDEX idx_roll_item ON roll_log(item_id);
+      CREATE INDEX idx_roll_account ON roll_log(account_id, rolled_at);
+
+      -- Economy log: every change to a wallet or shard balance.
+      CREATE TABLE transactions (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id   INTEGER NOT NULL,
+        delta_sen    INTEGER NOT NULL,
+        balance_sen  INTEGER NOT NULL,
+        delta_shards INTEGER NOT NULL DEFAULT 0,
+        reason       TEXT NOT NULL,
+        ref          TEXT,
+        at           INTEGER NOT NULL
+      );
+      CREATE INDEX idx_tx_account ON transactions(account_id, at);
+
+      CREATE TABLE announcements (
+        id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        tier TEXT NOT NULL,
+        at   INTEGER NOT NULL
+      );
+    `,
+  },
 ];

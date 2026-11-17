@@ -20,6 +20,8 @@ export interface Dot {
   y: number;
   name: string;
   self?: boolean;
+  /** A job target (drawn as a gold ring). */
+  target?: boolean;
 }
 
 export class Minimap {
@@ -100,8 +102,8 @@ export class Minimap {
       const py = (dy - oy) * this.zoom;
       if (px < -4 || py < -4 || px > this.size.w + 4 || py > this.size.h + 4) continue;
       ctx.beginPath();
-      ctx.arc(px, py, d.self ? 4 : 3.2, 0, Math.PI * 2);
-      ctx.fillStyle = d.self ? '#ffe066' : '#ffffff';
+      ctx.arc(px, py, d.self ? 4 : d.target ? 5 : 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : '#ffffff';
       ctx.fill();
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#11131f';

@@ -1,16 +1,29 @@
 // A character in the world: baked spritesheet + nameplate + speech bubble + emotes.
 import Phaser from 'phaser';
-import { appearanceKey, type Appearance, type CharacterConfig, type Direction } from '@kh/shared';
+import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, walkFrames } from '../character/sheet';
-import type { View } from '../character/draw';
+import type { View, WornCosmetics } from '../character/draw';
+import { ensureBikeTextures } from '../items/vehicleArt';
+
+/** Turns equipped cosmetics into what the character renderer needs. */
+export function wornFrom(cos: Cosmetics, items: Map<string, ItemDef>): WornCosmetics {
+  const worn: WornCosmetics = {};
+  for (const slot of ['hat', 'face', 'back'] as const) {
+    const ref = cos[slot];
+    const def = ref ? items.get(ref.itemId) : undefined;
+    if (ref && def) worn[slot] = { shape: def.shape, paint: { c1: def.color, c2: def.color2 ?? def.color, variant: ref.variant } };
+  }
+  return worn;
+}
 
 const VIEW_OF: Record<Direction, View> = { down: 'front', up: 'back', left: 'side', right: 'side' };
 
 /** Creates (once) the texture + animations for an appearance. Returns the texture key. */
-export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: CharacterConfig): string {
-  const key = `char_${appearanceKey(a)}`;
+export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: CharacterConfig, worn: WornCosmetics = {}): string {
+  const wornKey = [worn.hat, worn.face, worn.back].map((w) => (w ? `${w.shape}.${w.paint.c1}.${w.paint.variant}` : '-')).join('|');
+  const key = `char_${appearanceKey(a)}_${appearanceKey({ wornKey } as unknown as Appearance)}`;
   if (scene.textures.exists(key)) return key;
-  const tex = scene.textures.addCanvas(key, renderSheet(a, cfg))!;
+  const tex = scene.textures.addCanvas(key, renderSheet(a, cfg, worn))!;
   for (let i = 0; i < FRAME_COUNT; i++) {
     tex.add(i, 0, (i % COLS) * FRAME_PX_W, Math.floor(i / COLS) * FRAME_PX_H, FRAME_PX_W, FRAME_PX_H);
   }
@@ -39,14 +52,29 @@ export class Avatar {
   private emoteId = '';
   private emoteLoopFx: Phaser.Time.TimerEvent | null = null;
   private fxAlive = 0;
+  private appearance: Appearance;
+  private cosmetics: Cosmetics = {};
+  private bike: Phaser.GameObjects.Image | null = null;
+  private auraFx: Phaser.Time.TimerEvent | null = null;
+  private auraGlow: Phaser.GameObjects.Ellipse | null = null;
+  private rainbowName = false;
+  private baseNameColor: string;
+  vehicle: string | null = null;
   dir: Direction = 'down';
   moving = false;
 
   constructor(
     private scene: Phaser.Scene,
     private cfg: CharacterConfig,
-    opts: { name: string; level: number; appearance: Appearance; x: number; y: number; isSelf: boolean },
+    private items: Map<string, ItemDef>,
+    opts: {
+      name: string; level: number; appearance: Appearance; x: number; y: number; isSelf: boolean;
+      cosmetics?: Cosmetics; vehicle?: string | null; particles?: boolean;
+    },
   ) {
+    this.appearance = opts.appearance;
+    this.baseNameColor = opts.isSelf ? '#ffe066' : '#ffffff';
+    this.particles = opts.particles ?? true;
     this.sprite = scene.add.sprite(0, 0, '__DEFAULT').setOrigin(0.5, ORIGIN_Y).setScale(1 / RES);
     this.nameText = scene.add
       .text(0, -66, opts.name, { ...TEXT_BASE, fontSize: '12px', fontStyle: 'bold', color: opts.isSelf ? '#ffe066' : '#ffffff', stroke: '#11131f', strokeThickness: 3 })
@@ -56,8 +84,95 @@ export class Avatar {
       .setOrigin(1, 1);
     this.container = scene.add.container(opts.x, opts.y, [this.sprite, this.badge, this.nameText]);
     this.layoutNameplate();
+    this.cosmetics = opts.cosmetics ?? {};
     this.setAppearance(opts.appearance);
+    this.applyCosmeticExtras();
+    this.setVehicle(opts.vehicle ?? null);
     this.setPosition(opts.x, opts.y);
+  }
+
+  private particles: boolean;
+
+  /** Equip changes: rebake the sprite (hat/face/back) and restart aura/name colour. */
+  setCosmetics(cos: Cosmetics) {
+    this.cosmetics = cos;
+    this.setAppearance(this.appearance);
+    this.applyCosmeticExtras();
+  }
+
+  private applyCosmeticExtras() {
+    // Name colour
+    const nc = this.cosmetics.namecolor ? this.items.get(this.cosmetics.namecolor.itemId) : undefined;
+    this.rainbowName = !!nc && (nc.id === 'rainbow_name' || this.cosmetics.namecolor?.variant === 'rainbow');
+    const color = !nc ? this.baseNameColor : this.cosmetics.namecolor?.variant === 'golden' ? '#fcc419' : nc.color;
+    this.nameText.setColor(color);
+    // Aura
+    this.auraFx?.remove();
+    this.auraFx = null;
+    this.auraGlow?.destroy();
+    this.auraGlow = null;
+    const aura = this.cosmetics.aura ? this.items.get(this.cosmetics.aura.itemId) : undefined;
+    if (!aura) return;
+    const variant = this.cosmetics.aura!.variant;
+    const col = Phaser.Display.Color.HexStringToColor(variant === 'golden' ? '#fcc419' : aura.color).color;
+    this.auraGlow = this.scene.add.ellipse(0, -2, 46, 16, col, 0.35);
+    this.container.addAt(this.auraGlow, 0);
+    this.scene.tweens.add({ targets: this.auraGlow, alpha: { from: 0.2, to: 0.5 }, scaleX: { from: 0.9, to: 1.1 }, duration: 900, yoyo: true, repeat: -1 });
+    if (!this.particles) return;
+    this.auraFx = this.scene.time.addEvent({ delay: aura.shape === 'flame' ? 160 : 320, loop: true, callback: () => this.auraParticle(aura, variant) });
+  }
+
+  private auraParticle(aura: ItemDef, variant: string) {
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    const hue = variant === 'rainbow' ? Phaser.Display.Color.HSVToRGB(Math.random(), 0.7, 1).color : undefined;
+    const col = hue ?? Phaser.Display.Color.HexStringToColor(variant === 'golden' ? '#fcc419' : aura.color).color;
+    const col2 = aura.color2 ? Phaser.Display.Color.HexStringToColor(aura.color2).color : 0xffffff;
+    switch (aura.shape) {
+      case 'bubbles': {
+        const b = this.scene.add.circle(rnd(-16, 16), rnd(-10, 0), rnd(2, 4), col, 0.25).setStrokeStyle(1, 0xffffff, 0.8);
+        this.fx(b, { y: rnd(-60, -40), alpha: { from: 0.9, to: 0 }, duration: 1600, ease: 'Sine.easeOut' });
+        break;
+      }
+      case 'flame': {
+        const f = this.scene.add.triangle(rnd(-14, 14), 0, 0, 8, 4, 0, 8, 8, Math.random() < 0.5 ? col : 0xffd43b, 0.85);
+        this.fx(f, { y: rnd(-36, -24), scaleY: 1.8, alpha: { from: 0.9, to: 0 }, duration: 700 });
+        break;
+      }
+      case 'hearts': {
+        const h = this.glyph('♥', '#' + col.toString(16).padStart(6, '0'), rnd(-16, 16), rnd(-30, -10), 11);
+        this.fx(h, { y: '-=26', alpha: { from: 1, to: 0 }, duration: 1300 });
+        break;
+      }
+      case 'naga': {
+        const a0 = Math.random() * Math.PI * 2;
+        const d = this.scene.add.circle(Math.cos(a0) * 20, -20 + Math.sin(a0) * 8, 2.5, Math.random() < 0.5 ? col : col2, 0.95);
+        this.fx(d, { x: Math.cos(a0 + 2) * 20, y: -34 + Math.sin(a0 + 2) * 8, alpha: { from: 1, to: 0 }, duration: 1100 });
+        break;
+      }
+      case 'sparkle': {
+        const g = this.glyph('✦', '#fff3bf', rnd(-20, 20), rnd(-56, -6), 10);
+        this.fx(g, { scale: { from: 0.4, to: 1.3 }, alpha: { from: 1, to: 0 }, duration: 900 });
+        break;
+      }
+      default: {
+        const g = this.scene.add.circle(rnd(-18, 18), rnd(-40, -4), 1.6, col, 0.9);
+        this.fx(g, { y: '-=14', alpha: { from: 0.9, to: 0 }, duration: 1000 });
+      }
+    }
+  }
+
+  /** Hop on/off a vehicle (the delivery motorbike). */
+  setVehicle(v: string | null) {
+    this.vehicle = v;
+    this.bike?.destroy();
+    this.bike = null;
+    if (v) {
+      ensureBikeTextures(this.scene);
+      this.bike = this.scene.add.image(0, 2, 'bike_side').setOrigin(0.5, 36 / 40).setScale(0.5);
+      this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
+    }
+    this.sprite.setY(v ? -9 : 0);
+    this.applyAnim(true);
   }
 
   private layoutNameplate() {
@@ -67,7 +182,8 @@ export class Avatar {
   }
 
   setAppearance(a: Appearance) {
-    this.texKey = ensureCharacterTexture(this.scene, a, this.cfg);
+    this.appearance = a;
+    this.texKey = ensureCharacterTexture(this.scene, a, this.cfg, wornFrom(this.cosmetics, this.items));
     this.sprite.setTexture(this.texKey, 0);
     this.emoteUntil = 0;
     this.applyAnim(true);
@@ -99,14 +215,30 @@ export class Avatar {
   /** Called every frame: ends emotes when their time is up. */
   tick(now: number) {
     if (this.emoteUntil && now > this.emoteUntil) this.stopEmote();
+    if (this.rainbowName) {
+      const c = Phaser.Display.Color.HSVToRGB((now / 2500) % 1, 0.65, 1) as Phaser.Types.Display.ColorObject;
+      this.nameText.setColor(Phaser.Display.Color.RGBToString(c.r, c.g, c.b));
+    }
   }
 
   private applyAnim(force = false) {
     let key: string;
-    if (this.emoteUntil) key = `${this.texKey}:emote_${this.emoteId}`;
-    else key = `${this.texKey}:${this.moving ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
+    if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
+    // On a bike the legs don't walk: use the idle frames for the riding pose.
+    else key = `${this.texKey}:${this.moving && !this.vehicle ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
     this.sprite.setFlipX(!this.emoteUntil && this.dir === 'right');
+    if (this.bike) {
+      const view = VIEW_OF[this.dir];
+      this.bike.setTexture(view === 'side' ? 'bike_side' : view === 'front' ? 'bike_front' : 'bike_back');
+      this.bike.setFlipX(this.dir === 'right');
+      // Seen from behind, the bike is in front of the rider.
+      this.container.moveTo(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);
+    }
     if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
+  }
+
+  get currentCosmetics() {
+    return this.cosmetics;
   }
 
   get currentEmote() {
@@ -251,6 +383,7 @@ export class Avatar {
 
   destroy() {
     this.emoteLoopFx?.remove();
+    this.auraFx?.remove();
     this.bubbleTimer?.remove();
     this.container.destroy(true);
   }

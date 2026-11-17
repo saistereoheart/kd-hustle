@@ -1,0 +1,5 @@
+{
+  "vehicles": {
+    "motorbike": { "name": "Kapcai Motorbike", "speed": 430, "hitbox": { "w": 18, "h": 12 } }
+  }
+}

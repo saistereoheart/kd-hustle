@@ -145,6 +145,25 @@ function drawDecor(ctx: Ctx, id: number) {
       ctx.fillRect(-9, -3, 18, 6);
       ctx.restore();
       break;
+    case Decor.Stall: {
+      // pasar malam stall: table + striped canopy
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(3, 26, 28, 4);
+      ctx.fillStyle = '#8d5a33';
+      ctx.fillRect(4, 18, 24, 8);
+      ctx.fillStyle = '#adb5bd';
+      ctx.fillRect(4, 6, 2, 20);
+      ctx.fillRect(26, 6, 2, 20);
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = i % 2 ? '#ffffff' : '#e03131';
+        ctx.fillRect(2 + i * 4.7, 3, 4.7, 7);
+      }
+      ctx.fillStyle = '#f59f00';
+      ctx.fillRect(8, 14, 6, 4);
+      ctx.fillStyle = '#e03131';
+      ctx.fillRect(16, 14, 6, 4);
+      break;
+    }
     case Decor.BusStop:
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.fillRect(3, 24, 28, 4);
@@ -162,7 +181,7 @@ function drawDecor(ctx: Ctx, id: number) {
 /** Sprite index in the decor sheet for each decor id. */
 export const DECOR_SPRITE: Record<number, number> = {
   [Decor.Bush]: 0, [Decor.Lamp]: 1, [Decor.Bench]: 2, [Decor.Flowers]: 3, [Decor.Fountain]: 4,
-  [Decor.JobsBoard]: 5, [Decor.Lookout]: 6, [Decor.BusStop]: 7,
+  [Decor.JobsBoard]: 5, [Decor.Lookout]: 6, [Decor.BusStop]: 7, [Decor.Stall]: 8,
 };
 
 /** One row of 64 px decor sprites. */

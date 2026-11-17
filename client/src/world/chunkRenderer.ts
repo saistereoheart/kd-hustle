@@ -772,7 +772,7 @@ export class ChunkRenderer {
         if (!d || CANOPY_DECOR.has(d)) continue;
         const spr = DECOR_SPRITE[d];
         if (spr === undefined) continue;
-        const size = d === Decor.Fountain ? 4 : d === Decor.JobsBoard || d === Decor.BusStop ? 2 : 1;
+        const size = d === Decor.Fountain ? 4 : d === Decor.Stall ? 3 : d === Decor.JobsBoard || d === Decor.BusStop ? 2 : 1;
         g.drawImage(this.decorSprites, spr * 64, 0, 64, 64, tx + 0.5 - size / 2, ty + 0.5 - size / 2, size, size);
       }
     }

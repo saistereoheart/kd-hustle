@@ -6,6 +6,10 @@ import type { ZodType } from 'zod';
 import {
   authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
   osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
+  cratesConfigSchema, economyConfigSchema, itemsConfigSchema, jobsConfigSchema, raritiesConfigSchema, validateEconomyConfigs,
+  vehiclesConfigSchema,
+  type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
+  type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
   type NetConfig, type PublicConfig, type SaveConfig, type TerrainConfig,
 } from '@kh/shared';
@@ -20,6 +24,16 @@ export interface ServerConfig {
   terrain: TerrainConfig;
   mapSource: MapSource;
   map: BuiltMap;
+  rarities: RaritiesConfig;
+  items: ItemsConfig;
+  crates: CratesConfig;
+  economy: EconomyConfig;
+  jobs: JobsConfig;
+  vehicles: VehiclesConfig;
+  /** Lookups built from the configs above. */
+  itemById: Map<string, ItemDef>;
+  crateById: Map<string, CrateDef>;
+  crateOfItem: Map<string, CrateDef>;
 }
 
 function readJson<T>(file: string, schema: ZodType<T>): T {
@@ -46,7 +60,23 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     overrides: JSON.parse(fs.readFileSync(path.join(mapDir, 'town.overrides.json'), 'utf8')),
   };
   readJson(path.join(mapDir, 'town.overrides.json'), overridesSchema); // validate
+  const rarities = readJson(j('rarities.json'), raritiesConfigSchema);
+  const items = readJson(j('items.json'), itemsConfigSchema);
+  const crates = readJson(j('crates.json'), cratesConfigSchema);
+  const problems = validateEconomyConfigs(rarities, items, crates);
+  if (problems.length) throw new Error(`Invalid economy config:\n  - ${problems.slice(0, 8).join('\n  - ')}`);
+  const crateOfItem = new Map<string, CrateDef>();
+  for (const c of crates.crates) for (const id of c.pool) crateOfItem.set(id, c);
   return {
+    rarities,
+    items,
+    crates,
+    economy: readJson(j('economy.json'), economyConfigSchema),
+    jobs: readJson(j('jobs.json'), jobsConfigSchema),
+    vehicles: readJson(j('vehicles.json'), vehiclesConfigSchema),
+    itemById: new Map(items.items.map((i) => [i.id, i])),
+    crateById: new Map(crates.crates.map((c) => [c.id, c])),
+    crateOfItem,
     character: readJson(j('character.json'), characterConfigSchema),
     movement: readJson(j('movement.json'), movementConfigSchema),
     net: readJson(j('net.json'), netConfigSchema),
@@ -69,5 +99,11 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     auth: { username: cfg.auth.username, passwordMin: cfg.auth.passwordMin, passwordMax: cfg.auth.passwordMax },
     terrain: cfg.terrain,
     map: cfg.mapSource,
+    rarities: cfg.rarities,
+    items: cfg.items,
+    crates: cfg.crates,
+    economy: cfg.economy,
+    jobs: cfg.jobs,
+    vehicles: cfg.vehicles,
   };
 }

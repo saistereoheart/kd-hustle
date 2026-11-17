@@ -41,6 +41,7 @@ async function main() {
     adminUsername: process.env.ADMIN_USERNAME?.trim() || undefined,
     spawn: cfg.map.spawnPx,
     mapVersion: cfg.map.overrides.version,
+    startingWalletSen: cfg.economy.startingWalletSen,
   });
   const world = new World();
   const saves = new SaveManager(repos, world);

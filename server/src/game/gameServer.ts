@@ -16,6 +16,7 @@ import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
 import { EmoteSystem } from '../systems/emotes/emotes';
+import { attachEconomy } from './economyHandlers';
 import type { OnlinePlayer, World } from './world';
 
 interface SocketData {
@@ -38,6 +39,9 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   const chat = new ChatHistory(cfg.chat.historySize);
   const chatLimiter = new RateLimiter(cfg.chat.rateLimit.count, cfg.chat.rateLimit.windowMs);
   const emotes = new EmoteSystem(cfg.chat);
+  const economy = attachEconomy(io, { cfg, repos, world, chat });
+  // Test-only switch so automated tests can use admin commands with throwaway accounts.
+  const allAdmin = process.env.KH_TEST_ALL_ADMIN === '1';
   const spawn = cfg.map.spawnPx;
 
   // --- auth handshake -------------------------------------------------------------
@@ -98,7 +102,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       p = {
         id: acc.id,
         name: acc.username,
-        isAdmin: acc.isAdmin,
+        isAdmin: acc.isAdmin || allAdmin,
         socketId: socket.id,
         appearance: rec.appearance,
         hasCharacter: rec.hasCharacter,
@@ -112,7 +116,19 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         mapVersion: cfg.map.overrides.version,
         move: newMoveState(x, y, Date.now(), cfg.movement),
         emote: null,
+        walletSen: 0,
+        shards: 0,
+        inventory: [],
+        equipped: {},
+        cosmetics: {},
+        index: new Set(),
+        pages: new Set(),
+        pity: {},
+        jobs: {},
+        job: null,
+        vehicle: null,
       };
+      economy.loadInto(p);
       world.add(p);
       if (p.hasCharacter) socket.to(p.scene).emit('player:joined', world.toPublic(p));
       log.info(`${p.name} connected (${world.players.size} online)`);
@@ -121,6 +137,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     const me = p;
     void socket.join(me.scene);
     socket.emit('init', buildInit(me));
+    economy.register(socket, me);
 
     // --- character creator ----------------------------------------------------------
     socket.on('character:save', (msg, ack) => {
@@ -149,7 +166,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const parsed = C2S.move.safeParse(msg);
       if (!parsed.success) return;
       const m = parsed.data;
-      const verdict = validateMove(me.move, m.x, m.y, Date.now(), cfg.map, cfg.movement);
+      const rules = economy.moveRules(me); // walking or riding a vehicle
+      const verdict = validateMove(me.move, m.x, m.y, Date.now(), rules.grid, rules.movement);
       if (!verdict.ok) {
         me.moving = false;
         socket.emit('move:correct', { x: me.move.x, y: me.move.y, seq: m.seq });
@@ -172,6 +190,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       if (!chatLimiter.hit(String(me.id))) return reply({ ok: false, error: 'Slow down a bit!' });
       const text = sanitizeChat(parsed.data.text, cfg.chat.maxLength);
       if (!text) return reply({ ok: false, error: 'Empty message' });
+      const commandReply = economy.chatCommand(me, text);
+      if (commandReply !== null) {
+        socket.emit('chat:msg', { id: -Date.now(), fromId: null, fromName: 'Server', text: commandReply, t: Date.now(), system: true });
+        return reply({ ok: true });
+      }
       const m = chat.add({ fromId: me.id, fromName: me.name, text });
       io.to(me.scene).emit('chat:msg', m);
       reply({ ok: true });
@@ -200,6 +223,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     socket.on('disconnect', () => {
       const current = world.get(me.id);
       if (!current || current.socketId !== socket.id) return; // replaced by a newer connection
+      if (current.job) economy.cancelJob(current); // gets them off the job's vehicle too
       try {
         saves.saveNow(current); // save trigger 3
       } catch (err) {

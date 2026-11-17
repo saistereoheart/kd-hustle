@@ -1,0 +1,20 @@
+{
+  "tiers": [
+    { "id": "common", "name": "Common", "color": "#adb5bd", "weight": 55000, "valueFactor": 0.3, "shards": 1, "announce": false },
+    { "id": "uncommon", "name": "Uncommon", "color": "#51cf66", "weight": 25000, "valueFactor": 0.6, "shards": 3, "announce": false },
+    { "id": "rare", "name": "Rare", "color": "#339af0", "weight": 12000, "valueFactor": 1.2, "shards": 8, "announce": false },
+    { "id": "epic", "name": "Epic", "color": "#9c36b5", "weight": 5500, "valueFactor": 3, "shards": 25, "announce": false },
+    { "id": "legendary", "name": "Legendary", "color": "#fcc419", "weight": 2000, "valueFactor": 10, "shards": 100, "announce": true },
+    { "id": "mythic", "name": "Mythic", "color": "#f06595", "weight": 450, "valueFactor": 50, "shards": 500, "announce": true },
+    { "id": "divine", "name": "Divine", "color": "#fff3bf", "weight": 49, "valueFactor": 400, "shards": 3000, "announce": true },
+    { "id": "secret", "name": "Secret", "color": "#212529", "weight": 1, "valueFactor": 5000, "shards": 20000, "announce": true }
+  ],
+  "luckAffectsFrom": "rare",
+  "maxLuck": 50,
+  "variants": [
+    { "id": "normal", "name": "Normal", "oneIn": 1, "valueMult": 1 },
+    { "id": "shiny", "name": "Shiny", "oneIn": 20, "valueMult": 2 },
+    { "id": "golden", "name": "Golden", "oneIn": 100, "valueMult": 5 },
+    { "id": "rainbow", "name": "Rainbow", "oneIn": 1000, "valueMult": 25 }
+  ]
+}

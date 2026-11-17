@@ -3,7 +3,15 @@
 // can be swapped and recoloured from the appearance JSON. Three views are drawn:
 // front (walking down), back (walking up) and side (walking left; right = mirrored).
 import type { Appearance, CharacterConfig } from '@kh/shared';
+import { drawBack, drawFace, drawHat, FLATTENING_HATS, type Paint } from '../items/itemArt';
 import { CAP_VOLUME, HAIR_STYLES, type HairStyle } from './hairStyles';
+
+/** Gacha cosmetics worn on top of the base look (baked into the spritesheet). */
+export interface WornCosmetics {
+  hat?: { shape: string; paint: Paint };
+  face?: { shape: string; paint: Paint };
+  back?: { shape: string; paint: Paint };
+}
 
 export type View = 'front' | 'back' | 'side';
 
@@ -107,7 +115,7 @@ interface M {
   browColor: string;
 }
 
-function metrics(a: Appearance, cfg: CharacterConfig): M {
+function metrics(a: Appearance, cfg: CharacterConfig, worn?: WornCosmetics): M {
   const hs = cfg.heights.find((h) => h.id === a.height)?.scale ?? 1;
   const bw = cfg.builds.find((b) => b.id === a.build)?.width ?? 1;
   const legLen = 11 * hs;
@@ -116,7 +124,9 @@ function metrics(a: Appearance, cfg: CharacterConfig): M {
   const shoulderY = hipY - torsoLen;
   const cover = cfg.headwear.find((h) => h.id === a.headwear)?.coversHair ?? false;
   let hair = HAIR_STYLES[a.hair] ?? HAIR_STYLES.crew;
-  const hatted = !cover && a.headwear !== 'none';
+  // A cosmetic hat replaces a cap/beanie/songkok (but sits on top of a tudung).
+  const cosHat = worn?.hat;
+  const hatted = !cover && (cosHat ? FLATTENING_HATS.has(cosHat.shape) : a.headwear !== 'none');
   if (hatted) {
     // Under a hat the hair is "flattened": nothing pokes through the crown, but fringe,
     // side hair and anything hanging below the hat still shows.
@@ -1344,7 +1354,7 @@ function drawTudungFront(ctx: Ctx, m: M, view: View) {
   if (m.a.headwear === 'tudung_bawal') ellipse(ctx, CX + m.rx - 1, cy + 8, 0.9, 0.9, '#f2c94c');
 }
 
-function drawHat(ctx: Ctx, m: M, view: View) {
+function drawHeadwearHat(ctx: Ctx, m: M, view: View) {
   const id = m.a.headwear;
   const c = m.a.headwearColor;
   const dk = shade(c, -0.3);
@@ -1479,8 +1489,36 @@ function drawHeadSide(ctx: Ctx, m: M, p: Pose) {
 }
 
 // ---------------------------------------------------------------- frame
-export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: Pose) {
-  const m = metrics(a, cfg);
+/** Puts a worn hat at the top of the head (on the hair, tudung or flattened hair). */
+function wornHat(ctx: Ctx, m: M, worn: WornCosmetics | undefined, view: View) {
+  if (!worn?.hat) return;
+  const flat = FLATTENING_HATS.has(worn.hat.shape);
+  const vol = m.cover ? 3 : CAP_VOLUME[m.hair.cap];
+  const y = m.headCY - m.ry - (flat ? Math.min(vol, 2) - 2.5 : vol - 1);
+  ctx.save();
+  ctx.translate(view === 'side' ? CX + 1 : CX, y);
+  const w = m.rx + (flat ? Math.min(vol, 3) : 0.5);
+  if (view === 'side') ctx.scale(0.88, 1);
+  drawHat(ctx, worn.hat.shape, worn.hat.paint, w);
+  ctx.restore();
+}
+function wornFace(ctx: Ctx, m: M, worn: WornCosmetics | undefined, view: View) {
+  if (!worn?.face) return;
+  ctx.save();
+  ctx.translate(CX, m.headCY + 1);
+  drawFace(ctx, worn.face.shape, worn.face.paint, view);
+  ctx.restore();
+}
+function wornBack(ctx: Ctx, m: M, worn: WornCosmetics | undefined, view: View, layer: 'behind' | 'front') {
+  if (!worn?.back) return;
+  ctx.save();
+  ctx.translate(CX, m.shoulderY + 1);
+  drawBack(ctx, worn.back.shape, worn.back.paint, view, layer, m.hipY - m.shoulderY);
+  ctx.restore();
+}
+
+export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: Pose, worn?: WornCosmetics) {
+  const m = metrics(a, cfg, worn);
   ctx.save();
   // ground shadow (doesn't bob)
   ellipse(ctx, CX, FEET_Y, (p.sit ? 14 : 12) * m.bw, 3.4, 'rgba(0,0,0,0.22)');
@@ -1492,9 +1530,10 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
   }
   const shoulderX = m.bodyW / 2 - 1.2;
   const sy = m.shoulderY + 2.5;
-  const isHat = a.headwear !== 'none' && !m.cover;
+  const isHat = a.headwear !== 'none' && !m.cover && !worn?.hat;
 
   if (p.view === 'side') {
+    wornBack(ctx, m, worn, 'side', 'behind');
     if (!m.cover) drawHairBackLayer(ctx, m, 'side');
     drawArm(ctx, m, CX + 1, sy, -1, (p.armR ?? 0) * -1, -(p.bendR ?? 0), -0.18);
     drawLegSide(ctx, m, p.legR ?? 0, false);
@@ -1507,22 +1546,28 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
     if (!m.cover) drawHairSide(ctx, m);
     else drawTudungFront(ctx, m, 'side');
     drawGlasses(ctx, a.glasses, CX, m.headCY + 1, 'side');
-    if (isHat) drawHat(ctx, m, 'side');
+    wornFace(ctx, m, worn, 'side');
+    if (isHat) drawHeadwearHat(ctx, m, 'side');
+    wornHat(ctx, m, worn, 'side');
+    wornBack(ctx, m, worn, 'side', 'front');
     drawArm(ctx, m, CX + 1, sy, -1, p.armL ?? 0, p.bendL ?? 0, 0);
   } else if (p.view === 'back') {
     drawLegsFrontBack(ctx, m, p);
     drawTorso(ctx, m, 'back');
     drawArm(ctx, m, CX - shoulderX, sy, -1, 0.12 + (p.armL ?? 0), p.bendL ?? 0, 0);
     drawArm(ctx, m, CX + shoulderX, sy, 1, 0.12 + (p.armR ?? 0), p.bendR ?? 0, 0);
+    wornBack(ctx, m, worn, 'back', 'front');
     if (m.cover) {
       drawTudungHead(ctx, m, 'back');
       drawTudungDrape(ctx, m, 'back');
     } else {
       drawHeadBack(ctx, m);
       drawHairBackView(ctx, m);
-      if (isHat) drawHat(ctx, m, 'back');
+      if (isHat) drawHeadwearHat(ctx, m, 'back');
     }
+    wornHat(ctx, m, worn, 'back');
   } else {
+    wornBack(ctx, m, worn, 'front', 'behind');
     if (!m.cover) drawHairBackLayer(ctx, m, 'front');
     drawLegsFrontBack(ctx, m, p);
     drawTorso(ctx, m, 'front');
@@ -1534,12 +1579,15 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
     const armR = () => drawArm(ctx, m, CX + shoulderX, sy, 1, 0.12 + (p.armR ?? 0), p.bendR ?? 0, 0);
     if (!raisedL) armL();
     if (!raisedR) armR();
+    wornBack(ctx, m, worn, 'front', 'front');
     if (m.cover) drawTudungHead(ctx, m, 'front');
     drawHeadFront(ctx, m, p);
     if (!m.cover) drawHairFront(ctx, m);
     else drawTudungFront(ctx, m, 'front');
     drawGlasses(ctx, a.glasses, CX, m.headCY + 1, 'front');
-    if (isHat) drawHat(ctx, m, 'front');
+    wornFace(ctx, m, worn, 'front');
+    if (isHat) drawHeadwearHat(ctx, m, 'front');
+    wornHat(ctx, m, worn, 'front');
     if (raisedL) armL();
     if (raisedR) armR();
   }

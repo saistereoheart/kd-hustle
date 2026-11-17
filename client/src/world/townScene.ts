@@ -3,8 +3,8 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision,
-  type BuiltBuilding, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
+  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, TERRAIN_NAMES, formatMoney,
+  type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
@@ -43,6 +43,10 @@ export class TownScene extends Phaser.Scene {
   private districtId = '';
   private doorIndex = new Map<number, BuiltBuilding>();
   private nearBuilding: BuiltBuilding | null = null;
+  private nearInteract: BuiltMap['interactables'][number] | null = null;
+  private marker: Phaser.GameObjects.Container | null = null;
+  private driveGrid!: BuiltMap;
+  private vehicleSpeedByTerrain: number[] = [];
   private offs: Array<() => void> = [];
 
   constructor() {
@@ -80,7 +84,14 @@ export class TownScene extends Phaser.Scene {
     const you = this.initData.you;
     this.pos = { x: you.x, y: you.y };
     this.dir = you.dir;
-    this.me = new Avatar(this, cfg.character, { name: you.name, level: you.level, appearance: you.appearance, x: you.x, y: you.y, isSelf: true });
+    const particles = loadPrefs().particles;
+    this.me = new Avatar(this, cfg.character, this.app.items, {
+      name: you.name, level: you.level, appearance: you.appearance, x: you.x, y: you.y, isSelf: true,
+      cosmetics: you.cosmetics, vehicle: you.vehicle, particles,
+    });
+    this.driveGrid = { ...map, solid: map.driveSolid };
+    this.vehicleSpeedByTerrain = TERRAIN_NAMES.map((n) => cfg.terrain.terrains[n]?.vehicle ?? 0);
+    this.createInteractableLabels();
     this.me.setState(you.dir, false);
     for (const p of this.initData.players) this.addRemote(p);
 
@@ -116,9 +127,12 @@ export class TownScene extends Phaser.Scene {
       this.remotes.get(id)?.avatar.destroy();
       this.remotes.delete(id);
     });
-    on('player:updated', ({ id, appearance }) => {
-      if (id === this.selfId) this.me.setAppearance(appearance);
-      else this.remotes.get(id)?.avatar.setAppearance(appearance);
+    on('player:updated', ({ id, appearance, cosmetics, vehicle }) => {
+      const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
+      if (!av) return;
+      if (cosmetics) av.setCosmetics(cosmetics);
+      if (appearance) av.setAppearance(appearance);
+      if (vehicle !== undefined) av.setVehicle(vehicle);
     });
     on('snapshot', (s: SnapshotPayload) => this.onSnapshot(s));
     on('move:correct', ({ x, y }) => {
@@ -161,7 +175,10 @@ export class TownScene extends Phaser.Scene {
 
   private addRemote(p: PlayerPublic) {
     if (this.remotes.has(p.id)) return;
-    const avatar = new Avatar(this, this.app.cfg.character, { name: p.name, level: p.level, appearance: p.appearance, x: p.x, y: p.y, isSelf: false });
+    const avatar = new Avatar(this, this.app.cfg.character, this.app.items, {
+      name: p.name, level: p.level, appearance: p.appearance, x: p.x, y: p.y, isSelf: false,
+      cosmetics: p.cosmetics, vehicle: p.vehicle, particles: loadPrefs().particles,
+    });
     avatar.setState(p.dir, p.moving);
     // Someone who was already sitting/sleeping/dancing when we joined.
     const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
@@ -182,6 +199,10 @@ export class TownScene extends Phaser.Scene {
 
   /** Called by the HUD's interact button / E key. */
   interact() {
+    if (this.nearInteract) {
+      this.app.openInteractable(this.nearInteract);
+      return;
+    }
     const b = this.nearBuilding;
     if (!b) {
       toast('Nothing to interact with here.');
@@ -205,8 +226,17 @@ export class TownScene extends Phaser.Scene {
     const moving = len > 0.01;
     if (moving) {
       this.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up';
-      const speed = cfg.movement.walkSpeed;
-      this.pos = moveWithCollision(map, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
+      const v = this.me.vehicle ? cfg.vehicles.vehicles[this.me.vehicle] : undefined;
+      if (v) {
+        // Riding: road speed × the terrain's vehicle multiplier (grass is slow, roads are fast).
+        const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
+        const mult = i >= 0 ? Math.max(0.2, this.vehicleSpeedByTerrain[map.terrain[i]] ?? 0.4) : 0.4;
+        const speed = v.speed * mult;
+        this.pos = moveWithCollision(this.driveGrid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
+      } else {
+        const speed = cfg.movement.walkSpeed;
+        this.pos = moveWithCollision(map, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
+      }
       this.me.setPosition(this.pos.x, this.pos.y);
     }
     if (moving && !this.moving && this.me.currentEmote) this.app.onOwnEmote(null); // walking ends our emote
@@ -255,12 +285,36 @@ export class TownScene extends Phaser.Scene {
       const tx = Math.floor(this.pos.x / map.tileSize);
       const ty = Math.floor((this.pos.y - 4) / map.tileSize);
       const b = this.doorIndex.get(gridIndexAt(map, this.pos.x, this.pos.y - 4)) ?? null;
-      if (b !== this.nearBuilding) {
-        this.nearBuilding = b;
-        this.app.hud?.setPrompt(b ? `Enter ${b.name ?? (b.kind === 'terrace' || b.kind === 'semid' || b.kind === 'bungalow' ? 'house' : 'shop')}` : null, this.app.touch);
+      // Interactables (crates, Jobs Board, pawn shop) take priority over plain doors.
+      const radius = cfg.economy.interactRadiusTiles - 1;
+      let it: (typeof map.interactables)[number] | null = null;
+      let best = radius;
+      for (const c of map.interactables) {
+        const d = Math.hypot(this.pos.x / map.tileSize - c.x, this.pos.y / map.tileSize - c.y);
+        if (d < best) {
+          best = d;
+          it = c;
+        }
       }
+      if (it !== this.nearInteract || b !== this.nearBuilding) {
+        this.nearInteract = it;
+        this.nearBuilding = b;
+        let prompt: string | null = null;
+        if (it) {
+          const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
+          prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
+        } else if (b) prompt = `Enter ${b.name ?? (b.kind === 'terrace' || b.kind === 'semid' || b.kind === 'bungalow' ? 'house' : 'shop')}`;
+        this.app.hud?.setPrompt(prompt, this.app.touch);
+      }
+      // Delivery target marker + objective HUD.
+      const job = this.app.store.job;
+      const target = job?.kind === 'delivery' ? (job.stage === 'pickup' ? job.pickup : job.dropoff) : null;
+      this.updateMarker(target);
+      const cam = this.cameras.main;
+      this.app.jobHud?.update(this.pos.x, this.pos.y, { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom, cx: cam.width / 2, cy: cam.height / 2 });
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
+        ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
         ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.name })),
       ]);
       this.districtAcc += 150;
@@ -275,6 +329,45 @@ export class TownScene extends Phaser.Scene {
     }
   }
 
+  /** Camera shake for big rolls (0..1). */
+  shake(intensity: number) {
+    this.cameras.main.shake(250 + intensity * 450, 0.004 + intensity * 0.012);
+  }
+
+  /** Floating labels above crate machines, the Jobs Board and the pawn shop. */
+  private createInteractableLabels() {
+    const T = this.app.map.tileSize;
+    const icon: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰' };
+    for (const it of this.app.map.interactables) {
+      const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
+      const label = this.add
+        .text(it.x * T, it.y * T - 40, `${it.crate === 'luckybag' ? '🧧' : it.crate === 'mallbox' ? '🎁' : icon[it.type]} ${it.name}${crate ? `
+${formatMoney(crate.priceSen)}` : ''}`, {
+          fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#ffe066', stroke: '#11131f', strokeThickness: 4, align: 'center', resolution: 2,
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(999_000);
+      this.tweens.add({ targets: label, y: label.y - 5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+  }
+
+  private updateMarker(target: { x: number; y: number } | null) {
+    const T = this.app.map.tileSize;
+    if (!target) {
+      this.marker?.destroy();
+      this.marker = null;
+      return;
+    }
+    if (!this.marker) {
+      const ring = this.add.circle(0, 0, 34, 0xffd43b, 0.18).setStrokeStyle(3, 0xffd43b, 0.9);
+      const arrow = this.add.text(0, -40, '⬇', { fontSize: '28px', color: '#ffd43b', stroke: '#11131f', strokeThickness: 4 }).setOrigin(0.5, 1);
+      this.marker = this.add.container(0, 0, [ring, arrow]).setDepth(999_500);
+      this.tweens.add({ targets: arrow, y: -54, duration: 500, yoyo: true, repeat: -1 });
+      this.tweens.add({ targets: ring, scale: 1.25, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
+    }
+    this.marker.setPosition(target.x * T, target.y * T);
+  }
+
   // --- debug/test helpers ---
   debugSelf() {
     return { id: this.selfId, x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving, chunks: this.mapView.chunkCount };
@@ -284,6 +377,6 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.centerOn(tx * this.app.map.tileSize, ty * this.app.map.tileSize);
   }
   debugRemotes() {
-    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y, emote: r.avatar.currentEmote }));
+    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y, emote: r.avatar.currentEmote, cosmetics: r.avatar.currentCosmetics, vehicle: r.avatar.vehicle }));
   }
 }

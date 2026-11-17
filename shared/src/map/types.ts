@@ -31,7 +31,10 @@ export const BUILDING_KINDS = [
 ] as const;
 export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
-export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop'] as const;
+export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop', 'stall'] as const;
+
+export const INTERACT_TYPES = ['crate', 'jobs', 'pawn'] as const;
+export type InteractType = (typeof INTERACT_TYPES)[number];
 
 // ------------------------------------------------------------- generated OSM data
 export const osmRoadSchema = z.object({
@@ -98,6 +101,21 @@ export const overridesSchema = z.object({
   /** Extra footpaths/bridges to fix connectivity where OSM has gaps. */
   paths: z.array(z.object({ kind: z.enum(['footway', 'bridge']), width: z.number().positive().default(1.5), pts: z.array(pointSchema).min(2) })),
   decor: z.array(z.object({ kind: z.enum(DECOR_KINDS), x: z.number(), y: z.number() })),
+  /** Things players can use: crate machines, the Jobs Board, the pawn shop. Either at a
+   *  building's door (building = OSM id) or at a point (x, y in tiles). */
+  interactables: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.enum(INTERACT_TYPES),
+        name: z.string(),
+        crate: z.string().optional(),
+        building: z.string().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+      }),
+    )
+    .default([]),
 });
 export type MapOverrides = z.input<typeof overridesSchema>;
 export type ParsedOverrides = z.output<typeof overridesSchema>;

@@ -1,53 +1,286 @@
 {
   "version": 2,
-  "origin": { "lat": 3.15494, "lon": 101.597374, "label": "Menara Mitraland" },
+  "origin": {
+    "lat": 3.15494,
+    "lon": 101.597374,
+    "label": "Menara Mitraland"
+  },
   "metersPerTile": 2,
   "tileSize": 32,
-  "bounds": [-488, -197, 768, 576],
-  "osmFetchBbox": { "south": 3.1465, "west": 101.5872, "north": 3.16, "east": 101.604 },
-  "spawn": [-236, 120],
+  "bounds": [
+    -488,
+    -197,
+    768,
+    576
+  ],
+  "osmFetchBbox": {
+    "south": 3.1465,
+    "west": 101.5872,
+    "north": 3.16,
+    "east": 101.604
+  },
+  "spawn": [
+    -232,
+    120
+  ],
   "districts": [
-    { "id": "mitraland", "name": "Mitraland", "rect": [-88, -110, 128, 390], "color": "#7048e8", "label": [-24, 120] },
-    { "id": "the_strand", "name": "The Strand", "rect": [-352, -97, 264, 166], "color": "#e64980" },
-    { "id": "dataran_sunway", "name": "Dataran Sunway", "rect": [-352, 69, 264, 214], "color": "#f59f00" },
-    { "id": "surian", "name": "Surian MRT & Ayu Mall", "rect": [-488, 283, 400, 96], "color": "#5c7cfa", "label": [-250, 300] },
-    { "id": "taman_kota", "name": "Taman Kota", "rect": [-488, -97, 136, 380], "color": "#37b24d" },
-    { "id": "kd_utara", "name": "Gugusan Dedap", "rect": [-488, -197, 528, 100], "color": "#2b8a3e" },
-    { "id": "pju3", "name": "PJU 3 & Palm Spring", "rect": [40, -197, 240, 576], "color": "#1c7ed6" },
-    { "id": "kota_damansara", "name": "Kota Damansara", "rect": [-488, -197, 768, 576], "color": "#868e96" }
+    {
+      "id": "mitraland",
+      "name": "Mitraland",
+      "rect": [
+        -88,
+        -110,
+        128,
+        390
+      ],
+      "color": "#7048e8",
+      "label": [
+        -24,
+        120
+      ]
+    },
+    {
+      "id": "the_strand",
+      "name": "The Strand",
+      "rect": [
+        -352,
+        -97,
+        264,
+        166
+      ],
+      "color": "#e64980"
+    },
+    {
+      "id": "dataran_sunway",
+      "name": "Dataran Sunway",
+      "rect": [
+        -352,
+        69,
+        264,
+        214
+      ],
+      "color": "#f59f00"
+    },
+    {
+      "id": "surian",
+      "name": "Surian MRT & Ayu Mall",
+      "rect": [
+        -488,
+        283,
+        400,
+        96
+      ],
+      "color": "#5c7cfa",
+      "label": [
+        -250,
+        300
+      ]
+    },
+    {
+      "id": "taman_kota",
+      "name": "Taman Kota",
+      "rect": [
+        -488,
+        -97,
+        136,
+        380
+      ],
+      "color": "#37b24d"
+    },
+    {
+      "id": "kd_utara",
+      "name": "Gugusan Dedap",
+      "rect": [
+        -488,
+        -197,
+        528,
+        100
+      ],
+      "color": "#2b8a3e"
+    },
+    {
+      "id": "pju3",
+      "name": "PJU 3 & Palm Spring",
+      "rect": [
+        40,
+        -197,
+        240,
+        576
+      ],
+      "color": "#1c7ed6"
+    },
+    {
+      "id": "kota_damansara",
+      "name": "Kota Damansara",
+      "rect": [
+        -488,
+        -197,
+        768,
+        576
+      ],
+      "color": "#868e96"
+    }
   ],
   "buildings": {
-    "w1030583397": { "name": "Menara Mitraland", "kind": "tower" },
-    "w1030583395": { "name": "Mitraland Podium", "kind": "mall" },
-    "w366614388": { "name": "Gergasi Hypermarket", "kind": "hypermarket" },
-    "w328914587": { "name": "The Strand Mall", "kind": "mall" },
-    "w1133434276": { "name": "The Strand Residence", "kind": "tower" },
-    "w467995024": { "name": "Lucky Strand Casino", "kind": "casino" },
-    "w366614398": { "name": "Piramid Mall", "kind": "mall" },
-    "w405821357": { "name": "Sunrise Medical Centre", "kind": "hospital" },
-    "w782818185": { "name": "Ayu Mall Damansara", "kind": "mall" },
-    "w457131687": { "name": "Surian MRT" },
-    "w1275938527": { "name": "Bank Kota", "kind": "bank" },
-    "w1275938588": { "name": "Kedai Runcit Pak Abu", "kind": "shop" },
-    "w1041326146": { "name": "The Cascades", "kind": "office" },
-    "w366614394": { "name": "Kota Bazaar", "kind": "mall" },
-    "w724658243": { "name": "Gudang Trade City", "kind": "mall" },
-    "w607053390": { "name": "Ant Palms A", "kind": "condo" },
-    "w607053391": { "name": "Ant Palms B", "kind": "condo" },
-    "w607053392": { "name": "Ant Palms C", "kind": "condo" },
-    "w607053393": { "name": "Ant Palms D", "kind": "condo" },
-    "w607053394": { "name": "Ant Palms E", "kind": "condo" },
-    "w607053395": { "name": "Ant Palms F", "kind": "condo" }
+    "w1030583397": {
+      "name": "Menara Mitraland",
+      "kind": "tower"
+    },
+    "w1030583395": {
+      "name": "Mitraland Podium",
+      "kind": "mall"
+    },
+    "w366614388": {
+      "name": "Gergasi Hypermarket",
+      "kind": "hypermarket"
+    },
+    "w328914587": {
+      "name": "The Strand Mall",
+      "kind": "mall"
+    },
+    "w1133434276": {
+      "name": "The Strand Residence",
+      "kind": "tower"
+    },
+    "w467995024": {
+      "name": "Lucky Strand Casino",
+      "kind": "casino"
+    },
+    "w366614398": {
+      "name": "Piramid Mall",
+      "kind": "mall"
+    },
+    "w405821357": {
+      "name": "Sunrise Medical Centre",
+      "kind": "hospital"
+    },
+    "w782818185": {
+      "name": "Ayu Mall Damansara",
+      "kind": "mall"
+    },
+    "w457131687": {
+      "name": "Surian MRT"
+    },
+    "w1275938527": {
+      "name": "Bank Kota",
+      "kind": "bank"
+    },
+    "w1275938588": {
+      "name": "Kedai Runcit Pak Abu",
+      "kind": "shop"
+    },
+    "w1041326146": {
+      "name": "The Cascades",
+      "kind": "office"
+    },
+    "w366614394": {
+      "name": "Kota Bazaar",
+      "kind": "mall"
+    },
+    "w724658243": {
+      "name": "Gudang Trade City",
+      "kind": "mall"
+    },
+    "w607053390": {
+      "name": "Ant Palms A",
+      "kind": "condo"
+    },
+    "w607053391": {
+      "name": "Ant Palms B",
+      "kind": "condo"
+    },
+    "w607053392": {
+      "name": "Ant Palms C",
+      "kind": "condo"
+    },
+    "w607053393": {
+      "name": "Ant Palms D",
+      "kind": "condo"
+    },
+    "w607053394": {
+      "name": "Ant Palms E",
+      "kind": "condo"
+    },
+    "w607053395": {
+      "name": "Ant Palms F",
+      "kind": "condo"
+    },
+    "w1275938587": {
+      "name": "Kedai Pajak Untung",
+      "kind": "shop"
+    }
   },
   "areas": [
-    { "id": "w467991765", "name": "KD Driving Range" },
-    { "id": "w181539680", "name": "Kolam Takungan Sungai Rumput" },
-    { "id": "r18161241", "name": "Taman Kota" },
-    { "id": "w1076614545", "name": "Tasik Mitraland" }
+    {
+      "id": "w467991765",
+      "name": "KD Driving Range"
+    },
+    {
+      "id": "w181539680",
+      "name": "Kolam Takungan Sungai Rumput"
+    },
+    {
+      "id": "r18161241",
+      "name": "Taman Kota"
+    },
+    {
+      "id": "w1076614545",
+      "name": "Tasik Mitraland"
+    }
   ],
   "paths": [],
   "decor": [
-    { "kind": "jobsboard", "x": -232, "y": 117 },
-    { "kind": "busstop", "x": -210, "y": 290 }
+    {
+      "kind": "jobsboard",
+      "x": -232,
+      "y": 117
+    },
+    {
+      "kind": "busstop",
+      "x": -210,
+      "y": 290
+    },
+    {
+      "kind": "stall",
+      "x": -218,
+      "y": 115
+    }
+  ],
+  "interactables": [
+    {
+      "id": "jobsboard",
+      "type": "jobs",
+      "name": "Jobs Board",
+      "x": -231.5,
+      "y": 118
+    },
+    {
+      "id": "capsule_machine",
+      "type": "crate",
+      "name": "Capsule Machine",
+      "crate": "capsule",
+      "building": "w1275938588"
+    },
+    {
+      "id": "luckybag_stall",
+      "type": "crate",
+      "name": "Lucky Bag Stall",
+      "crate": "luckybag",
+      "x": -217.5,
+      "y": 116.5
+    },
+    {
+      "id": "mallbox_counter",
+      "type": "crate",
+      "name": "Mall Mystery Box",
+      "crate": "mallbox",
+      "building": "w366614398"
+    },
+    {
+      "id": "kedai_pajak",
+      "type": "pawn",
+      "name": "Kedai Pajak Untung",
+      "building": "w1275938587"
+    }
   ]
 }

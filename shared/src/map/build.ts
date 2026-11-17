@@ -23,7 +23,7 @@ export const TERRAIN_NAMES = [
 
 /** Decor ids (0 = none). Visual only, never solid. Trees are drawn above characters. */
 export const Decor = {
-  None: 0, Tree: 1, Palm: 2, Bush: 3, Lamp: 4, Bench: 5, Flowers: 6, Fountain: 10, Pine: 11, JobsBoard: 12, Lookout: 13, BusStop: 14,
+  None: 0, Tree: 1, Palm: 2, Bush: 3, Lamp: 4, Bench: 5, Flowers: 6, Fountain: 10, Pine: 11, JobsBoard: 12, Lookout: 13, BusStop: 14, Stall: 15,
 } as const;
 export const CANOPY_DECOR: ReadonlySet<number> = new Set([Decor.Tree, Decor.Palm, Decor.Pine]);
 
@@ -70,7 +70,10 @@ export interface BuiltMap {
   originTx: number;
   originTy: number;
   terrain: Uint8Array;
+  /** Blocked for walking. */
   solid: Uint8Array;
+  /** Blocked for vehicles (highways are drivable, footbridges and grass-only paths are not). */
+  driveSolid: Uint8Array;
   decor: Uint8Array;
   roads: BuiltRoad[];
   paths: Array<{ id: string; kind: string; bridge: boolean; width: number; pts: number[]; bbox: Box }>;
@@ -81,6 +84,8 @@ export interface BuiltMap {
   crossings: Array<{ x: number; y: number; angle: number; width: number }>;
   overrides: ParsedOverrides;
   attribution: string;
+  /** Resolved interactables: where players stand to use them (tile coords of the spot). */
+  interactables: Array<{ id: string; type: 'crate' | 'jobs' | 'pawn'; name: string; crate?: string; x: number; y: number }>;
   /** Spawn point in world pixels (feet). */
   spawnPx: { x: number; y: number };
 }
@@ -209,7 +214,7 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   // (walkable); elsewhere it's overhead and doesn't affect the ground.
   for (const r of roads)
     if (r.elevated && r.cls !== 'highway')
-      stampLine(r.pts, r.width / 2 + r.sidewalk, setIf(Tile.Bridge, (c) => c === Tile.Highway || c === Tile.Water));
+      stampLine(r.pts, r.width / 2 + r.sidewalk, setIf(Tile.Road, (c) => c === Tile.Highway || c === Tile.Water));
 
   // ------------------------------------------------------------ footpaths + bridges
   const paths: BuiltMap['paths'] = data.paths.map((p) => ({ ...p, width: p.kind === 'pedestrian' ? 3 : 1.2, bbox: boxOf(p.pts, 2) }));
@@ -287,8 +292,13 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
 
   // ------------------------------------------------------------ solidity
   const walkByTerrain = TERRAIN_NAMES.map((n) => terrainCfg.terrains[n]?.walk ?? 1);
+  const driveByTerrain = TERRAIN_NAMES.map((n) => terrainCfg.terrains[n]?.vehicle ?? 0);
   const solid = new Uint8Array(W * H);
-  for (let i = 0; i < terrain.length; i++) solid[i] = walkByTerrain[terrain[i]] > 0 ? 0 : 1;
+  const driveSolid = new Uint8Array(W * H);
+  for (let i = 0; i < terrain.length; i++) {
+    solid[i] = walkByTerrain[terrain[i]] > 0 ? 0 : 1;
+    driveSolid[i] = driveByTerrain[terrain[i]] > 0 ? 0 : 1;
+  }
 
   // ------------------------------------------------------------ doors
   // Use an OSM entrance if there is one, else the wall facing the nearest road.
@@ -356,14 +366,30 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
       else if (t === Tile.Sidewalk) decor[i] = tx % 12 === 0 || ty % 12 === 0 ? (h < 0.22 ? Decor.Lamp : 0) : 0;
     }
   }
-  const DECOR_IDS: Record<string, number> = { fountain: Decor.Fountain, jobsboard: Decor.JobsBoard, lookout: Decor.Lookout, busstop: Decor.BusStop };
+  const DECOR_IDS: Record<string, number> = { fountain: Decor.Fountain, jobsboard: Decor.JobsBoard, lookout: Decor.Lookout, busstop: Decor.BusStop, stall: Decor.Stall };
   for (const d of ov.decor) {
     const ii = idx(Math.floor(d.x), Math.floor(d.y));
     if (ii >= 0) decor[ii] = DECOR_IDS[d.kind];
   }
 
+  // Interactables: at a building's door front, or at an explicit point.
+  const interactables: BuiltMap['interactables'] = [];
+  for (const it of ov.interactables) {
+    let x = it.x, y = it.y;
+    if (it.building) {
+      const b = builtBuildings.find((bb) => bb.id === it.building);
+      if (!b?.door) continue;
+      x = b.door.frontX + 0.5;
+      y = b.door.frontY + 0.5;
+    }
+    if (x === undefined || y === undefined) continue;
+    interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y });
+  }
+
   const T = ov.tileSize;
   return {
+    interactables,
+    driveSolid,
     width: W,
     height: H,
     tileSize: T,

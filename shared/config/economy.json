@@ -1,0 +1,9 @@
+{
+  "startingWalletSen": 30000,
+  "pawnRate": 0.5,
+  "shardShopPrices": { "common": 10, "uncommon": 30, "rare": 90, "epic": 300 },
+  "indexPageRewardMultiplier": 50,
+  "interactRadiusTiles": 8,
+  "rollRateLimit": { "count": 10, "windowMs": 1000 },
+  "announceDelayMs": 4200
+}

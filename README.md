@@ -4,7 +4,7 @@ A browser-based **LAN multiplayer 2D social RNG tycoon** set in a cartoon city i
 Hustle from RM 300 to billions: roll crates for rare cosmetics and items, cook at your own pasar malam stall,
 buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), and flex on friends on the same WiFi.
 
-> 🚧 Work in progress: **Phase 1 (foundation) is done.** See [`docs/PROGRESS.md`](docs/PROGRESS.md) for status,
+> 🚧 Work in progress: **Phases 1, 1.5 and 2 are done** (town, characters, money, jobs, crates). See [`docs/PROGRESS.md`](docs/PROGRESS.md) for status,
 > decisions and a step-by-step test guide.
 
 ## What works now (Phase 1)
@@ -14,9 +14,12 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
   Sunway, Mitraland, Surian MRT, PJU 3 / Palm Spring, with real roads, lanes and building footprints
 - Walk around with friends (keyboard or touch joystick), see each other in real time, chat with speech bubbles, emotes
 - Minimap + full map, district banners, saving (autosave every 60 s, on logout/disconnect/shutdown) and DB backups
+- Money in RM, two starter jobs (food delivery on a kapcai motorbike, car wash), 3 gacha crates with visible odds,
+  a CS:GO-style reel, 48 collectable items, cosmetics everyone can see, pity, rare-pull announcements, Item Index,
+  pawn shop and Shard Shop
 
 ## Features (planned)
-- Gacha crates with 8 rarity tiers, variants, luck upgrades, pity and server-wide rare-pull announcements
+- More crates (up to the Tan Sri Diamond Vault), luck upgrades and potions, levels, titles and quests
 - Step-by-step cooking mini-games (Nasi Lemak, Teh Tarik, Roti Canai…) or passive income with staff
 - Buy property: long-term rent or Airbnb with a Sims-style decorate mode and a star rating
 - Shops, businesses, bank loans, a casino, trading, a marketplace, titles, levels and rebirth

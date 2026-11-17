@@ -1,7 +1,13 @@
-// In-memory state of everyone currently connected. The DB is only touched by the
-// SaveManager; gameplay reads/writes these objects and flags them dirty.
-import type { Appearance, Direction, PlayerPublic, SelfState } from '@kh/shared';
+// In-memory state of everyone currently connected. Gameplay reads/writes these objects;
+// position/appearance are persisted by the SaveManager, while money, items and other economy
+// state are written to the DB immediately inside transactions (see systems/economy).
+import type {
+  Appearance, Cosmetics, Direction, EquipSlot, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, SelfState,
+} from '@kh/shared';
 import type { MoveState } from '../systems/movement/moveValidator';
+
+/** Server-side job state: what the client sees plus private grading data. */
+export type ServerJob = JobState & { budgetMs?: number };
 
 export interface OnlinePlayer {
   id: number;
@@ -15,13 +21,27 @@ export interface OnlinePlayer {
   y: number;
   dir: Direction;
   moving: boolean;
-  /** Changed since the last save? */
+  /** Changed since the last save? (position/appearance) */
   dirty: boolean;
   lastSavedAt: number | null;
   mapVersion: number;
   move: MoveState;
   /** Continuous emote currently playing (see systems/emotes). */
   emote: string | null;
+
+  // --- economy (Phase 2) ---
+  walletSen: number;
+  shards: number;
+  inventory: InventoryItem[];
+  equipped: Partial<Record<EquipSlot, number>>;
+  /** What other players see equipped (derived from `equipped` + inventory). */
+  cosmetics: Cosmetics;
+  index: Set<string>;
+  pages: Set<string>;
+  pity: Record<string, PityState>;
+  jobs: Record<string, JobProgress>;
+  job: ServerJob | null;
+  vehicle: string | null;
 }
 
 export class World {
@@ -29,6 +49,11 @@ export class World {
 
   get(id: number) {
     return this.players.get(id);
+  }
+
+  byName(name: string) {
+    const lower = name.toLowerCase();
+    return [...this.players.values()].find((p) => p.name.toLowerCase() === lower);
   }
 
   add(p: OnlinePlayer) {
@@ -60,10 +85,30 @@ export class World {
       level: 1, // levels arrive in Phase 3
       title: null,
       emote: p.emote,
+      cosmetics: p.cosmetics,
+      vehicle: p.vehicle,
     };
   }
 
   toSelf(p: OnlinePlayer): SelfState {
-    return { ...this.toPublic(p), isAdmin: p.isAdmin, lastSavedAt: p.lastSavedAt };
+    let job: JobState | null = null;
+    if (p.job) {
+      const { budgetMs: _hidden, ...rest } = p.job;
+      job = rest as JobState;
+    }
+    return {
+      ...this.toPublic(p),
+      isAdmin: p.isAdmin,
+      lastSavedAt: p.lastSavedAt,
+      walletSen: p.walletSen,
+      shards: p.shards,
+      inventory: p.inventory,
+      equipped: p.equipped,
+      index: [...p.index],
+      pagesClaimed: [...p.pages],
+      pity: p.pity,
+      jobs: p.jobs,
+      job,
+    };
   }
 }
