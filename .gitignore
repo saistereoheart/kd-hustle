@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+client/dist/
+server/dist/
+*.tsbuildinfo
+
+# Game data (player accounts, password hashes, saves) — never commit
+server/data/
+server/backups/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Claude Code local settings (personal); project settings.json is fine to share
+.claude/settings.local.json
+
+# Map reference screenshots (Google Maps imagery can't be redistributed)
+docs/reference/*
+!docs/reference/.gitkeep
+
+# Test artifacts
+test-results/
+playwright-report/

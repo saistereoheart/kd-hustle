@@ -1,0 +1,5 @@
+{
+  "autosaveIntervalMs": 60000,
+  "backupIntervalMs": 21600000,
+  "backupsToKeep": 14
+}

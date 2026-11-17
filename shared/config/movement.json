@@ -1,0 +1,8 @@
+{
+  "walkSpeed": 170,
+  "speedTolerance": 1.3,
+  "slackPx": 24,
+  "maxBudgetSeconds": 0.6,
+  "hitbox": { "w": 16, "h": 10 },
+  "sendRateHz": 15
+}

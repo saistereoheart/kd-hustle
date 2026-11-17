@@ -1,0 +1,37 @@
+{
+  "name": "kota-hustle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based LAN multiplayer 2D social RNG tycoon set in a cartoon Kota Damansara.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client",
+    "scripts"
+  ],
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development tsx watch --clear-screen=false server/src/index.ts",
+    "build": "npm run build -w client && npm run build -w server",
+    "start": "cross-env NODE_ENV=production node server/dist/index.js",
+    "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p client --noEmit && tsc -p scripts --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "sim": "tsx scripts/balance-sim.ts",
+    "backup": "tsx scripts/backup.ts",
+    "seed": "tsx scripts/seed-dev.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "cross-env": "^10.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

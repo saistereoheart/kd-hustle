@@ -1,0 +1,153 @@
+{
+  "skinTones": [
+    "#fde7d3", "#f9d7b9", "#f3c9a1", "#ecb98c", "#e0a676", "#d29466",
+    "#c18257", "#a96d47", "#91593a", "#7a4a31", "#623a27", "#4b2c1f"
+  ],
+  "faceShapes": [
+    { "id": "round", "name": "Round" },
+    { "id": "oval", "name": "Oval" },
+    { "id": "square", "name": "Square" },
+    { "id": "heart", "name": "Heart" },
+    { "id": "long", "name": "Long" },
+    { "id": "diamond", "name": "Diamond" }
+  ],
+  "heights": [
+    { "id": "short", "name": "Short", "scale": 0.86 },
+    { "id": "medium", "name": "Medium", "scale": 1.0 },
+    { "id": "tall", "name": "Tall", "scale": 1.14 }
+  ],
+  "builds": [
+    { "id": "slim", "name": "Slim", "width": 0.86 },
+    { "id": "regular", "name": "Regular", "width": 1.0 },
+    { "id": "broad", "name": "Broad", "width": 1.18 }
+  ],
+  "eyes": [
+    { "id": "round", "name": "Round" },
+    { "id": "dot", "name": "Dot" },
+    { "id": "happy", "name": "Happy" },
+    { "id": "sleepy", "name": "Sleepy" },
+    { "id": "wide", "name": "Wide" },
+    { "id": "almond", "name": "Almond" },
+    { "id": "cat", "name": "Cat-eye" },
+    { "id": "sparkle", "name": "Sparkle" },
+    { "id": "wink", "name": "Wink" },
+    { "id": "lashes", "name": "Lashes" }
+  ],
+  "eyebrows": [
+    { "id": "straight", "name": "Straight" },
+    { "id": "arched", "name": "Arched" },
+    { "id": "thick", "name": "Thick" },
+    { "id": "thin", "name": "Thin" },
+    { "id": "angry", "name": "Fierce" },
+    { "id": "worried", "name": "Worried" }
+  ],
+  "noses": [
+    { "id": "dot", "name": "Dot" },
+    { "id": "button", "name": "Button" },
+    { "id": "line", "name": "Line" },
+    { "id": "round", "name": "Round" },
+    { "id": "pointy", "name": "Pointy" },
+    { "id": "wide", "name": "Wide" }
+  ],
+  "mouths": [
+    { "id": "neutral", "name": "Neutral" },
+    { "id": "smile", "name": "Smile" },
+    { "id": "grin", "name": "Grin" },
+    { "id": "smirk", "name": "Smirk" },
+    { "id": "open", "name": "Surprised" },
+    { "id": "cat", "name": "Cat :3" },
+    { "id": "tongue", "name": "Cheeky" },
+    { "id": "pout", "name": "Pout" }
+  ],
+  "glasses": [
+    { "id": "none", "name": "None" },
+    { "id": "round", "name": "Round" },
+    { "id": "square", "name": "Square" },
+    { "id": "aviator", "name": "Aviator" },
+    { "id": "cateye", "name": "Cat-eye" },
+    { "id": "shades", "name": "Sunglasses" }
+  ],
+  "hair": [
+    { "id": "bald", "name": "Bald" },
+    { "id": "crew", "name": "Crew cut" },
+    { "id": "buzz", "name": "Buzz" },
+    { "id": "spiky", "name": "Spiky" },
+    { "id": "sidepart", "name": "Side part" },
+    { "id": "quiff", "name": "Quiff" },
+    { "id": "undercut", "name": "Undercut" },
+    { "id": "mohawk", "name": "Mohawk" },
+    { "id": "afro", "name": "Afro" },
+    { "id": "curly", "name": "Short curly" },
+    { "id": "curtain", "name": "Curtain bangs" },
+    { "id": "messy", "name": "Messy fringe" },
+    { "id": "mullet", "name": "Mullet" },
+    { "id": "wolf", "name": "Wolf cut" },
+    { "id": "bob", "name": "Bob" },
+    { "id": "wavy", "name": "Wavy mid" },
+    { "id": "long", "name": "Long straight" },
+    { "id": "longwavy", "name": "Long wavy" },
+    { "id": "ponytail", "name": "Ponytail" },
+    { "id": "bun", "name": "High bun" },
+    { "id": "topknot", "name": "Top knot" },
+    { "id": "pigtails", "name": "Pigtails" },
+    { "id": "braid", "name": "Braid" }
+  ],
+  "headwear": [
+    { "id": "none", "name": "None", "coversHair": false },
+    { "id": "tudung_bawal", "name": "Tudung bawal", "coversHair": true },
+    { "id": "tudung_sarung", "name": "Tudung sarung", "coversHair": true },
+    { "id": "tudung_shawl", "name": "Shawl", "coversHair": true },
+    { "id": "tudung_sport", "name": "Sport hijab", "coversHair": true },
+    { "id": "cap", "name": "Cap", "coversHair": false },
+    { "id": "cap_back", "name": "Backwards cap", "coversHair": false },
+    { "id": "beanie", "name": "Beanie", "coversHair": false },
+    { "id": "songkok", "name": "Songkok", "coversHair": false }
+  ],
+  "facialHair": [
+    { "id": "none", "name": "None" },
+    { "id": "stubble", "name": "Stubble" },
+    { "id": "moustache", "name": "Moustache" },
+    { "id": "goatee", "name": "Goatee" },
+    { "id": "beard", "name": "Full beard" },
+    { "id": "chinstrap", "name": "Chin strap" },
+    { "id": "handlebar", "name": "Handlebar" }
+  ],
+  "tops": [
+    { "id": "tshirt", "name": "T-shirt" },
+    { "id": "polo", "name": "Polo" },
+    { "id": "hoodie", "name": "Hoodie" },
+    { "id": "kemeja", "name": "Kemeja" },
+    { "id": "blazer", "name": "Blazer" },
+    { "id": "jersey", "name": "Jersey" },
+    { "id": "kurung", "name": "Baju kurung" },
+    { "id": "melayu", "name": "Baju melayu" },
+    { "id": "tank", "name": "Tank top" }
+  ],
+  "bottoms": [
+    { "id": "jeans", "name": "Jeans" },
+    { "id": "shorts", "name": "Shorts" },
+    { "id": "slacks", "name": "Slacks" },
+    { "id": "skirt", "name": "Skirt" },
+    { "id": "sarong", "name": "Sarong" },
+    { "id": "joggers", "name": "Joggers" }
+  ],
+  "shoes": [
+    { "id": "sneakers", "name": "Sneakers" },
+    { "id": "selipar", "name": "Selipar" },
+    { "id": "boots", "name": "Boots" },
+    { "id": "loafers", "name": "Loafers" },
+    { "id": "heels", "name": "Heels" }
+  ],
+  "palettes": {
+    "hair": [
+      "#1f1a17", "#3b2a20", "#5a3c28", "#7b5134", "#a0703f", "#c99a5b", "#e6c68a",
+      "#b8b8b8", "#f2f2f2", "#8f2d2d", "#d0542b", "#e86aa6", "#7b4fd6", "#2f6fdb", "#2aa876"
+    ],
+    "eyes": ["#3b2414", "#6b4423", "#2d6a4f", "#3a6ea5", "#7d7d7d", "#1b1b1b", "#8e44ad", "#c0392b"],
+    "clothes": [
+      "#ffffff", "#1f1f24", "#e63946", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#457b9d",
+      "#a8dadc", "#6d597a", "#b56576", "#ffafcc", "#8ac926", "#3a86ff", "#ff7f11", "#8d6e63",
+      "#c9b79c", "#0b6e4f"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@kh/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^13.2.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "maxLength": 140,
+  "historySize": 50,
+  "bubbleMs": 5000,
+  "rateLimit": { "count": 5, "windowMs": 5000 },
+  "emoteCooldownMs": 1200,
+  "emotes": [
+    { "id": "wave", "name": "Wave", "emoji": "👋" },
+    { "id": "dance", "name": "Dance", "emoji": "💃" },
+    { "id": "cry", "name": "Cry", "emoji": "😭" },
+    { "id": "flex", "name": "Flex", "emoji": "💪" },
+    { "id": "laugh", "name": "Laugh", "emoji": "😂" }
+  ]
+}
