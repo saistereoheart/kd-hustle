@@ -84,7 +84,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   /** Is the player standing at an interactable of this type (and crate)? */
   const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn' | 'carwash' | 'market', crate?: string) =>
     cfg.map.interactables.some(
-      (i) => i.type === type && (!crate || i.crate === crate) && Math.hypot(p.x / T - i.x, p.y / T - i.y) <= cfg.economy.interactRadiusTiles,
+      (i) =>
+        i.type === type &&
+        (!crate || i.crate === crate) &&
+        // Any entrance of its building counts (you use it from inside, entered through that door).
+        i.spots.some(([sx, sy]) => Math.hypot(p.x / T - sx, p.y / T - sy) <= cfg.economy.interactRadiusTiles),
     );
 
   const pushWallet = (p: OnlinePlayer, delta?: number, reason?: string) =>

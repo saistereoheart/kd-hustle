@@ -106,6 +106,8 @@ export const terrainConfigSchema = z.object({
   laneWidthMeters: z.number().positive(),
   sidewalkWidthMeters: z.number().positive(),
   highwayShoulderMeters: z.number().nonnegative(),
+  /** Narrow roads are drawn at least this wide (OSM gives 1-lane back lanes at 3.5 m, which feels cramped). */
+  minRoadWidthMeters: z.record(z.string(), z.number().positive()).default({}),
   /** Speed multipliers per terrain (0 = blocked). Keys must match TERRAIN_NAMES. */
   terrains: z.record(z.string(), terrainEntry),
 });

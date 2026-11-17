@@ -8,6 +8,8 @@ import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
 export const AVATAR_DEPTH = 500_000;
+/** Riders ON an elevated deck draw above the deck layer (900 000), still below labels. */
+const ON_DECK_DEPTH = 950_000;
 
 /** Turns equipped cosmetics into what the character renderer needs. */
 export function wornFrom(cos: Cosmetics, items: Map<string, ItemDef>): WornCosmetics {
@@ -250,11 +252,20 @@ export class Avatar {
     this.applyAnim(true);
   }
 
+  /** True while riding on an elevated deck (drawn above it instead of under it). */
+  private onDeck = false;
+
   setPosition(x: number, y: number) {
     this.container.setPosition(x, y);
     // Sort by feet y so people further down the screen stand in front. World y is relative to
     // Menara Mitraland and goes negative up north, so lift it above the ground layers.
-    this.container.setDepth(AVATAR_DEPTH + y);
+    this.container.setDepth((this.onDeck ? ON_DECK_DEPTH : AVATAR_DEPTH) + y);
+  }
+
+  setOnDeck(on: boolean) {
+    if (on === this.onDeck) return;
+    this.onDeck = on;
+    this.setPosition(this.container.x, this.container.y);
   }
 
   get x() {

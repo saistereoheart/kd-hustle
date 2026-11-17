@@ -295,6 +295,7 @@ export class TownScene extends Phaser.Scene {
       this.updateRemotes(now);
       this.stalls.update(delta);
       this.mapView.update(this.cameras.main.worldView);
+      this.updateDecks(delta);
       this.slowChecks(delta);
       return;
     }
@@ -352,8 +353,16 @@ export class TownScene extends Phaser.Scene {
     this.updateRemotes(now);
     this.stalls.update(delta);
     this.mapView.update(this.cameras.main.worldView);
+    this.updateDecks(delta);
 
     this.slowChecks(delta);
+  }
+
+  /** Under a flyover the deck turns see-through; riding on it you're drawn on top. */
+  private updateDecks(delta: number) {
+    const onDeck = this.ridesOnDeck(this.me);
+    this.me.setOnDeck(onDeck);
+    this.mapView.fadeDecks(!onDeck && this.mapView.overheadAt(this.pos.x, this.pos.y - 2), delta);
   }
 
   /** Doors, interact prompts, the job marker, district name and the minimap (~7×/s). */
@@ -428,10 +437,17 @@ export class TownScene extends Phaser.Scene {
     for (const r of this.remotes.values()) {
       const p = interpolate(r.samples, renderT);
       if (!p) continue;
+      r.avatar.setOnDeck(this.ridesOnDeck(r.avatar));
       r.avatar.setPosition(p.x, p.y);
       r.avatar.setState(p.dir, p.moving);
       r.avatar.tick(now);
     }
+  }
+
+  /** Drive-grid vehicles (motorbike, Ronda) ride ON elevated decks; walkers and bicycles go under. */
+  private ridesOnDeck(av: Avatar): boolean {
+    const v = av.vehicle ? this.app.cfg.vehicles.vehicles[av.vehicle] : undefined;
+    return !!v && v.grid === 'drive' && this.mapView.overheadAt(av.x, av.y - 2);
   }
 
   /** Riding a Ronda (someone else is driving)? */

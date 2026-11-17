@@ -45,6 +45,6 @@
   },
   "mastery": { "thresholds": [10, 30, 60, 100, 160, 250, 400, 600, 900, 1300], "pricePerLevel": 0.08 },
   "dishTimeoutSlackSec": 25,
-  "cookRadiusTiles": 7,
+  "cookRadiusTiles": 4,
   "assetValueRate": 0.5
 }

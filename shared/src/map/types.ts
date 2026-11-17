@@ -92,7 +92,14 @@ export const overridesSchema = z.object({
   /** Per-building overrides keyed by OSM id ("w123" / "r456"). */
   buildings: z.record(
     z.string(),
-    z.object({ name: z.string().optional(), kind: z.enum(BUILDING_KINDS).optional(), hidden: z.boolean().optional(), door: pointSchema.optional() }),
+    z.object({
+      name: z.string().optional(),
+      kind: z.enum(BUILDING_KINDS).optional(),
+      hidden: z.boolean().optional(),
+      door: pointSchema.optional(),
+      /** Extra entrances (tile coords on the wall), e.g. a hypermarket's side doors. */
+      doors: z.array(pointSchema).optional(),
+    }),
   ),
   /** Extra areas or names for OSM areas. */
   areas: z.array(

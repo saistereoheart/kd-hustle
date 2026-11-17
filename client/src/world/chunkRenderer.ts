@@ -10,6 +10,16 @@ import { CANOPY_DECOR, Decor, pointInPoly, Tile, tileHash, type Box, type BuiltB
 import { buildDecorSprites, DECOR_SPRITE } from './tileset';
 
 const CHUNK = 16; // tiles per chunk side (512 px)
+/** Elevated roads draw above characters (≈ 500,000 + y) but below labels and tree canopies. */
+export const DECK_DEPTH = 900_000;
+
+interface Bay {
+  x: number;
+  y: number;
+  angle: number;
+  /** Rows alternate which side their aisle is on (false: aisle at +v, true: at -v). */
+  flip: boolean;
+}
 /** Each chunk texture extends this many tiles past its edges so neighbours overlap (no seams). */
 const BLEED = 0.25;
 
@@ -193,6 +203,8 @@ interface RoadLabel {
 interface LiveChunk {
   ground: Phaser.GameObjects.Image;
   canopy: Phaser.GameObjects.Image | null;
+  /** Elevated roads and the MRT viaduct: drawn above characters so you walk UNDER them. */
+  deck: Phaser.GameObjects.Image | null;
   keys: string[];
   lastUsed: number;
 }
@@ -205,6 +217,9 @@ export class ChunkRenderer {
   private res: number;
   private maxChunks: number;
   private counter = 0;
+  private deckAlpha = 1;
+  /** Parking bays per parking area (index into map.areas), laid out along the lot's own angle. */
+  private bays = new Map<number, Bay[]>();
 
   constructor(private scene: Phaser.Scene, private map: BuiltMap, resolution: number) {
     this.res = resolution;
@@ -309,9 +324,17 @@ export class ChunkRenderer {
     return this.live.size;
   }
 
+  /** Fade the elevated layer (while the player walks underneath it). */
+  setDeckAlpha(a: number) {
+    if (a === this.deckAlpha) return;
+    this.deckAlpha = a;
+    for (const c of this.live.values()) c.deck?.setAlpha(a);
+  }
+
   private destroyChunk(key: string, c: LiveChunk) {
     c.ground.destroy();
     c.canopy?.destroy();
+    c.deck?.destroy();
     for (const k of c.keys) this.scene.textures.remove(k);
     this.live.delete(key);
   }
@@ -330,24 +353,36 @@ export class ChunkRenderer {
     const canopyCanvas = document.createElement('canvas');
     canopyCanvas.width = canopyCanvas.height = px;
     const cctx = canopyCanvas.getContext('2d')!;
+    const b = this.buckets.get(`${cx},${cy}`);
+    const hasDeck = !!b && (b.roads.some((i) => this.map.roads[i].elevated) || b.rails.some((i) => this.map.rails[i].elevated));
+    const deckCanvas = hasDeck ? document.createElement('canvas') : null;
+    if (deckCanvas) deckCanvas.width = deckCanvas.height = px;
+    const dctx = deckCanvas?.getContext('2d') ?? null;
     const scale = T * this.res;
-    for (const ctx of [gctx, cctx]) ctx.setTransform(scale, 0, 0, scale, -(cx * CHUNK - BLEED) * scale, -(cy * CHUNK - BLEED) * scale);
-    const hasCanopy = this.drawChunk(gctx, cctx, cx, cy);
+    for (const ctx of [gctx, cctx, dctx]) ctx?.setTransform(scale, 0, 0, scale, -(cx * CHUNK - BLEED) * scale, -(cy * CHUNK - BLEED) * scale);
+    const hasCanopy = this.drawChunk(gctx, cctx, dctx, cx, cy);
 
     const keys = [`${keyBase}_g`];
     this.scene.textures.addCanvas(keys[0], ground);
-    const img = this.scene.add.image((cx * CHUNK - BLEED) * T, (cy * CHUNK - BLEED) * T, keys[0]).setOrigin(0).setScale(1 / this.res).setDepth(-1000);
+    const ox = (cx * CHUNK - BLEED) * T, oy = (cy * CHUNK - BLEED) * T;
+    const img = this.scene.add.image(ox, oy, keys[0]).setOrigin(0).setScale(1 / this.res).setDepth(-1000);
     let canopy: Phaser.GameObjects.Image | null = null;
     if (hasCanopy) {
       keys.push(`${keyBase}_c`);
-      this.scene.textures.addCanvas(keys[1], canopyCanvas);
-      canopy = this.scene.add.image((cx * CHUNK - BLEED) * T, (cy * CHUNK - BLEED) * T, keys[1]).setOrigin(0).setScale(1 / this.res).setDepth(1_000_000).setAlpha(0.72);
+      this.scene.textures.addCanvas(`${keyBase}_c`, canopyCanvas);
+      canopy = this.scene.add.image(ox, oy, `${keyBase}_c`).setOrigin(0).setScale(1 / this.res).setDepth(1_000_000).setAlpha(0.72);
     }
-    this.live.set(`${cx},${cy}`, { ground: img, canopy, keys, lastUsed: now });
+    let deck: Phaser.GameObjects.Image | null = null;
+    if (deckCanvas) {
+      keys.push(`${keyBase}_d`);
+      this.scene.textures.addCanvas(`${keyBase}_d`, deckCanvas);
+      deck = this.scene.add.image(ox, oy, `${keyBase}_d`).setOrigin(0).setScale(1 / this.res).setDepth(DECK_DEPTH).setAlpha(this.deckAlpha);
+    }
+    this.live.set(`${cx},${cy}`, { ground: img, canopy, deck, keys, lastUsed: now });
   }
 
   // ---------------------------------------------------------------- drawing
-  private drawChunk(g: Ctx, c: Ctx, cx: number, cy: number): boolean {
+  private drawChunk(g: Ctx, c: Ctx, d: Ctx | null, cx: number, cy: number): boolean {
     const m = this.map;
     const b = this.buckets.get(`${cx},${cy}`);
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
@@ -389,19 +424,7 @@ export class ChunkRenderer {
         for (let x = x0 - (x0 % 4); x < x0 + CHUNK; x += 4) g.fillRect(x, y0, 2, CHUNK);
         g.restore();
       } else if (a.kind === 'parking') {
-        g.save();
-        g.clip();
-        g.strokeStyle = 'rgba(255,255,255,0.55)';
-        g.lineWidth = 0.08;
-        for (let x = x0 - (x0 % 1.3); x < x0 + CHUNK; x += 1.3) {
-          for (let y = y0 - (y0 % 6); y < y0 + CHUNK; y += 6) {
-            g.beginPath();
-            g.moveTo(x, y);
-            g.lineTo(x, y + 2.4);
-            g.stroke();
-          }
-        }
-        g.restore();
+        this.drawBayLines(g, i, x0, y0);
       } else if (a.kind === 'plaza') {
         g.save();
         g.clip();
@@ -452,8 +475,8 @@ export class ChunkRenderer {
     this.drawRoads(g, roads);
     for (const i of b.crossings) this.drawCrossing(g, m.crossings[i]);
 
-    // 6. parked cars on parking tiles
-    this.drawParkedCars(g, x0, y0);
+    // 6. parked cars, each inside its bay
+    for (const i of b.areas) if (m.areas[i].kind === 'parking') this.drawParkedCars(g, i, x0, y0);
 
     // 7. buildings (shadows first, then bodies)
     const blds = b.buildings.map((i) => m.buildings[i]);
@@ -463,38 +486,42 @@ export class ChunkRenderer {
     // 8. small decor (lamps, benches, flowers, fountain, jobs board...)
     this.drawDecor(g, c, x0, y0);
 
-    // 9. elevated: flyovers, the DASH viaduct, MRT viaduct, footbridges
+    // 9. elevated: flyovers, the DASH viaduct and the MRT viaduct go on their own layer above
+    //    characters (you walk under them); footbridges stay on the ground layer (you walk on them).
     const elevated = b.roads.map((i) => m.roads[i]).filter((r) => r.elevated);
-    if (elevated.length) {
+    if (d && elevated.length) {
       for (const r of elevated) {
-        g.save();
-        g.translate(0.6, 0.9);
-        traceLine(g, r.pts);
-        g.strokeStyle = 'rgba(0,0,0,0.22)';
-        g.lineWidth = r.width + 0.6;
-        g.stroke();
-        g.restore();
+        d.save();
+        d.translate(0.6, 0.9);
+        traceLine(d, r.pts);
+        d.strokeStyle = 'rgba(0,0,0,0.22)';
+        d.lineWidth = r.width + 0.6;
+        d.stroke();
+        d.restore();
       }
-      this.drawRoads(g, elevated, true);
+      d.lineJoin = 'round';
+      d.lineCap = 'round';
+      this.drawRoads(d, elevated, true);
     }
     for (const i of b.rails) {
       const r = m.rails[i];
-      g.save();
-      g.translate(0.6, 0.9);
-      traceLine(g, r.pts);
-      g.strokeStyle = 'rgba(0,0,0,0.2)';
-      g.lineWidth = 3.4;
-      g.stroke();
-      g.restore();
-      traceLine(g, r.pts);
-      g.strokeStyle = '#b8bec6';
-      g.lineWidth = 3.2;
-      g.stroke();
-      for (const d of [-0.7, 0.7]) {
-        traceLine(g, offsetLine(r.pts, d));
-        g.strokeStyle = '#6c727b';
-        g.lineWidth = 0.18;
-        g.stroke();
+      const ctx = r.elevated && d ? d : g;
+      ctx.save();
+      ctx.translate(0.6, 0.9);
+      traceLine(ctx, r.pts);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+      ctx.restore();
+      traceLine(ctx, r.pts);
+      ctx.strokeStyle = '#b8bec6';
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      for (const off of [-0.7, 0.7]) {
+        traceLine(ctx, offsetLine(r.pts, off));
+        ctx.strokeStyle = '#6c727b';
+        ctx.lineWidth = 0.18;
+        ctx.stroke();
       }
     }
     for (const i of b.paths) {
@@ -584,31 +611,94 @@ export class ChunkRenderer {
     g.restore();
   }
 
-  private drawParkedCars(g: Ctx, x0: number, y0: number) {
+  /** Bays for a parking area: rows along the lot's longest edge (2.5 m × 5 m bays, 6 m aisles
+   *  between double rows). A bay is kept only if it lies fully on parking ground. */
+  private baysOf(ai: number): Bay[] {
+    const cached = this.bays.get(ai);
+    if (cached) return cached;
     const m = this.map;
-    const colors = ['#e03131', '#1c7ed6', '#f1f3f5', '#343a40', '#f59f00', '#adb5bd', '#2f9e44'];
-    for (let ty = y0; ty < y0 + CHUNK; ty++) {
-      if (ty % 6 !== 0) continue;
-      for (let tx = x0; tx < x0 + CHUNK; tx++) {
-        const gx = tx - m.originTx, gy = ty - m.originTy;
-        if (gx < 0 || gy < 0 || gx >= m.width || gy + 2 >= m.height) continue;
-        if (m.terrain[gy * m.width + gx] !== Tile.Parking || m.terrain[(gy + 2) * m.width + gx] !== Tile.Parking) continue;
-        const h = tileHash(tx, ty, 11);
-        if (h > 0.55) continue;
-        const col = colors[Math.floor(h * 100) % colors.length];
-        const cxp = tx + 0.15, cyp = ty + 0.1;
-        g.fillStyle = 'rgba(0,0,0,0.25)';
-        g.beginPath();
-        g.roundRect(cxp + 0.08, cyp + 0.12, 0.95, 2.25, 0.3);
-        g.fill();
-        g.fillStyle = col;
-        g.beginPath();
-        g.roundRect(cxp, cyp, 0.95, 2.25, 0.3);
-        g.fill();
-        g.fillStyle = 'rgba(30,40,60,0.75)';
-        g.fillRect(cxp + 0.12, cyp + 0.45, 0.71, 0.45);
-        g.fillRect(cxp + 0.12, cyp + 1.5, 0.71, 0.32);
+    const poly = m.areas[ai].poly;
+    let best = 0, angle = 0;
+    for (let i = 0, j = poly.length - 2; i < poly.length; j = i, i += 2) {
+      const l = Math.hypot(poly[i] - poly[j], poly[i + 1] - poly[j + 1]);
+      if (l > best) {
+        best = l;
+        angle = Math.atan2(poly[i + 1] - poly[j + 1], poly[i] - poly[j]);
       }
+    }
+    const ux = Math.cos(angle), uy = Math.sin(angle);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (let i = 0; i < poly.length; i += 2) {
+      const u = poly[i] * ux + poly[i + 1] * uy, v = -poly[i] * uy + poly[i + 1] * ux;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+    }
+    const BW = 1.25, BD = 2.5, AISLE = 3;
+    const onLot = (x: number, y: number) => {
+      const gx = Math.floor(x) - m.originTx, gy = Math.floor(y) - m.originTy;
+      return gx >= 0 && gy >= 0 && gx < m.width && gy < m.height && m.terrain[gy * m.width + gx] === Tile.Parking && pointInPoly(x, y, poly);
+    };
+    const out: Bay[] = [];
+    // Row starts: bay | aisle | bay bay | aisle | bay bay ... (cars back onto each other).
+    let row = 0;
+    for (let v = v0 + 0.3; v + BD <= v1 - 0.2; row++) {
+      for (let u = u0 + 0.3; u + BW <= u1 - 0.3; u += BW) {
+        const corners = [[u, v], [u + BW, v], [u + BW, v + BD], [u, v + BD]].map(([cu, cv]) => [cu * ux - cv * uy, cu * uy + cv * ux]);
+        if (!corners.every(([x, y]) => onLot(x, y))) continue;
+        const cu = u + BW / 2, cv = v + BD / 2;
+        out.push({ x: cu * ux - cv * uy, y: cu * uy + cv * ux, angle, flip: row % 2 === 1 });
+      }
+      v += row % 2 === 0 ? BD + AISLE : BD;
+    }
+    this.bays.set(ai, out);
+    return out;
+  }
+
+  private drawBayLines(g: Ctx, ai: number, x0: number, y0: number) {
+    g.strokeStyle = 'rgba(255,255,255,0.7)';
+    g.lineWidth = 0.08;
+    g.lineCap = 'butt';
+    for (const b of this.baysOf(ai)) {
+      if (b.x < x0 - 3 || b.y < y0 - 3 || b.x > x0 + CHUNK + 3 || b.y > y0 + CHUNK + 3) continue;
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.angle);
+      g.beginPath();
+      for (const s of [-0.625, 0.625]) {
+        g.moveTo(s, -1.2);
+        g.lineTo(s, 1.2);
+      }
+      // the line at the bay's back (the side away from its aisle)
+      g.moveTo(-0.625, b.flip ? 1.2 : -1.2);
+      g.lineTo(0.625, b.flip ? 1.2 : -1.2);
+      g.stroke();
+      g.restore();
+    }
+    g.lineCap = 'round';
+  }
+
+  private drawParkedCars(g: Ctx, ai: number, x0: number, y0: number) {
+    const colors = ['#e03131', '#1c7ed6', '#f1f3f5', '#343a40', '#f59f00', '#adb5bd', '#2f9e44'];
+    for (const b of this.baysOf(ai)) {
+      if (b.x < x0 - 3 || b.y < y0 - 3 || b.x > x0 + CHUNK + 3 || b.y > y0 + CHUNK + 3) continue;
+      const h = tileHash(Math.round(b.x * 4), Math.round(b.y * 4), 11);
+      if (h > 0.55) continue;
+      const col = colors[Math.floor(h * 100) % colors.length];
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.angle + (b.flip ? 0 : Math.PI));
+      // car body is 0.92 × 2.2 tiles (1.8 m × 4.4 m) inside a 1.25 × 2.5 bay; nose towards the aisle
+      g.fillStyle = 'rgba(0,0,0,0.25)';
+      g.beginPath();
+      g.roundRect(-0.42, -1.04, 0.92, 2.2, 0.3);
+      g.fill();
+      g.fillStyle = col;
+      g.beginPath();
+      g.roundRect(-0.46, -1.1, 0.92, 2.2, 0.3);
+      g.fill();
+      g.fillStyle = 'rgba(30,40,60,0.75)';
+      g.fillRect(-0.34, -0.7, 0.68, 0.45);
+      g.fillRect(-0.34, 0.4, 0.68, 0.32);
+      g.restore();
     }
   }
 
@@ -753,13 +843,13 @@ export class ChunkRenderer {
       }
       g.restore();
     }
-    // door
-    if (b.door) {
+    // doors
+    for (const dr of b.doors) {
       g.fillStyle = '#6b4a35';
       g.strokeStyle = '#3d2a1e';
       g.lineWidth = 0.08;
       g.beginPath();
-      g.roundRect(b.door.x - 0.4, b.door.y - 0.4, 0.8, 0.8, 0.15);
+      g.roundRect(dr.x - 0.4, dr.y - 0.4, 0.8, 0.8, 0.15);
       g.fill();
       g.stroke();
     }

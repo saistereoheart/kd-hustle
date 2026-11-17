@@ -50,9 +50,24 @@ export interface BuiltBuilding {
   levels: number | null;
   poly: number[];
   bbox: Box;
-  /** Door position (tile coords, on the wall) and the walkable tile in front of it. */
-  door: { x: number; y: number; frontX: number; frontY: number } | null;
+  /** Main door: position (tile coords, on the wall) and the walkable tile in front of it. */
+  door: Door | null;
+  /** Every door (the main one first). Big buildings (malls, hypermarkets) have one per side. */
+  doors: Door[];
 }
+
+export interface Door {
+  x: number;
+  y: number;
+  frontX: number;
+  frontY: number;
+  /** Outward wall normal (which way the door faces). */
+  nx: number;
+  ny: number;
+}
+
+/** Building kinds that get a door on every side that faces a road (not just the best one). */
+const MULTI_DOOR_KINDS: ReadonlySet<string> = new Set(['mall', 'hypermarket', 'station', 'hospital', 'casino']);
 
 export interface BuiltArea {
   id: string;
@@ -92,7 +107,13 @@ export interface BuiltMap {
   overrides: ParsedOverrides;
   attribution: string;
   /** Resolved interactables: where players stand to use them (tile coords of the spot). */
-  interactables: Array<{ id: string; type: InteractType; name: string; crate?: string; x: number; y: number }>;
+  interactables: Array<{
+    id: string; type: InteractType; name: string; crate?: string; x: number; y: number;
+    /** Inside this building (used from its interior); else it stands outdoors at (x, y). */
+    building?: string;
+    /** Where a player can stand to use it: (x, y), or every door front of its building. */
+    spots: Array<[number, number]>;
+  }>;
   /** Food stall spots (tile coords): where the stall stands, and where its queue forms. */
   stallPlots: Array<{ id: string; tier: number; x: number; y: number; queueFrom: [number, number]; queueStep: [number, number]; building?: string }>;
   /** Spawn point in world pixels (feet). */
@@ -125,6 +146,12 @@ export function pointInPoly(px: number, py: number, poly: number[]): boolean {
     if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
+}
+
+function polyAreaOf(p: number[]) {
+  let a = 0;
+  for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) a += (p[j] + p[i]) * (p[j + 1] - p[i + 1]);
+  return Math.abs(a / 2);
 }
 
 function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
@@ -210,7 +237,8 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   const elevate = new Set(ov.elevate);
   const roads: BuiltRoad[] = data.roads.map((src) => {
     const r = elevate.has(src.id) ? { ...src, elevated: true } : src;
-    const width = r.lanes * laneW + (r.cls === 'highway' ? shoulder : 0);
+    const minW = (terrainCfg.minRoadWidthMeters?.[r.cls] ?? 0) / mpt;
+    const width = Math.max(minW, r.lanes * laneW + (r.cls === 'highway' ? shoulder : 0));
     const sidewalk = r.cls === 'arterial' || r.cls === 'street' ? sideW : 0;
     return { ...r, width, sidewalk, bbox: boxOf(r.pts, width / 2 + sidewalk) };
   });
@@ -297,7 +325,7 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     const o = named[b.id];
     if (o?.hidden) continue;
     const kind = o?.kind ?? b.kind;
-    const bb: BuiltBuilding = { id: b.id, name: o?.name, kind, levels: b.levels, poly: b.poly, bbox: boxOf(b.poly), door: null };
+    const bb: BuiltBuilding = { id: b.id, name: o?.name, kind, levels: b.levels, poly: b.poly, bbox: boxOf(b.poly), door: null, doors: [] };
     builtBuildings.push(bb);
     if (kind === 'roof') fillPoly(b.poly, setIf(Tile.Roof, (c) => c === Tile.Grass || c === Tile.Plaza || c === Tile.Park || c === Tile.Parking || c === Tile.Path));
     else fillPoly(b.poly, setIf(Tile.Building));
@@ -344,21 +372,44 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
       }
       cands.push({ x: mx, y: my, nx, ny, score });
     }
-    const manual = named[b.id]?.door;
-    if (manual) cands.unshift({ x: manual[0], y: manual[1], nx: 0, ny: 1, score: -1e9 });
-    cands.sort((a, c) => a.score - c.score);
-    for (const c of cands) {
-      const fx = Math.floor(c.x + c.nx * 1.2), fy = Math.floor(c.y + c.ny * 1.2);
-      if (walkable(fx, fy)) {
-        b.door = { x: c.x, y: c.y, frontX: fx, frontY: fy };
-        break;
-      }
+    const o = named[b.id];
+    const manual = [...(o?.door ? [o.door] : []), ...(o?.doors ?? [])];
+    for (const d of manual.reverse()) {
+      // Manual doors face away from the building's centre.
+      const cx = (b.bbox.x0 + b.bbox.x1) / 2, cy = (b.bbox.y0 + b.bbox.y1) / 2;
+      const l = Math.hypot(d[0] - cx, d[1] - cy) || 1;
+      cands.unshift({ x: d[0], y: d[1], nx: (d[0] - cx) / l, ny: (d[1] - cy) / l, score: -1e9 });
     }
+    cands.sort((a, c) => a.score - c.score);
+    const fronted = (c: (typeof cands)[number]): Door | null => {
+      // Step out from the wall until the first walkable tile (doors on thick outlines).
+      for (const k of [1.2, 1.8, 2.4]) {
+        const fx = Math.floor(c.x + c.nx * k), fy = Math.floor(c.y + c.ny * k);
+        if (walkable(fx, fy)) return { x: c.x, y: c.y, frontX: fx, frontY: fy, nx: c.nx, ny: c.ny };
+      }
+      return null;
+    };
+    const multi = MULTI_DOOR_KINDS.has(b.kind) || polyAreaOf(p) > 900;
+    const facing = (d: { nx: number; ny: number }) => (Math.abs(d.nx) > Math.abs(d.ny) ? (d.nx > 0 ? 0 : 2) : d.ny > 0 ? 1 : 3);
+    for (const c of cands) {
+      const d = fronted(c);
+      if (!d) continue;
+      if (!b.doors.length) {
+        b.doors.push(d);
+        if (!multi && c.score > -50) break;
+        continue;
+      }
+      const far = b.doors.every((e) => Math.hypot(e.x - d.x, e.y - d.y) > 6);
+      // Real entrances (OSM or manual) always count; otherwise one door per side, facing a road.
+      if (far && (c.score <= -50 || (multi && c.score < 30 && !b.doors.some((e) => facing(e) === facing(d))))) b.doors.push(d);
+      if (b.doors.length >= 6) break;
+    }
+    b.door = b.doors[0] ?? null;
   }
 
   // ------------------------------------------------------------ decor
   const decor = new Uint8Array(W * H);
-  const fronts = new Set(builtBuildings.filter((b) => b.door).map((b) => idx(b.door!.frontX, b.door!.frontY)));
+  const fronts = new Set(builtBuildings.flatMap((b) => b.doors.map((d) => idx(d.frontX, d.frontY))));
   for (let i = 0; i + 1 < data.trees.length; i += 2) {
     const ii = idx(Math.floor(data.trees[i]), Math.floor(data.trees[i + 1]));
     if (ii >= 0 && !solid[ii] && !deck[ii] && terrain[ii] !== Tile.Road && terrain[ii] !== Tile.Crossing) decor[ii] = Decor.Tree;
@@ -391,14 +442,17 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   const interactables: BuiltMap['interactables'] = [];
   for (const it of ov.interactables) {
     let x = it.x, y = it.y;
+    let spots: Array<[number, number]> = [];
     if (it.building) {
       const b = builtBuildings.find((bb) => bb.id === it.building);
       if (!b?.door) continue;
       x = b.door.frontX + 0.5;
       y = b.door.frontY + 0.5;
+      spots = b.doors.map((d) => [d.frontX + 0.5, d.frontY + 0.5]);
     }
     if (x === undefined || y === undefined) continue;
-    interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y });
+    if (!spots.length) spots = [[x, y]];
+    interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y, building: it.building, spots });
   }
 
   // Stall plots: a point, or a shoplot's door (the queue forms outside, along the shopfront).

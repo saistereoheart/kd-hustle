@@ -208,6 +208,9 @@
     "w1275938587": {
       "name": "Kedai Pajak Untung",
       "kind": "shop"
+    },
+    "w467991759": {
+      "hidden": true
     }
   },
   "areas": [
@@ -226,9 +229,77 @@
     {
       "id": "w1076614545",
       "name": "Tasik Mitraland"
+    },
+    {
+      "id": "dataran_square",
+      "kind": "plaza",
+      "rect": [
+        -257,
+        139,
+        65,
+        32
+      ],
+      "name": "Dataran Sunway Square"
     }
   ],
-  "paths": [],
+  "paths": [
+    {
+      "kind": "bridge",
+      "width": 2,
+      "pts": [
+        [
+          31,
+          -75
+        ],
+        [
+          82,
+          -75
+        ]
+      ]
+    },
+    {
+      "kind": "bridge",
+      "width": 2,
+      "pts": [
+        [
+          30,
+          15
+        ],
+        [
+          82,
+          15
+        ]
+      ]
+    },
+    {
+      "kind": "bridge",
+      "width": 2,
+      "pts": [
+        [
+          14,
+          120
+        ],
+        [
+          76,
+          120
+        ]
+      ]
+    },
+    {
+      "kind": "bridge",
+      "width": 2,
+      "pts": [
+        [
+          8,
+          215
+        ],
+        [
+          68,
+          215
+        ]
+      ]
+    }
+  ],
   "decor": [
     {
       "kind": "jobsboard",

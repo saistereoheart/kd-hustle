@@ -5,6 +5,7 @@ import terrainJson from '../../config/terrain.json';
 import { terrainConfigSchema } from '../config/schemas';
 import { buildMap, districtAt, gridIndexAt, pointInPoly, Tile, vehicleSpeedGrid } from './build';
 import { buildPolyIndex, collides, moveWithCollision, pathClear } from './collision';
+import { reachableFromSpawn } from './reach';
 import type { MapSource } from './types';
 
 const source = { data: osmJson, overrides: overridesJson } as unknown as MapSource;
@@ -12,28 +13,7 @@ const terrain = terrainConfigSchema.parse(terrainJson);
 const map = buildMap(source, terrain);
 const hb = { w: 16, h: 10 };
 
-function floodFromSpawn() {
-  const W = map.width;
-  const seen = new Uint8Array(W * map.height);
-  const start = gridIndexAt(map, map.spawnPx.x, map.spawnPx.y);
-  const stack = [start];
-  seen[start] = 1;
-  while (stack.length) {
-    const i = stack.pop()!;
-    const x = i % W;
-    const y = (i - x) / W;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = x + dx, ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
-      const j = ny * W + nx;
-      if (!seen[j] && !map.solid[j]) {
-        seen[j] = 1;
-        stack.push(j);
-      }
-    }
-  }
-  return seen;
-}
+const floodFromSpawn = () => reachableFromSpawn(map);
 
 describe('town map v2 (OSM, real scale)', () => {
   it('is 768×576 tiles at 2 m per tile with Menara Mitraland at the origin', () => {
@@ -46,7 +26,7 @@ describe('town map v2 (OSM, real scale)', () => {
   });
 
   it('every landmark override points at a real OSM building', () => {
-    const ids = new Set(map.buildings.map((b) => b.id));
+    const ids = new Set((osmJson as unknown as { buildings: Array<{ id: string }> }).buildings.map((b) => b.id));
     const missing = Object.keys(overridesJson.buildings).filter((id) => !ids.has(id));
     expect(missing).toEqual([]);
   });
@@ -62,7 +42,7 @@ describe('town map v2 (OSM, real scale)', () => {
     const arterial = map.roads.filter((r) => r.name === 'Persiaran Surian').sort((a, b) => b.width - a.width)[0];
     const street = map.roads.find((r) => r.cls === 'street' && r.lanes === 2)!;
     expect(arterial.width).toBeGreaterThan(street.width);
-    expect(street.width).toBeCloseTo(3.5, 1); // 2 lanes × 3.5 m / 2 m per tile
+    expect(street.width).toBeCloseTo(4, 1); // 2 lanes × 3.5 m, widened to the 8 m minimum (terrain.json)
   });
 
   it('spawns on a walkable tile', () => {
@@ -79,7 +59,7 @@ describe('town map v2 (OSM, real scale)', () => {
     }
     expect(reach / walk).toBeGreaterThan(0.98);
     const unreachable = map.buildings
-      .filter((b) => b.door && !seen[gridIndexAt(map, (b.door.frontX + 0.5) * map.tileSize, (b.door.frontY + 0.5) * map.tileSize)])
+      .filter((b) => b.doors.length && !b.doors.some((d) => seen[gridIndexAt(map, (d.frontX + 0.5) * map.tileSize, (d.frontY + 0.5) * map.tileSize)]))
       .map((b) => b.id);
     expect(unreachable).toEqual([]);
     for (const d of map.overrides.districts) {
@@ -105,6 +85,13 @@ describe('town map v2 (OSM, real scale)', () => {
       if (map.terrain[i] === Tile.Building) expect(map.driveSolid[i]).toBe(1);
     }
     expect(highway).toBeGreaterThan(1000);
+  });
+
+  it('gives big buildings (Gergasi, malls) an entrance on more than one side', () => {
+    for (const name of ['Gergasi Hypermarket', 'Ayu Mall Damansara', 'Piramid Mall']) {
+      const b = map.buildings.find((x) => x.name === name)!;
+      expect(b.doors.length, name).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it('places every interactable on reachable ground', () => {
