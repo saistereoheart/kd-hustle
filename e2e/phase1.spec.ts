@@ -96,9 +96,13 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   await B.page.click('[data-emote=sit]');
   await expect.poll(async () => (await remotes(A.page))[0]?.emote, { timeout: 10_000 }).toBe('sit');
   await B.page.click('[data-action=emote]'); // the wheel toggles closed
-  // Desktop: number keys fire emotes directly (5 = flex), spammable.
+  // Desktop: Q opens the emote wheel, then number keys fire emotes (5 = flex), spammable.
+  // (Without the wheel open, number keys use the hotbar.)
+  await A.page.keyboard.press('q');
   await A.page.keyboard.press('5');
   await A.page.keyboard.press('5');
+  await expect.poll(async () => (await remotes(B.page))[0]?.emote, { timeout: 10_000 }).toBe('flex');
+  await A.page.keyboard.press('q');
   await A.page.waitForTimeout(600);
   await A.page.screenshot({ path: `${SHOTS}/desktop-3-town.png` });
   await B.page.screenshot({ path: `${SHOTS}/phone-3-town.png` });

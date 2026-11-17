@@ -41,8 +41,22 @@ export const C2S = {
       .nullable(),
   }),
   vehicleRide: z.object({ vehicle: z.string().max(24).nullable() }),
-  vehicleOrder: z.object({ vehicle: z.string().max(24) }),
+  /** Ronda: where to (tile coords). */
+  rideQuote: z.object({ x: z.number().finite(), y: z.number().finite() }),
+  rideBook: z.object({ quoteId: z.string().max(40) }),
 };
+
+/** A Ronda fare quote: the route the rider will take (tile coords, flat) and the price. */
+export interface RideQuote {
+  quoteId: string;
+  fareSen: number;
+  meters: number;
+  /** Pickup wait + riding time. */
+  etaSec: number;
+  route: number[];
+  /** Where you'll be dropped off (a landmark/street name), if known. */
+  destName: string | null;
+}
 
 export const HOTBAR_SLOTS = 10;
 /** What a hotbar slot holds: a vehicle you own, or an item (stack) from your bag. */
@@ -143,7 +157,7 @@ export interface SelfState extends PlayerPublic {
   skills: Record<string, number>;
   /** 10 quick-use slots (keys 1–9, 0). */
   hotbar: Array<HotbarRef | null>;
-  /** Vehicles you can ride: starter ones plus a rented one, if any. */
+  /** Vehicles you own and can ride yourself. */
   vehicles: string[];
 }
 
@@ -216,7 +230,10 @@ export interface ClientToServerEvents {
   ) => void;
   'hotbar:set': (msg: { slot: number; ref: HotbarRef | null }, ack: Ack<Result<{ hotbar: Array<HotbarRef | null> }>>) => void;
   'vehicle:ride': (msg: { vehicle: string | null }, ack: Ack<Result<{ vehicle: string | null; vehicles: string[] }>>) => void;
-  'vehicle:order': (msg: { vehicle: string }, ack: Ack<Result<{ vehicle: string; vehicles: string[]; walletSen: number }>>) => void;
+  'ride:quote': (msg: { x: number; y: number }, ack: Ack<Result<{ quote: RideQuote }>>) => void;
+  'ride:book': (msg: { quoteId: string }, ack: Ack<Result<{ walletSen: number; route: number[]; pickupMs: number; durationMs: number; destName: string | null }>>) => void;
+  /** Get off the Ronda right here. */
+  'ride:stop': (ack: Ack<SimpleResult>) => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }
 
@@ -236,6 +253,8 @@ export interface ServerToClientEvents {
   announce: (a: Announcement) => void;
   'inv:added': (p: { items: InventoryItem[]; index: string[] }) => void;
   'job:update': (p: { job: JobState | null; jobs: Record<string, JobProgress> }) => void;
+  /** Your Ronda ride is over (arrived, or you got off). Position is where you were dropped. */
+  'ride:ended': (p: { x: number; y: number; arrived: boolean }) => void;
 }
 
 export const DIR_INDEX: Record<Direction, number> = { down: 0, up: 1, left: 2, right: 3 };

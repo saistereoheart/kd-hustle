@@ -1,4 +1,5 @@
-// Vehicle sprites drawn in code. The kapcai (small motorbike) is the delivery rider's ride.
+// Vehicle sprites drawn in code: the starter basikal, the kapcai (small motorbike) and the
+// green Ronda kapcai (ride-hailing; drawn with an NPC rider, see avatar.ts).
 import Phaser from 'phaser';
 
 const RES = 2;
@@ -31,8 +32,17 @@ export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string): stri
     ensureBicycleTextures(scene);
     return 'bicycle';
   }
+  if (vehicle === 'ronda') {
+    ensureBikeTextures(scene, { key: 'ronda', body: '#2f9e44', trim: '#1b5e20', box: '#2b8a3e', boxTrim: '#145a24', label: 'RONDA' });
+    return 'ronda';
+  }
   ensureBikeTextures(scene);
   return 'bike';
+}
+
+/** Vehicles that come with someone else driving (you ride on the back). */
+export function hasDriver(vehicle: string | null): boolean {
+  return vehicle === 'ronda';
 }
 
 /** The starter basikal: teal frame, front basket. Same 56×40 layout as the motorbike. */
@@ -162,9 +172,20 @@ export function ensureBicycleTextures(scene: Phaser.Scene) {
   }
 }
 
-/** Creates bike_side / bike_front / bike_back textures once. Size: 56×40 logical px, ground at y=36. */
-export function ensureBikeTextures(scene: Phaser.Scene, body = '#e03131') {
-  if (scene.textures.exists('bike_side')) return;
+interface BikeStyle {
+  key: string;
+  body: string;
+  trim: string;
+  box: string;
+  boxTrim: string;
+  label: string;
+}
+const KAPCAI: BikeStyle = { key: 'bike', body: '#e03131', trim: '#8a1c1c', box: '#f59f00', boxTrim: '#a05a00', label: 'MAKAN' };
+
+/** Creates <key>_side / _front / _back textures once. Size: 56×40 logical px, ground at y=36. */
+export function ensureBikeTextures(scene: Phaser.Scene, style: BikeStyle = KAPCAI) {
+  const { key, body, trim, box, boxTrim, label } = style;
+  if (scene.textures.exists(`${key}_side`)) return;
   // side view (facing left)
   {
     const { c, ctx } = canvas(56, 40);
@@ -185,7 +206,7 @@ export function ensureBikeTextures(scene: Phaser.Scene, body = '#e03131') {
     ctx.lineTo(24, 30);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#8a1c1c';
+    ctx.strokeStyle = trim;
     ctx.lineWidth = 0.8;
     ctx.stroke();
     // seat
@@ -206,16 +227,16 @@ export function ensureBikeTextures(scene: Phaser.Scene, body = '#e03131') {
     ctx.ellipse(13, 16, 2.2, 2, 0, 0, Math.PI * 2);
     ctx.fill();
     // delivery box
-    ctx.fillStyle = '#f59f00';
+    ctx.fillStyle = box;
     ctx.beginPath();
     ctx.roundRect(42, 8, 12, 11, 1.5);
     ctx.fill();
-    ctx.strokeStyle = '#a05a00';
+    ctx.strokeStyle = boxTrim;
     ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 5px sans-serif';
-    ctx.fillText('MAKAN', 42.5, 15);
-    scene.textures.addCanvas('bike_side', c);
+    ctx.fillText(label, 42.5, 15, 11);
+    scene.textures.addCanvas(`${key}_side`, c);
   }
   // front / back views
   for (const view of ['front', 'back'] as const) {
@@ -229,7 +250,7 @@ export function ensureBikeTextures(scene: Phaser.Scene, body = '#e03131') {
     ctx.beginPath();
     ctx.roundRect(22, 18, 12, 12, 3);
     ctx.fill();
-    ctx.strokeStyle = '#8a1c1c';
+    ctx.strokeStyle = trim;
     ctx.lineWidth = 0.8;
     ctx.stroke();
     ctx.strokeStyle = '#495057';
@@ -244,13 +265,13 @@ export function ensureBikeTextures(scene: Phaser.Scene, body = '#e03131') {
       ctx.arc(28, 21, 2.6, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      ctx.fillStyle = '#f59f00';
+      ctx.fillStyle = box;
       ctx.beginPath();
       ctx.roundRect(21, 6, 14, 12, 1.5);
       ctx.fill();
       ctx.fillStyle = '#ff6b6b';
       ctx.fillRect(25, 26, 6, 2);
     }
-    scene.textures.addCanvas(`bike_${view}`, c);
+    scene.textures.addCanvas(`${key}_${view}`, c);
   }
 }

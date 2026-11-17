@@ -16,6 +16,7 @@ import { InventorySystem } from '../systems/inventory/inventory';
 import { JobSystem } from '../systems/jobs/jobs';
 import { newMoveState } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
+import { RideSystem } from '../systems/rides/rides';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
@@ -42,10 +43,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const socketOf = (p: OnlinePlayer) => io.sockets.sockets.get(p.socketId);
   /** Puts the player on a vehicle (or off it, with null) and tells everyone. */
   function setVehicle(p: OnlinePlayer, vehicle: string | null) {
-    const was = p.vehicle;
     p.vehicle = vehicle;
-    // A rented ride goes back when you hop off it.
-    if (was && was === p.rental && vehicle !== was) p.rental = null;
     // Landing somewhere this ride (or your feet) can't be, e.g. hopping off on a highway:
     // step to the nearest spot that's allowed.
     const rules = moveRules(p);
@@ -64,6 +62,18 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     io.to(p.scene).emit('player:updated', { id: p.id, vehicle });
   }
   const jobs = new JobSystem(cfg, econ, cryptoRand);
+  const rides = new RideSystem(cfg.rides, cfg.map, cfg.terrain);
+  /** Drop a Ronda passenger off where they are now (a walkable spot) and sync their client. */
+  function endRide(p: OnlinePlayer, arrived: boolean) {
+    rides.end(p);
+    setVehicle(p, null); // also steps to the nearest walkable spot if needed
+    socketOf(p)?.emit('move:correct', { x: p.x, y: p.y, seq: 0 });
+    socketOf(p)?.emit('ride:ended', { x: p.x, y: p.y, arrived });
+  }
+  const rideTimer = setInterval(() => {
+    const now = Date.now();
+    for (const p of world.players.values()) if (p.ride && rides.step(p, now)) endRide(p, true);
+  }, 1000 / Math.max(10, cfg.net.snapshotRateHz));
   log.info(`Delivery jobs: ${jobs.candidateCounts.pickups} pickup shops, ${jobs.candidateCounts.dropoffs} homes`);
 
   /** Is the player standing at an interactable of this type (and crate)? */
@@ -194,6 +204,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
     // --- vehicles -------------------------------------------------------------------------
     handle(socket, 'vehicle:ride', C2S.vehicleRide, ({ vehicle }) => {
+      if (me.ride) throw new GameError(`You're on a ${cfg.rides.appName} ride. Tap "Get off here" to stop.`);
       if (vehicle !== null) {
         if (!world.vehiclesOf(me).includes(vehicle)) throw new GameError("You don't have that ride.");
         if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
@@ -201,24 +212,36 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (vehicle !== me.vehicle) setVehicle(me, vehicle);
       return { vehicle: me.vehicle, vehicles: world.vehiclesOf(me) };
     });
-    handle(socket, 'vehicle:order', C2S.vehicleOrder, ({ vehicle }) => {
-      const def = cfg.vehicles.vehicles[vehicle];
-      if (!def?.orderSen) throw new GameError("That ride can't be ordered.");
-      if (me.rental === vehicle) {
-        if (me.vehicle !== vehicle) setVehicle(me, vehicle);
-        return { vehicle, vehicles: world.vehiclesOf(me), walletSen: me.walletSen };
-      }
+
+    // --- Ronda rides (phone app: point A to point B for a fare) -----------------------------
+    handle(socket, 'ride:quote', C2S.rideQuote, ({ x, y }) => {
+      if (!me.hasCharacter) throw new GameError('Create your character first.');
       if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
-      econ.run(me, () => econ.change(me, -def.orderSen!, 0, 'vehicle-order', vehicle));
-      pushWallet(me, -def.orderSen, 'vehicle');
-      me.rental = vehicle;
-      setVehicle(me, vehicle);
-      return { vehicle, vehicles: world.vehiclesOf(me), walletSen: me.walletSen };
+      return { quote: rides.quote(me, x, y) };
+    });
+    handle(socket, 'ride:book', C2S.rideBook, ({ quoteId }) => {
+      if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
+      const q = rides.checkBooking(me, quoteId);
+      econ.run(me, () => econ.change(me, -q.fareSen, 0, 'ride', `${q.meters}m`));
+      pushWallet(me, -q.fareSen, 'ride');
+      if (me.emote) {
+        me.emote = null;
+        io.to(me.scene).emit('emote:stopped', { id: me.id });
+      }
+      const ride = rides.start(me, q);
+      me.vehicle = cfg.rides.vehicle;
+      io.to(me.scene).emit('player:updated', { id: me.id, vehicle: me.vehicle });
+      return { walletSen: me.walletSen, route: q.route, pickupMs: cfg.rides.pickupMs, durationMs: Math.round(rides.durationMs(ride)), destName: q.destName };
+    });
+    handle(socket, 'ride:stop', null, () => {
+      if (!me.ride) throw new GameError("You're not on a ride.");
+      endRide(me, false);
+      return {};
     });
 
     // --- hotbar ---------------------------------------------------------------------------
     handle(socket, 'hotbar:set', C2S.hotbarSet, ({ slot, ref }) => {
-      if (ref?.kind === 'vehicle' && !cfg.vehicles.vehicles[ref.id]) throw new GameError('Unknown vehicle.');
+      if (ref?.kind === 'vehicle' && (!cfg.vehicles.vehicles[ref.id] || cfg.vehicles.vehicles[ref.id].passenger)) throw new GameError('Unknown vehicle.');
       if (ref?.kind === 'item') {
         if (!cfg.itemById.has(ref.itemId) || !cfg.rarities.variants.some((v) => v.id === ref.variant)) throw new GameError('Unknown item.');
         if (!me.inventory.some((i) => i.itemId === ref.itemId && i.variant === ref.variant)) throw new GameError("You don't have that item.");
@@ -298,7 +321,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     p.manifestBank = 0;
     p.manifestSecs = 0;
     p.hotbar = normalizeHotbar(e.hotbar);
-    p.rental = null;
+    p.ride = null;
+    p.rideQuote = null;
     econ.refreshCosmetics(p);
   }
 
@@ -368,11 +392,23 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     loadInto,
     flushManifest,
     cancelJob: (p: OnlinePlayer) => jobs.cancel(p),
-    /** On disconnect: off the ride (a rented one is returned). */
+    /** On disconnect: off the ride. A Ronda passenger is dropped off where they are. */
     leave: (p: OnlinePlayer) => {
+      if (p.ride) {
+        rides.step(p);
+        rides.end(p);
+        const spot = placePlayer(cfg.map.collision, cfg.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
+        p.x = spot.x;
+        p.y = spot.y;
+        p.dirty = true;
+      }
       p.vehicle = null;
-      p.rental = null;
+      p.rideQuote = null;
     },
-    stop: () => clearInterval(manifestTimer),
+    isRiding: (p: OnlinePlayer) => p.ride !== null,
+    stop: () => {
+      clearInterval(manifestTimer);
+      clearInterval(rideTimer);
+    },
   };
 }

@@ -11,6 +11,7 @@ import { Hotbar } from './ui/hotbar';
 import { openInventoryPanel } from './ui/inventoryPanel';
 import { DeliveryHud, openCarwashPanel, openJobsPanel } from './ui/jobs';
 import { openPhonePanel } from './ui/phone';
+import { openRonda, type RideHud } from './ui/ronda';
 import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
 import { sfx } from './ui/sound';
@@ -54,6 +55,8 @@ export class App {
   minimap: Minimap | null = null;
   emotes: EmoteWheel | null = null;
   hotbar: Hotbar | null = null;
+  /** Shown while a Ronda rider is taking us somewhere. */
+  rideHud: RideHud | null = null;
   /** Canvas pixels per CSS pixel (see renderDpr). */
   dpr = 1;
   town: TownScene | null = null;
@@ -96,11 +99,27 @@ export class App {
       banner: false,
       scene: [],
     });
-    addEventListener('resize', () => {
+    // Window resized (incl. fullscreen on/off): resize the canvas ourselves. Phaser's NONE scale
+    // mode skips the CSS size when the zoom is exactly 1 and only resizes cameras in some cases,
+    // which left the game not filling the screen, or zoomed in and off-centre afterwards.
+    let pending = 0;
+    const fit = () => {
+      pending = 0;
       this.dpr = renderDpr();
+      const w = Math.round(innerWidth * this.dpr);
+      const h = Math.round(innerHeight * this.dpr);
       this.game.scale.setZoom(1 / this.dpr);
-      this.game.scale.resize(Math.round(innerWidth * this.dpr), Math.round(innerHeight * this.dpr));
-    });
+      this.game.scale.resize(w, h);
+      const style = this.game.canvas.style;
+      style.width = `${innerWidth}px`;
+      style.height = `${innerHeight}px`;
+      this.town?.onViewportResize(w, h);
+    };
+    const queueFit = () => {
+      if (!pending) pending = requestAnimationFrame(fit);
+    };
+    addEventListener('resize', queueFit);
+    document.addEventListener('fullscreenchange', queueFit);
     this.game.scene.add('town', TownScene, false);
     this.bindKeys();
     loading.remove();
@@ -163,7 +182,7 @@ export class App {
       const v = this.cfg.vehicles.vehicles[ref.id];
       if (this.store.riding === ref.id) this.ride(null);
       else if (this.store.vehicles.includes(ref.id)) this.ride(ref.id);
-      else if (v?.orderSen) toast(`Order a ${v.name} from your 📱 Phone (P) first.`);
+      else toast(`You don't own a ${v?.name ?? 'ride like that'}. Book a ${this.cfg.rides.appName} ride from your 📱 Phone (P).`);
       return;
     }
     const def = this.items.get(ref.itemId);
@@ -208,21 +227,10 @@ export class App {
     });
   }
 
-  /** Order a vehicle from the phone (paid) and hop on it. */
-  orderVehicle(vehicle: string) {
-    this.socket?.timeout(5000).emit('vehicle:order', { vehicle }, (err, res) => {
-      if (err || !res.ok) {
-        sfx.error();
-        return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
-      }
-      sfx.coin();
-      this.store.vehicles = res.vehicles;
-      this.store.riding = res.vehicle;
-      this.store.walletSen = res.walletSen;
-      this.store.emit();
-      toast(`${this.cfg.vehicles.vehicles[vehicle]?.icon ?? ''} Your ${this.cfg.vehicles.vehicles[vehicle]?.name ?? 'ride'} has arrived!`, 'good');
-      closePanel();
-    });
+  /** 🛵 Ronda: pick a destination on the map and get a ride there. */
+  openRonda() {
+    closePanel();
+    openRonda(this);
   }
 
   openBag() {
@@ -277,6 +285,12 @@ export class App {
       this.store.emit();
     });
     socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
+    socket.on('ride:ended', ({ arrived }) => {
+      this.rideHud?.destroy();
+      this.rideHud = null;
+      this.store.emit();
+      toast(arrived ? `🛵 You've arrived. Terima kasih for riding ${this.cfg.rides.appName}!` : '🛵 You got off.', 'good');
+    });
     socket.on('saved', ({ at }) => {
       this.lastSavedAt = at;
       this.hud?.showSaved();
@@ -294,6 +308,9 @@ export class App {
 
   private onInit(p: InitPayload) {
     this.lastInit = p;
+    // A ride ends if we were disconnected (the server drops us off where we were).
+    this.rideHud?.destroy();
+    this.rideHud = null;
     this.store.load(p.you);
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {

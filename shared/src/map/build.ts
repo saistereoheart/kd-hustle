@@ -75,6 +75,9 @@ export interface BuiltMap {
   solid: Uint8Array;
   /** Blocked for vehicles (highways are drivable, footbridges and grass-only paths are not). */
   driveSolid: Uint8Array;
+  /** 1 under an elevated road deck (the DASH viaduct, flyovers). Walkers pass underneath;
+   *  vehicles ride on the deck, so they get road speed there and can cross what's below. */
+  deck: Uint8Array;
   /** What movement actually collides with: tiles for water/highways + exact building outlines. */
   collision: CollisionGrid;
   driveCollision: CollisionGrid;
@@ -221,6 +224,8 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   for (const r of roads)
     if (r.elevated && r.cls !== 'highway')
       stampLine(r.pts, r.width / 2 + r.sidewalk, setIf(Tile.Road, (c) => c === Tile.Highway || c === Tile.Water));
+  const deck = new Uint8Array(W * H);
+  for (const r of roads) if (r.elevated) stampLine(r.pts, r.width / 2, (i) => (deck[i] = 1));
 
   // ------------------------------------------------------------ footpaths + bridges
   const paths: BuiltMap['paths'] = data.paths.map((p) => ({ ...p, width: p.kind === 'pedestrian' ? 3 : 1.2, bbox: boxOf(p.pts, 2) }));
@@ -303,7 +308,8 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   const driveSolid = new Uint8Array(W * H);
   for (let i = 0; i < terrain.length; i++) {
     solid[i] = walkByTerrain[terrain[i]] > 0 ? 0 : 1;
-    driveSolid[i] = driveByTerrain[terrain[i]] > 0 ? 0 : 1;
+    // On a deck you ride above whatever is below (river, highway); buildings still block.
+    driveSolid[i] = driveByTerrain[terrain[i]] > 0 || (deck[i] && terrain[i] !== Tile.Building) ? 0 : 1;
   }
 
   // ------------------------------------------------------------ doors
@@ -353,12 +359,13 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   const fronts = new Set(builtBuildings.filter((b) => b.door).map((b) => idx(b.door!.frontX, b.door!.frontY)));
   for (let i = 0; i + 1 < data.trees.length; i += 2) {
     const ii = idx(Math.floor(data.trees[i]), Math.floor(data.trees[i + 1]));
-    if (ii >= 0 && !solid[ii] && terrain[ii] !== Tile.Road && terrain[ii] !== Tile.Crossing) decor[ii] = Decor.Tree;
+    if (ii >= 0 && !solid[ii] && !deck[ii] && terrain[ii] !== Tile.Road && terrain[ii] !== Tile.Crossing) decor[ii] = Decor.Tree;
   }
   for (let gy = 0; gy < H; gy++) {
     for (let gx = 0; gx < W; gx++) {
       const i = gy * W + gx;
-      if (decor[i] || fronts.has(i)) continue;
+      // Nothing grows under a viaduct deck (trees would be drawn on top of the road).
+      if (decor[i] || fronts.has(i) || deck[i]) continue;
       const t = terrain[i];
       const tx = gx + originTx, ty = gy + originTy;
       const h = tileHash(tx, ty);
@@ -410,6 +417,7 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     driveCollision: { ...gridBase, solid: driveTiles, polys: polyIndex },
     interactables,
     driveSolid,
+    deck,
     width: W,
     height: H,
     tileSize: T,
@@ -430,6 +438,18 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     attribution: data.meta.attribution,
     spawnPx: { x: (ov.spawn[0] + 0.5) * T, y: (ov.spawn[1] + 0.5) * T },
   };
+}
+
+/**
+ * Vehicle speed multiplier per grid cell (0..1) from terrain.json: roads 1.0, grass 0.4...
+ * Under an elevated deck the vehicle is on the deck, so it gets road speed.
+ */
+export function vehicleSpeedGrid(map: Pick<BuiltMap, 'terrain' | 'deck'>, terrainCfg: TerrainConfig): Float32Array {
+  const byTerrain = TERRAIN_NAMES.map((n) => terrainCfg.terrains[n]?.vehicle ?? 0.4);
+  const road = terrainCfg.terrains.road?.vehicle ?? 1;
+  const out = new Float32Array(map.terrain.length);
+  for (let i = 0; i < out.length; i++) out[i] = map.deck[i] ? Math.max(road, byTerrain[map.terrain[i]]) : byTerrain[map.terrain[i]];
+  return out;
 }
 
 /** Grid index for a world-pixel position, or -1 outside the map. */

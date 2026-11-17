@@ -147,13 +147,45 @@ export const vehiclesConfigSchema = z.object({
       minTerrainMult: z.number().min(0).max(1),
       /** Everyone owns one from the start. */
       starter: z.boolean().default(false),
-      /** Can be ordered from the phone for this price (rented until you hop off). */
-      orderSen: z.number().int().positive().optional(),
+      /** A hailed ride (Ronda): drawn with a driver, you sit on the back and can't steer. */
+      passenger: z.boolean().default(false),
     }),
   ),
 });
 export type VehiclesConfig = z.infer<typeof vehiclesConfigSchema>;
 export type VehicleDef = VehiclesConfig['vehicles'][string];
+
+/** Ronda: the ride-hailing app on the phone (point A to point B on a kapcai, for a fare). */
+export const ridesConfigSchema = z.object({
+  appName: z.string(),
+  /** Vehicle id drawn while you're a passenger (a `passenger: true` vehicle). */
+  vehicle: z.string(),
+  baseFareSen: z.number().int().nonnegative(),
+  perKmSen: z.number().int().nonnegative(),
+  minFareSen: z.number().int().positive(),
+  fareRoundSen: z.number().int().positive(),
+  speedPxPerSec: z.number().positive(),
+  /** The rider "arrives" this long after booking, then sets off. */
+  pickupMs: z.number().int().nonnegative(),
+  minTripMeters: z.number().nonnegative(),
+  quoteTtlSec: z.number().positive(),
+  /** Booking fails if you walked further than this from where you asked for the quote. */
+  maxQuoteDriftTiles: z.number().positive(),
+  /** How far a picked spot may be from a road the rider can use. */
+  snapRadiusTiles: z.number().int().positive(),
+  /** Route cost per tile = 1 / speedMult^pow, so higher = sticks to roads harder. */
+  offroadPenaltyPow: z.number().nonnegative(),
+  /** Route simplification tolerance (tiles). */
+  simplifyTiles: z.number().nonnegative(),
+  maxSearchNodes: z.number().int().positive(),
+});
+export type RidesConfig = z.infer<typeof ridesConfigSchema>;
+
+/** Fare for a trip of `meters`: base + per-km, at least the minimum, rounded. */
+export function rideFareSen(cfg: RidesConfig, meters: number): number {
+  const raw = cfg.baseFareSen + (cfg.perKmSen * meters) / 1000;
+  return Math.max(cfg.minFareSen, Math.round(raw / cfg.fareRoundSen) * cfg.fareRoundSen);
+}
 
 /** Cross-file checks: every pool item exists, every item is in exactly one crate, rarities exist. */
 export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, crates: CratesConfig): string[] {

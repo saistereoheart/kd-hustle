@@ -5,44 +5,82 @@ _Last updated: 2026-11-17_
 ## Status
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
-**Phase 2 (money, jobs and the gacha core): done.** Phase 3 (progression: XP, levels, titles, Hustle Skills, potions,
-daily quests, HustlePhone, balance simulator) is next.
+**Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
+**Phase 3 (progression: XP, levels, titles, Hustle Skills, potions, daily quests, HustlePhone, balance simulator) is next.**
+
+> Phase numbering: the spec has 8 phases (§20). "2.1 / 2.2 / 2.3" are not new phases, they are rounds of your
+> feedback on Phase 2. Phase 2 itself passed its acceptance checks before 2.1 started, so Phase 3 is next.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 72 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, map + polygon collision, emotes) |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass (incl. manifest earning + skill upgrade) |
+| `npm test` (Vitest) | ✅ 87 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, car wash grading, map + polygon collision + elevated decks, Ronda routes/fares/booking, hotbar migration, emotes) |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass (incl. 3-stage car wash, hotbar bicycle, delivery, a Ronda ride, Manifest) |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
-| Real phone on the LAN | ⏳ needs you (see below) |
+| Real phone on the LAN | ⏳ needs you |
 
 ---
 
-## Phase 2.2 (in progress): second feedback round
+## Phase 2.3: third feedback round (highway, smooth map, Ronda rides, hotbar, resizing)
 
-**State: WIP commit (local only, not pushed).** All code is written and `npm run typecheck` is clean. The unit test run
-was interrupted, so `npm test` and `npm run e2e` have NOT been run on this commit yet.
+### How to test it
+0. **Rebuild first.** You were running the old production build (`npm start` serves `server/dist`), so none of this
+   round was in what you played. Stop the server (Ctrl+C), then `npm run build` and `npm start` (or use `npm run dev`).
+1. **Highway above The Strand:** ride the 🚲 bicycle (key **1**) or take a Ronda along the DASH north of The Strand.
+   It's now drawn on the minimap and full map, vehicles go at road speed on it instead of grass speed, and no trees
+   are drawn on it any more. Walking still passes underneath.
+2. **Smooth map:** open the full map (**M**) and zoom all the way in. Roads are smooth lines at their real width,
+   with sidewalks and centre lines; buildings and parks are their real outlines (no more 2 m blocks).
+3. **Ronda rides:** 📱 Phone (**P**) → Ronda → **Where to?**. The map opens
+   centred on you. Tap where you want to go: the route (green) and the fare appear. Tap **Book**: a green Ronda kapcai
+   with a rider picks you up and drives you there along the roads (you sit on the back and can't steer). Your friend
+   sees you riding. **Get off here** stops early (no refund). Fares show the exact sen (RM 3.50, not "RM 3").
+4. **Hotbar:** the leftover 🛵 motorbike is gone from slot 2 for everyone (your bicycle and everything else stay).
+5. **Resizing:** play in a small window, go fullscreen (the game fills the screen, sharper), then back (normal size,
+   you're in the middle).
 
-| Request | Status |
+### What changed
+- **Elevated decks** (`shared/src/map/build.ts`): a `deck` mask under every elevated road (the DASH viaduct and its
+  ramps, flyovers). Vehicles on a deck get road speed and can cross what's below (river, ground highway); buildings
+  still block. Walkers are unaffected. The vehicle speed grid lives in the shared `vehicleSpeedGrid()`, used by the
+  client and the ride planner.
+- **Vector minimap + full map** (`client/src/ui/mapPaint.ts`): painted from the real geometry instead of the tile grid.
+  The minimap uses a pre-painted 2 px/tile image; the full map repaints just the visible part when you zoom or pan
+  (cached between frames). Max zoom is now 24 px per tile.
+- **Ronda** replaces "order a motorbike" (`server/src/systems/rides/`, `shared/config/rides.json`, `client/src/ui/ronda.ts`):
+  - The server plans the route (A* over the vehicle grid, a tile costs 1 / speed², so it sticks to roads) and
+    simplifies it into smooth segments. About 20 ms per quote.
+  - Fare = RM 3.00 + RM 1.60/km, at least RM 3.50, rounded to 10 sen (about RM 4.10 from Dataran Sunway to Mitraland).
+    It's charged on booking, in one transaction, logged as `ride`. A quote lasts 2 minutes and only books if you're
+    still within 4 tiles of where you asked.
+  - After a 1.8 s pickup, the server moves you along the route at 400 px/s and ignores your own move reports. Your
+    client follows the server's positions like it does for other players. Arriving, getting off, or disconnecting
+    drops you on the nearest walkable spot.
+  - Drawn as a green kapcai with an NPC rider (built with the normal character renderer: green jersey and cap,
+    shades). You sit behind them.
+- **Hotbar** (migration 6): removes the motorbike left over from the old "order a motorbike" flow from every saved
+  hotbar. Nothing else changes. New players start with just the bicycle in slot 1.
+- **No trees under decks:** trees are drawn above everything, so ones planted on the grass under the viaduct showed
+  on top of the highway. Nothing is planted under a deck now.
+- **Window resize / fullscreen** (`client/src/app.ts`, `townScene.ts`): the canvas, camera size, zoom and map
+  chunk sharpness are now refitted on every resize and fullscreen change, and the camera recentres on you. Before,
+  Phaser skipped the canvas size update when the pixel ratio came out at exactly 1× and only resized the camera in
+  some cases, so fullscreen didn't fill and going back left the view zoomed in and off-centre.
+
+## Phase 2.2: second feedback round
+
+| Request | Result |
 |---|---|
-| Full map closes on click outside; **M** toggles it (minimap toggle moved to **N**) | done, untested |
+| Full map closes on click outside; **M** toggles it (minimap toggle moved to **N**) | done |
 | Character hidden north of a line across the map | **fixed**: characters drew under the ground when world y < −1000 px (north of Menara Mitraland). Avatars now draw at depth 500 000 + y |
-| Slide along angled walls instead of stopping | done + unit-tested (map tests); the server path check also accepts straight diagonal slides |
+| Slide along angled walls instead of stopping | done + unit-tested; the server path check also accepts straight diagonal slides |
 | Manifest 2× base | `baseSenPerSec` 1 → 2 (RM 0.02/s at Lv 1, +RM 0.01/s per level). Stops while riding |
-| Sharper map + characters on phones | the game canvas now renders at device pixel ratio (up to 3×, capped at ~8.3 MP); map chunks at up to 2.5× |
-| Harder car wash, at a car wash | new **Kilat Car Wash** (−199, 117.5, ~60 m east of the Jobs Board). 3 stages graded on the server: 🧽 soap (3 stubborn bird-dropping spots need 14 scrubs), 🚿 rinse a 8×3 grid, ✨ polish timed shine marks. 55 s, pays up to RM 58.50 at Lv 1. Unit-tested |
-| Delivery doesn't spawn a motorbike; order it from the phone | done: 📱 **Phone (P / HUD button)** → order a 🛵 kapcai for RM 8 (rented until you hop off; returned on disconnect). Delivery time budget now assumes the bicycle |
-| Everyone starts with a bicycle | 🚲 Basikal (290 px/s, walk grid: sidewalks/paths yes, highways no), in hotbar slot 1 by default |
-| Hotbar 1–0 | done: 10 slots, bottom centre (above the joystick on phones held upright). Vehicles hop on/off; cosmetics wear/take off. Bag → item → "Add to hotbar"; right-click / long-press clears. Saved in `players.hotbar_json` (migration 5). **Number keys now use the hotbar; emotes use Q then a number, − is still Manifest** |
+| Sharper map + characters on phones | the game canvas renders at device pixel ratio (up to 3×, capped at ~8.3 MP); map chunks at up to 2.5× |
+| Harder car wash, at a car wash | **Kilat Car Wash** (−199, 117.5, ~60 m east of the Jobs Board). 3 stages graded on the server: 🧽 soap (3 stubborn bird-dropping spots need 14 scrubs), 🚿 rinse an 8×3 grid, ✨ polish timed shine marks. 55 s, pays up to RM 58.50 at Lv 1 |
+| Everyone starts with a bicycle | 🚲 Basikal (290 px/s, walk grid: sidewalks/paths yes, highways no), hotbar slot 1 |
+| Hotbar 1–0 | 10 slots, bottom centre. Vehicles hop on/off; cosmetics wear/take off. Bag → item → "Add to hotbar"; right-click / long-press clears. Saved in `players.hotbar_json` (migration 5). **Number keys use the hotbar; emotes are Q then a number; − is Manifest** |
 | Chat middle-left, larger | done (15 px text, 440 px wide on desktop) |
-
-**Next steps**
-1. `npm test`: confirm the new car wash grading tests, wall-slide tests and the updated map test.
-2. Update e2e: `phase1.spec.ts` (press Q before `5` for the flex emote) and `phase2.spec.ts` (carwash: `/tp -199 117`, then
-   play the 3 stages using `k.job()` data; delivery: no motorbike on start, order it via `[data-action=order-motorbike]`
-   in the phone panel; check hotbar key `1` mounts the bicycle).
-3. Play-test on PC + phone: hotbar layout at 390×844, chat position, car wash difficulty, phone sharpness.
-4. Then update this file (move the table into "What changed"), commit.
+| Delivery motorbike from the phone | replaced by Ronda rides in 2.3 |
 
 ## Phase 2.1: feedback fixes (map zoom, collision, Manifest, jobs board)
 
@@ -295,6 +333,16 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 2.3**
+- **"Grab-like" is called Ronda** (Malay for cruising around): Grab is a real brand and the rules say parody names only.
+- **Decks have no ramps:** a vehicle under an elevated road counts as being on it (road speed). Simpler than a second
+  height layer, and it matches what you see (the deck is drawn on top).
+- **Ronda is passenger-only:** you can't steer. Getting off early gives no refund. You can use Ronda during a
+  delivery (it costs a fare but is faster than the bicycle). Not during a car wash.
+- **The rider is drawn with a cap, not a helmet** (the character renderer has no helmet yet).
+- **Delivery uses the bicycle** now that the rentable motorbike is gone. The motorbike stays in `vehicles.json` for
+  when vehicles can be bought (a later phase).
+
 **Phase 2.1**
 - **The "invisible box above Kota Bazaar"** was the DASH ramps and links. OSM doesn't tag these ground-level carriageway
   segments as bridges, so they counted as an unwalkable highway band across the north half. They are now listed under
@@ -387,6 +435,14 @@ Simple options picked where the spec was open, per CLAUDE.md:
 
 ## Known issues / limitations
 
+- **Phase 2.3:** simplified Ronda routes can clip the corner of a building by up to ~1.5 m on tight turns (the
+  passenger isn't collision-checked). If the pickup point is off-road, the first stretch goes straight to the nearest
+  road.
+- **Phase 2.3:** the phase 1 e2e test once failed to see player B still sitting after A reloaded, then passed on the
+  next two runs. Possibly a timing issue in the test; I'll watch for it.
+- **Phase 2.3:** the full map repaints the visible area on every pan/zoom step. Fine on PC; tell me if it stutters on
+  your phone when zoomed out a lot.
+
 - **Phase 2:** the economy isn't balanced yet. Phase 3's simulator will tune job pay and prices against the spec's
   pacing (Stage 2 in ~20 min). Right now a car wash pays ~RM 28–36 and a delivery ~RM 50–90.
 - **Phase 2:** only the desktop and phone browser tests have exercised the reel and car wash. Please try the
@@ -409,8 +465,11 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
-## Next: Phase 2 (money, jobs and the gacha core)
+## Next: Phase 3 (progression)
 
-Wallet in sen with short format (`formatMoney` already exists in `shared/src/format/money.ts`), Jobs Board (delivery + car wash),
-rarities, luck math in `shared/luck.ts` with tests, 3 crates (Capsule, Lucky Bag, Mall Mystery Box), the reel and reveals,
-inventory, equipping cosmetics, variants, pity, announcements, Item Index, Kedai Pajak, shards.
+From the spec (§20): XP and levels, wealth stages, the titles system, the Hustle Skills upgrade tree (Manifesting is
+the first skill already), usable items (potions/boosters with buff timers), daily login streak, daily quests, the
+next-goal tracker, the HustlePhone UI (the 📱 Phone panel grows into it), and the balance simulator v1
+(`npm run sim`), which will also tune job pay and Ronda fares.
+**Done when:** a new player has a clear path of goals for the first 2 hours and the simulator output roughly matches
+the pacing targets.

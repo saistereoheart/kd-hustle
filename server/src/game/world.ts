@@ -5,6 +5,7 @@ import type {
   Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, SelfState,
 } from '@kh/shared';
 import type { MoveState } from '../systems/movement/moveValidator';
+import type { ActiveRide, PendingQuote } from '../systems/rides/rides';
 
 /** Server-side job state: what the client sees plus private grading data. */
 export type ServerJob = JobState & { budgetMs?: number };
@@ -47,8 +48,9 @@ export interface OnlinePlayer {
   manifestBank: number;
   manifestSecs: number;
   hotbar: Array<HotbarRef | null>;
-  /** A vehicle ordered from the phone (returned when you hop off), or null. */
-  rental: string | null;
+  /** Ronda: the last fare quote, and the ride in progress (see systems/rides). */
+  rideQuote: PendingQuote | null;
+  ride: ActiveRide | null;
 }
 
 export class World {
@@ -58,8 +60,8 @@ export class World {
   starterVehicles: string[] = [];
 
   /** Vehicles this player can ride right now. */
-  vehiclesOf(p: OnlinePlayer): string[] {
-    return p.rental && !this.starterVehicles.includes(p.rental) ? [...this.starterVehicles, p.rental] : [...this.starterVehicles];
+  vehiclesOf(_p: OnlinePlayer): string[] {
+    return [...this.starterVehicles];
   }
 
   get(id: number) {

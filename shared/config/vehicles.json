@@ -4,7 +4,10 @@
       "name": "Basikal",
       "icon": "🚲",
       "speed": 290,
-      "hitbox": { "w": 16, "h": 10 },
+      "hitbox": {
+        "w": 16,
+        "h": 10
+      },
       "grid": "walk",
       "minTerrainMult": 0.6,
       "starter": true
@@ -13,10 +16,24 @@
       "name": "Kapcai Motorbike",
       "icon": "🛵",
       "speed": 430,
-      "hitbox": { "w": 18, "h": 12 },
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.2
+    },
+    "ronda": {
+      "name": "Ronda Kapcai",
+      "icon": "🛵",
+      "speed": 400,
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
       "grid": "drive",
       "minTerrainMult": 0.2,
-      "orderSen": 800
+      "passenger": true
     }
   }
 }

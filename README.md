@@ -14,7 +14,8 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
   Sunway, Mitraland, Surian MRT, PJU 3 / Palm Spring, with real roads, lanes and building footprints
 - Walk around with friends (keyboard or touch joystick), see each other in real time, chat with speech bubbles, emotes
 - Minimap + full map, district banners, saving (autosave every 60 s, on logout/disconnect/shutdown) and DB backups
-- Money in RM, two starter jobs (food delivery on a kapcai motorbike, car wash), 3 gacha crates with visible odds,
+- Money in RM, two starter jobs (food delivery, a 3-step car wash), a starter bicycle, a hotbar (keys 1–0),
+  🛵 **Ronda** rides from the phone (pick a spot on the map, pay the fare, a rider takes you), 3 gacha crates with visible odds,
   a CS:GO-style reel, 48 collectable items, cosmetics everyone can see, pity, rare-pull announcements, Item Index,
   pawn shop and Shard Shop
 
@@ -27,13 +28,11 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
 Full design: [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md)
 
 ## Where we left off (resume here)
-Work in progress: **Phase 2.2 feedback round** (WIP commit, not pushed). Full checklist, what's verified and the next
-steps are in [`docs/PROGRESS.md`](docs/PROGRESS.md) under "Phase 2.2 (in progress)". To pick up on any device:
+**Phase 2 and its feedback rounds (2.1–2.3) are done** (local commits, not pushed). **Phase 3 (progression)** is next.
+What's verified, decisions and known issues are in [`docs/PROGRESS.md`](docs/PROGRESS.md). To pick up on any device:
 1. Open this folder (same PC via Remote Desktop, or a fresh `git clone` + `npm install` elsewhere).
-2. `git log --oneline -3` should show the "WIP Phase 2.2" commit on top.
-3. Run `npm run typecheck`, `npm test`, then `npm run e2e` and fix whatever fails (the e2e tests still need updating
-   for the new hotbar keys, the phone-ordered motorbike and the car wash location).
-4. `npm run dev` and play-test the list in PROGRESS.md.
+2. `npm run typecheck`, `npm test` and `npm run e2e` should all pass.
+3. `npm run dev` and play-test the "How to test it" list for the latest round in PROGRESS.md.
 
 ## Requirements
 - Node.js LTS (https://nodejs.org), v20 or newer

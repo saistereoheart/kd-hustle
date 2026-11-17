@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
-import { vehicleTexturePrefix } from '../items/vehicleArt';
+import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
@@ -42,6 +42,14 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
   return key;
 }
 
+/** The Ronda rider (an NPC drawn with the normal character renderer): green jersey and cap, shades. */
+const RIDER: Appearance = {
+  skin: '#c68642', face: 'round', height: 'medium', build: 'regular', eyes: 'round', eyeColor: '#3b2a1a', brows: 'straight',
+  browColor: null, nose: 'button', mouth: 'smile', blush: false, freckles: false, beautyMark: false, glasses: 'shades',
+  hair: 'crew', hairColor: '#1c1c1c', highlight: null, headwear: 'cap', headwearColor: '#2f9e44', facialHair: 'stubble',
+  top: 'jersey', topColor: '#2f9e44', bottom: 'jeans', bottomColor: '#343a40', shoes: 'sneakers', shoesColor: '#212529',
+};
+
 const TEXT_BASE = { fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif', resolution: 2 } as const;
 
 export class Avatar {
@@ -59,6 +67,9 @@ export class Avatar {
   private appearance: Appearance;
   private cosmetics: Cosmetics = {};
   private bike: Phaser.GameObjects.Image | null = null;
+  /** The NPC driving us (Ronda rides), or null. */
+  private driver: Phaser.GameObjects.Sprite | null = null;
+  private driverTex = '';
   private auraFx: Phaser.Time.TimerEvent | null = null;
   private auraGlow: Phaser.GameObjects.Ellipse | null = null;
   private rainbowName = false;
@@ -170,11 +181,19 @@ export class Avatar {
     this.vehicle = v;
     this.bike?.destroy();
     this.bike = null;
+    this.driver?.destroy();
+    this.driver = null;
     if (v) {
       this.bikeTex = vehicleTexturePrefix(this.scene, v);
       this.bike = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, 36 / 40).setScale(0.5);
       this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
+      if (hasDriver(v)) {
+        this.driverTex = ensureCharacterTexture(this.scene, RIDER, this.cfg);
+        this.driver = this.scene.add.sprite(0, -9, this.driverTex, 0).setOrigin(0.5, ORIGIN_Y).setScale(1 / RES);
+        this.container.add(this.driver);
+      }
     }
+    this.sprite.setX(0);
     this.sprite.setY(v ? (v === 'bicycle' ? -8 : -9) : 0);
     this.applyAnim(true);
   }
@@ -241,6 +260,29 @@ export class Avatar {
       this.bike.setFlipX(this.dir === 'right');
       // Seen from behind, the bike is in front of the rider.
       this.container.moveTo(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);
+    }
+    if (this.driver) {
+      // Passenger on the back: behind the rider (side view), peeking over them (front view),
+      // or in front of them (seen from behind).
+      const view = VIEW_OF[this.dir];
+      const face = this.dir === 'right' ? 1 : -1;
+      this.driver.setFlipX(this.dir === 'right');
+      this.driver.play(`${this.driverTex}:idle_${view}`, true);
+      if (view === 'side') {
+        this.driver.setPosition(face * 6, -9);
+        this.sprite.setPosition(-face * 7, -11);
+      } else if (view === 'front') {
+        this.driver.setPosition(0, -8);
+        this.sprite.setPosition(0, -16);
+      } else {
+        this.driver.setPosition(0, -14);
+        this.sprite.setPosition(0, -9);
+      }
+      // Draw order: the one nearer the camera goes on top.
+      const front = view === 'back' ? this.sprite : this.driver;
+      const behind = front === this.sprite ? this.driver : this.sprite;
+      this.container.moveTo(behind, this.container.getIndex(front));
+      if (view === 'back' && this.bike) this.container.moveTo(this.bike, this.container.getIndex(this.sprite) + 1);
     }
     if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
   }

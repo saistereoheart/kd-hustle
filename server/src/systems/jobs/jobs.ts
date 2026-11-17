@@ -229,7 +229,7 @@ export class JobSystem {
     const district = districtAt(this.cfg.map, home.door!.frontX, home.door!.frontY)?.name ?? 'Kota Damansara';
     const unit = 1 + this.rand(40);
     const homeName = home.name ?? `${home.kind === 'condo' || home.kind === 'flat' ? `Unit ${unit}-${1 + this.rand(20)}` : `No. ${unit}`}, ${district}`;
-    // The time budget assumes the starter bicycle, so a rented motorbike earns bigger tips.
+    // The time budget assumes the starter bicycle (a paid Ronda ride gets there faster).
     const rideMps = ((this.cfg.vehicles.vehicles[d.budgetVehicle]?.speed ?? this.cfg.movement.walkSpeed) / T) * mpt;
     const budgetMs = Math.round((meters / rideMps) * d.timeBudgetFactor * 1000 + d.timeBudgetSlackSec * 1000);
     p.job = {

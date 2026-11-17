@@ -2,7 +2,7 @@
 // startup and refuses to boot if a balance file is malformed.
 import { z } from 'zod';
 import type { MapSource } from '../map/types';
-import type { CratesConfig, EconomyConfig, ItemsConfig, JobsConfig, RaritiesConfig, SkillsConfig, VehiclesConfig } from '../economy/schemas';
+import type { CratesConfig, EconomyConfig, ItemsConfig, JobsConfig, RaritiesConfig, RidesConfig, SkillsConfig, VehiclesConfig } from '../economy/schemas';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -123,6 +123,7 @@ export interface PublicConfig {
   economy: EconomyConfig;
   jobs: JobsConfig;
   vehicles: VehiclesConfig;
+  rides: RidesConfig;
   skills: SkillsConfig;
 }
 

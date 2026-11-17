@@ -82,7 +82,7 @@ export class Hotbar {
         const v = this.app.cfg.vehicles.vehicles[ref.id];
         name = v?.name ?? ref.id;
         icon = el('span', { class: 'hotbar-emoji' }, v?.icon ?? '🚗');
-        missing = !st.vehicles.includes(ref.id) && !v?.orderSen;
+        missing = !st.vehicles.includes(ref.id);
       } else {
         const def = this.app.items.get(ref.itemId);
         name = def ? `${def.name}${ref.variant !== 'normal' ? ` (${ref.variant})` : ''}` : ref.itemId;

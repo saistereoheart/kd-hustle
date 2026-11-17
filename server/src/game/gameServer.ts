@@ -131,7 +131,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         manifestBank: 0,
         manifestSecs: 0,
         hotbar: [],
-        rental: null,
+        rideQuote: null,
+        ride: null,
       };
       economy.loadInto(p);
       world.add(p);
@@ -168,6 +169,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     // --- movement -------------------------------------------------------------------
     socket.on('move', (msg) => {
       if (!me.hasCharacter) return;
+      if (me.ride) return; // a Ronda passenger is moved by the server
       const parsed = C2S.move.safeParse(msg);
       if (!parsed.success) return;
       const m = parsed.data;
@@ -229,7 +231,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const current = world.get(me.id);
       if (!current || current.socketId !== socket.id) return; // replaced by a newer connection
       if (current.job) economy.cancelJob(current);
-      economy.leave(current); // off the ride; a rented motorbike is returned
+      economy.leave(current); // off the ride; a Ronda passenger is dropped off where they are
       economy.flushManifest(current);
       try {
         saves.saveNow(current); // save trigger 3

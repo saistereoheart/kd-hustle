@@ -23,7 +23,8 @@ export function runMigrations(db: DB) {
   for (const m of MIGRATIONS) {
     if (applied.has(m.id)) continue;
     db.transaction(() => {
-      db.exec(m.sql);
+      if (m.sql) db.exec(m.sql);
+      m.run?.(db);
       db.prepare('INSERT INTO schema_migrations (id, name, applied_at) VALUES (?, ?, ?)').run(m.id, m.name, Date.now());
     })();
   }

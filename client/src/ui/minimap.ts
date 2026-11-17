@@ -1,19 +1,22 @@
-// Minimap (local view around the player, toggle with M) + a full-map overlay.
-// The base image is rendered once at 1 px per tile (768×576), then scaled.
-import { Tile, type BuiltMap } from '@kh/shared';
-import { roofColorOf } from '../world/mapRenderer';
+// Minimap (local view around the player, toggle with N) + a full-map overlay (M).
+// Both are painted from the real map geometry (see mapPaint.ts), so they stay smooth when
+// zoomed in. The minimap uses a pre-painted image at BASE_SCALE px per tile; the full map
+// repaints the visible part whenever you zoom or pan.
+import type { BuiltMap } from '@kh/shared';
 import { el, uiRoot } from './dom';
+import { paintMap } from './mapPaint';
 
-const TILE_COLORS: Record<number, string> = {
-  [Tile.Grass]: '#7cc456', [Tile.Park]: '#86cf5d', [Tile.Forest]: '#3f8a33', [Tile.Field]: '#9bd36a',
-  [Tile.Golf]: '#8fdc6a', [Tile.Road]: '#5b606b', [Tile.Highway]: '#30333b', [Tile.Crossing]: '#5b606b',
-  [Tile.Sidewalk]: '#d8d2c4', [Tile.Plaza]: '#e9d9b6', [Tile.Water]: '#4aa3df', [Tile.Building]: '#b0705f',
-  [Tile.Parking]: '#9097a1', [Tile.Bridge]: '#c9cdd2', [Tile.Path]: '#dccaa0', [Tile.Construction]: '#c8a878',
-  [Tile.Roof]: '#c9ced4',
-};
+/** Pixels per tile of the pre-painted base image. */
+const BASE_SCALE = 2;
 
 /** Building kinds named on the full map (houses/condos would just clutter it). */
 const LANDMARK_KINDS = new Set(['mall', 'station', 'hospital', 'casino', 'tower', 'bank', 'hypermarket', 'furniture', 'clubhouse', 'civic', 'shop', 'office', 'roof']);
+
+export interface FullMapOptions {
+  /** Pick mode: a tap on the map calls onPick with the tile coords. */
+  pick?: { hint: string; onPick: (tx: number, ty: number) => void };
+  onClose?: () => void;
+}
 
 export interface Dot {
   x: number;
@@ -35,29 +38,9 @@ export class Minimap {
 
   constructor(private map: BuiltMap) {
     this.base = document.createElement('canvas');
-    this.base.width = map.width;
-    this.base.height = map.height;
-    const ctx = this.base.getContext('2d')!;
-    const img = ctx.createImageData(map.width, map.height);
-    for (let i = 0; i < map.terrain.length; i++) {
-      const hex = TILE_COLORS[map.terrain[i]] ?? '#7cc456';
-      const n = parseInt(hex.slice(1), 16);
-      img.data[i * 4] = (n >> 16) & 255;
-      img.data[i * 4 + 1] = (n >> 8) & 255;
-      img.data[i * 4 + 2] = n & 255;
-      img.data[i * 4 + 3] = 255;
-    }
-    ctx.putImageData(img, 0, 0);
-    ctx.translate(-map.originTx, -map.originTy);
-    for (const b of map.buildings) {
-      if (b.kind === 'roof') continue;
-      ctx.beginPath();
-      ctx.moveTo(b.poly[0], b.poly[1]);
-      for (let i = 2; i < b.poly.length; i += 2) ctx.lineTo(b.poly[i], b.poly[i + 1]);
-      ctx.closePath();
-      ctx.fillStyle = roofColorOf(b);
-      ctx.fill();
-    }
+    this.base.width = map.width * BASE_SCALE;
+    this.base.height = map.height * BASE_SCALE;
+    paintMap(this.base.getContext('2d')!, map, { scale: BASE_SCALE, ox: 0, oy: 0, w: this.base.width, h: this.base.height });
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.canvas = el('canvas', { class: 'minimap', 'data-testid': 'minimap', title: 'Tap for the full map', width: String(this.size.w * dpr), height: String(this.size.h * dpr) });
     this.canvas.style.width = `${this.size.w}px`;
@@ -85,7 +68,7 @@ export class Minimap {
     const ctx = this.canvas.getContext('2d')!;
     const sx = this.canvas.width / this.size.w;
     ctx.setTransform(sx, 0, 0, sx, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = '#20263a';
     ctx.fillRect(0, 0, this.size.w, this.size.h);
     const viewW = this.size.w / this.zoom;
@@ -95,7 +78,7 @@ export class Minimap {
     const cy = Math.max(viewH / 2, Math.min(this.map.height - viewH / 2, by));
     const ox = cx - viewW / 2;
     const oy = cy - viewH / 2;
-    ctx.drawImage(this.base, ox, oy, viewW, viewH, 0, 0, this.size.w, this.size.h);
+    ctx.drawImage(this.base, ox * BASE_SCALE, oy * BASE_SCALE, viewW * BASE_SCALE, viewH * BASE_SCALE, 0, 0, this.size.w, this.size.h);
     for (const d of dots) {
       const [dx, dy] = this.toBase(d.x, d.y);
       const px = (dx - ox) * this.zoom;
@@ -117,18 +100,39 @@ export class Minimap {
 
   /** Full-map view: zoom (wheel / pinch / buttons / double-click) and pan (drag). */
   private view = { scale: 1, ox: 0, oy: 0, fit: 1 };
+  /** The painted map for the current view (repainted only when the view changes). */
+  private layer: HTMLCanvasElement | null = null;
+  private layerKey = '';
+  private pick: FullMapOptions['pick'] | null = null;
+  private route: { pts: number[]; dest: [number, number] } | null = null;
+  private pin: [number, number] | null = null;
+  private sheet: HTMLElement | null = null;
+  private onCloseFull: (() => void) | null = null;
 
-  openFull() {
-    if (this.full) return;
+  /**
+   * Opens the full map. With `pick`, a tap on the map picks a spot (tile coords) instead of
+   * just panning, e.g. to choose a ride's destination.
+   */
+  openFull(opts: FullMapOptions = {}) {
+    if (this.full) {
+      if (!opts.pick) return;
+      this.closeFull();
+    }
+    this.pick = opts.pick ?? null;
+    this.onCloseFull = opts.onClose ?? null;
+    this.route = null;
+    this.pin = null;
     const canvas = el('canvas', { 'data-testid': 'fullmap' });
     const btn = (label: string, action: string, title: string) => el('button', { class: 'icon-btn', type: 'button', 'data-action': action, title, 'aria-label': title }, label);
     const zin = btn('+', 'zoom-in', 'Zoom in');
     const zout = btn('−', 'zoom-out', 'Zoom out');
     const me = btn('📍', 'zoom-me', 'Centre on me');
-    const close = el('button', { class: 'btn close', type: 'button' }, 'Close map');
+    const close = el('button', { class: 'btn close', type: 'button' }, this.pick ? 'Cancel' : 'Close map');
     const credit = el('div', { class: 'map-credit' }, `Map data ${this.map.attribution} (ODbL) · scroll / pinch to zoom, drag to move · M or tap outside to close`);
-    const wrap = el('div', { class: 'fullmap-canvas' }, canvas, el('div', { class: 'fullmap-zoom' }, zin, zout, me));
-    this.full = el('div', { class: 'fullmap' }, wrap, credit, close);
+    this.sheet = el('div', { class: 'fullmap-sheet hidden', 'data-testid': 'fullmap-sheet' });
+    const hint = this.pick ? el('div', { class: 'fullmap-hint' }, this.pick.hint) : null;
+    const wrap = el('div', { class: 'fullmap-canvas' }, canvas, el('div', { class: 'fullmap-zoom' }, zin, zout, me), hint ?? '', this.sheet);
+    this.full = el('div', { class: `fullmap${this.pick ? ' picking' : ''}` }, wrap, credit, close);
     close.addEventListener('click', () => this.closeFull());
     // Click/tap anywhere outside the map itself closes it.
     this.full.addEventListener('click', (e) => {
@@ -143,7 +147,7 @@ export class Minimap {
 
     const zoomAt = (factor: number, sx: number, sy: number) => {
       const v = this.view;
-      const next = Math.max(v.fit * 0.9, Math.min(16, v.scale * factor));
+      const next = Math.max(v.fit * 0.9, Math.min(24, v.scale * factor));
       // keep the map point under (sx, sy) fixed
       v.ox = sx - ((sx - v.ox) * next) / v.scale;
       v.oy = sy - ((sy - v.oy) * next) / v.scale;
@@ -156,31 +160,25 @@ export class Minimap {
     };
     zin.addEventListener('click', () => zoomAt(1.6, ...centre()));
     zout.addEventListener('click', () => zoomAt(1 / 1.6, ...centre()));
-    me.addEventListener('click', () => {
-      const self = this.lastDots.find((d) => d.self);
-      if (!self) return;
-      const [bx, by] = this.toBase(self.x, self.y);
-      const [cx, cy] = centre();
-      this.view.scale = Math.max(this.view.scale, 4);
-      this.view.ox = cx - bx * this.view.scale;
-      this.view.oy = cy - by * this.view.scale;
-      this.drawFull();
-    });
+    me.addEventListener('click', () => this.centreOnSelf(4));
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rr = canvas.getBoundingClientRect();
       zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - rr.left, e.clientY - rr.top);
     }, { passive: false });
     canvas.addEventListener('dblclick', (e) => {
+      if (this.pick) return;
       const rr = canvas.getBoundingClientRect();
       zoomAt(2, e.clientX - rr.left, e.clientY - rr.top);
     });
-    // Drag to pan; two fingers to pinch-zoom.
+    // Drag to pan; two fingers to pinch-zoom. In pick mode a tap (no drag) picks the spot.
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
+    let tap: { x: number; y: number; moved: boolean } | null = null;
     canvas.addEventListener('pointerdown', (e) => {
       canvas.setPointerCapture?.(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      tap = pointers.size === 1 ? { x: e.clientX, y: e.clientY, moved: false } : null;
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -191,7 +189,9 @@ export class Minimap {
       if (!prev) return;
       const cur = { x: e.clientX, y: e.clientY };
       pointers.set(e.pointerId, cur);
+      if (tap && Math.hypot(cur.x - tap.x, cur.y - tap.y) > 8) tap.moved = true;
       if (pointers.size === 1) {
+        if (tap && !tap.moved) return;
         this.view.ox += cur.x - prev.x;
         this.view.oy += cur.y - prev.y;
         this.drawFull();
@@ -206,21 +206,92 @@ export class Minimap {
     const up = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
       pinchDist = 0;
+      if (e.type === 'pointerup' && tap && !tap.moved && this.pick) {
+        const rr = canvas.getBoundingClientRect();
+        const tx = this.map.originTx + (e.clientX - rr.left - this.view.ox) / this.view.scale;
+        const ty = this.map.originTy + (e.clientY - rr.top - this.view.oy) / this.view.scale;
+        if (tx >= this.map.originTx && ty >= this.map.originTy && tx < this.map.originTx + this.map.width && ty < this.map.originTy + this.map.height) {
+          this.pin = [tx, ty];
+          this.drawFull();
+          this.pick.onPick(tx, ty);
+        }
+      }
+      tap = null;
     };
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', up);
+    if (this.pick) this.centreOnSelf(Math.max(fit * 2.5, 1.4));
     this.drawFull();
   }
 
+  /** Centre the full map on the player (zooming in to at least `minScale`). */
+  private centreOnSelf(minScale: number) {
+    const self = this.lastDots.find((d) => d.self);
+    if (!self || !this.full) return;
+    const r = this.full.querySelector('.fullmap-canvas')!.getBoundingClientRect();
+    const [bx, by] = this.toBase(self.x, self.y);
+    this.view.scale = Math.max(this.view.scale, minScale);
+    this.view.ox = r.width / 2 - bx * this.view.scale;
+    this.view.oy = r.height / 2 - by * this.view.scale;
+    this.drawFull();
+  }
+
+  /** Show a planned route (tile coords, flat) on the full map, or clear it. */
+  setRoute(pts: number[] | null) {
+    this.route = pts && pts.length >= 4 ? { pts, dest: [pts[pts.length - 2], pts[pts.length - 1]] } : null;
+    this.drawFull();
+  }
+
+  /** Content of the panel at the bottom of the full map (ride booking), or null to hide it. */
+  setSheet(content: HTMLElement | null) {
+    if (!this.sheet) return;
+    this.sheet.classList.toggle('hidden', !content);
+    this.sheet.replaceChildren(...(content ? [content] : []));
+  }
+
   closeFull() {
-    this.full?.remove();
+    if (!this.full) return;
+    this.full.remove();
     this.full = null;
+    this.sheet = null;
+    this.pick = null;
+    this.layer = null;
+    this.layerKey = '';
+    const cb = this.onCloseFull;
+    this.onCloseFull = null;
+    cb?.();
   }
 
   /** M: open the full map, or close it if it's open. */
   toggleFull() {
     if (this.full) this.closeFull();
     else this.openFull();
+  }
+
+  /** Paint (or reuse) the map layer for the current view. */
+  private paintLayer(w: number, h: number, dpr: number) {
+    const { scale, ox, oy } = this.view;
+    const key = `${scale.toFixed(4)},${ox.toFixed(1)},${oy.toFixed(1)},${w},${h},${dpr}`;
+    if (this.layer && this.layerKey === key) return this.layer;
+    const c = this.layer ?? document.createElement('canvas');
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr);
+      c.height = Math.round(h * dpr);
+    }
+    const ctx = c.getContext('2d')!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (scale * dpr <= BASE_SCALE) {
+      // Zoomed out: the pre-painted base is already sharp enough.
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.base, ox, oy, this.map.width * scale, this.map.height * scale);
+    } else {
+      paintMap(ctx, this.map, { scale, ox, oy, w, h });
+    }
+    this.layer = c;
+    this.layerKey = key;
+    return c;
   }
 
   private drawFull() {
@@ -237,11 +308,11 @@ export class Minimap {
     }
     const { scale, ox, oy } = this.view;
     const ctx = canvas.getContext('2d')!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#20263a';
-    ctx.fillRect(0, 0, r.width, r.height);
-    ctx.imageSmoothingEnabled = scale < 3;
-    ctx.drawImage(this.base, ox, oy, this.map.width * scale, this.map.height * scale);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(this.paintLayer(r.width, r.height, dpr), 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const at = (tx: number, ty: number): [number, number] => [ox + (tx - this.map.originTx) * scale, oy + (ty - this.map.originTy) * scale];
@@ -255,6 +326,25 @@ export class Minimap {
       ctx.fillText(text, x, y);
     };
     const zoomedIn = scale / this.view.fit;
+    // Planned ride route
+    if (this.route) {
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < this.route.pts.length; i += 2) {
+        const [x, y] = at(this.route.pts[i], this.route.pts[i + 1]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = 'rgba(17,19,31,0.75)';
+      ctx.lineWidth = 7;
+      ctx.stroke();
+      ctx.strokeStyle = '#40c057';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
     // Street names once you've zoomed in a bit.
     if (zoomedIn > 2.2) {
       const seen = new Set<string>();
@@ -301,6 +391,12 @@ export class Minimap {
       ctx.strokeStyle = '#11131f';
       ctx.stroke();
       label(d.target ? 'Target' : d.name, px, py - 14, '700 12px system-ui, sans-serif', d.self ? '#ffe066' : '#ffffff');
+    }
+    // Picked destination
+    const dest = this.route?.dest ?? this.pin;
+    if (dest) {
+      const [px, py] = at(dest[0], dest[1]);
+      label('📍', px, py - 12, '26px system-ui, sans-serif', '#ff6b6b', 0);
     }
   }
 

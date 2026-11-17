@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, TERRAIN_NAMES, formatMoney, manifestRateSen,
+  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -26,11 +26,22 @@ interface Remote {
   samples: Sample[];
 }
 
+/** Position at time t from a buffer of timed samples (drops samples that are too old). */
+function interpolate(s: Sample[], t: number): Sample | null {
+  while (s.length >= 2 && s[1].t <= t) s.shift();
+  if (!s.length) return null;
+  if (s.length < 2 || s[0].t > t) return s[0];
+  const k = (t - s[0].t) / Math.max(1, s[1].t - s[0].t);
+  return { t, x: s[0].x + (s[1].x - s[0].x) * k, y: s[0].y + (s[1].y - s[0].y) * k, dir: s[1].dir, moving: s[1].moving || s[0].moving };
+}
+
 export class TownScene extends Phaser.Scene {
   private app!: App;
   private initData!: InitPayload;
   private me!: Avatar;
   private remotes = new Map<number, Remote>();
+  /** Our own positions from the server while a Ronda drives us. */
+  private selfSamples: Sample[] = [];
   private mapView!: MapView;
   private pos = { x: 0, y: 0 };
   private dir: Direction = 'down';
@@ -46,7 +57,7 @@ export class TownScene extends Phaser.Scene {
   private nearBuilding: BuiltBuilding | null = null;
   private nearInteract: BuiltMap['interactables'][number] | null = null;
   private marker: Phaser.GameObjects.Container | null = null;
-  private vehicleSpeedByTerrain: number[] = [];
+  private vehicleSpeed: Float32Array = new Float32Array(0);
   private offs: Array<() => void> = [];
 
   constructor() {
@@ -69,6 +80,28 @@ export class TownScene extends Phaser.Scene {
     return Phaser.Math.Clamp(Math.min(this.scale.width, this.scale.height) / dpr / 620, 0.6, 1.4) * dpr;
   }
 
+  /** Map chunk resolution: about one texel per screen pixel (capped for memory). */
+  private chunkRes() {
+    return Math.min(2.5, Math.max(1, Math.round(this.zoomFor() * 2) / 2));
+  }
+  private mapRes = 1;
+
+  /** The canvas changed size (window resize / fullscreen): fit the camera and recentre on us. */
+  onViewportResize(w: number, h: number) {
+    const cam = this.cameras.main;
+    cam.setSize(w, h);
+    cam.setZoom(this.zoomFor());
+    cam.centerOn(this.pos.x, this.pos.y);
+    // Zoomed in more than the chunks were drawn for: redraw them sharper (and the other way round).
+    const res = this.chunkRes();
+    if (res !== this.mapRes) {
+      this.mapRes = res;
+      this.mapView.destroy();
+      this.mapView = new MapView(this, this.app.map, res);
+    }
+    this.mapView.update(cam.worldView, true);
+  }
+
   get selfId() {
     return this.initData.you.id;
   }
@@ -76,9 +109,8 @@ export class TownScene extends Phaser.Scene {
   create() {
     const { map, cfg } = this.app;
     const T = map.tileSize;
-    // Draw map chunks at about one texel per screen pixel (capped for memory).
-    const res = Math.min(2.5, Math.max(1, Math.round(this.zoomFor() * 2) / 2));
-    this.mapView = new MapView(this, map, res);
+    this.mapRes = this.chunkRes();
+    this.mapView = new MapView(this, map, this.mapRes);
     // World coordinates are relative to the fixed origin (Menara Mitraland), so bounds can be negative.
     this.cameras.main.setBounds(map.originTx * T, map.originTy * T, map.width * T, map.height * T);
     this.cameras.main.setBackgroundColor('#7cc456');
@@ -92,17 +124,14 @@ export class TownScene extends Phaser.Scene {
       cosmetics: you.cosmetics, vehicle: you.vehicle, particles,
     });
 
-    this.vehicleSpeedByTerrain = TERRAIN_NAMES.map((n) => cfg.terrain.terrains[n]?.vehicle ?? 0);
+    this.vehicleSpeed = vehicleSpeedGrid(this.app.map, cfg.terrain);
     this.createInteractableLabels();
     this.me.setState(you.dir, false);
     for (const p of this.initData.players) this.addRemote(p);
 
     this.cameras.main.startFollow(this.me.container, true, 0.18, 0.18);
     this.cameras.main.setRoundPixels(true);
-    const applyZoom = () => this.cameras.main.setZoom(this.zoomFor());
-    applyZoom();
-    this.scale.on('resize', applyZoom);
-    this.offs.push(() => this.scale.off('resize', applyZoom));
+    this.cameras.main.setZoom(this.zoomFor());
 
     // Door lookup: the tile in front of each door, plus its neighbours.
     for (const b of map.buildings) {
@@ -138,14 +167,14 @@ export class TownScene extends Phaser.Scene {
         av.setVehicle(vehicle);
         if (id === this.selfId) {
           this.app.store.riding = vehicle;
-          // A rented ride goes back when we hop off it.
-          this.app.store.vehicles = this.app.store.vehicles.filter((v) => v === vehicle || cfg.vehicles.vehicles[v]?.starter);
+          this.selfSamples = [];
           this.app.store.emit();
         }
       }
     });
     on('snapshot', (s: SnapshotPayload) => this.onSnapshot(s));
     on('move:correct', ({ x, y }) => {
+      this.selfSamples = [];
       this.pos = { x, y };
       this.me.setPosition(x, y);
       this.lastSent = { x, y, dir: this.dir, moving: false };
@@ -199,7 +228,14 @@ export class TownScene extends Phaser.Scene {
   private onSnapshot(s: SnapshotPayload) {
     const now = performance.now();
     for (const [id, x, y, dirIdx, moving] of s.p) {
-      if (id === this.selfId) continue;
+      if (id === this.selfId) {
+        // As a Ronda passenger the server drives us: follow its positions like a remote player.
+        if (this.isPassenger()) {
+          this.selfSamples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1 });
+          if (this.selfSamples.length > 30) this.selfSamples.splice(0, this.selfSamples.length - 30);
+        }
+        continue;
+      }
       const r = this.remotes.get(id);
       if (!r) continue;
       r.samples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1 });
@@ -226,6 +262,23 @@ export class TownScene extends Phaser.Scene {
     const now = performance.now();
     const dt = Math.min(delta, 100) / 1000;
 
+    // --- Ronda passenger: the server moves us along the route ---
+    if (this.isPassenger()) {
+      const p = interpolate(this.selfSamples, now - cfg.net.interpolationDelayMs);
+      if (p) {
+        this.pos = { x: p.x, y: p.y };
+        this.dir = p.dir;
+        this.me.setPosition(p.x, p.y);
+        this.me.setState(p.dir, p.moving);
+        this.lastSent = { x: p.x, y: p.y, dir: p.dir, moving: false };
+      }
+      this.me.tick(now);
+      this.updateRemotes(now);
+      this.mapView.update(this.cameras.main.worldView);
+      this.slowChecks(delta);
+      return;
+    }
+
     // --- local movement (client prediction) ---
     let { x: vx, y: vy } = this.app.inputVector();
     const len = Math.hypot(vx, vy);
@@ -240,7 +293,7 @@ export class TownScene extends Phaser.Scene {
       if (v) {
         // Riding: top speed × the terrain's vehicle multiplier (grass is slow, roads are fast).
         const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
-        const mult = Math.max(v.minTerrainMult, i >= 0 ? (this.vehicleSpeedByTerrain[map.terrain[i]] ?? 0.4) : 0.4);
+        const mult = Math.max(v.minTerrainMult, i >= 0 ? this.vehicleSpeed[i] : 0.4);
         const speed = v.speed * mult;
         const grid = v.grid === 'drive' ? map.driveCollision : map.collision;
         this.pos = moveWithCollision(grid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
@@ -276,29 +329,15 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
-    // --- remote players: interpolate in the past ---
-    const renderT = now - cfg.net.interpolationDelayMs;
-    for (const r of this.remotes.values()) {
-      const s = r.samples;
-      while (s.length >= 2 && s[1].t <= renderT) s.shift();
-      let x = s[0].x;
-      let y = s[0].y;
-      let dir = s[0].dir;
-      let mv = s[0].moving;
-      if (s.length >= 2 && s[0].t <= renderT) {
-        const k = (renderT - s[0].t) / Math.max(1, s[1].t - s[0].t);
-        x = s[0].x + (s[1].x - s[0].x) * k;
-        y = s[0].y + (s[1].y - s[0].y) * k;
-        dir = s[1].dir;
-        mv = s[1].moving || s[0].moving;
-      }
-      r.avatar.setPosition(x, y);
-      r.avatar.setState(dir, mv);
-      r.avatar.tick(now);
-    }
-
+    this.updateRemotes(now);
     this.mapView.update(this.cameras.main.worldView);
 
+    this.slowChecks(delta);
+  }
+
+  /** Doors, interact prompts, the job marker, district name and the minimap (~7×/s). */
+  private slowChecks(delta: number) {
+    const { map, cfg } = this.app;
     // --- slower checks: doors, district, minimap ---
     this.slowAcc += delta;
     if (this.slowAcc >= 150) {
@@ -349,6 +388,24 @@ export class TownScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  /** Remote players: interpolate between snapshots, a little in the past. */
+  private updateRemotes(now: number) {
+    const renderT = now - this.app.cfg.net.interpolationDelayMs;
+    for (const r of this.remotes.values()) {
+      const p = interpolate(r.samples, renderT);
+      if (!p) continue;
+      r.avatar.setPosition(p.x, p.y);
+      r.avatar.setState(p.dir, p.moving);
+      r.avatar.tick(now);
+    }
+  }
+
+  /** Riding a Ronda (someone else is driving)? */
+  isPassenger(): boolean {
+    const v = this.me?.vehicle;
+    return !!v && !!this.app.cfg.vehicles.vehicles[v]?.passenger;
   }
 
   /** Camera shake for big rolls (0..1). */

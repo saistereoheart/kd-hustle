@@ -48,5 +48,7 @@ export class MapView {
 
   destroy() {
     this.chunks.destroy();
+    for (const t of this.labels) t.destroy();
+    this.labels = [];
   }
 }

@@ -3,7 +3,7 @@ import osmJson from '../../map/kd.osm.json';
 import overridesJson from '../../map/town.overrides.json';
 import terrainJson from '../../config/terrain.json';
 import { terrainConfigSchema } from '../config/schemas';
-import { buildMap, districtAt, gridIndexAt, pointInPoly, Tile } from './build';
+import { buildMap, districtAt, gridIndexAt, pointInPoly, Tile, vehicleSpeedGrid } from './build';
 import { buildPolyIndex, collides, moveWithCollision, pathClear } from './collision';
 import type { MapSource } from './types';
 
@@ -190,3 +190,23 @@ describe('exact (polygon) building collision', () => {
     expect(Math.abs(pos.x - x0)).toBeLessThan(0.01);
   });
 });
+
+describe('elevated decks (the DASH above The Strand)', () => {
+  it('vehicles ride on the deck at road speed while walkers pass underneath', () => {
+    const speed = vehicleSpeedGrid(map, terrain);
+    let overGrass = 0;
+    for (let i = 0; i < map.deck.length; i++) {
+      if (!map.deck[i] || map.terrain[i] !== Tile.Grass) continue;
+      overGrass++;
+      expect(speed[i]).toBe(terrain.terrains.road.vehicle);
+      expect(map.driveSolid[i]).toBe(0);
+      expect(map.solid[i]).toBe(0);
+    }
+    expect(overGrass).toBeGreaterThan(1000);
+    // Nothing grows under a deck (trees are drawn above everything, so they'd sit on the road).
+    for (let i = 0; i < map.deck.length; i++) if (map.deck[i]) expect(map.decor[i]).toBe(0);
+    // Elevated highways over a ground highway or river are drivable too.
+    for (let i = 0; i < map.deck.length; i++) if (map.deck[i] && map.terrain[i] === Tile.Water) expect(map.driveSolid[i]).toBe(0);
+  });
+});
+

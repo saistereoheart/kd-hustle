@@ -462,3 +462,17 @@ body.portrait .flip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .fullmap-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .fullmap-zoom .icon-btn { font-size: 20px; font-weight: 900; }
 .fullmap { padding-top: calc(12px + var(--safe-t)); padding-bottom: calc(10px + var(--safe-b)); }
+
+/* --- Ronda rides + map pick mode --- */
+.fullmap.picking .fullmap-canvas canvas { cursor: crosshair; }
+.fullmap-hint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(17, 19, 31, 0.88); border: 2px solid #40c057; color: #fff; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: 14px; pointer-events: none; white-space: nowrap; max-width: calc(100% - 80px); overflow: hidden; text-overflow: ellipsis; }
+.fullmap-sheet { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(420px, calc(100% - 20px)); background: var(--panel); border: 2px solid #40c057; border-radius: 14px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); }
+.ronda-sheet { display: flex; flex-direction: column; gap: 6px; }
+.ronda-sheet p { margin: 0; font-size: 13px; }
+.ronda-sheet .btn { align-self: stretch; }
+.ronda-title { font-weight: 800; font-size: 15px; }
+.ronda-facts { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+.ronda-fare { font-weight: 800; color: #69db7c; }
+.bad-text { color: var(--bad, #ff6b6b); }
+.ride-hud { top: calc(130px + var(--safe-t)); border-color: #40c057; }
+body.touch .ride-hud { top: calc(210px + var(--safe-t)); }

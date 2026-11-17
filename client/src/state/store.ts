@@ -17,7 +17,7 @@ export class Store {
   isAdmin = false;
   skills: Record<string, number> = {};
   hotbar: Array<HotbarRef | null> = [];
-  /** Vehicles we can ride right now (starter + rented). */
+  /** Vehicles we own and can ride ourselves (the starter bicycle). */
   vehicles: string[] = [];
   /** The vehicle we're riding (mirrors the town scene's avatar). */
   riding: string | null = null;

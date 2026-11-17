@@ -1,6 +1,25 @@
 // Schema migrations, applied in order and recorded in schema_migrations.
-// Later phases append new entries (never edit an applied one).
-export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
+// Later phases append new entries (never edit an applied one). A migration has SQL, and/or a
+// `run` step for data changes that are easier in code; both run in the same transaction.
+import type Database from 'better-sqlite3';
+
+export interface Migration {
+  id: number;
+  name: string;
+  sql?: string;
+  run?: (db: Database.Database) => void;
+}
+
+/** Migration 6's hotbar change: remove the motorbike (left over from when it could be ordered
+ *  from the phone, now replaced by Ronda rides). Every other slot is kept as it is. */
+export function withoutMotorbike(saved: unknown[]): unknown[] {
+  const isBike = (v: unknown) => !!v && typeof v === 'object' && (v as { kind?: string }).kind === 'vehicle' && (v as { id?: string }).id === 'motorbike';
+  const bar = saved.slice(0, 10).map((v) => (isBike(v) ? null : (v ?? null)));
+  while (bar.length < 10) bar.push(null);
+  return bar;
+}
+
+export const MIGRATIONS: Migration[] = [
   {
     id: 1,
     name: 'accounts_sessions_players',
@@ -115,5 +134,25 @@ export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
     name: 'player_hotbar',
     // NULL = never set: the server fills in the default (bicycle in slot 1).
     sql: 'ALTER TABLE players ADD COLUMN hotbar_json TEXT;',
+  },
+  {
+    id: 6,
+    name: 'hotbar_drop_motorbike',
+    // Ronda rides (phone) replace the rentable motorbike, so take the leftover motorbike out of
+    // everyone's hotbar. Nothing else changes.
+    run: (db) => {
+      const rows = db.prepare('SELECT account_id, hotbar_json FROM players WHERE hotbar_json IS NOT NULL').all() as Array<{ account_id: number; hotbar_json: string }>;
+      const set = db.prepare('UPDATE players SET hotbar_json = ? WHERE account_id = ?');
+      for (const r of rows) {
+        let bar: Array<unknown>;
+        try {
+          bar = JSON.parse(r.hotbar_json);
+        } catch {
+          continue;
+        }
+        if (!Array.isArray(bar)) continue;
+        set.run(JSON.stringify(withoutMotorbike(bar)), r.account_id);
+      }
+    },
   },
 ];
