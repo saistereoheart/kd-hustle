@@ -91,11 +91,11 @@ export class App {
       this.emotes?.close();
       this.minimap?.closeFull();
     });
-    for (let i = 1; i <= 9; i++) {
-      this.keyboard.onPress(`Digit${i}`, () => {
-        if (!inTown() || !this.emotes?.isOpen) return;
-        const e = this.cfg.chat.emotes[i - 1];
-        if (e) this.emotes.pick(e.id);
+    // 1-9 and 0 fire emotes directly (no need to open the wheel) so they can be spammed.
+    for (let i = 0; i < 10; i++) {
+      this.keyboard.onPress(`Digit${(i + 1) % 10}`, () => {
+        const e = this.cfg.chat.emotes[i];
+        if (inTown() && e) this.triggerEmote(e.id);
       });
     }
   }
@@ -208,11 +208,27 @@ export class App {
         this.cfg.chat.maxLength,
       );
       this.minimap = new Minimap(this.map);
-      this.emotes = new EmoteWheel(this.cfg.chat.emotes, (id) => this.socket?.emit('emote', { emote: id }));
+      this.emotes = new EmoteWheel(this.cfg.chat.emotes, (id) => this.triggerEmote(id));
     }
     for (const m of p.chat) this.chat?.add(m);
+    this.onOwnEmote(null);
     document.body.dataset.state = 'town';
     this.game.scene.start('town', { app: this, init: p });
+  }
+
+  /** The continuous emote our own character is playing (null if none). */
+  private ownLoop: string | null = null;
+
+  onOwnEmote(loopId: string | null) {
+    this.ownLoop = loopId;
+    this.emotes?.setActive(loopId);
+  }
+
+  /** Play an emote; picking the continuous one that's already playing stops it. */
+  triggerEmote(id: string) {
+    if (!this.socket?.connected) return;
+    if (id === this.ownLoop) this.socket.emit('emote:stop');
+    else this.socket.emit('emote', { emote: id });
   }
 
   onTownReady(scene: TownScene) {

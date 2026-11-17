@@ -3,12 +3,17 @@
   "historySize": 50,
   "bubbleMs": 5000,
   "rateLimit": { "count": 5, "windowMs": 5000 },
-  "emoteCooldownMs": 1200,
+  "emoteRateLimit": { "count": 6, "windowMs": 2000 },
   "emotes": [
-    { "id": "wave", "name": "Wave", "emoji": "👋" },
-    { "id": "dance", "name": "Dance", "emoji": "💃" },
-    { "id": "cry", "name": "Cry", "emoji": "😭" },
-    { "id": "flex", "name": "Flex", "emoji": "💪" },
-    { "id": "laugh", "name": "Laugh", "emoji": "😂" }
+    { "id": "wave", "name": "Wave", "emoji": "👋", "loop": false, "durationMs": 2400 },
+    { "id": "dance", "name": "Dance", "emoji": "💃", "loop": true, "durationMs": 0 },
+    { "id": "laugh", "name": "Laugh", "emoji": "😂", "loop": false, "durationMs": 2400 },
+    { "id": "cry", "name": "Cry", "emoji": "😭", "loop": true, "durationMs": 0 },
+    { "id": "flex", "name": "Flex", "emoji": "💪", "loop": false, "durationMs": 2400 },
+    { "id": "clap", "name": "Clap", "emoji": "👏", "loop": false, "durationMs": 2000 },
+    { "id": "cheer", "name": "Cheer", "emoji": "🎉", "loop": false, "durationMs": 1800 },
+    { "id": "salam", "name": "Salam", "emoji": "🤲", "loop": false, "durationMs": 2400 },
+    { "id": "sit", "name": "Sit", "emoji": "🪑", "loop": true, "durationMs": 0 },
+    { "id": "sleep", "name": "Sleep", "emoji": "💤", "loop": true, "durationMs": 0 }
   ]
 }

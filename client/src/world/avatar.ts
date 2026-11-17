@@ -20,7 +20,8 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
     mk(`idle_${view}`, idleFrames(view), 2);
     mk(`walk_${view}`, walkFrames(view), 9);
   }
-  for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, id === 'dance' ? 4 : 5);
+  const EMOTE_FPS: Record<string, number> = { dance: 6, cry: 4, sit: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
+  for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, EMOTE_FPS[id] ?? 5);
   return key;
 }
 
@@ -36,6 +37,8 @@ export class Avatar {
   private texKey = '';
   private emoteUntil = 0;
   private emoteId = '';
+  private emoteLoopFx: Phaser.Time.TimerEvent | null = null;
+  private fxAlive = 0;
   dir: Direction = 'down';
   moving = false;
 
@@ -86,16 +89,16 @@ export class Avatar {
     const changed = dir !== this.dir || moving !== this.moving;
     this.dir = dir;
     this.moving = moving;
-    if (moving && this.emoteUntil) this.emoteUntil = 0; // walking cancels an emote
+    if (moving && this.emoteUntil) {
+      this.stopEmote(); // walking cancels an emote
+      return;
+    }
     if (changed) this.applyAnim();
   }
 
   /** Called every frame: ends emotes when their time is up. */
   tick(now: number) {
-    if (this.emoteUntil && now > this.emoteUntil) {
-      this.emoteUntil = 0;
-      this.applyAnim(true);
-    }
+    if (this.emoteUntil && now > this.emoteUntil) this.stopEmote();
   }
 
   private applyAnim(force = false) {
@@ -106,14 +109,117 @@ export class Avatar {
     if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
   }
 
-  playEmote(id: string, emoji: string) {
+  get currentEmote() {
+    return this.emoteUntil ? this.emoteId : null;
+  }
+
+  /** Play (or restart, if spammed) an emote. Continuous emotes run until stopEmote(). */
+  playEmote(id: string, def: { emoji: string; loop: boolean; durationMs: number }, particles: boolean) {
     if (!EMOTE_FRAMES[id]) return;
+    const sameLoop = def.loop && this.emoteUntil === Infinity && this.emoteId === id;
+    this.emoteLoopFx?.remove();
+    this.emoteLoopFx = null;
     this.emoteId = id;
-    this.emoteUntil = performance.now() + 2600;
+    this.emoteUntil = def.loop ? Infinity : performance.now() + def.durationMs;
+    if (!sameLoop) this.applyAnim(true);
+    this.popEmoji(def.emoji);
+    if (!particles) return;
+    this.burst(id);
+    const loopFx: Record<string, [number, () => void]> = {
+      dance: [450, () => this.note()],
+      cry: [260, () => this.tear()],
+      sleep: [900, () => this.zzz()],
+    };
+    const fx = loopFx[id];
+    if (fx) {
+      if (def.loop) this.emoteLoopFx = this.scene.time.addEvent({ delay: fx[0], loop: true, callback: fx[1] });
+      else fx[1]();
+    }
+  }
+
+  stopEmote() {
+    this.emoteLoopFx?.remove();
+    this.emoteLoopFx = null;
+    if (!this.emoteUntil) return;
+    this.emoteUntil = 0;
     this.applyAnim(true);
-    const t = this.scene.add.text(0, -86, emoji, { ...TEXT_BASE, fontSize: '24px' }).setOrigin(0.5, 1);
-    this.container.add(t);
-    this.scene.tweens.add({ targets: t, y: -112, alpha: 0, duration: 1800, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+  }
+
+  // ---------------------------------------------------------------- emote effects
+  /** Adds a short-lived effect object to the avatar (capped so spamming can't flood the scene). */
+  private fx<T extends Phaser.GameObjects.GameObject>(obj: T, tween: Omit<Phaser.Types.Tweens.TweenBuilderConfig, 'targets'>): T | null {
+    if (this.fxAlive > 40) {
+      obj.destroy();
+      return null;
+    }
+    this.fxAlive++;
+    this.container.add(obj);
+    this.scene.tweens.add({
+      ...tween,
+      targets: obj,
+      onComplete: () => {
+        this.fxAlive--;
+        obj.destroy();
+      },
+    });
+    return obj;
+  }
+
+  private popEmoji(emoji: string) {
+    const t = this.scene.add.text(0, -84, emoji, { ...TEXT_BASE, fontSize: '22px' }).setOrigin(0.5, 1).setScale(0.4);
+    this.fx(t, { y: -114, scale: 1.1, alpha: { from: 1, to: 0 }, duration: 1500, ease: 'Back.easeOut' });
+  }
+
+  private glyph(text: string, color: string, x: number, y: number, size = 14) {
+    return this.scene.add.text(x, y, text, { ...TEXT_BASE, fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#11131f', strokeThickness: 3 }).setOrigin(0.5);
+  }
+
+  private note() {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const g = this.glyph(Math.random() < 0.5 ? '♪' : '♫', ['#ffd43b', '#ff8787', '#74c0fc', '#b197fc'][Math.floor(Math.random() * 4)], side * 14, -50, 16);
+    this.fx(g, { x: side * (26 + Math.random() * 14), y: -84 - Math.random() * 14, angle: side * 25, alpha: { from: 1, to: 0 }, duration: 1300, ease: 'Sine.easeOut' });
+  }
+
+  private tear() {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const d = this.scene.add.ellipse(side * 6, -40, 4, 6, 0x5aaaff, 0.9);
+    this.fx(d, { x: side * (16 + Math.random() * 10), y: -14, alpha: { from: 0.9, to: 0 }, duration: 650, ease: 'Quad.easeIn' });
+  }
+
+  private zzz() {
+    const z = this.glyph('Z', '#d0ebff', 10, -50, 12);
+    this.fx(z, { x: 26, y: -86, scale: { from: 0.7, to: 1.5 }, alpha: { from: 1, to: 0 }, duration: 1800, ease: 'Sine.easeOut' });
+  }
+
+  private burst(id: string) {
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    if (id === 'cheer') {
+      const colors = [0xff6b6b, 0xffd43b, 0x69db7c, 0x4dabf7, 0xda77f2, 0xffa94d];
+      for (let i = 0; i < 18; i++) {
+        const r = this.scene.add.rectangle(0, -60, 4, 7, colors[i % colors.length]);
+        this.fx(r, { x: rnd(-40, 40), y: rnd(-20, 10), angle: rnd(-360, 360), alpha: { from: 1, to: 0 }, duration: rnd(900, 1400), ease: 'Quad.easeOut' });
+      }
+    } else if (id === 'flex' || id === 'salam') {
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const g = this.glyph('✦', id === 'flex' ? '#ffd43b' : '#c3fae8', Math.cos(a) * 10, -40 + Math.sin(a) * 10, 12);
+        this.fx(g, { x: Math.cos(a) * 30, y: -40 + Math.sin(a) * 26, alpha: { from: 1, to: 0 }, scale: { from: 0.6, to: 1.3 }, duration: 900 });
+      }
+    } else if (id === 'clap') {
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i - 2.5) * 0.45;
+        const l = this.scene.add.rectangle(0, -38, 2, 6, 0xffe066).setRotation(a + Math.PI / 2);
+        this.fx(l, { x: Math.cos(a) * 18, y: -38 + Math.sin(a) * 18, alpha: { from: 1, to: 0 }, duration: 400 });
+      }
+    } else if (id === 'laugh') {
+      for (const [i, side] of [[0, -1], [1, 1]] as const) {
+        const g = this.glyph('HA', '#ffe066', side * 20, -56 - i * 6, 12);
+        this.fx(g, { y: -84 - i * 6, x: side * 30, alpha: { from: 1, to: 0 }, duration: 1100, delay: i * 180 });
+      }
+    } else if (id === 'wave') {
+      const g = this.glyph('Hi!', '#ffffff', 22, -60, 12);
+      this.fx(g, { y: -76, alpha: { from: 1, to: 0 }, duration: 1200 });
+    }
   }
 
   say(text: string, ms: number) {
@@ -144,6 +250,7 @@ export class Avatar {
   }
 
   destroy() {
+    this.emoteLoopFx?.remove();
     this.bubbleTimer?.remove();
     this.container.destroy(true);
   }

@@ -27,6 +27,8 @@ export interface PlayerPublic {
   moving: boolean;
   level: number;
   title: string | null;
+  /** Continuous emote currently playing (sit, sleep, dance...), or null. */
+  emote: string | null;
 }
 
 export interface SelfState extends PlayerPublic {
@@ -66,6 +68,7 @@ export interface ClientToServerEvents {
   move: (msg: MoveMsg) => void;
   'chat:send': (msg: { text: string }, ack: Ack<SimpleResult>) => void;
   emote: (msg: { emote: string }) => void;
+  'emote:stop': () => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }
 
@@ -78,6 +81,7 @@ export interface ServerToClientEvents {
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;
   'emote:played': (p: { id: number; emote: string }) => void;
+  'emote:stopped': (p: { id: number }) => void;
   saved: (p: { at: number }) => void;
   kicked: (p: { reason: string }) => void;
 }

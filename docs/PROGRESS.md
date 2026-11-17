@@ -10,7 +10,7 @@ Phase 2 (money, jobs and the gacha core, with the first driveable vehicle) is ne
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 40 unit tests (incl. map validator: reachability, doors, landmarks, no brand names) |
+| `npm test` (Vitest) | ✅ 43 unit tests (incl. map validator and emote state) |
 | `npm run e2e` (Playwright, 2 browsers: desktop 1920×1080 + phone 390×844) | ✅ passes on the dev server and on the production build |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
 | Real phone on the LAN | ⏳ needs you (see below) |
@@ -46,6 +46,21 @@ The full map (🗺️) shows the whole area with district names.
 - **Tudung side view:** a rounded face opening instead of the boxy look.
 
 **Check:** ⚙️ Settings → Edit character, then try caps/beanie/songkok over spiky, afro, bun and long hair, and rotate the preview.
+
+### Emotes v2 (detailed, spammable, continuous)
+- **10 emotes, 4 animation frames each:** 👋 Wave, 💃 Dance ↻, 😂 Laugh, 😭 Cry ↻, 💪 Flex, 👏 Clap, 🎉 Cheer (jump),
+  🤲 Salam, 🪑 Sit ↻, 💤 Sleep ↻.
+- **Effects:** music notes (dance), falling tears (cry), Zzz (sleep), confetti (cheer), sparkles (flex, salam),
+  clap burst, "HA HA", "Hi!". They respect ⚙️ Settings → Particles.
+- **Spammable:** no cooldown, just a burst limit of 6 per 2 s (`chat.json → emoteRateLimit`). Spamming restarts the
+  animation and fires new effects.
+- **Continuous (↻):** dance, cry, sit and sleep loop until you walk, tap the same emote again, or pick another.
+  The server remembers them, so players who join later still see you sitting or sleeping.
+- **Controls:** keys **1–9, 0** fire emotes directly (no wheel needed). **Q** / 😀 toggles the wheel, which now
+  stays open and doesn't block the screen, so you can keep tapping and walking. ✕ closes it.
+
+**Check:** on the phone, open 😀 and tap Clap repeatedly, then Sit. Your friend should see you sitting, still see it
+after they refresh, and see you stand up when you walk.
 
 ### One-time note
 Accounts created before this update had positions on the old map, so they **spawn in Dataran Sunway once** on their
@@ -108,7 +123,7 @@ through firewall → Node.js JavaScript Runtime*, then tick **Private**.
 
 - [ ] Both players see each other and walk smoothly (PC: keyboard. Phone: the joystick, bottom-left).
 - [ ] **Chat:** press **Enter** (or tap 💬), type, press Enter. The message shows in the chat log and as a bubble over your head.
-- [ ] **Emotes:** press **Q** then **1–5** (or tap 😀). Wave, dance, cry, flex and laugh animate for everyone.
+- [ ] **Emotes:** press **1–9, 0** (or tap 😀). One-shots can be spammed; ↻ ones (dance, cry, sit, sleep) loop until you walk.
 - [ ] **Minimap** (top-right): **M** toggles it. Tap it, or 🗺️, for the full map with district names.
 - [ ] Walking into a new district shows a "📍 The Strand" style banner.
 - [ ] Stand at a building door: the "E Enter …" prompt appears. Interiors come in later phases.

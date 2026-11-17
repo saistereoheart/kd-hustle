@@ -15,6 +15,7 @@ import type { SaveManager } from '../save/saveManager';
 import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
+import { EmoteSystem } from '../systems/emotes/emotes';
 import type { OnlinePlayer, World } from './world';
 
 interface SocketData {
@@ -36,7 +37,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   const { cfg, auth, repos, world, saves } = deps;
   const chat = new ChatHistory(cfg.chat.historySize);
   const chatLimiter = new RateLimiter(cfg.chat.rateLimit.count, cfg.chat.rateLimit.windowMs);
-  const emoteIds = new Set(cfg.chat.emotes.map((e) => e.id));
+  const emotes = new EmoteSystem(cfg.chat);
   const spawn = cfg.map.spawnPx;
 
   // --- auth handshake -------------------------------------------------------------
@@ -110,7 +111,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         lastSavedAt: rec.lastSavedAt,
         mapVersion: cfg.map.overrides.version,
         move: newMoveState(x, y, Date.now(), cfg.movement),
-        lastEmoteAt: 0,
+        emote: null,
       };
       world.add(p);
       if (p.hasCharacter) socket.to(p.scene).emit('player:joined', world.toPublic(p));
@@ -155,6 +156,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         return;
       }
       if (me.x !== m.x || me.y !== m.y || me.dir !== m.dir) me.dirty = true;
+      if (emotes.onMove(me, m.moving)) io.to(me.scene).emit('emote:stopped', { id: me.id });
       me.x = m.x;
       me.y = m.y;
       me.dir = m.dir;
@@ -178,11 +180,13 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     socket.on('emote', (msg) => {
       if (!me.hasCharacter) return;
       const parsed = C2S.emote.safeParse(msg);
-      if (!parsed.success || !emoteIds.has(parsed.data.emote)) return;
-      const now = Date.now();
-      if (now - me.lastEmoteAt < cfg.chat.emoteCooldownMs) return;
-      me.lastEmoteAt = now;
-      io.to(me.scene).emit('emote:played', { id: me.id, emote: parsed.data.emote });
+      if (!parsed.success) return;
+      const res = emotes.play(me, parsed.data.emote);
+      if (res.kind === 'played') io.to(me.scene).emit('emote:played', { id: me.id, emote: res.emote });
+    });
+
+    socket.on('emote:stop', () => {
+      if (emotes.stop(me)) io.to(me.scene).emit('emote:stopped', { id: me.id });
     });
 
     // --- logout + disconnect ----------------------------------------------------------

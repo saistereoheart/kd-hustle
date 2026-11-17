@@ -8,6 +8,7 @@ import {
 } from '@kh/shared';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
+import { loadPrefs } from '../ui/settings';
 import { Avatar } from './avatar';
 import { MapView } from './mapRenderer';
 
@@ -133,8 +134,15 @@ export class TownScene extends Phaser.Scene {
     });
     on('emote:played', ({ id, emote }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
-      const emoji = cfg.chat.emotes.find((e) => e.id === emote)?.emoji ?? '✨';
-      av?.playEmote(emote, emoji);
+      const def = cfg.chat.emotes.find((e) => e.id === emote);
+      if (!av || !def) return;
+      av.playEmote(emote, def, loadPrefs().particles);
+      if (id === this.selfId) this.app.onOwnEmote(def.loop ? emote : null);
+    });
+    on('emote:stopped', ({ id }) => {
+      const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
+      av?.stopEmote();
+      if (id === this.selfId) this.app.onOwnEmote(null);
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -155,6 +163,9 @@ export class TownScene extends Phaser.Scene {
     if (this.remotes.has(p.id)) return;
     const avatar = new Avatar(this, this.app.cfg.character, { name: p.name, level: p.level, appearance: p.appearance, x: p.x, y: p.y, isSelf: false });
     avatar.setState(p.dir, p.moving);
+    // Someone who was already sitting/sleeping/dancing when we joined.
+    const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
+    if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
     this.remotes.set(p.id, { id: p.id, name: p.name, avatar, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
@@ -198,6 +209,7 @@ export class TownScene extends Phaser.Scene {
       this.pos = moveWithCollision(map, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
       this.me.setPosition(this.pos.x, this.pos.y);
     }
+    if (moving && !this.moving && this.me.currentEmote) this.app.onOwnEmote(null); // walking ends our emote
     this.moving = moving;
     this.me.setState(this.dir, moving);
     this.me.tick(now);
@@ -272,6 +284,6 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.centerOn(tx * this.app.map.tileSize, ty * this.app.map.tileSize);
   }
   debugRemotes() {
-    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y }));
+    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y, emote: r.avatar.currentEmote }));
   }
 }

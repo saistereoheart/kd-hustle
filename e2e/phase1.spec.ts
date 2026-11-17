@@ -8,7 +8,7 @@ const SHOTS = 'test-results/screenshots';
 type Pos = { id: number; x: number; y: number } | null;
 const self = (p: Page) => p.evaluate(() => (window as unknown as { __kh: { self: () => Pos } }).__kh.self());
 const remotes = (p: Page) =>
-  p.evaluate(() => (window as unknown as { __kh: { remotes: () => Array<{ id: number; name: string; x: number; y: number }> } }).__kh.remotes());
+  p.evaluate(() => (window as unknown as { __kh: { remotes: () => Array<{ id: number; name: string; x: number; y: number; emote: string | null }> } }).__kh.remotes());
 const chatText = (p: Page) => p.evaluate(() => (window as unknown as { __kh: { chat: () => string[] } }).__kh.chat().join('|'));
 const waitTown = (p: Page) => p.waitForFunction(() => document.body.dataset.state === 'town', null, { timeout: 30_000 });
 
@@ -90,11 +90,15 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   await A.page.keyboard.press('Enter');
   await expect.poll(() => chatText(B.page), { timeout: 10_000 }).toContain('Jom makan nasi lemak!');
 
-  // Emote via the wheel on the phone, and with the keyboard on desktop.
+  // Emotes: spam a one-shot from the wheel on the phone, then start a continuous one (sit).
   await B.page.click('[data-action=emote]');
-  await B.page.click('[data-emote=wave]');
-  await A.page.keyboard.press('q');
-  await A.page.keyboard.press('4');
+  for (let i = 0; i < 3; i++) await B.page.click('[data-emote=wave]');
+  await B.page.click('[data-emote=sit]');
+  await expect.poll(async () => (await remotes(A.page))[0]?.emote, { timeout: 10_000 }).toBe('sit');
+  await B.page.click('[data-action=emote]'); // the wheel toggles closed
+  // Desktop: number keys fire emotes directly (5 = flex), spammable.
+  await A.page.keyboard.press('5');
+  await A.page.keyboard.press('5');
   await A.page.waitForTimeout(600);
   await A.page.screenshot({ path: `${SHOTS}/desktop-3-town.png` });
   await B.page.screenshot({ path: `${SHOTS}/phone-3-town.png` });
@@ -112,6 +116,8 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   const afterReload = (await self(A.page))!;
   expect(Math.abs(afterReload.x - beforeReload.x)).toBeLessThan(2);
   expect(Math.abs(afterReload.y - beforeReload.y)).toBeLessThan(2);
+  // B is still sitting, and A (who just re-joined) sees it.
+  await expect.poll(async () => (await remotes(A.page))[0]?.emote, { timeout: 10_000 }).toBe('sit');
 
   // Log out and back in on the phone.
   const bBefore = (await self(B.page))!;

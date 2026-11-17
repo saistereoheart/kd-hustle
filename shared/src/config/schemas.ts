@@ -60,8 +60,21 @@ export const chatConfigSchema = z.object({
   historySize: z.number().int().positive(),
   bubbleMs: z.number().int().positive(),
   rateLimit,
-  emoteCooldownMs: z.number().int().nonnegative(),
-  emotes: z.array(z.object({ id: z.string().min(1).max(32), name: z.string(), emoji: z.string() })).min(1),
+  /** Emotes are spammable within this burst limit (per player). */
+  emoteRateLimit: rateLimit,
+  emotes: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(32),
+        name: z.string(),
+        emoji: z.string(),
+        /** Continuous emotes keep playing until the player moves or stops them. */
+        loop: z.boolean(),
+        /** How long a one-shot emote plays. */
+        durationMs: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
 });
 export type ChatConfig = z.infer<typeof chatConfigSchema>;
 

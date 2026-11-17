@@ -23,6 +23,8 @@ export interface Pose {
   eyes?: 'closed' | 'happy';
   mouth?: string;
   tears?: number;
+  /** Sitting on the ground (front view): body lowered, legs folded. */
+  sit?: boolean;
 }
 
 export const FRAME_W = 56;
@@ -172,8 +174,25 @@ function drawShoe(ctx: Ctx, m: M, x: number, y: number, view: View) {
   }
 }
 
+function drawSittingLegs(ctx: Ctx, m: M) {
+  const { a, hipY, bodyW } = m;
+  const long = LONG_BOTTOMS.has(a.bottom) || a.bottom === 'sarong';
+  const leg = long ? a.bottomColor : a.skin;
+  for (const s of [-1, 1]) {
+    const kx = CX + s * bodyW * 0.42;
+    // thigh out to the knee, shin folded back under
+    line(ctx, [CX + s * bodyW * 0.15, hipY, kx, hipY + 2.5], shade(leg, -0.1), 5.6);
+    line(ctx, [kx, hipY + 2.5, CX + s * bodyW * 0.12, hipY + 4.5], leg, 5.2);
+    if (a.bottom === 'shorts') line(ctx, [CX + s * bodyW * 0.15, hipY, kx - s * 1.2, hipY + 2], a.bottomColor, 6);
+    drawShoe(ctx, m, CX + s * bodyW * 0.18, hipY + 5.6, 'front');
+  }
+  rrect(ctx, CX - bodyW * 0.45, hipY - 2, bodyW * 0.9, 4.5, 1.5);
+  fillStroke(ctx, a.bottom === 'skirt' || a.bottom === 'sarong' || LONG_BOTTOMS.has(a.bottom) || a.bottom === 'shorts' ? a.bottomColor : a.skin, shade(a.bottomColor, -0.3), 0.8);
+}
+
 function drawLegsFrontBack(ctx: Ctx, m: M, p: Pose) {
   const { a, hipY, bodyW } = m;
+  if (p.sit) return drawSittingLegs(ctx, m);
   const spread = bodyW * 0.23;
   const lw = 5.2 * Math.sqrt(m.bw);
   const pants = a.bottomColor;
@@ -1464,8 +1483,8 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
   const m = metrics(a, cfg);
   ctx.save();
   // ground shadow (doesn't bob)
-  ellipse(ctx, CX, FEET_Y, 12 * m.bw, 3.4, 'rgba(0,0,0,0.22)');
-  ctx.translate(0, p.bob ?? 0);
+  ellipse(ctx, CX, FEET_Y, (p.sit ? 14 : 12) * m.bw, 3.4, 'rgba(0,0,0,0.22)');
+  ctx.translate(0, (p.bob ?? 0) + (p.sit ? m.legLen * 0.62 : 0));
   if (p.tilt) {
     ctx.translate(CX, FEET_Y);
     ctx.rotate(p.tilt);
@@ -1508,14 +1527,21 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
     drawLegsFrontBack(ctx, m, p);
     drawTorso(ctx, m, 'front');
     if (m.cover) drawTudungDrape(ctx, m, 'front');
-    drawArm(ctx, m, CX - shoulderX, sy, -1, 0.12 + (p.armL ?? 0), p.bendL ?? 0, 0);
-    drawArm(ctx, m, CX + shoulderX, sy, 1, 0.12 + (p.armR ?? 0), p.bendR ?? 0, 0);
+    // Arms raised above the shoulder (waving, cheering) are drawn in front of the head.
+    const raisedL = (p.armL ?? 0) > 1.4;
+    const raisedR = (p.armR ?? 0) > 1.4;
+    const armL = () => drawArm(ctx, m, CX - shoulderX, sy, -1, 0.12 + (p.armL ?? 0), p.bendL ?? 0, 0);
+    const armR = () => drawArm(ctx, m, CX + shoulderX, sy, 1, 0.12 + (p.armR ?? 0), p.bendR ?? 0, 0);
+    if (!raisedL) armL();
+    if (!raisedR) armR();
     if (m.cover) drawTudungHead(ctx, m, 'front');
     drawHeadFront(ctx, m, p);
     if (!m.cover) drawHairFront(ctx, m);
     else drawTudungFront(ctx, m, 'front');
     drawGlasses(ctx, a.glasses, CX, m.headCY + 1, 'front');
     if (isHat) drawHat(ctx, m, 'front');
+    if (raisedL) armL();
+    if (raisedR) armR();
   }
   ctx.restore();
 }

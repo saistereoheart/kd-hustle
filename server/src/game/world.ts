@@ -20,7 +20,8 @@ export interface OnlinePlayer {
   lastSavedAt: number | null;
   mapVersion: number;
   move: MoveState;
-  lastEmoteAt: number;
+  /** Continuous emote currently playing (see systems/emotes). */
+  emote: string | null;
 }
 
 export class World {
@@ -58,6 +59,7 @@ export class World {
       moving: p.moving,
       level: 1, // levels arrive in Phase 3
       title: null,
+      emote: p.emote,
     };
   }
 
