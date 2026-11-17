@@ -57,6 +57,8 @@ export class Avatar {
   private sprite: Phaser.GameObjects.Sprite;
   private nameText: Phaser.GameObjects.Text;
   private badge: Phaser.GameObjects.Text;
+  /** The worn title, above the name (coloured by its rarity). */
+  private titleText: Phaser.GameObjects.Text;
   private bubble: Phaser.GameObjects.Container | null = null;
   private bubbleTimer: Phaser.Time.TimerEvent | null = null;
   private texKey = '';
@@ -84,7 +86,7 @@ export class Avatar {
     private items: Map<string, ItemDef>,
     opts: {
       name: string; level: number; appearance: Appearance; x: number; y: number; isSelf: boolean;
-      cosmetics?: Cosmetics; vehicle?: string | null; particles?: boolean;
+      cosmetics?: Cosmetics; vehicle?: string | null; particles?: boolean; title?: { name: string; color: string } | null;
     },
   ) {
     this.appearance = opts.appearance;
@@ -97,7 +99,11 @@ export class Avatar {
     this.badge = scene.add
       .text(0, -66, `${opts.level}`, { ...TEXT_BASE, fontSize: '10px', fontStyle: 'bold', color: '#1b1300', backgroundColor: '#f59f00', padding: { x: 4, y: 1 } })
       .setOrigin(1, 1);
-    this.container = scene.add.container(opts.x, opts.y, [this.sprite, this.badge, this.nameText]);
+    this.titleText = scene.add
+      .text(0, -79, '', { ...TEXT_BASE, fontSize: '10px', fontStyle: 'bold italic', color: '#ffffff', stroke: '#11131f', strokeThickness: 3 })
+      .setOrigin(0.5, 1);
+    this.container = scene.add.container(opts.x, opts.y, [this.sprite, this.badge, this.nameText, this.titleText]);
+    this.setTitle(opts.title ?? null);
     this.layoutNameplate();
     this.cosmetics = opts.cosmetics ?? {};
     this.setAppearance(opts.appearance);
@@ -199,6 +205,30 @@ export class Avatar {
   }
 
   private bikeTex = 'bike';
+
+  /** For tests/debug: the level and title shown on the nameplate. */
+  get shownLevel() {
+    return Number(this.badge.text);
+  }
+  get shownTitle() {
+    return this.titleText.visible ? this.titleText.text.replace(/[«»]/g, '').trim() : null;
+  }
+
+  setLevel(level: number) {
+    this.badge.setText(`${level}`);
+    this.layoutNameplate();
+  }
+
+  /** Show (or hide, with null) the worn title over the name. */
+  setTitle(t: { name: string; color: string } | null) {
+    this.titleText.setText(t ? `« ${t.name} »` : '');
+    this.titleText.setVisible(!!t);
+    if (!t) return;
+    // Very dark rarity colours (Secret) get a light outline so they stay readable.
+    const c = Phaser.Display.Color.HexStringToColor(t.color);
+    const dark = c.red * 0.3 + c.green * 0.59 + c.blue * 0.11 < 60;
+    this.titleText.setColor(t.color).setStroke(dark ? '#f1f3f9' : '#11131f', 3);
+  }
 
   private layoutNameplate() {
     const w = this.nameText.width + this.badge.width + 4;
@@ -436,7 +466,7 @@ export class Avatar {
     g.fillTriangle(-5, 0, 5, 0, 0, 6);
     g.lineStyle(1, 0x1d2133, 0.25).strokeRoundedRect(-w / 2, -h, w, h, 8);
     label.setY(-5);
-    this.bubble = this.scene.add.container(0, -82, [g, label]);
+    this.bubble = this.scene.add.container(0, this.titleText.visible ? -94 : -82, [g, label]);
     this.container.add(this.bubble);
     this.bubbleTimer = this.scene.time.delayedCall(ms, () => {
       this.bubble?.destroy();

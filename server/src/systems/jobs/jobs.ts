@@ -5,23 +5,10 @@ import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer, ServerJob } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
 
-// ------------------------------------------------------------------ pure helpers (unit tested)
-export function jobLevel(cfg: JobsConfig, done: number): number {
-  return Math.min(cfg.maxLevel, 1 + Math.floor(done / cfg.levelUpEvery));
-}
-
-export function levelMult(cfg: JobsConfig, level: number): number {
-  return 1 + (level - 1) * cfg.payPerLevel;
-}
-
-/** Delivery pay in sen: base + distance, × level; tip for arriving early; 30% cut if late. */
-export function deliveryPay(cfg: JobsConfig, meters: number, level: number, elapsedMs: number, budgetMs: number) {
-  const d = cfg.delivery;
-  const base = Math.round((d.baseSen + d.perMeterSen * meters) * levelMult(cfg, level));
-  if (elapsedMs > budgetMs) return { paySen: Math.round(base * 0.7), tipSen: 0, late: true };
-  const remaining = 1 - elapsedMs / budgetMs;
-  return { paySen: base, tipSen: Math.round(base * d.maxTip * remaining), late: false };
-}
+// The pay formulas (jobLevel, levelMult, deliveryPay, carwashPay) live in shared/economy/jobsMath
+// so the balance simulator uses exactly the same maths.
+export { jobLevel, levelMult, deliveryPay, carwashPay } from '@kh/shared';
+import { carwashPay, deliveryPay, jobLevel, levelMult } from '@kh/shared';
 
 export type CarwashJob = Extract<JobState, { kind: 'carwash' }>;
 export interface CarwashInput {
@@ -59,7 +46,7 @@ function moves(points: number[], fn: (x: number, y: number, t: number) => void) 
  */
 export function gradeCarwash(cfg: JobsConfig['carwash'], job: CarwashJob, input: CarwashInput, serverElapsedMs: number): CarwashGrade {
   const zero = (valid: boolean, durationMs = 0): CarwashGrade => ({ soap: 0, rinse: 0, polish: 0, cleaned: 0, durationMs, valid });
-  const limitMs = cfg.timeLimitSec * 1000;
+  const limitMs = (job.timeLimitSec ?? cfg.timeLimitSec) * 1000; // Elbow Grease adds seconds
   const streams = [input.soap, input.rinse, input.polish];
   let firstT = Infinity;
   let lastT = -1;
@@ -151,12 +138,6 @@ export function makeCarwashJob(cfg: JobsConfig['carwash'], rand: RandInt, jobId:
 }
 const CAR_COLORS = ['#e03131', '#1971c2', '#f8f9fa', '#212529', '#f59f00', '#2f9e44', '#868e96', '#ae3ec9'];
 
-export function carwashPay(cfg: JobsConfig, cleaned: number, durationMs: number, level: number): number {
-  const c = cfg.carwash;
-  if (cleaned < c.minCleanToPay) return 0;
-  const fast = cleaned >= 1 ? 1 + c.speedBonus * Math.max(0, 1 - durationMs / (c.timeLimitSec * 1000)) : 1;
-  return Math.round(c.baseSen * cleaned * fast * levelMult(cfg, level));
-}
 
 // ------------------------------------------------------------------ the job system
 const SHOP_NAMES = [
@@ -167,9 +148,17 @@ const SHOP_NAMES = [
 const PICKUP_KINDS = new Set(['shoplot', 'shop', 'mall', 'hypermarket']);
 const DROPOFF_KINDS = new Set(['condo', 'flat', 'semid', 'terrace', 'bungalow']);
 
+/** Per-player job bonuses from progression (Hustle Harder, Kopi Kaw, Elbow Grease). */
+export interface JobMods {
+  jobPay: number;
+  carwashExtraSec: number;
+}
+
 export class JobSystem {
   private pickups: BuiltBuilding[] = [];
   private dropoffs: BuiltBuilding[] = [];
+  /** Set by the handlers once progression exists. */
+  modsFor: (p: OnlinePlayer) => JobMods = () => ({ jobPay: 1, carwashExtraSec: 0 });
 
   constructor(
     private readonly cfg: ServerConfig,
@@ -204,8 +193,11 @@ export class JobSystem {
     if (p.job) throw new GameError('Finish or cancel your current job first.');
     const T = this.cfg.map.tileSize;
     const jobId = `${kind}-${now.toString(36)}-${this.rand(1e6).toString(36)}`;
+    const mods = this.modsFor(p);
     if (kind === 'carwash') {
-      p.job = makeCarwashJob(this.cfg.jobs.carwash, this.rand, jobId, now);
+      const job = makeCarwashJob(this.cfg.jobs.carwash, this.rand, jobId, now);
+      job.timeLimitSec += mods.carwashExtraSec;
+      p.job = job;
       return p.job;
     }
     // Delivery: a shop near the player, then a home a few hundred metres away.
@@ -241,7 +233,7 @@ export class JobSystem {
       meters,
       startedAt: now,
       deadline: 0,
-      baseSen: Math.round((d.baseSen + d.perMeterSen * meters) * levelMult(this.cfg.jobs, this.progress(p, kind).level)),
+      baseSen: Math.round((d.baseSen + d.perMeterSen * meters) * levelMult(this.cfg.jobs, this.progress(p, kind).level) * mods.jobPay),
       budgetMs,
     };
     return p.job;
@@ -264,7 +256,10 @@ export class JobSystem {
     const prog = this.progress(p, 'delivery');
     const budgetMs = job.budgetMs ?? 60000;
     const elapsed = now - (job.deadline - budgetMs);
-    const { paySen, tipSen } = deliveryPay(this.cfg.jobs, job.meters, prog.level, elapsed, budgetMs);
+    const raw = deliveryPay(this.cfg.jobs, job.meters, prog.level, elapsed, budgetMs);
+    const mult = this.modsFor(p).jobPay;
+    const paySen = Math.round(raw.paySen * mult);
+    const tipSen = Math.round(raw.tipSen * mult);
     const levelUp = this.complete(p, 'delivery', paySen + tipSen, job.jobId);
     return { job: null, paidSen: paySen, tipSen, levelUp };
   }
@@ -274,7 +269,7 @@ export class JobSystem {
     if (!job || job.kind !== 'carwash' || job.jobId !== jobId) throw new GameError('That car wash job has ended.');
     const grade = gradeCarwash(this.cfg.jobs.carwash, job, input, now - job.startedAt);
     const prog = this.progress(p, 'carwash');
-    const pay = grade.valid ? carwashPay(this.cfg.jobs, grade.cleaned, grade.durationMs, prog.level) : 0;
+    const pay = grade.valid ? Math.round(carwashPay(this.cfg.jobs, grade.cleaned, grade.durationMs, prog.level) * this.modsFor(p).jobPay) : 0;
     const levelUp = this.complete(p, 'carwash', pay, job.jobId, pay > 0);
     return { cleaned: grade.cleaned, soap: grade.soap, rinse: grade.rinse, polish: grade.polish, paidSen: pay, levelUp };
   }

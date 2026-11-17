@@ -1,7 +1,7 @@
 // The only place money, shards and items change. Every change runs inside a SQLite
 // transaction (all-or-nothing) and is logged to the `transactions` table. If anything throws
 // mid-way, the DB rolls back AND the in-memory player is restored, so they can never drift.
-import { EQUIP_SLOTS, type Cosmetics, type InventoryItem } from '@kh/shared';
+import { EQUIP_SLOTS, isCollectible, type Cosmetics, type InventoryItem } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -28,6 +28,7 @@ export class Economy {
       pity: JSON.parse(JSON.stringify(p.pity)),
       jobs: JSON.parse(JSON.stringify(p.jobs)),
       skills: { ...p.skills },
+      prog: p.prog ? structuredClone(p.prog) : p.prog,
     };
     try {
       return this.repos.tx(fn);
@@ -51,10 +52,12 @@ export class Economy {
     p.shards = shards;
   }
 
-  /** Adds an item to the inventory and the Item Index (call inside run()). */
+  /** Adds an item to the inventory and (collectibles only, not potions) the Item Index. Call inside run(). */
   grant(p: OnlinePlayer, itemId: string, variant: string, serial: number | null): { item: InventoryItem; isNew: boolean } {
     const item = this.repos.inventory.insert(p.id, itemId, variant, serial);
     p.inventory.push(item);
+    const def = this.cfg.itemById.get(itemId);
+    if (def && !isCollectible(def)) return { item, isNew: false };
     const isNew = this.repos.collection.add(p.id, itemId);
     p.index.add(itemId);
     return { item, isNew };

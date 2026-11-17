@@ -1,0 +1,96 @@
+{
+  "manifestFlushEverySec": 10,
+  "branches": [
+    { "id": "hustle", "name": "Hustle", "icon": "💪" },
+    { "id": "luck", "name": "Luck", "icon": "🍀" },
+    { "id": "rolling", "name": "Rolling", "icon": "🎰" },
+    { "id": "fortune", "name": "Fortune", "icon": "💰" },
+    { "id": "movement", "name": "Movement", "icon": "👟" },
+    { "id": "property", "name": "Property", "icon": "🏠", "comingSoon": "Opens when you can buy property (rent %, Airbnb price %, slower cleanliness decay)." },
+    { "id": "business", "name": "Business", "icon": "🏪", "comingSoon": "Opens with stalls and businesses (output %, cheaper managers and staff)." },
+    { "id": "banking", "name": "Banking", "icon": "🏦", "comingSoon": "Opens with Bank Kota (higher loan limit, lower interest)." }
+  ],
+  "skills": {
+    "hustle_harder": {
+      "branch": "hustle", "name": "Hustle Harder", "icon": "💪",
+      "desc": "+5% pay from every job per level.",
+      "maxLevel": 25, "baseCostSen": 15000, "costGrowth": 1.32,
+      "effect": { "kind": "jobPay", "perLevel": 0.05 }
+    },
+    "elbow_grease": {
+      "branch": "hustle", "name": "Elbow Grease", "icon": "🧽",
+      "desc": "+3 seconds on the car wash timer per level.",
+      "maxLevel": 5, "baseCostSen": 25000, "costGrowth": 1.8,
+      "effect": { "kind": "carwashSeconds", "perLevel": 3 }
+    },
+    "fast_learner": {
+      "branch": "hustle", "name": "Fast Learner", "icon": "📚",
+      "desc": "+5% XP from everything per level.",
+      "maxLevel": 10, "baseCostSen": 60000, "costGrowth": 1.6,
+      "effect": { "kind": "xp", "perLevel": 0.05 },
+      "requires": { "level": 3 }
+    },
+    "lucky_charm": {
+      "branch": "luck", "name": "Lucky Charm", "icon": "🍀",
+      "desc": "+5% luck on every crate per level.",
+      "maxLevel": 20, "baseCostSen": 50000, "costGrowth": 1.45,
+      "effect": { "kind": "luck", "perLevel": 0.05 },
+      "requires": { "stage": 2 }
+    },
+    "shiny_sense": {
+      "branch": "luck", "name": "Shiny Sense", "icon": "✨",
+      "desc": "Shiny, Golden and Rainbow variants are 10% likelier per level.",
+      "maxLevel": 10, "baseCostSen": 100000, "costGrowth": 1.6,
+      "effect": { "kind": "variantChance", "perLevel": 0.1 },
+      "requires": { "level": 4, "stage": 2 }
+    },
+    "pity_pact": {
+      "branch": "luck", "name": "Pity Pact", "icon": "🤝",
+      "desc": "Pity guarantees come 4% sooner per level.",
+      "maxLevel": 10, "baseCostSen": 200000, "costGrowth": 1.7,
+      "effect": { "kind": "pity", "perLevel": 0.04 },
+      "requires": { "level": 6 }
+    },
+    "potion_brewer": {
+      "branch": "luck", "name": "Potion Brewer", "icon": "⚗️",
+      "desc": "Potions last 10% longer per level.",
+      "maxLevel": 10, "baseCostSen": 80000, "costGrowth": 1.5,
+      "effect": { "kind": "potionDuration", "perLevel": 0.1 },
+      "requires": { "level": 3 }
+    },
+    "fast_hands": {
+      "branch": "rolling", "name": "Fast Hands", "icon": "⚡",
+      "desc": "Crate reels spin 15% faster per level.",
+      "maxLevel": 4, "baseCostSen": 30000, "costGrowth": 2,
+      "effect": { "kind": "rollSpeed", "perLevel": 0.15 },
+      "requires": { "level": 2 }
+    },
+    "auto_roll": {
+      "branch": "rolling", "name": "Auto-Roll", "icon": "🔁",
+      "desc": "Unlocks Auto: keeps rolling the same crate until you stop it or run out of RM.",
+      "maxLevel": 1, "baseCostSen": 150000, "costGrowth": 1,
+      "effect": { "kind": "unlock", "perLevel": 1 },
+      "requires": { "level": 4 }
+    },
+    "manifest": {
+      "branch": "fortune", "name": "Manifesting", "icon": "🧘",
+      "desc": "Sit still and manifest wealth with the 🧘 Manifest emote (key −). Earns RM every second you hold it.",
+      "maxLevel": 25, "startLevel": 1, "baseCostSen": 5000, "costGrowth": 1.6,
+      "effect": { "kind": "manifestRate", "base": 2, "perLevel": 1 }
+    },
+    "passive_income": {
+      "branch": "fortune", "name": "Passive Income", "icon": "📈",
+      "desc": "+5% passive income per level (Manifesting now; rent and businesses later).",
+      "maxLevel": 20, "baseCostSen": 40000, "costGrowth": 1.5,
+      "effect": { "kind": "passiveIncome", "perLevel": 0.05 },
+      "requires": { "level": 2 }
+    },
+    "kaki_lari": {
+      "branch": "movement", "name": "Kaki Lari", "icon": "👟",
+      "desc": "Walk 4% faster per level.",
+      "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.5,
+      "effect": { "kind": "walkSpeed", "perLevel": 0.04 },
+      "requires": { "level": 2 }
+    }
+  }
+}

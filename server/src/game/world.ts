@@ -2,8 +2,9 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, SelfState,
+  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState,
 } from '@kh/shared';
+import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
 import type { ActiveRide, PendingQuote } from '../systems/rides/rides';
 
@@ -51,10 +52,19 @@ export interface OnlinePlayer {
   /** Ronda: the last fare quote, and the ride in progress (see systems/rides). */
   rideQuote: PendingQuote | null;
   ride: ActiveRide | null;
+
+  // --- progression (Phase 3) ---
+  prog: ServerProgress;
 }
 
 export class World {
   readonly players = new Map<number, OnlinePlayer>();
+
+  /** Builds a player's progress for the client (set by the progression system). */
+  progressOf: (p: OnlinePlayer) => ProgressState = (p) => ({
+    xp: p.prog.xp, level: p.prog.level, stage: p.prog.stage, title: p.prog.title, titles: p.prog.titles, stats: p.prog.stats,
+    buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: p.prog.path,
+  });
 
   /** Vehicles everyone owns from the start (set from vehicles.json at startup). */
   starterVehicles: string[] = [];
@@ -99,8 +109,8 @@ export class World {
       y: p.y,
       dir: p.dir,
       moving: p.moving,
-      level: 1, // levels arrive in Phase 3
-      title: null,
+      level: p.prog.level,
+      title: p.prog.title,
       emote: p.emote,
       cosmetics: p.cosmetics,
       vehicle: p.vehicle,
@@ -129,6 +139,7 @@ export class World {
       skills: p.skills,
       hotbar: p.hotbar,
       vehicles: this.vehiclesOf(p),
+      progress: this.progressOf(p),
     };
   }
 }

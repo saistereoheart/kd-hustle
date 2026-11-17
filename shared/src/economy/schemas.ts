@@ -30,8 +30,11 @@ export const raritiesConfigSchema = z.object({
 });
 export type RaritiesConfig = z.infer<typeof raritiesConfigSchema>;
 
-export const ITEM_TYPES = ['hat', 'face', 'aura', 'back', 'namecolor', 'trinket', 'furniture', 'booster'] as const;
+export const ITEM_TYPES = ['hat', 'face', 'aura', 'back', 'namecolor', 'trinket', 'furniture', 'booster', 'potion'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
+/** What a potion does when used: multiplies one kind of buff for a while. */
+export const BUFF_KINDS = ['luck', 'xp', 'passive', 'jobPay'] as const;
+export type BuffKind = (typeof BUFF_KINDS)[number];
 /** Item types that can be equipped, and the slot they go into. */
 export const EQUIP_SLOTS = ['hat', 'face', 'aura', 'back', 'namecolor'] as const;
 export type EquipSlot = (typeof EQUIP_SLOTS)[number];
@@ -49,6 +52,12 @@ export const itemsConfigSchema = z.object({
       desc: z.string().optional(),
       /** Limited items: only this many can ever be rolled on the server (serial #1..limit). */
       limit: z.number().int().positive().optional(),
+      /** Potions: the buff they give when used. */
+      effect: z.object({ buff: z.enum(BUFF_KINDS), mult: z.number().min(1), durationSec: z.number().int().positive() }).optional(),
+      /** Fixed value (sen) for items that don't come from a crate (potions from rewards). */
+      valueSen: z.number().int().positive().optional(),
+      /** Shard Shop price, overriding the price for its rarity. */
+      shardPrice: z.number().int().positive().optional(),
     }),
   ),
 });
@@ -65,6 +74,8 @@ export const cratesConfigSchema = z.object({
       /** Guaranteed tier after this many rolls without it (e.g. Epic+ every 50). */
       pity: z.object({ epic: z.number().int().positive(), legendary: z.number().int().positive() }),
       pool: z.array(z.string()).min(1),
+      /** Wealth stage / player level needed to roll it. */
+      requires: z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({}),
     }),
   ),
 });
@@ -82,6 +93,8 @@ export const economyConfigSchema = z.object({
   rollRateLimit: rateLimit,
   /** Delay before other players see a rare-pull announcement (so it lands after the reel). */
   announceDelayMs: z.number().int().nonnegative(),
+  /** A potion can be stacked (drunk again while active) up to this many minutes in total. */
+  potionMaxStackMin: z.number().positive(),
 });
 export type EconomyConfig = z.infer<typeof economyConfigSchema>;
 
@@ -187,7 +200,13 @@ export function rideFareSen(cfg: RidesConfig, meters: number): number {
   return Math.max(cfg.minFareSen, Math.round(raw / cfg.fareRoundSen) * cfg.fareRoundSen);
 }
 
-/** Cross-file checks: every pool item exists, every item is in exactly one crate, rarities exist. */
+/** Items that count towards the Item Index (potions are consumables, not collectibles). */
+export function isCollectible(def: ItemDef): boolean {
+  return def.type !== 'potion';
+}
+
+/** Cross-file checks: every pool item exists, every collectible is in exactly one crate (potions may
+ *  be in none, then they need a fixed value), rarities exist. */
 export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, crates: CratesConfig): string[] {
   const errors: string[] = [];
   const tierIds = new Set(r.tiers.map((t) => t.id));
@@ -202,36 +221,12 @@ export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, cr
       seen.set(id, c.id);
     }
   }
-  for (const i of items.items) if (!seen.has(i.id)) errors.push(`item ${i.id} is not in any crate`);
+  for (const i of items.items) {
+    if (i.type === 'potion' && !i.effect) errors.push(`potion ${i.id} has no effect`);
+    if (seen.has(i.id)) continue;
+    if (isCollectible(i)) errors.push(`item ${i.id} is not in any crate`);
+    else if (!i.valueSen) errors.push(`item ${i.id} is in no crate and has no valueSen`);
+  }
   if (!tierIds.has(r.luckAffectsFrom)) errors.push(`luckAffectsFrom: unknown tier ${r.luckAffectsFrom}`);
   return errors;
-}
-
-export const skillsConfigSchema = z.object({
-  skills: z.object({
-    manifest: z.object({
-      name: z.string(),
-      desc: z.string(),
-      maxLevel: z.number().int().positive(),
-      /** Cost to go from level L to L+1 = baseCostSen × costGrowth^(L-1). */
-      baseCostSen: z.number().int().positive(),
-      costGrowth: z.number().min(1),
-      /** Earnings while manifesting = baseSenPerSec + (level-1) × senPerSecPerLevel. */
-      baseSenPerSec: z.number().nonnegative(),
-      senPerSecPerLevel: z.number().nonnegative(),
-    }),
-  }),
-  /** Manifest earnings are banked and paid out (one DB write) every N seconds. */
-  manifestFlushEverySec: z.number().int().positive(),
-});
-export type SkillsConfig = z.infer<typeof skillsConfigSchema>;
-
-export function manifestRateSen(cfg: SkillsConfig, level: number): number {
-  const m = cfg.skills.manifest;
-  return m.baseSenPerSec + (Math.max(1, level) - 1) * m.senPerSecPerLevel;
-}
-
-export function skillUpgradeCostSen(cfg: SkillsConfig, level: number): number {
-  const m = cfg.skills.manifest;
-  return Math.round(m.baseCostSen * Math.pow(m.costGrowth, Math.max(1, level) - 1));
 }

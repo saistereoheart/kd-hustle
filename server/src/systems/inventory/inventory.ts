@@ -1,5 +1,5 @@
 // Equipping cosmetics, the pawn shop (sell for RM / scrap for shards) and the Shard Shop.
-import { EQUIP_SLOTS, pawnPriceSen, scrapShards, type EquipSlot, type InventoryItem } from '@kh/shared';
+import { EQUIP_SLOTS, isCollectible, pawnPriceSen, scrapShards, type EquipSlot, type InventoryItem } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
@@ -48,7 +48,7 @@ export class InventorySystem {
   sell(p: OnlinePlayer, itemId: string, variant: string, count: number) {
     const def = this.cfg.itemById.get(itemId);
     const crate = this.cfg.crateOfItem.get(itemId);
-    if (!def || !crate) throw new GameError('Unknown item.');
+    if (!def || (!crate && !def.valueSen)) throw new GameError('Unknown item.');
     const each = pawnPriceSen(this.cfg.rarities, def, crate, variant, this.cfg.economy.pawnRate);
     const picked = this.pick(p, itemId, variant, count);
     return this.econ.run(p, () => {
@@ -74,13 +74,13 @@ export class InventorySystem {
     });
   }
 
-  /** Shard Shop: buy a specific (non-limited, Epic or lower) item you've already discovered. */
+  /** Shard Shop: buy a specific (non-limited, Epic or lower) item you've already discovered, or a potion. */
   shardBuy(p: OnlinePlayer, itemId: string) {
     const def = this.cfg.itemById.get(itemId);
     if (!def) throw new GameError('Unknown item.');
-    const price = this.cfg.economy.shardShopPrices[def.rarity];
+    const price = def.shardPrice ?? this.cfg.economy.shardShopPrices[def.rarity];
     if (!price || def.limit) throw new GameError(`${def.name} isn't sold in the Shard Shop.`);
-    if (!p.index.has(itemId)) throw new GameError('Discover this item in a crate first.');
+    if (isCollectible(def) && !p.index.has(itemId)) throw new GameError('Discover this item in a crate first.');
     return this.econ.run(p, () => {
       this.econ.change(p, 0, -price, 'shard-shop', itemId);
       return this.econ.grant(p, itemId, 'normal', null);

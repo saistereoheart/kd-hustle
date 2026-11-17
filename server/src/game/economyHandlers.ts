@@ -2,7 +2,7 @@
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
 import {
-  C2S, collides, formatMoney, formatOneIn, HOTBAR_SLOTS, manifestRateSen, skillUpgradeCostSen,
+  C2S, collides, formatMoney, formatOneIn, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
   type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid,
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
@@ -17,6 +17,7 @@ import { JobSystem } from '../systems/jobs/jobs';
 import { newMoveState } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
 import { RideSystem } from '../systems/rides/rides';
+import { ProgressionSystem } from '../systems/progression/progression';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
@@ -37,7 +38,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   /** Movement rules for a player right now (walking or riding). */
   const moveRules = (p: OnlinePlayer): { grid: CollisionGrid; movement: MovementConfig } => {
     const v = p.vehicle ? cfg.vehicles.vehicles[p.vehicle] : undefined;
-    if (!v) return { grid: cfg.map.collision, movement: cfg.movement };
+    if (!v) {
+      const walk = p.prog ? prog.mods(p).walk : 1; // Kaki Lari skill
+      return { grid: cfg.map.collision, movement: walk === 1 ? cfg.movement : { ...cfg.movement, walkSpeed: cfg.movement.walkSpeed * walk } };
+    }
     return { grid: gridFor(v.grid), movement: { ...cfg.movement, walkSpeed: v.speed, hitbox: v.hitbox } };
   };
   const socketOf = (p: OnlinePlayer) => io.sockets.sockets.get(p.socketId);
@@ -124,6 +128,41 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     }, cfg.economy.announceDelayMs);
   };
 
+  // --- progression (Phase 3) ---------------------------------------------------------------
+  const prog: ProgressionSystem = new ProgressionSystem(cfg, repos, econ, cryptoRand, {
+    wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+    items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
+    progress: (p, events) => socketOf(p)?.emit('progress', { progress: prog.state(p), events }),
+    publicChanged: (p, change) => io.to(p.scene).emit('player:updated', { id: p.id, ...change }),
+    announce: (text, tier, banner) => {
+      repos.announcements.add(text, tier);
+      io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+      if (banner) io.emit('announce', { text, tier, takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
+    },
+    freeRoll: (p, crateId) => {
+      const batch = gacha.roll(p, crateId, 1, { ...rollMods(p, crateId), free: true });
+      for (const r of batch.announce) announce(p, r);
+      return { crateId, results: batch.results };
+    },
+  });
+  world.progressOf = (p) => prog.state(p);
+  jobs.modsFor = (p) => {
+    const m = prog.mods(p);
+    return { jobPay: m.jobPay, carwashExtraSec: m.carwashExtraSec };
+  };
+  /** Luck, variant chance and pity for this player's roll. */
+  const rollMods = (p: OnlinePlayer, crateId: string) => {
+    const m = prog.mods(p);
+    const crate = cfg.crateById.get(crateId);
+    return { luck: m.luck, variantChance: m.variantChance, pity: crate ? prog.crateFor(p, crate).pity : undefined };
+  };
+  // Quests and the daily reward reset at midnight: refresh online players when the day changes
+  // (check() hands out the new quests and sends the fresh daily-reward state).
+  const dayTimer = setInterval(() => {
+    const today = dayKey(Date.now());
+    for (const p of world.players.values()) if (p.hasCharacter && p.prog && p.prog.quests.day !== today) prog.check(p);
+  }, 60_000);
+
   function register(socket: AnySocket, me: OnlinePlayer) {
     // --- crates -------------------------------------------------------------------------
     handle(socket, 'crate:roll', C2S.crateRoll, ({ crateId, count }) => {
@@ -132,17 +171,38 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const crate = cfg.crateById.get(crateId);
       if (!crate) throw new GameError('Unknown crate.');
       if (!nearInteractable(me, 'crate', crateId)) throw new GameError(`Walk to the ${crate.name} to roll it.`);
-      const batch = gacha.roll(me, crateId, count);
+      const lock = prog.crateLock(me, crate);
+      if (lock) throw new GameError(lock);
+      const batch = gacha.roll(me, crateId, count, rollMods(me, crateId));
       for (const r of batch.announce) announce(me, r);
       pushWallet(me, -crate.priceSen * count + (batch.pageReward?.sen ?? 0), 'crate');
+      prog.onRolls(me, crate, batch.results, crate.priceSen * count);
       return { results: batch.results, walletSen: me.walletSen, pity: me.pity[crateId], pageReward: batch.pageReward };
     });
 
     // --- inventory ------------------------------------------------------------------------
     handle(socket, 'inv:equip', C2S.equip, ({ iid }) => {
       if (inv.equip(me, iid)) broadcastCosmetics(me);
+      prog.onEquip(me);
       return {};
     });
+    handle(socket, 'item:use', C2S.itemUse, ({ iid }) => {
+      const r = prog.useItem(me, iid);
+      if (r.cosmeticsChanged) broadcastCosmetics(me);
+      return { removed: r.removed };
+    });
+
+    // --- progression: titles, daily reward, quests, Hustle Skills -----------------------------
+    handle(socket, 'title:equip', C2S.titleEquip, ({ title }) => {
+      prog.equipTitle(me, title);
+      return {};
+    });
+    handle(socket, 'daily:claim', null, () => prog.claimDaily(me));
+    handle(socket, 'quest:claim', C2S.questClaim, ({ id }) => {
+      prog.claimQuest(me, id);
+      return {};
+    });
+    handle(socket, 'skill:upgrade', C2S.skillUpgrade, ({ skill }) => prog.upgradeSkill(me, skill));
     handle(socket, 'inv:unequip', C2S.unequip, ({ slot }) => {
       if (inv.unequip(me, slot as EquipSlot)) broadcastCosmetics(me);
       return {};
@@ -157,6 +217,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const r = inv.sell(me, itemId, variant, count);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, r.gainedSen, 'pawn');
+      prog.onSell(me, r.removed.length);
       return { removed: r.removed, gainedSen: r.gainedSen };
     });
     handle(socket, 'pawn:scrap', C2S.stack, ({ itemId, variant, count }) => {
@@ -164,6 +225,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const r = inv.scrap(me, itemId, variant, count);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, 0, 'scrap');
+      prog.onScrap(me, r.removed.length);
       return { removed: r.removed, gainedShards: r.gainedShards };
     });
     handle(socket, 'shard:buy', C2S.shardBuy, ({ itemId }) => {
@@ -188,6 +250,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (r.paidSen !== undefined) pushWallet(me, r.paidSen + (r.tipSen ?? 0), 'job');
       const job = r.job ? (({ budgetMs: _b, ...v }) => v)(r.job) : null;
       socketOf(me)?.emit('job:update', { job, jobs: me.jobs });
+      if (r.paidSen !== undefined) prog.onJob(me, 'delivery', r.paidSen + (r.tipSen ?? 0), false);
       return { job, paidSen: r.paidSen, tipSen: r.tipSen, levelUp: r.levelUp };
     });
     handle(socket, 'job:cancel', null, () => {
@@ -199,6 +262,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const r = jobs.submitCarwash(me, jobId, input);
       if (r.paidSen > 0) pushWallet(me, r.paidSen, 'job');
       socketOf(me)?.emit('job:update', { job: null, jobs: me.jobs });
+      prog.onJob(me, 'carwash', r.paidSen, r.cleaned >= 0.999);
       return r;
     });
 
@@ -273,15 +337,52 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       socketOf(me)?.emit('move:correct', { x: me.x, y: me.y, seq: 0 });
       return `Teleported to ${x}, ${y}.`;
     }
-    if (cmd !== 'give') return 'Commands: /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /tp <x> <y>';
+    const HELP = 'Commands: /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
+    if (cmd === 'setlevel' || cmd === 'setstage') {
+      const p = target === 'me' ? me : world.byName(target ?? '');
+      if (!p) return `No online player called "${target}".`;
+      const n = Math.round(Number(what));
+      if (cmd === 'setlevel') {
+        if (!(n >= 1 && n <= cfg.levels.maxLevel)) return `Usage: /setlevel <player> <1-${cfg.levels.maxLevel}>`;
+        // Sets the XP; levelling up through check() pays the normal level-up rewards.
+        p.prog.xp = Math.max(p.prog.xp, totalXpForLevel(cfg.levels, n));
+        if (n < p.prog.level) {
+          p.prog.xp = totalXpForLevel(cfg.levels, n);
+          p.prog.level = n;
+          io.to(p.scene).emit('player:updated', { id: p.id, level: n });
+        }
+        prog.check(p);
+        return `${p.name} is now Level ${p.prog.level}.`;
+      }
+      const st = cfg.stages.stages.find((x) => x.n === n);
+      if (!st) return `Usage: /setstage <player> <1-${cfg.stages.stages.length}>`;
+      // Tops up their wallet to the stage's net worth (stages come from net worth), then checks.
+      const need = st.minNetWorthSen - netWorthSen(cfg.prog, p.walletSen, p.inventory);
+      if (need > 0) {
+        econ.run(p, () => econ.change(p, need, 0, 'admin-setstage', me.name));
+        pushWallet(p, need, 'admin');
+      }
+      if (n < p.prog.stage) p.prog.stage = n;
+      prog.check(p);
+      return `${p.name} is now ${stageDef(cfg.stages, p.prog.stage).name} (stage ${p.prog.stage}, needs net worth ${formatMoney(st.minNetWorthSen)}; computed ${stageForNetWorth(cfg.stages, netWorthSen(cfg.prog, p.walletSen, p.inventory))}).`;
+    }
+    if (cmd !== 'give') return HELP;
     const p = target === 'me' ? me : world.byName(target ?? '');
     if (!p) return `No online player called "${target}".`;
     try {
+      if (what === 'xp') {
+        const n = Math.round(Number(value));
+        if (!Number.isSafeInteger(n) || n <= 0) return 'Usage: /give <player> xp <n>';
+        p.prog.xp += n;
+        prog.check(p);
+        return `Gave ${p.name} ${n} XP (now Level ${p.prog.level}).`;
+      }
       if (what === 'money') {
         const sen = Math.round(Number(value) * 100);
         if (!Number.isSafeInteger(sen) || sen === 0) return 'Usage: /give <player> money <RM>';
         econ.run(p, () => econ.change(p, sen, 0, 'admin-give', me.name));
         pushWallet(p, sen, 'admin');
+        prog.check(p); // a richer player may have reached a new wealth stage
         return `Gave ${p.name} ${formatMoney(sen)}.`;
       }
       if (what === 'shards') {
@@ -289,6 +390,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         if (!Number.isSafeInteger(n) || n === 0) return 'Usage: /give <player> shards <n>';
         econ.run(p, () => econ.change(p, 0, n, 'admin-give', me.name));
         pushWallet(p, 0, 'admin');
+        prog.check(p);
         return `Gave ${p.name} ${n} shards.`;
       }
       if (what === 'item') {
@@ -297,12 +399,13 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         const variant = extra && cfg.rarities.variants.some((v) => v.id === extra) ? extra : 'normal';
         const { item } = econ.run(p, () => econ.grant(p, def.id, variant, null));
         socketOf(p)?.emit('inv:added', { items: [item], index: [...p.index] });
+        prog.check(p);
         return `Gave ${p.name} ${variant !== 'normal' ? `${variant} ` : ''}${def.name}.`;
       }
     } catch (err) {
       return err instanceof GameError ? err.message : 'Command failed.';
     }
-    return 'Usage: /give <player|me> money|item|shards ...';
+    return 'Usage: /give <player|me> money|item|shards|xp ...';
   }
 
   /** Load a player's economy state from the DB when they connect. */
@@ -324,6 +427,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     p.ride = null;
     p.rideQuote = null;
     econ.refreshCosmetics(p);
+    prog.load(p);
   }
 
   /** 10 slots; a brand-new player gets their starter bicycle in slot 1. */
@@ -342,15 +446,16 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   // --- Manifesting: earn RM every second while holding the 🧘 Manifest emote ---------------
   // Earnings are banked in memory and paid out in one transaction every N seconds (and when
   // the player stops or leaves), so a busy server isn't writing to the DB every second.
-  const manifestLevel = (p: OnlinePlayer) => Math.max(1, p.skills.manifest ?? 1);
   function flushManifest(p: OnlinePlayer) {
     const sen = Math.floor(p.manifestBank);
     if (sen < 1) return;
+    const secs = p.manifestSecs;
     try {
-      econ.run(p, () => econ.change(p, sen, 0, 'manifest', `${p.manifestSecs}s`));
+      econ.run(p, () => econ.change(p, sen, 0, 'manifest', `${secs}s`));
       p.manifestBank -= sen;
       p.manifestSecs = 0;
       pushWallet(p, sen, 'manifest');
+      prog.onManifest(p, secs);
     } catch (err) {
       log.error('manifest payout failed', err);
     }
@@ -358,35 +463,24 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const manifestTimer = setInterval(() => {
     for (const p of world.players.values()) {
       if (p.hasCharacter && p.emote === 'manifest' && !p.moving && !p.vehicle) {
-        p.manifestBank += manifestRateSen(cfg.skills, manifestLevel(p));
+        p.manifestBank += prog.manifestRate(p); // skill level × Passive Income × Income Booster
         p.manifestSecs++;
-        if (p.manifestSecs >= cfg.skills.manifestFlushEverySec) flushManifest(p);
+        if (p.manifestSecs >= cfg.upgrades.manifestFlushEverySec) flushManifest(p);
       } else if (p.manifestBank >= 1) {
         flushManifest(p);
       }
     }
   }, 1000);
 
-  function registerSkills(socket: AnySocket, me: OnlinePlayer) {
-    handle(socket, 'skill:upgrade', C2S.skillUpgrade, () => {
-      const level = manifestLevel(me);
-      if (level >= cfg.skills.skills.manifest.maxLevel) throw new GameError('Manifesting is already maxed out.');
-      const cost = skillUpgradeCostSen(cfg.skills, level);
-      econ.run(me, () => {
-        econ.change(me, -cost, 0, 'skill', `manifest:${level + 1}`);
-        me.skills = { ...me.skills, manifest: level + 1 };
-        econ.saveState(me);
-      });
-      pushWallet(me, -cost, 'skill');
-      return { level: level + 1, walletSen: me.walletSen };
-    });
-  }
-
   return {
     register: (socket: AnySocket, me: OnlinePlayer) => {
       register(socket, me);
-      registerSkills(socket, me);
     },
+    /** After `init`: hand out anything already earned (titles, goals...) and send the progress. */
+    afterInit: (p: OnlinePlayer) => {
+      if (p.hasCharacter) prog.check(p);
+    },
+    saveProgress: (p: OnlinePlayer) => prog.save(p),
     chatCommand,
     moveRules,
     loadInto,
@@ -409,6 +503,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     stop: () => {
       clearInterval(manifestTimer);
       clearInterval(rideTimer);
+      clearInterval(dayTimer);
     },
   };
 }

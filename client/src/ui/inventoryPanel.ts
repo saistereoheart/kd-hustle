@@ -1,5 +1,5 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
-import { EQUIP_SLOTS, formatMoney, itemValueSen, manifestRateSen, pawnPriceSen, skillUpgradeCostSen, type EquipSlot } from '@kh/shared';
+import { EQUIP_SLOTS, formatMoney, isCollectible, itemValueSen, pawnPriceSen, type EquipSlot } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
@@ -12,7 +12,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
   let selected: string | null = null; // stack key
   const content = el('div');
   panel.body.append(
-    tabs(['Items', 'Item Index', 'Skills'], (i) => {
+    tabs(['Items', 'Item Index'], (i) => {
       tab = i;
       selected = null;
       render();
@@ -65,10 +65,15 @@ export function openInventoryPanel(app: App, startTab = 0) {
       });
       gridEl.append(card);
       if (selected === key) {
-        const crate = app.cratesOfItem.get(def.id)!;
+        const crate = app.cratesOfItem.get(def.id);
         const tier = tierOf(rar, def.rarity).tier;
         const slot = (EQUIP_SLOTS as readonly string[]).includes(def.type) ? (def.type as EquipSlot) : null;
         const actions = el('div', { class: 'detail-actions' });
+        if (def.effect) {
+          const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'use' }, `Use (${s.items.length} left)`);
+          b.addEventListener('click', () => app.useItem(s.items[0].iid));
+          actions.append(b);
+        }
         if (slot) {
           if (worn) {
             const b = el('button', { class: 'btn', type: 'button', 'data-action': 'unequip' }, 'Take off');
@@ -116,8 +121,9 @@ export function openInventoryPanel(app: App, startTab = 0) {
 
   const renderIndex = () => {
     const st = app.store;
-    const total = app.cfg.items.items.length;
-    const found = app.cfg.items.items.filter((i) => st.index.has(i.id)).length;
+    const collectibles = app.cfg.items.items.filter(isCollectible);
+    const total = collectibles.length;
+    const found = collectibles.filter((i) => st.index.has(i.id)).length;
     const parts: HTMLElement[] = [el('div', { class: 'index-total' }, `Collection: ${found}/${total} (${Math.round((found / total) * 100)}%)`)];
     for (const c of app.cfg.crates.crates) {
       const have = c.pool.filter((id) => st.index.has(id)).length;
@@ -137,46 +143,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
     content.replaceChildren(...parts);
   };
 
-  const renderSkills = () => {
-    const sk = app.cfg.skills;
-    const m = sk.skills.manifest;
-    const level = Math.max(1, app.store.skills.manifest ?? 1);
-    const rate = manifestRateSen(sk, level);
-    const maxed = level >= m.maxLevel;
-    const cost = skillUpgradeCostSen(sk, level);
-    const nextRate = manifestRateSen(sk, level + 1);
-    const btn = el('button', { class: 'btn primary', type: 'button', 'data-action': 'upgrade-manifest', disabled: maxed || app.store.walletSen < cost }, maxed ? 'Maxed out' : `Upgrade to Lv ${level + 1}`, maxed ? null : el('small', {}, formatMoney(cost)));
-    btn.addEventListener('click', () =>
-      app.socket?.timeout(5000).emit('skill:upgrade', { skill: 'manifest' }, (err, res) => {
-        if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
-        sfx.coin();
-        app.store.skills = { ...app.store.skills, manifest: res.level };
-        app.store.walletSen = res.walletSen;
-        app.store.emit();
-        toast(`🧘 Manifesting level ${res.level}!`, 'good');
-      }),
-    );
-    const perMin = (rate * 60) / 100;
-    content.replaceChildren(
-      el(
-        'div',
-        { class: 'job-card' },
-        el('div', { class: 'job-icon' }, '🧘'),
-        el(
-          'div',
-          { class: 'job-info' },
-          el('h4', {}, m.name, el('span', { class: 'lv-badge' }, `Lv ${level}`)),
-          el('p', {}, m.desc),
-          el('div', { class: 'muted' }, `Now: RM ${(rate / 100).toFixed(2)}/s · RM ${perMin.toFixed(2)}/min · RM ${(perMin * 60).toFixed(0)}/hour`),
-          maxed ? null : el('div', { class: 'muted' }, `Next level: RM ${(nextRate / 100).toFixed(2)}/s`),
-        ),
-        btn,
-      ),
-      el('p', { class: 'hint' }, 'Use the 🧘 Manifest emote (key −, or the 😀 wheel) and stay still. Walking stops it. More skills arrive with the Hustle Skills tree in Phase 3.'),
-    );
-  };
-
-  const render = () => (tab === 0 ? renderItems() : tab === 1 ? renderIndex() : renderSkills());
+  const render = () => (tab === 0 ? renderItems() : renderIndex());
   const off = app.store.on(render);
   panel.onClose = () => off();
   render();

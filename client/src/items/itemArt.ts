@@ -737,6 +737,77 @@ function drawGeneric(ctx: Ctx, def: ItemDef, paint: Paint) {
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.fillRect(-4, -5, 2, 12);
       break;
+    case 'potion': {
+      // A round flask with a cork, liquid and bubbles.
+      ctx.fillStyle = '#c69c6d';
+      ctx.fillRect(-3.5, -15, 7, 5);
+      ctx.fillStyle = 'rgba(230, 240, 255, 0.55)';
+      ctx.fillRect(-4.5, -11, 9, 6);
+      ctx.beginPath();
+      ctx.arc(0, 4, 11, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(230, 240, 255, 0.35)';
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 4, 10, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = F(-10, -2, 10, 14);
+      ctx.fillRect(-11, -1, 22, 16);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(0, 4, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      for (const [x, y, r] of [[-4, 6, 1.6], [3, 9, 1.2], [1, 2, 1]] as const) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.ellipse(-5, -1, 2, 4, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'kopi': {
+      // Kopi in a tall glass with a frothy top.
+      ctx.beginPath();
+      ctx.moveTo(-8, -11);
+      ctx.lineTo(8, -11);
+      ctx.lineTo(6, 13);
+      ctx.lineTo(-6, 13);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(230, 240, 255, 0.35)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-7.5, -6);
+      ctx.lineTo(7.5, -6);
+      ctx.lineTo(6, 12);
+      ctx.lineTo(-6, 12);
+      ctx.closePath();
+      ctx.fillStyle = F(-7, -6, 7, 12);
+      ctx.fill();
+      ctx.fillStyle = '#e9d2b0';
+      ctx.fillRect(-7.6, -8, 15.2, 3);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-8, -11);
+      ctx.lineTo(-6, 13);
+      ctx.lineTo(6, 13);
+      ctx.lineTo(8, -11);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(-1, -16);
+      ctx.quadraticCurveTo(2, -13, -1, -11);
+      ctx.moveTo(3, -17);
+      ctx.quadraticCurveTo(6, -14, 3, -12);
+      ctx.stroke();
+      break;
+    }
     case 'name': {
       ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';

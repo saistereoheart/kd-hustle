@@ -7,7 +7,10 @@ import {
   authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
   osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
   cratesConfigSchema, economyConfigSchema, itemsConfigSchema, jobsConfigSchema, raritiesConfigSchema, validateEconomyConfigs,
-  vehiclesConfigSchema, skillsConfigSchema, ridesConfigSchema, type SkillsConfig, type RidesConfig,
+  vehiclesConfigSchema, ridesConfigSchema, type RidesConfig,
+  upgradesConfigSchema, levelsConfigSchema, stagesConfigSchema, titlesConfigSchema, questsConfigSchema, goalsConfigSchema,
+  validateProgressionConfigs, type ProgCfg, type UpgradesConfig, type LevelsConfig, type StagesConfig, type TitlesConfig,
+  type QuestsConfig, type GoalsConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -31,7 +34,14 @@ export interface ServerConfig {
   jobs: JobsConfig;
   vehicles: VehiclesConfig;
   rides: RidesConfig;
-  skills: SkillsConfig;
+  upgrades: UpgradesConfig;
+  levels: LevelsConfig;
+  stages: StagesConfig;
+  titles: TitlesConfig;
+  quests: QuestsConfig;
+  goals: GoalsConfig;
+  /** The configs progression needs, in one bundle (shared with the client's maths). */
+  prog: ProgCfg;
   /** Lookups built from the configs above. */
   itemById: Map<string, ItemDef>;
   crateById: Map<string, CrateDef>;
@@ -69,16 +79,35 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
   if (problems.length) throw new Error(`Invalid economy config:\n  - ${problems.slice(0, 8).join('\n  - ')}`);
   const crateOfItem = new Map<string, CrateDef>();
   for (const c of crates.crates) for (const id of c.pool) crateOfItem.set(id, c);
+  const economy = readJson(j('economy.json'), economyConfigSchema);
+  const itemById = new Map(items.items.map((i) => [i.id, i]));
+  const prog: ProgCfg = {
+    rarities, items, itemById, crates, crateOfItem, pawnRate: economy.pawnRate,
+    levels: readJson(j('levels.json'), levelsConfigSchema),
+    stages: readJson(j('stages.json'), stagesConfigSchema),
+    titles: readJson(j('titles.json'), titlesConfigSchema),
+    upgrades: readJson(j('upgrades.json'), upgradesConfigSchema),
+    quests: readJson(j('quests.json'), questsConfigSchema),
+    goals: readJson(j('goals.json'), goalsConfigSchema),
+  };
+  const progProblems = validateProgressionConfigs(prog);
+  if (progProblems.length) throw new Error(`Invalid progression config:\n  - ${progProblems.slice(0, 8).join('\n  - ')}`);
   return {
     rarities,
     items,
     crates,
-    economy: readJson(j('economy.json'), economyConfigSchema),
+    economy,
     jobs: readJson(j('jobs.json'), jobsConfigSchema),
     vehicles: readJson(j('vehicles.json'), vehiclesConfigSchema),
     rides: readJson(j('rides.json'), ridesConfigSchema),
-    skills: readJson(j('skills.json'), skillsConfigSchema),
-    itemById: new Map(items.items.map((i) => [i.id, i])),
+    upgrades: prog.upgrades,
+    levels: prog.levels,
+    stages: prog.stages,
+    titles: prog.titles,
+    quests: prog.quests,
+    goals: prog.goals,
+    prog,
+    itemById,
     crateById: new Map(crates.crates.map((c) => [c.id, c])),
     crateOfItem,
     character: readJson(j('character.json'), characterConfigSchema),
@@ -110,6 +139,11 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     jobs: cfg.jobs,
     vehicles: cfg.vehicles,
     rides: cfg.rides,
-    skills: cfg.skills,
+    upgrades: cfg.upgrades,
+    levels: cfg.levels,
+    stages: cfg.stages,
+    titles: cfg.titles,
+    quests: cfg.quests,
+    goals: cfg.goals,
   };
 }

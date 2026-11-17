@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { DIRECTIONS, type Appearance, type Direction } from '../character/appearance';
 import { EQUIP_SLOTS, type EquipSlot } from '../economy/schemas';
 import type { PityState } from '../luck';
+import type { ActiveBuff, QuestState } from '../progression/progression';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -22,7 +23,10 @@ export const C2S = {
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), count: z.number().int().min(1).max(10000) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
   jobStart: z.object({ kind: z.enum(['delivery', 'carwash']) }),
-  skillUpgrade: z.object({ skill: z.enum(['manifest']) }),
+  skillUpgrade: z.object({ skill: z.string().min(1).max(32) }),
+  itemUse: z.object({ iid: z.number().int().positive() }),
+  titleEquip: z.object({ title: z.string().max(32).nullable() }),
+  questClaim: z.object({ id: z.string().min(1).max(32) }),
   carwashSubmit: z.object({
     jobId: z.string().max(40),
     soap: z.array(z.number().finite()).max(20000),
@@ -122,6 +126,37 @@ export interface JobProgress {
   done: number;
 }
 
+/** Your progression (Phase 3): XP, level, wealth stage, titles, stats, buffs, daily stuff. */
+export interface ProgressState {
+  /** Total XP ever earned. */
+  xp: number;
+  level: number;
+  /** Highest wealth stage reached (1 = Budak Baru). */
+  stage: number;
+  /** Title worn (id), or null. */
+  title: string | null;
+  /** Titles earned (ids). */
+  titles: string[];
+  /** Lifetime counters (rolls, jobs, manifestSecs, ...), used by titles, goals and quests. */
+  stats: Record<string, number>;
+  /** Active potion buffs (time left counts down only while you're online). */
+  buffs: ActiveBuff[];
+  /** Daily login reward: can it be claimed now, and which streak day (1–7) it is. */
+  daily: { canClaim: boolean; nextDay: number; streak: number };
+  /** Today's quests. */
+  quests: QuestState[];
+  /** Index of the current Hustle Path goal (= number of goals when the path is done). */
+  path: number;
+}
+
+/** Something to celebrate, sent with a progress update. */
+export type ProgressEvent =
+  | { kind: 'level'; level: number; rewardSen: number; items: string[] }
+  | { kind: 'stage'; stage: number }
+  | { kind: 'title'; id: string }
+  | { kind: 'goal'; id: string; rewardSen: number; items: string[] }
+  | { kind: 'questReady'; id: string };
+
 export interface PlayerPublic {
   id: number;
   name: string;
@@ -159,6 +194,7 @@ export interface SelfState extends PlayerPublic {
   hotbar: Array<HotbarRef | null>;
   /** Vehicles you own and can ride yourself. */
   vehicles: string[];
+  progress: ProgressState;
 }
 
 export interface ChatMsg {
@@ -223,7 +259,13 @@ export interface ClientToServerEvents {
   'job:start': (msg: { kind: 'delivery' | 'carwash' }, ack: Ack<Result<{ job: JobState }>>) => void;
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;
   'job:cancel': (ack: Ack<SimpleResult>) => void;
-  'skill:upgrade': (msg: { skill: 'manifest' }, ack: Ack<Result<{ level: number; walletSen: number }>>) => void;
+  'skill:upgrade': (msg: { skill: string }, ack: Ack<Result<{ level: number; walletSen: number; skills: Record<string, number> }>>) => void;
+  /** Drink a potion. */
+  'item:use': (msg: { iid: number }, ack: Ack<Result<{ removed: number }>>) => void;
+  'title:equip': (msg: { title: string | null }, ack: Ack<SimpleResult>) => void;
+  /** Day 7 includes a free crate roll (`roll`), played with the normal reel. */
+  'daily:claim': (ack: Ack<Result<{ day: number; roll?: { crateId: string; results: RollResult[] } }>>) => void;
+  'quest:claim': (msg: { id: string }, ack: Ack<SimpleResult>) => void;
   'carwash:submit': (
     msg: { jobId: string; soap: number[]; rinse: number[]; polish: number[]; polishStartMs: number },
     ack: Ack<Result<{ cleaned: number; soap: number; rinse: number; polish: number; paidSen: number; levelUp?: number }>>,
@@ -241,7 +283,9 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null }) => void;
+  /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
+  progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   snapshot: (p: SnapshotPayload) => void;
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;

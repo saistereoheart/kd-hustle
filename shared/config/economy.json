@@ -5,5 +5,6 @@
   "indexPageRewardMultiplier": 50,
   "interactRadiusTiles": 8,
   "rollRateLimit": { "count": 10, "windowMs": 1000 },
-  "announceDelayMs": 4200
+  "announceDelayMs": 4200,
+  "potionMaxStackMin": 60
 }

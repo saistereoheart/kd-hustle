@@ -168,6 +168,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   // --- Ronda ride: 📱 Phone → Ronda → pick a spot → fare → book → ride ---
   expect(await A.page.locator('.hotbar-slot[data-slot="1"]').textContent()).not.toContain('🛵'); // no leftover motorbike
   await A.page.keyboard.press('p');
+  await A.page.click('[data-app=rides]');
   await A.page.click('[data-action=open-ronda]');
   const fullmap = A.page.getByTestId('fullmap');
   await fullmap.waitFor();
@@ -205,10 +206,12 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await expect.poll(async () => (await kh(B.page, (k) => k.remotes()))[0] && (await B.page.evaluate(() => (window as unknown as { __kh: { remotes: () => Array<{ emote: string | null }> } }).__kh.remotes()[0]?.emote)), { timeout: 10_000 }).toBe('manifest');
   await A.page.screenshot({ path: `${SHOTS}/p2-8-manifest.png` });
   await expect.poll(async () => (await wallet(A.page)).sen, { timeout: 25_000 }).toBeGreaterThanOrEqual(beforeManifest + 10);
-  await A.page.keyboard.press('b');
-  await A.page.click('[data-tab=skills]');
+  // Skills live in the HustlePhone now (Phase 3): 📱 → Skills → Fortune → Manifesting.
+  await A.page.keyboard.press('p');
+  await A.page.click('[data-app=skills]');
+  await A.page.click('[data-branch=fortune]');
   await A.page.click('[data-action=upgrade-manifest]');
-  await expect(A.page.getByText('Lv 2')).toBeVisible();
+  await expect(A.page.locator('[data-skill=manifest] .lv-badge')).toHaveText(/^Lv 2\//);
   await A.page.screenshot({ path: `${SHOTS}/p2-9-skills.png` });
   await A.page.keyboard.press('Escape');
   // Stop manifesting (press − again) and let the last payout land before snapshotting.

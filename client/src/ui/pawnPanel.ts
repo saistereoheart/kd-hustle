@@ -1,5 +1,5 @@
 // Kedai Pajak Untung: sell items for RM, scrap them into shards, or buy specific items with shards.
-import { formatMoney, pawnPriceSen, scrapShards } from '@kh/shared';
+import { formatMoney, isCollectible, pawnPriceSen, scrapShards } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
@@ -51,7 +51,7 @@ export function openPawnPanel(app: App) {
     const list = el('div', { class: 'stack-list' });
     for (const s of stacks) {
       const def = app.items.get(s.itemId)!;
-      const crate = app.cratesOfItem.get(def.id)!;
+      const crate = app.cratesOfItem.get(def.id);
       const each = mode === 'sell' ? pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate) : scrapShards(rar, def, s.variant);
       const label = (n: number) => (mode === 'sell' ? formatMoney(each * n) : `${each * n} 💎`);
       const one = el('button', { class: 'btn', type: 'button', 'data-action': `${mode}-one` }, `${mode === 'sell' ? 'Sell' : 'Scrap'} 1`, el('small', {}, label(1)));
@@ -73,10 +73,12 @@ export function openPawnPanel(app: App) {
   const renderShop = () => {
     const prices = app.cfg.economy.shardShopPrices;
     const list = el('div', { class: 'item-grid' });
-    for (const def of app.cfg.items.items) {
-      const price = prices[def.rarity];
+    // Potions first (always for sale), then items you've discovered.
+    const defs = [...app.cfg.items.items].sort((a, b) => Number(isCollectible(a)) - Number(isCollectible(b)));
+    for (const def of defs) {
+      const price = def.shardPrice ?? prices[def.rarity];
       if (!price || def.limit) continue;
-      const known = app.store.index.has(def.id);
+      const known = !isCollectible(def) || app.store.index.has(def.id);
       const card = itemCard(rar, def, 'normal', { silhouette: !known, caption: `${price} 💎`, size: 56 });
       if (known) {
         card.classList.add('buyable');
@@ -94,7 +96,7 @@ export function openPawnPanel(app: App) {
       }
       list.append(card);
     }
-    content.replaceChildren(el('p', { class: 'muted' }, `You have ${app.store.shards} 💎. Only items you've discovered can be bought (Common to Epic).`), list);
+    content.replaceChildren(el('p', { class: 'muted' }, `You have ${app.store.shards} 💎. Potions are always in stock; other items only once you've discovered them (Common to Epic).`), list);
   };
 
   const render = () => (tab === 0 ? renderStacks('sell') : tab === 1 ? renderStacks('scrap') : renderShop());

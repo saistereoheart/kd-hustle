@@ -47,4 +47,21 @@ export const sfx = {
     notes.forEach((n, i) => tone(base * Math.pow(2, n / 12), 0.35 + i * 0.05, tierIndex >= 4 ? 'square' : 'triangle', 0.09, i * 0.09));
     if (tierIndex >= 5) tone(80, 1.2, 'sawtooth', 0.08, 0, 40);
   },
+  /** Level up: a quick rising arpeggio. */
+  levelUp: () => [0, 4, 7, 12].forEach((n, i) => tone(659 * Math.pow(2, n / 12), 0.22, 'square', 0.08, i * 0.08)),
+  /** New wealth stage: a bigger fanfare. */
+  fanfare: () => {
+    [0, 4, 7, 12, 7, 12, 16].forEach((n, i) => tone(523 * Math.pow(2, n / 12), 0.3, 'square', 0.08, i * 0.11));
+    tone(130, 1, 'triangle', 0.1, 0, 65);
+  },
+  /** A soft chime (goal done, quest ready). */
+  chime: () => {
+    tone(1319, 0.12, 'triangle', 0.08);
+    tone(1760, 0.25, 'triangle', 0.07, 0.09);
+  },
+  /** Potion gulp. */
+  gulp: () => {
+    tone(420, 0.1, 'sine', 0.12, 0, 260);
+    tone(380, 0.12, 'sine', 0.1, 0.12, 220);
+  },
 };

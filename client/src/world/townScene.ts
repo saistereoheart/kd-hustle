@@ -121,7 +121,7 @@ export class TownScene extends Phaser.Scene {
     const particles = loadPrefs().particles;
     this.me = new Avatar(this, cfg.character, this.app.items, {
       name: you.name, level: you.level, appearance: you.appearance, x: you.x, y: you.y, isSelf: true,
-      cosmetics: you.cosmetics, vehicle: you.vehicle, particles,
+      cosmetics: you.cosmetics, vehicle: you.vehicle, particles, title: this.titleInfo(you.title),
     });
 
     this.vehicleSpeed = vehicleSpeedGrid(this.app.map, cfg.terrain);
@@ -158,9 +158,11 @@ export class TownScene extends Phaser.Scene {
       this.remotes.get(id)?.avatar.destroy();
       this.remotes.delete(id);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      if (level !== undefined) av.setLevel(level);
+      if (title !== undefined) av.setTitle(this.titleInfo(title));
       if (cosmetics) av.setCosmetics(cosmetics);
       if (appearance) av.setAppearance(appearance);
       if (vehicle !== undefined) {
@@ -212,11 +214,18 @@ export class TownScene extends Phaser.Scene {
     this.app.onTownReady(this);
   }
 
+  /** A title id → the text and rarity colour drawn over a head. */
+  titleInfo(id: string | null): { name: string; color: string } | null {
+    const t = id ? this.app.cfg.titles.titles.find((x) => x.id === id) : undefined;
+    if (!t) return null;
+    return { name: t.name, color: this.app.cfg.rarities.tiers.find((r) => r.id === t.rarity)?.color ?? '#ffffff' };
+  }
+
   private addRemote(p: PlayerPublic) {
     if (this.remotes.has(p.id)) return;
     const avatar = new Avatar(this, this.app.cfg.character, this.app.items, {
       name: p.name, level: p.level, appearance: p.appearance, x: p.x, y: p.y, isSelf: false,
-      cosmetics: p.cosmetics, vehicle: p.vehicle, particles: loadPrefs().particles,
+      cosmetics: p.cosmetics, vehicle: p.vehicle, particles: loadPrefs().particles, title: this.titleInfo(p.title),
     });
     avatar.setState(p.dir, p.moving);
     // Someone who was already sitting/sleeping/dancing when we joined.
@@ -298,7 +307,7 @@ export class TownScene extends Phaser.Scene {
         const grid = v.grid === 'drive' ? map.driveCollision : map.collision;
         this.pos = moveWithCollision(grid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
       } else {
-        const speed = cfg.movement.walkSpeed;
+        const speed = cfg.movement.walkSpeed * this.app.mods().walk; // Kaki Lari skill (the server allows the same)
         this.pos = moveWithCollision(map.collision, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
       }
       this.me.setPosition(this.pos.x, this.pos.y);
@@ -313,7 +322,7 @@ export class TownScene extends Phaser.Scene {
     if (this.manifestAcc >= 1000) {
       this.manifestAcc = 0;
       if (this.app.ownEmote === 'manifest' && !this.moving && !this.me.vehicle) {
-        const rate = manifestRateSen(cfg.skills, this.app.store.skills.manifest ?? 1);
+        const rate = manifestRateSen(cfg.upgrades, this.app.store.skills) * this.app.mods().passive;
         this.me.floatText(`+RM ${(rate / 100).toFixed(2)}`);
       }
     }
@@ -490,6 +499,6 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     this.cameras.main.centerOn(tx * this.app.map.tileSize, ty * this.app.map.tileSize);
   }
   debugRemotes() {
-    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y, emote: r.avatar.currentEmote, cosmetics: r.avatar.currentCosmetics, vehicle: r.avatar.vehicle }));
+    return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y, emote: r.avatar.currentEmote, cosmetics: r.avatar.currentCosmetics, vehicle: r.avatar.vehicle, level: r.avatar.shownLevel, title: r.avatar.shownTitle }));
   }
 }

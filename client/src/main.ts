@@ -18,6 +18,8 @@ window.__kh = {
   lastSavedAt: () => app.lastSavedAt,
   wallet: () => ({ sen: app.store.walletSen, shards: app.store.shards, items: app.store.inventory.length }),
   job: () => app.store.job,
+  progress: () => app.store.progress,
+  luck: () => app.mods().luck,
   /** Open the UI of an interactable by id (the server still checks you are standing there). */
   open: (id: string) => {
     const it = app.map?.interactables.find((i) => i.id === id);

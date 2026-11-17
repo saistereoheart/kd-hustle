@@ -16,7 +16,7 @@
   },
   "carwash": {
     "name": "Car Wash Helper",
-    "baseSen": 4500,
+    "baseSen": 7000,
     "timeLimitSec": 55,
     "spots": 10,
     "stubbornSpots": 3,

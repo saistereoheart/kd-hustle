@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, SelfState } from '@kh/shared';
+import type { ActiveBuff, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -21,6 +21,12 @@ export class Store {
   vehicles: string[] = [];
   /** The vehicle we're riding (mirrors the town scene's avatar). */
   riding: string | null = null;
+  /** XP, level, stage, titles, stats, buffs, quests (Phase 3). */
+  progress: ProgressState = {
+    xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0,
+  };
+  /** When `progress` arrived (buff timers count down from here). */
+  progressAt = Date.now();
   private listeners = new Set<Listener>();
 
   load(you: SelfState) {
@@ -38,7 +44,20 @@ export class Store {
     this.hotbar = [...you.hotbar];
     this.vehicles = [...you.vehicles];
     this.riding = you.vehicle;
+    this.setProgress(you.progress, false);
     this.emit();
+  }
+
+  setProgress(p: ProgressState, emit = true) {
+    this.progress = p;
+    this.progressAt = Date.now();
+    if (emit) this.emit();
+  }
+
+  /** Buffs still running right now (time left counted down locally between server updates). */
+  buffs(now = Date.now()): ActiveBuff[] {
+    const dt = now - this.progressAt;
+    return this.progress.buffs.map((b) => ({ ...b, leftMs: b.leftMs - dt })).filter((b) => b.leftMs > 0);
   }
 
   on(fn: Listener) {

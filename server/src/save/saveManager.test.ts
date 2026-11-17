@@ -7,12 +7,13 @@ import { openDatabase } from '../db/db';
 import { createRepos } from '../db/repos';
 import { World, type OnlinePlayer } from '../game/world';
 import { SaveManager } from './saveManager';
+import { emptyProgress } from '../systems/progression/progression';
 
 function online(id: number, x: number): OnlinePlayer {
   return {
     id, name: `p${id}`, isAdmin: false, socketId: `s${id}`, appearance: null, hasCharacter: false,
     scene: 'town', x, y: 50, dir: 'down', moving: false, dirty: false, lastSavedAt: null, mapVersion: 2,
-    move: { x, y: 50, budget: 0, lastAt: 0 }, emote: null, walletSen: 0, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set(), pages: new Set(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0, hotbar: [], rideQuote: null, ride: null,
+    move: { x, y: 50, budget: 0, lastAt: 0 }, emote: null, walletSen: 0, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set(), pages: new Set(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0, hotbar: [], rideQuote: null, ride: null, prog: emptyProgress(),
   };
 }
 

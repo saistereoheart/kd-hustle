@@ -231,12 +231,7 @@ body.touch:not(.portrait) .interact-prompt { bottom: calc(68px + var(--safe-b));
 .phone-section { margin: 4px 0 8px; color: var(--muted, #adb5bd); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
 .phone-ride.active { border: 1px solid var(--accent); }
 .phone-actions { display: flex; flex-direction: column; gap: 6px; }
-.phone-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin-bottom: 10px; }
-.phone-app {
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 14px;
-  background: rgba(255,255,255,0.06); border: 1px solid var(--line); font-size: 12px; font-weight: 700;
-}
-.phone-app span { font-size: 28px; }
+
 
 /* ---------- car wash stages ---------- */
 .cw-stages { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
@@ -476,3 +471,173 @@ body.portrait .flip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .bad-text { color: var(--bad, #ff6b6b); }
 .ride-hud { top: calc(130px + var(--safe-t)); border-color: #40c057; }
 body.touch .ride-hud { top: calc(210px + var(--safe-t)); }
+
+/* ===================== Phase 3: progression ===================== */
+/* --- HUD pill: level, name + stage, money + luck, XP bar --- */
+.hud-pill { align-items: flex-start; border-radius: 18px; padding: 6px 12px 6px 6px; }
+.hud-pill-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.hud-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.stage-badge { border: 1px solid color-mix(in srgb, var(--stage, #adb5bd) 70%, transparent); background: color-mix(in srgb, var(--stage, #adb5bd) 22%, transparent); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11px; font-weight: 800; white-space: nowrap; line-height: 18px; }
+.xp-bar { position: relative; height: 12px; width: 150px; border-radius: 999px; background: rgba(255,255,255,0.1); overflow: hidden; margin: 2px 0; }
+.xp-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #7048e8, #b197fc); transition: width 0.4s ease-out; }
+.xp-text { position: relative; display: block; text-align: center; font-size: 9px; line-height: 12px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.hud-luck { border: 0; background: rgba(105, 219, 124, 0.12); color: #b2f2bb; border-radius: 999px; padding: 0 6px; font-size: 12px; font-weight: 800; line-height: 18px; }
+.hud-luck.boosted { background: rgba(105, 219, 124, 0.35); color: #fff; box-shadow: 0 0 8px rgba(105, 219, 124, 0.6); }
+
+/* --- next goal, chips, buffs (under the pill) --- */
+.progress-hud { position: absolute; left: calc(8px + var(--safe-l)); top: calc(90px + var(--safe-t)); display: flex; flex-direction: column; gap: 6px; width: min(270px, calc(100vw - 200px)); pointer-events: none; }
+.progress-hud > * { pointer-events: auto; }
+.goal-card { display: block; text-align: left; width: 100%; background: var(--panel); border: 1px solid rgba(64, 192, 87, 0.55); border-radius: 12px; padding: 7px 10px; backdrop-filter: blur(6px); }
+.goal-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 800; }
+.goal-label { color: #8ce99a; text-transform: uppercase; letter-spacing: 0.05em; }
+.goal-count { color: var(--muted); white-space: nowrap; }
+.goal-text { font-weight: 800; font-size: 13px; line-height: 1.25; }
+.goal-progress { height: 6px; margin: 4px 0 0; }
+.goal-progress i { background: linear-gradient(90deg, #2f9e44, #8ce99a); }
+.goal-hint { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+.goal-more { color: #8ce99a; font-weight: 700; }
+.hud-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.hud-chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 800; white-space: nowrap; backdrop-filter: blur(6px); }
+.hud-chip.gift { border-color: #e64980; background: rgba(230, 73, 128, 0.3); }
+.hud-chip.ready { border-color: var(--accent); background: rgba(245, 159, 0, 0.3); }
+.hud-chip.buff-luck { border-color: #40c057; }
+.hud-chip.buff-xp { border-color: #339af0; }
+.hud-chip.buff-passive { border-color: #fcc419; }
+.hud-chip.buff-jobPay { border-color: #a0522d; }
+.hud-chip.pulse { animation: chip-pulse 1.4s ease-in-out infinite; }
+@keyframes chip-pulse { 50% { transform: scale(1.06); box-shadow: 0 0 12px rgba(255, 212, 59, 0.6); } }
+body.touch .xp-bar { width: 120px; }
+body.touch .progress-hud { width: min(240px, calc(100vw - 160px)); }
+body.touch .goal-text { font-size: 12px; }
+.narrow-only { display: none; }
+@media (max-width: 480px) {
+  .xp-bar { width: 104px; }
+  .stage-badge { font-size: 12px; padding: 0 4px; }
+  .stage-name-text, .hud-money .hud-luck { display: none; }
+  .hud-chip.narrow-only { display: inline-block; }
+  body.touch .hud-buttons [data-action=map] { display: none; } /* tap the minimap instead */
+  body.touch .hud-buttons .icon-btn { width: 35px; height: 35px; font-size: 16px; }
+  .hud-name { max-width: 70px; }
+  .xp-bar { width: 98px; }
+}
+
+/* --- celebrations --- */
+.celebrate { position: absolute; inset: 0; z-index: 25; pointer-events: none; display: grid; place-items: center; overflow: hidden; transition: opacity 0.5s; }
+.celebrate.out { opacity: 0; }
+.celebrate-card { text-align: center; animation: pop-in 0.5s cubic-bezier(.2,1.6,.4,1); padding: 18px 28px; border-radius: 22px; background: radial-gradient(circle, color-mix(in srgb, var(--glow) 35%, rgba(17,19,31,0.9)), rgba(17,19,31,0.85)); border: 2px solid var(--glow); box-shadow: 0 0 40px color-mix(in srgb, var(--glow) 60%, transparent); max-width: calc(100vw - 40px); }
+.celebrate-title { font-size: clamp(30px, 7vw, 56px); font-weight: 900; color: #fff; text-shadow: 0 0 18px var(--glow), 0 3px 0 rgba(0,0,0,0.4); letter-spacing: 0.04em; }
+.celebrate-sub { font-weight: 700; margin-top: 6px; color: #fff3bf; font-size: 15px; }
+.stage-up .celebrate-title { font-size: clamp(34px, 8vw, 64px); }
+.confetti-bit { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: confetti-fall linear forwards; }
+@keyframes confetti-fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 0.8; } }
+
+/* --- the HustlePhone --- */
+.panel.phone-frame { width: min(390px, 100%); height: min(780px, 94vh); max-height: none; border-radius: 38px; border: 10px solid #0b0d16; box-shadow: 0 0 0 2px #3b4060, 0 30px 80px rgba(0,0,0,0.6); background: linear-gradient(160deg, #23284a, #151826 55%, #1f1630); }
+.phone-frame .panel-head { padding: 10px 14px 6px; border: 0; }
+.phone-frame .panel-head h3 { font-size: 15px; }
+.phone-frame .panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; overflow: hidden; }
+.phone-status { display: flex; justify-content: space-between; padding: 0 18px 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.phone-screen { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 12px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.phone-home { align-self: center; width: 120px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.5); border: 0; margin: 8px 0 10px; padding: 0; }
+.phone-hello { padding: 6px 4px 14px; }
+.phone-hello-big { font-size: 22px; font-weight: 900; }
+.phone-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 6px; }
+.phone-app { display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: 0; padding: 2px; min-width: 0; }
+.phone-icon { position: relative; width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-size: 28px; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 4px 10px rgba(0,0,0,0.3); }
+.phone-app-name { font-size: 11px; font-weight: 700; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.phone-app.soon .phone-icon { filter: grayscale(0.7); opacity: 0.6; }
+.phone-badge { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; border-radius: 999px; background: #fa5252; color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center; padding: 0 5px; border: 2px solid #151826; }
+.phone-appbar { position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 6px 0 10px; background: linear-gradient(#1b1f38 70%, transparent); }
+.phone-back { border: 0; background: rgba(255,255,255,0.08); border-radius: 999px; padding: 6px 12px; font-weight: 800; min-height: 36px; }
+.phone-apptitle { font-weight: 900; font-size: 17px; }
+.phone-appbody > * + * { margin-top: 8px; }
+.phone-appbody p { margin: 0 0 8px; }
+.phone-soon { text-align: center; padding: 30px 10px; color: var(--muted); }
+.phone-soon-icon { font-size: 54px; filter: grayscale(0.6); }
+.small { font-size: 12px; }
+@media (max-width: 520px), (max-height: 640px) {
+  .panel-backdrop:has(.phone-frame) { padding: 0; }
+  .panel.phone-frame { width: 100%; height: 100%; border-radius: 0; border: 0; box-shadow: none; padding-top: var(--safe-t); padding-bottom: var(--safe-b); }
+}
+
+/* daily */
+.daily-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.daily-day { background: rgba(255,255,255,0.06); border: 1px solid var(--line); border-radius: 12px; padding: 6px 4px; text-align: center; min-width: 0; }
+.daily-day.big { grid-column: span 2; background: rgba(230, 73, 128, 0.15); }
+.daily-day.today { border-color: var(--accent); box-shadow: 0 0 12px rgba(245, 159, 0, 0.5); animation: chip-pulse 1.4s ease-in-out infinite; }
+.daily-day.claimed { opacity: 0.55; }
+.daily-n { font-size: 11px; font-weight: 800; color: var(--muted); }
+.daily-icon { font-size: 22px; }
+.daily-r { font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; }
+
+/* quests */
+.quest-card { display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.05); border-radius: 14px; padding: 10px; border: 1px solid transparent; }
+.quest-card.ready { border-color: var(--accent); background: rgba(245, 159, 0, 0.12); }
+.quest-card.claimed { opacity: 0.6; }
+.quest-icon { font-size: 26px; }
+.quest-info { flex: 1; min-width: 0; }
+.quest-text { font-weight: 800; font-size: 14px; }
+.quest-card .btn { width: auto; flex: 0 0 auto; white-space: nowrap; min-width: 76px; }
+
+/* Hustle Path */
+.path-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.path-goal { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 12px; background: rgba(255,255,255,0.04); }
+.path-goal.current { background: rgba(64, 192, 87, 0.14); border: 1px solid rgba(64, 192, 87, 0.6); }
+.path-goal.done { opacity: 0.6; }
+.path-goal.later { opacity: 0.75; }
+.path-dot { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 900; background: rgba(255,255,255,0.12); }
+.path-goal.done .path-dot { background: #2f9e44; }
+.path-goal.current .path-dot { background: var(--accent); color: #1b1300; }
+.path-info { flex: 1; min-width: 0; }
+.path-text { font-weight: 800; font-size: 14px; }
+.path-count { color: var(--muted); font-weight: 700; font-size: 12px; }
+.path-reward { font-size: 12px; color: #ffd8a8; margin-top: 2px; }
+
+/* skills */
+.branch-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; touch-action: pan-x; }
+.branch-tab { flex: 0 0 auto; border: 1px solid var(--line); background: rgba(255,255,255,0.06); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
+.branch-tab.active { background: var(--accent); color: #1b1300; border-color: var(--accent); }
+.branch-tab.soon { opacity: 0.55; }
+.skill-card .job-icon { font-size: 30px; }
+.skill-card.maxed { border: 1px solid rgba(252, 196, 25, 0.6); }
+.skill-pips { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.skill-pips i { width: 8px; height: 8px; border-radius: 2px; background: rgba(255,255,255,0.15); }
+.skill-pips i.on { background: var(--accent); }
+.skill-card .btn { min-width: 84px; }
+.skill-card .btn:disabled { font-size: 12px; white-space: normal; max-width: 120px; }
+
+/* titles */
+.title-card { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid transparent; }
+.title-card.worn { border-color: var(--accent); }
+.title-card.locked { opacity: 0.6; }
+.title-info { flex: 1; min-width: 0; }
+.title-name { font-weight: 900; font-style: italic; }
+.title-tier { font-size: 11px; color: var(--muted); }
+.title-bonus { font-size: 12px; color: #b2f2bb; }
+.title-card .btn { width: auto; flex: 0 0 auto; }
+.title-progress { white-space: nowrap; }
+
+/* profile */
+.profile-head { display: flex; align-items: center; gap: 12px; }
+.lv-badge.big { font-size: 18px; padding: 8px 12px; }
+.profile-name { font-weight: 900; font-size: 18px; }
+.stage-ladder { display: flex; flex-direction: column; gap: 4px; }
+.stage-row { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 10px; background: rgba(255,255,255,0.04); border-left: 4px solid color-mix(in srgb, var(--stage) 50%, transparent); }
+.stage-row.reached { border-left-color: var(--stage); background: color-mix(in srgb, var(--stage) 14%, transparent); }
+.stage-row.next { outline: 1px dashed var(--stage); }
+.stage-icon { font-size: 22px; }
+.stage-info { flex: 1; min-width: 0; }
+.stage-name { font-weight: 800; }
+.bonus-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.stat { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 6px 8px; display: flex; flex-direction: column; }
+.stat b { font-size: 15px; }
+.stat span { font-size: 11px; color: var(--muted); }
+
+/* crates: locks + auto-roll */
+.crate-lock { background: rgba(250, 82, 82, 0.15); border: 1px solid rgba(250, 82, 82, 0.6); border-radius: 12px; padding: 8px 12px; font-weight: 700; margin: 8px 0; }
+.auto-toggle { display: flex; align-items: center; gap: 6px; font-weight: 800; padding: 0 8px; white-space: nowrap; }
+.auto-toggle input { width: 20px; height: 20px; }
+/* Phone held upright: the goal tracker sits top-left, so the job / ride HUDs go below it. */
+body.touch.portrait .job-hud { top: calc(206px + var(--safe-t)); }
+body.touch.portrait .ride-hud { top: calc(268px + var(--safe-t)); }

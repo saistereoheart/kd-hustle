@@ -59,7 +59,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, 'Last saved'), savedLabel),
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
-    el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · 1–0 emotes (Q opens the wheel) · M minimap · Tab settings')),
+    el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · P or Tab HustlePhone · B bag · 1–0 hotbar (with Q: emotes) · − manifest · M map · N minimap')),
     el('div', { class: 'actions' }, edit, logout, close),
   );
   const backdrop = el('div', { class: 'modal-backdrop' }, modal);

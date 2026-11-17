@@ -1,0 +1,35 @@
+{
+  "stages": [
+    {
+      "n": 1, "name": "Budak Baru", "icon": "🛵", "color": "#adb5bd", "minNetWorthSen": 0,
+      "unlocks": ["Odd jobs (delivery, car wash)", "Capsule Machine", "Manifesting"]
+    },
+    {
+      "n": 2, "name": "Hustler", "icon": "💪", "color": "#51cf66", "minNetWorthSen": 200000,
+      "unlocks": ["Lucky Bag (Pasar Malam)", "Mall Mystery Box (from Level 5)", "Luck skills"],
+      "reward": { "sen": 20000, "items": ["luck_potion"] }
+    },
+    {
+      "n": 3, "name": "Towkay Kecil", "icon": "🏪", "color": "#339af0", "minNetWorthSen": 5000000,
+      "unlocks": ["Food truck, SoHo studio, kedai runcit and bank loans (coming in later updates)"],
+      "reward": { "sen": 200000, "items": ["mega_luck_potion"] }
+    },
+    {
+      "n": 4, "name": "Towkay", "icon": "🏢", "color": "#9c36b5", "minNetWorthSen": 100000000,
+      "unlocks": ["Condos, shoplots, kopitiam, bubble tea, casino high tables (coming in later updates)"],
+      "reward": { "sen": 2000000 }
+    },
+    {
+      "n": 5, "name": "Tycoon", "icon": "💼", "color": "#fcc419", "minNetWorthSen": 5000000000,
+      "unlocks": ["Bungalows, Cascades penthouses, hotels (coming in later updates)"],
+      "reward": { "sen": 50000000 }
+    },
+    {
+      "n": 6, "name": "Tan Sri", "icon": "👑", "color": "#f06595", "minNetWorthSen": 100000000000,
+      "unlocks": ["Menara Mitraland, a whole mall, rebirth (coming in later updates)"],
+      "reward": { "sen": 1000000000 }
+    }
+  ],
+  "announceFrom": 2,
+  "bannerFrom": 3
+}

@@ -1,16 +1,19 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
 import {
-  buildMap, EQUIP_SLOTS, randomAppearance,
-  type Appearance, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type PublicConfig,
+  buildMap, buildSnapshot, computeMods, EQUIP_SLOTS, randomAppearance,
+  type Appearance, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
+  type ProgCfg, type ProgressSnapshot, type PublicConfig,
 } from '@kh/shared';
+import { celebrate } from './ui/celebrate';
+import { ProgressHud } from './ui/progressHud';
 import { Store } from './state/store';
 import { showAnnouncement } from './ui/announce';
 import { openCratePanel } from './ui/cratePanel';
 import { Hotbar } from './ui/hotbar';
 import { openInventoryPanel } from './ui/inventoryPanel';
 import { DeliveryHud, openCarwashPanel, openJobsPanel } from './ui/jobs';
-import { openPhonePanel } from './ui/phone';
+import { openPhone } from './ui/phone/phone';
 import { openRonda, type RideHud } from './ui/ronda';
 import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
@@ -51,6 +54,9 @@ export class App {
   crates = new Map<string, CrateDef>();
   cratesOfItem = new Map<string, CrateDef>();
   jobHud: DeliveryHud | null = null;
+  progressHud: ProgressHud | null = null;
+  /** Config bundle for the shared progression maths (same as the server's). */
+  prog!: ProgCfg;
   chat: Chat | null = null;
   minimap: Minimap | null = null;
   emotes: EmoteWheel | null = null;
@@ -84,6 +90,11 @@ export class App {
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) for (const id of c.pool) this.cratesOfItem.set(id, c);
+    const c = this.cfg;
+    this.prog = {
+      rarities: c.rarities, items: c.items, itemById: this.items, crates: c.crates, crateOfItem: this.cratesOfItem, pawnRate: c.economy.pawnRate,
+      levels: c.levels, stages: c.stages, titles: c.titles, upgrades: c.upgrades, quests: c.quests, goals: c.goals,
+    };
     this.store.on(() => this.hud?.setWallet(this.store.walletSen, this.store.shards));
     // Render in DEVICE pixels (the canvas is shrunk back with CSS) so phones and high-DPI
     // screens get crisp vector art instead of an upscaled, blurry 1× canvas.
@@ -129,6 +140,37 @@ export class App {
     else showAuthScreen(this.cfg, (t) => this.connect(t));
   }
 
+  /** Our live bonuses (luck, XP, job pay, walk speed...), computed like the server does. */
+  mods(): Mods {
+    const st = this.store;
+    return computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs() });
+  }
+
+  snapshot(): ProgressSnapshot {
+    const st = this.store;
+    return buildSnapshot(this.prog, {
+      level: st.progress.level, stage: st.progress.stage, walletSen: st.walletSen, inventory: st.inventory,
+      index: st.index, pages: st.pages, stats: st.progress.stats, skills: st.skills,
+    });
+  }
+
+  /** Drink a potion (or use any usable item). */
+  useItem(iid: number) {
+    this.socket?.timeout(5000).emit('item:use', { iid }, (err, res) => {
+      if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      const inst = this.store.inventory.find((i) => i.iid === iid);
+      const def = inst && this.items.get(inst.itemId);
+      this.store.removeItems([res.removed]);
+      sfx.gulp();
+      if (def) toast(`🧪 ${def.name}: ${def.desc ?? 'active!'}`, 'good', 3500);
+    });
+  }
+
+  openPhone(appId?: string) {
+    closePanel();
+    openPhone(this, appId);
+  }
+
   inputVector() {
     if (this.chat?.isOpen || this.creatorOpen || this.settings || isPanelOpen() || document.querySelector('.reveal-overlay')) return { x: 0, y: 0 };
     const k = this.keyboard.vector();
@@ -147,9 +189,15 @@ export class App {
     this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
     this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
     this.keyboard.onPress('KeyE', () => inTown() && this.town?.interact());
-    this.keyboard.onPress('Tab', () => inTown() && this.openSettings());
+    // Tab or P: the HustlePhone (spec §16). Settings live in the phone and behind the ⚙️ button.
+    this.keyboard.onPress('Tab', (e) => {
+      if (!inTown()) return;
+      e.preventDefault();
+      if (document.querySelector('[data-testid=phone-panel]')) closePanel();
+      else if (!isPanelOpen()) this.openPhone();
+    });
     this.keyboard.onPress('KeyB', () => inTown() && !isPanelOpen() && openInventoryPanel(this));
-    this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && openPhonePanel(this));
+    this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && this.openPhone());
     this.keyboard.onPress('Escape', () => {
       this.emotes?.close();
       this.minimap?.closeFull();
@@ -188,6 +236,7 @@ export class App {
     const def = this.items.get(ref.itemId);
     const inst = this.store.inventory.find((it) => it.itemId === ref.itemId && it.variant === ref.variant);
     if (!def || !inst) return void toast("You don't have that item any more.", 'bad');
+    if (def.effect) return this.useItem(inst.iid);
     if (!(EQUIP_SLOTS as readonly string[]).includes(def.type)) return void toast(`${def.name} can't be used yet.`);
     const slot = def.type as EquipSlot;
     const wornIid = this.store.equipped[slot];
@@ -237,10 +286,6 @@ export class App {
     if (!isPanelOpen()) openInventoryPanel(this);
   }
 
-  openSettingsPanel() {
-    this.openSettings();
-  }
-
   connect(token: string) {
     this.kicked = false;
     const socket = connectSocket(token);
@@ -285,6 +330,10 @@ export class App {
       this.store.emit();
     });
     socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
+    socket.on('progress', ({ progress, events }) => {
+      this.store.setProgress(progress);
+      if (events.length) celebrate(this, events);
+    });
     socket.on('ride:ended', ({ arrived }) => {
       this.rideHud?.destroy();
       this.rideHud = null;
@@ -366,9 +415,10 @@ export class App {
         onSettings: () => this.openSettings(),
         onInteract: () => this.town?.interact(),
         onBag: () => openInventoryPanel(this),
-        onPhone: () => openPhonePanel(this),
+        onPhone: () => this.openPhone(),
         attribution: this.map.attribution,
-      });
+      }, this);
+      this.progressHud = new ProgressHud(this);
       this.hotbar = new Hotbar(this);
       this.hud.setWallet(this.store.walletSen, this.store.shards);
       this.jobHud = new DeliveryHud(this);
@@ -428,6 +478,8 @@ export class App {
     closePanel();
     this.jobHud?.destroy();
     this.jobHud = null;
+    this.progressHud?.destroy();
+    this.progressHud = null;
     this.hud?.destroy();
     this.chat?.destroy();
     this.minimap?.destroy();
@@ -436,7 +488,7 @@ export class App {
     this.hud = this.chat = this.minimap = this.emotes = this.hotbar = null;
   }
 
-  private openSettings() {
+  openSettings() {
     if (this.settings) return;
     const s = openSettings({
       lastSavedAt: () => this.lastSavedAt,

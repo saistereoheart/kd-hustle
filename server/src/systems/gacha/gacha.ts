@@ -10,6 +10,14 @@ import { GameError, type Economy } from '../economy/economy';
 
 export const cryptoRand: RandInt = (max) => (max <= 1 ? 0 : crypto.randomInt(max));
 
+export interface RollMods {
+  luck?: number;
+  variantChance?: number;
+  /** Effective pity thresholds (after Pity Pact). */
+  pity?: { epic: number; legendary: number };
+  free?: boolean;
+}
+
 export interface RollBatch {
   results: RollResult[];
   /** Results that deserve a server-wide announcement (Legendary+). */
@@ -30,20 +38,21 @@ export class Gacha {
     for (const item of cfg.items.items) if (item.limit) this.limitedCount.set(item.id, repos.rolls.countItem(item.id));
   }
 
-  /** Current luck. Phase 3 adds potions, upgrades, titles and events as luck sources. */
-  luckFor(_p: OnlinePlayer): number {
-    return 1;
-  }
-
-  roll(p: OnlinePlayer, crateId: string, count: number): RollBatch {
-    const crate = this.cfg.crateById.get(crateId);
-    if (!crate) throw new GameError('Unknown crate.');
-    const total = crate.priceSen * count;
+  /**
+   * Rolls a crate `count` times. `mods` come from the player's progression: luck (skills, potions,
+   * title), variant chance (Shiny Sense) and the crate's pity thresholds (Pity Pact).
+   * `free` rolls (the login streak's free crate) don't charge anything.
+   */
+  roll(p: OnlinePlayer, crateId: string, count: number, mods: RollMods = {}): RollBatch {
+    const base = this.cfg.crateById.get(crateId);
+    if (!base) throw new GameError('Unknown crate.');
+    const crate = mods.pity ? { ...base, pity: mods.pity } : base;
+    const total = mods.free ? 0 : crate.priceSen * count;
     if (p.walletSen < total) throw new GameError(`You need RM ${(total / 100).toLocaleString('en-US')} for ${count}× ${crate.name}.`);
-    const luck = this.luckFor(p);
+    const luck = mods.luck ?? 1;
     const counts = new Map(this.limitedCount);
     const batch = this.econ.run(p, () => {
-      this.econ.change(p, -total, 0, 'crate', `${crate.id}x${count}`);
+      if (total > 0) this.econ.change(p, -total, 0, 'crate', `${crate.id}x${count}`);
       const results: RollResult[] = [];
       let pity = p.pity[crate.id] ?? { sinceEpic: 0, sinceLegendary: 0 };
       for (let i = 0; i < count; i++) {
@@ -52,7 +61,7 @@ export class Gacha {
           const lim = this.cfg.itemById.get(id)?.limit;
           if (lim && (counts.get(id) ?? 0) >= lim) soldOut.add(id);
         }
-        const o = rollCrate(this.cfg.rarities, crate, this.cfg.itemById, luck, pity, this.rand, soldOut);
+        const o = rollCrate(this.cfg.rarities, crate, this.cfg.itemById, luck, pity, this.rand, soldOut, mods.variantChance ?? 1);
         const def = this.cfg.itemById.get(o.itemId)!;
         let serial: number | null = null;
         if (def.limit) {

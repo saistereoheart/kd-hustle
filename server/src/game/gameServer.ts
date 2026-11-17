@@ -17,6 +17,7 @@ import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
 import { EmoteSystem } from '../systems/emotes/emotes';
 import { attachEconomy } from './economyHandlers';
+import { emptyProgress } from '../systems/progression/progression';
 import type { OnlinePlayer, World } from './world';
 
 interface SocketData {
@@ -133,6 +134,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         hotbar: [],
         rideQuote: null,
         ride: null,
+        prog: emptyProgress(),
       };
       economy.loadInto(p);
       world.add(p);
@@ -144,6 +146,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     void socket.join(me.scene);
     socket.emit('init', buildInit(me));
     economy.register(socket, me);
+    economy.afterInit(me);
 
     // --- character creator ----------------------------------------------------------
     socket.on('character:save', (msg, ack) => {
@@ -161,6 +164,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       if (wasNew) {
         socket.to(me.scene).emit('player:joined', world.toPublic(me));
         socket.emit('init', buildInit(me));
+        economy.afterInit(me);
       } else {
         io.to(me.scene).emit('player:updated', { id: me.id, appearance: res.value });
       }
@@ -234,6 +238,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       economy.leave(current); // off the ride; a Ronda passenger is dropped off where they are
       economy.flushManifest(current);
       try {
+        economy.saveProgress(current); // buff timers pause while offline
         saves.saveNow(current); // save trigger 3
       } catch (err) {
         log.error(`Save on disconnect failed for ${me.name}`, err);
@@ -263,7 +268,14 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     stop() {
       clearInterval(snapshotTimer);
       economy.stop();
-      for (const p of world.players.values()) economy.flushManifest(p);
+      for (const p of world.players.values()) {
+        economy.flushManifest(p);
+        try {
+          economy.saveProgress(p);
+        } catch (err) {
+          log.error(`Progress save on shutdown failed for ${p.name}`, err);
+        }
+      }
     },
   };
 }

@@ -19,6 +19,7 @@
       "id": "luckybag",
       "name": "Lucky Bag",
       "priceSen": 15000,
+      "requires": { "stage": 2 },
       "color": "#f59f00",
       "pity": { "epic": 50, "legendary": 300 },
       "pool": [
@@ -35,6 +36,7 @@
       "id": "mallbox",
       "name": "Mall Mystery Box",
       "priceSen": 150000,
+      "requires": { "stage": 2, "level": 5 },
       "color": "#7048e8",
       "pity": { "epic": 40, "legendary": 250 },
       "pool": [

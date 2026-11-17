@@ -21,11 +21,11 @@ export function closePanel() {
 }
 
 /** Opens a modal panel (closing any other). Esc or ✕ closes it. */
-export function openPanel(title: string, opts: { wide?: boolean; testId?: string } = {}): Panel {
+export function openPanel(title: string, opts: { wide?: boolean; testId?: string; cls?: string } = {}): Panel {
   open?.close();
   const closeBtn = el('button', { class: 'icon-btn panel-close', type: 'button', 'aria-label': 'Close' }, '✕');
   const body = el('div', { class: 'panel-body' });
-  const box = el('div', { class: `panel${opts.wide ? ' wide' : ''}`, role: 'dialog', 'aria-label': title, 'data-testid': opts.testId }, el('div', { class: 'panel-head' }, el('h3', {}, title), closeBtn), body);
+  const box = el('div', { class: `panel${opts.wide ? ' wide' : ''}${opts.cls ? ` ${opts.cls}` : ''}`, role: 'dialog', 'aria-label': title, 'data-testid': opts.testId }, el('div', { class: 'panel-head' }, el('h3', {}, title), closeBtn), body);
   const root = el('div', { class: 'modal-backdrop panel-backdrop' }, box);
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') panel.close();

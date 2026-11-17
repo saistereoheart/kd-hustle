@@ -49,6 +49,12 @@
     { "id": "sparkle_aura", "name": "Starlight Aura", "type": "aura", "rarity": "legendary", "shape": "sparkle", "color": "#fff3bf" },
     { "id": "phoenix_wings", "name": "Phoenix Wings", "type": "back", "rarity": "mythic", "shape": "phoenix_wings", "color": "#ff6b6b", "color2": "#fcc419" },
     { "id": "durian_crown", "name": "Durian King Crown", "type": "hat", "rarity": "divine", "shape": "durian", "color": "#94d82d", "color2": "#fcc419", "limit": 5 },
-    { "id": "tan_sri_songkok", "name": "Tan Sri's Songkok", "type": "hat", "rarity": "secret", "shape": "songkok", "color": "#141414", "color2": "#fcc419", "limit": 1 }
+    { "id": "tan_sri_songkok", "name": "Tan Sri's Songkok", "type": "hat", "rarity": "secret", "shape": "songkok", "color": "#141414", "color2": "#fcc419", "limit": 1 },
+
+    { "id": "kopi_kaw", "name": "Kopi Kaw", "type": "potion", "rarity": "common", "shape": "kopi", "color": "#7a4a2a", "desc": "Extra-thick kopi. +50% pay from jobs for 10 minutes.", "effect": { "buff": "jobPay", "mult": 1.5, "durationSec": 600 }, "valueSen": 5000, "shardPrice": 20 },
+    { "id": "luck_potion", "name": "Luck Potion", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#40c057", "desc": "2× luck on every crate for 10 minutes.", "effect": { "buff": "luck", "mult": 2, "durationSec": 600 }, "valueSen": 10000, "shardPrice": 40 },
+    { "id": "income_booster", "name": "Income Booster", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#fcc419", "desc": "2× passive income (Manifesting) for 30 minutes.", "effect": { "buff": "passive", "mult": 2, "durationSec": 1800 }, "valueSen": 10000, "shardPrice": 40 },
+    { "id": "xp_booster", "name": "XP Booster", "type": "potion", "rarity": "rare", "shape": "potion", "color": "#339af0", "desc": "2× XP from everything for 15 minutes.", "effect": { "buff": "xp", "mult": 2, "durationSec": 900 }, "valueSen": 15000, "shardPrice": 60 },
+    { "id": "mega_luck_potion", "name": "Mega Luck Potion", "type": "potion", "rarity": "epic", "shape": "potion", "color": "#cc5de8", "desc": "5× luck on every crate for 3 minutes. Save it for a big crate.", "effect": { "buff": "luck", "mult": 5, "durationSec": 180 }, "valueSen": 50000, "shardPrice": 200 }
   ]
 }

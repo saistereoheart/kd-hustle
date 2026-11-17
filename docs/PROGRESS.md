@@ -6,20 +6,82 @@ _Last updated: 2026-11-17_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
-**Phase 3 (progression: XP, levels, titles, Hustle Skills, potions, daily quests, HustlePhone, balance simulator) is next.**
-
-> Phase numbering: the spec has 8 phases (§20). "2.1 / 2.2 / 2.3" are not new phases, they are rounds of your
-> feedback on Phase 2. Phase 2 itself passed its acceptance checks before 2.1 started, so Phase 3 is next.
+**Phase 3 (progression): done.** XP + levels, wealth stages, titles, the Hustle Skills tree, potions with buff timers,
+the daily login streak, daily quests, the next-goal tracker (Hustle Path), the HustlePhone and the balance simulator.
+**Phase 4 (food stalls and cooking) is next.**
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 87 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, car wash grading, map + polygon collision + elevated decks, Ronda routes/fares/booking, hotbar migration, emotes) |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass (incl. 3-stage car wash, hotbar bicycle, delivery, a Ronda ride, Manifest) |
+| `npm test` (Vitest) | ✅ 122 unit tests (Phase 3 adds 35: XP curve, levels + rewards, net worth + stages, skill costs + locks, how luck/XP/pay bonuses stack, potions + stacking + pausing offline, login streak across days/months, quests, Hustle Path order, titles, the migration backfill) |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1, 2 and 3 specs pass |
+| `npm run sim` | ✅ Stage 2 in 24 min (target 20), a clear Hustle Path (27 goals in the first 2 h, never more than 16 min to the next one) |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
 | Real phone on the LAN | ⏳ needs you |
 
 ---
+
+## Phase 3: progression
+
+### How to test it (PC + phone)
+0. **Rebuild first** if you use `npm start`: `npm run build` then `npm start` (or just `npm run dev`).
+1. **New player:** the top-left pill now has your level, an XP bar, your wealth stage (🛵 Budak Baru) and your luck
+   (🍀 ×1.00). Under it, **🎯 Next goal** says what to do next. Tap it once for a hint, again for the whole path.
+2. **📱 HustlePhone** (P or Tab, or the 📱 button): a phone with apps. **Daily** → claim day 1. **Quests** → today's 3.
+   On your phone it fills the screen.
+3. **Do a job:** XP and the goal move. Level-ups show a big "LEVEL 2!" splash with confetti. Reaching RM 2,000 net
+   worth makes you a **Hustler**: a bigger splash, and your friend sees "… is now a HUSTLER!" in chat.
+4. **Lucky Bag** is locked until you're a Hustler; the **Mall Mystery Box** also needs Level 5. The crate screen
+   says why.
+5. **📱 → Skills:** branches (Hustle, Luck, Rolling, Fortune, Movement; Property/Business/Banking are greyed for later).
+   Buy **Hustle Harder** (+5% job pay per level). Manifesting moved here from the Bag.
+6. **Potions:** the Hustle Path gives you a ☕ Kopi Kaw at 5 jobs. 🎒 Bag → tap it → **Use**. A timer chip appears under
+   the goal (☕ 1.5× 9:59). A 🧪 Luck Potion doubles your luck; open a crate: the odds table and the reel use it.
+   Potion timers pause while you're logged out.
+7. **📱 → Titles:** wear one (e.g. "Hustler"). Your friend sees it over your head, in its rarity colour.
+8. **📱 → Profile:** level, net worth, the stage ladder, where your luck comes from, active potions, lifetime stats.
+9. **Admin shortcuts** (chat): `/give me xp 2000`, `/setlevel me 10`, `/setstage me 3`, `/give me item luck_potion`.
+10. **Balance:** `npm run sim` (about 3 s). See below.
+11. **Existing players** (from before Phase 3) get XP for what they'd already done (rolls, jobs, manifesting, skill
+    levels), and any titles and Hustle Path goals they already qualify for (with the rewards) on first login.
+
+### What was built
+- **Configs** (all balance in `shared/config/`): `levels.json` (XP curve `100 × L^1.6`, XP per action, level-up
+  rewards), `stages.json` (6 wealth stages), `titles.json` (22 titles), `upgrades.json` (the Hustle Skills tree; it
+  replaces `skills.json`, Manifesting kept its level and rates), `quests.json` (7-day login rewards, 12 daily quest
+  types with targets/rewards per stage), `goals.json` (the 34-goal Hustle Path). 5 potions in `items.json`.
+- **Shared maths** (`shared/src/progression/`): levels, net worth (cash + pawn value of items), stages, skill costs
+  and effects, how bonuses stack (multiply within a source, add across sources, like luck), conditions (used by
+  titles, goals and quests), login streak and quests. The client uses the same code to draw bars and live odds.
+- **Server** (`server/src/systems/progression/`): other systems report what happened (roll, job, sale, manifest,
+  equip); that bumps **stats** counters and XP. `check()` then pays every level-up, stage, title and goal reward in
+  one transaction and pushes the new state. A quest is "this stat went up by N since the quest was given".
+  Migration 7 adds `xp`, `level`, `stage`, `title`, `progress_json` and backfills stats for existing players.
+- **Gameplay effects:** luck (Lucky Charm, potions, titles), Shiny Sense (variant chance), Pity Pact (pity comes
+  sooner; the crate screen shows the new counts), Hustle Harder + Kopi Kaw (job pay), Elbow Grease (car wash timer),
+  Fast Learner + XP Booster (XP), Passive Income + Income Booster (Manifesting), Kaki Lari (walk speed, checked by
+  the server too), Fast Hands (reel speed), Auto-Roll (keeps rolling until you stop it).
+- **Client:** new HUD pill, goal tracker + chips (daily reward, quests, potion timers), the HustlePhone
+  (`client/src/ui/phone/`), titles over heads, level-up/stage-up splashes with confetti and sounds, potion icons,
+  Use buttons, potions in the Shard Shop.
+- **`npm run sim`** (`scripts/balance-sim.ts`) drives the REAL Economy, Gacha and ProgressionSystem against an
+  in-memory DB, with a modelled player (job durations, wash quality, what they buy, 20% of earnings on crates,
+  a 4-minute manifest break an hour, 2-hour sessions = 1 day each).
+
+### Simulator results (20 runs × 12 h, `npm run sim`)
+| | Median | Target (spec §6) |
+|---|---|---|
+| Stage 2 Hustler (RM 2K) | **24 min** (14–31) | 20 min ✅ |
+| Stage 3 Towkay Kecil (RM 50K) | 7 h 42 | 2 h ⏳ |
+| Level at 20 min / 1 h / 2 h / 12 h | 5 / 8 / 11 / 26 | (spec has no target) |
+| Hustle Path | 27 of 34 goals in the first 2 h, longest wait **16 min** | "a clear path for the first 2 hours" ✅ |
+| Jobs | delivery RM 398/min, car wash RM 323/min (both worth doing) | |
+| Sinks | 79% of income goes back (skills 79%, crates 21%) | |
+
+**Stage 3 is slow on purpose for now:** jobs are the only income. The spec puts stalls (Phase 4) and property
+(Phase 5) as the main income from Stage 2, so the sim will be re-tuned when they exist. Changes made from the sim:
+car wash base pay RM 45 → RM 70 (it paid half a delivery, so nobody would wash cars), and the goal list was
+reordered and filled in until there were no long gaps.
 
 ## Phase 2.3: third feedback round (highway, smooth map, Ronda rides, hotbar, resizing)
 
@@ -333,6 +395,32 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 3**
+- **Net worth = cash + what your items would fetch at the pawn shop** (50% of value), not the full value: rolling
+  crates can't inflate net worth. Debt and property join it in later phases.
+- **The wealth stage never goes down** (it's the highest stage reached), so spending never takes away unlocks.
+- **Crate gates:** Lucky Bag needs stage 2 (spec: "Lucky Bag crates" unlock at stage 2), Mall Mystery Box needs stage 2
+  and Level 5 (the spec doesn't place it; this makes "Reach Level 5" a goal). Existing players are re-checked on login.
+- **Daily login day 7 = a free Mall Mystery Box roll** (spec says Strand Premium Crate, which doesn't exist yet).
+- **The day resets at local midnight on the server PC** (it's in Malaysia). Login rewards and quests use it.
+- **Potion timers pause while you're offline** (saved as time left). Drinking the same potion again adds its time,
+  up to 60 minutes (`economy.json: potionMaxStackMin`). Different potions of the same kind multiply (2× and 5× luck = 10×).
+- **Potions are consumables:** not in the Item Index, always for sale in the Shard Shop, sellable at the pawn shop
+  for their fixed value. They come from rewards (goals, levels, login, quests, stages), not crates.
+- **Titles only give a bonus while worn**; nothing is worn until you pick one. "Budak Baru" is everyone's starter title.
+- **Quests are per player, picked at random** from those your stage allows, 3 per day. Progress is measured from the
+  moment they're handed out, so yesterday's work doesn't count.
+- **Hustle Path goals pay automatically** (with a toast); daily quests and the login reward are claimed with a button.
+- **Pre-Phase-3 players get XP for their history** (from the roll log, job counts and the economy log), without the RM
+  for those levels. Titles and goals they already qualify for pay out normally.
+- **Weekly quests, achievements beyond titles, and server events** (Lucky Hour) are left for later phases
+  (spec Phase 3 lists daily quests only; events are Phase 7).
+- **×5/×10 rolls stay free for everyone** (the spec lists them as Rolling upgrades; taking them away from players who
+  already use them felt bad). Rolling has Fast Hands and Auto-Roll instead.
+- **Keys:** Tab or P opens the HustlePhone (spec §16). Settings: the ⚙️ button or 📱 → Settings. On narrow touch
+  screens the 🗺️ button is hidden (tap the minimap).
+- **The Property / Business / Banking skill branches** show as "coming" until those systems exist.
+
 **Phase 2.3**
 - **"Grab-like" is called Ronda** (Malay for cruising around): Grab is a real brand and the rules say parody names only.
 - **Decks have no ramps:** a vehicle under an elevated road counts as being on it (road speed). Simpler than a second
@@ -426,14 +514,22 @@ Simple options picked where the spec was open, per CLAUDE.md:
    deterministic hash, so every device shows the same trees.
 10. **Only the tables Phase 1 needs** (`accounts`, `sessions`, `players`, `schema_migrations`). Later phases add numbered migrations.
 11. **Chat history is in memory** (last 50 messages, sent on join), not persisted.
-12. **Keys**: **Tab** opens Settings for now (it becomes the HustlePhone in Phase 3). **Q** opens the emote wheel and
+12. **Keys** (Phase 1): **Tab** opened Settings (since Phase 3 it opens the HustlePhone). **Q** opens the emote wheel and
     **1–5** pick an emote. **E** near a door shows "interiors open in a later phase".
 13. **Portrait is fully playable.** "Rotate to landscape" is a dismissable hint.
-14. **Level badge shows 1 and titles are empty** until Phase 3. The volume/particles settings are saved but there's no audio yet (Phase 8 sound pass).
+14. **Level badge showed 1 and titles were empty** until Phase 3. The volume/particles settings are saved but there's no audio yet (Phase 8 sound pass).
 15. **Usernames**: 3–16 chars `[A-Za-z0-9_]`, unique case-insensitively.
 16. **`?profile=<name>` URL param** keeps a separate login per tab (testing convenience).
 
 ## Known issues / limitations
+
+- **Phase 3:** jobs alone take ~7–8 h to reach Stage 3 (target 2 h). Expected until stalls/property arrive; the sim
+  flags it as ⏳ rather than a failure.
+- **Phase 3:** the HUD luck readout and crate odds refresh when something changes (and every second for the HUD), so
+  an open crate screen can show a potion's luck for up to a moment after it runs out. The server always uses the real value.
+- **Phase 3:** the sim models the player's hands (job times, wash quality, choices). Tell me how long jobs really take
+  you and I'll tune `HANDS` in `scripts/balance-sim.ts`.
+- **Phase 3:** at midnight, quests and the daily reward refresh within a minute for players who are online.
 
 - **Phase 2.3:** simplified Ronda routes can clip the corner of a building by up to ~1.5 m on tight turns (the
   passenger isn't collision-checked). If the pickup point is off-road, the first stretch goes straight to the nearest
@@ -465,11 +561,11 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
-## Next: Phase 3 (progression)
+## Next: Phase 4 (food stalls and cooking)
 
-From the spec (§20): XP and levels, wealth stages, the titles system, the Hustle Skills upgrade tree (Manifesting is
-the first skill already), usable items (potions/boosters with buff timers), daily login streak, daily quests, the
-next-goal tracker, the HustlePhone UI (the 📱 Phone panel grows into it), and the balance simulator v1
-(`npm run sim`), which will also tune job pay and Ronda fares.
-**Done when:** a new player has a clear path of goals for the first 2 hours and the simulator output roughly matches
-the pacing targets.
+From the spec (§20): the pasar malam stall → food truck → kopitiam path, 3 recipes first (Nasi Lemak, Teh Tarik,
+Roti Canai) with step-by-step mini-games and quality scoring, NPC customers with queues and patience,
+combos/tips/food blogger, passive mode with staff, ingredients/stock, stall upgrades, and the day/night cycle (the
+pasar malam opens at night). The Business skill branch and the Customer Rush / Perfect Cook Token potions come with it,
+and the simulator gets stall income so Stage 3 can hit its 2-hour target.
+**Done when:** cooking Perfect clearly earns more than passive mode, and both feel worth doing.

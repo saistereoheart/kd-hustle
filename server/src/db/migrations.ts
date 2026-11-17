@@ -155,4 +155,67 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: 7,
+    name: 'progression',
+    // Phase 3: XP, level, wealth stage and title as columns (for leaderboards later), everything
+    // else (titles, stats, buffs, daily login + quests, Hustle Path) as JSON.
+    sql: `
+      ALTER TABLE players ADD COLUMN xp INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN level INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN stage INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN title TEXT;
+      ALTER TABLE players ADD COLUMN progress_json TEXT;
+    `,
+    // Existing players: rebuild their stats from the roll log, job counts and the economy log, so
+    // titles, goals and XP count what they already did. The server turns these stats into XP on
+    // their next login (it needs the XP config for that).
+    run: (db) => backfillProgress(db),
+  },
 ];
+
+/** Migration 7's backfill (exported for tests). */
+export function backfillProgress(db: Database.Database) {
+  const players = db.prepare('SELECT account_id, jobs_json, skills_json FROM players').all() as Array<{ account_id: number; jobs_json: string; skills_json: string }>;
+  const rollStmt = db.prepare('SELECT crate_id, tier, COUNT(*) AS n FROM roll_log WHERE account_id = ? GROUP BY crate_id, tier');
+  const txSum = db.prepare("SELECT COALESCE(SUM(-delta_sen), 0) AS s FROM transactions WHERE account_id = ? AND reason = 'crate'");
+  const jobSum = db.prepare("SELECT COALESCE(SUM(delta_sen), 0) AS s FROM transactions WHERE account_id = ? AND reason LIKE 'job-%'");
+  const sells = db.prepare("SELECT ref FROM transactions WHERE account_id = ? AND reason = 'pawn-sell'");
+  const manifest = db.prepare("SELECT ref FROM transactions WHERE account_id = ? AND reason = 'manifest'");
+  const set = db.prepare('UPDATE players SET progress_json = ? WHERE account_id = ?');
+  const EPIC_PLUS = new Set(['epic', 'legendary', 'mythic', 'divine', 'secret']);
+  for (const p of players) {
+    const stats: Record<string, number> = {};
+    const add = (k: string, n: number) => {
+      if (n > 0) stats[k] = (stats[k] ?? 0) + n;
+    };
+    for (const r of rollStmt.all(p.account_id) as Array<{ crate_id: string; tier: string; n: number }>) {
+      add('rolls', r.n);
+      add(`rolls_${r.crate_id}`, r.n);
+      if (EPIC_PLUS.has(r.tier)) add('epicPlusRolls', r.n);
+      if (r.tier !== 'common' && r.tier !== 'uncommon' && r.tier !== 'rare' && r.tier !== 'epic') add(`${r.tier}Rolls`, r.n);
+    }
+    let jobs: Record<string, { done?: number }> = {};
+    try {
+      jobs = JSON.parse(p.jobs_json || '{}');
+    } catch {
+      /* keep empty */
+    }
+    for (const [kind, j] of Object.entries(jobs)) {
+      add('jobs', j.done ?? 0);
+      add(`jobs_${kind}`, j.done ?? 0);
+    }
+    add('crateSpendSen', (txSum.get(p.account_id) as { s: number }).s);
+    add('jobEarnSen', (jobSum.get(p.account_id) as { s: number }).s);
+    for (const r of sells.all(p.account_id) as Array<{ ref: string | null }>) add('sells', Number(/x(\d+)$/.exec(r.ref ?? '')?.[1] ?? 1));
+    for (const r of manifest.all(p.account_id) as Array<{ ref: string | null }>) add('manifestSecs', Number(/^(\d+)s$/.exec(r.ref ?? '')?.[1] ?? 0));
+    let skills: Record<string, number> = {};
+    try {
+      skills = JSON.parse(p.skills_json || '{}');
+    } catch {
+      /* keep empty */
+    }
+    add('skillLevels', Math.max(0, (skills.manifest ?? 1) - 1));
+    set.run(JSON.stringify({ stats, retroXp: true }), p.account_id);
+  }
+}

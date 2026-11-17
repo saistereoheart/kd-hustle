@@ -99,13 +99,14 @@ function pickWeighted(ps: number[], rand: RandInt): number {
   return 0;
 }
 
-export function rollVariant(rar: RaritiesConfig, rand: RandInt): string {
+/** `chanceMult` (from the Shiny Sense skill) makes every special variant that much likelier. */
+export function rollVariant(rar: RaritiesConfig, rand: RandInt, chanceMult = 1): string {
   // Check the rarest variant first; each has its own independent "1 in N" chance.
   const special = rar.variants.filter((v) => v.oneIn > 1).sort((a, b) => b.oneIn - a.oneIn);
   const r = rand(SCALE);
   let acc = 0;
   for (const v of special) {
-    acc += SCALE / v.oneIn;
+    acc += (SCALE * chanceMult) / v.oneIn;
     if (r < acc) return v.id;
   }
   return rar.variants.find((v) => v.oneIn <= 1)?.id ?? 'normal';
@@ -126,6 +127,7 @@ export function rollCrate(
   pity: PityState,
   rand: RandInt,
   soldOut: ReadonlySet<string> = new Set(),
+  variantChanceMult = 1,
 ): RollOutcome {
   const tierIdx = (id: string) => rar.tiers.findIndex((t) => t.id === id);
   const epicIdx = tierIdx('epic');
@@ -152,7 +154,7 @@ export function rollCrate(
     itemId,
     tier: rar.tiers[ti].id,
     tierIndex: ti,
-    variant: rollVariant(rar, rand),
+    variant: rollVariant(rar, rand, variantChanceMult),
     pity: pityHit && naturallyHigh && minTier > 0,
     oneIn: base[ti].oneIn,
   };
@@ -172,13 +174,15 @@ export function variantMult(rar: RaritiesConfig, variant: string): number {
   return rar.variants.find((v) => v.id === variant)?.valueMult ?? 1;
 }
 
-/** An item's value in sen: crate price × rarity factor × variant multiplier. */
-export function itemValueSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef, variant: string): number {
+/** An item's value in sen: crate price × rarity factor × variant multiplier (or its fixed
+ *  `valueSen` if it doesn't come from a crate, e.g. potions). */
+export function itemValueSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string): number {
+  if (!crate) return Math.round((item.valueSen ?? 0) * variantMult(rar, variant));
   const tier = rar.tiers.find((t) => t.id === item.rarity)!;
   return Math.round(crate.priceSen * tier.valueFactor * variantMult(rar, variant));
 }
 
-export function pawnPriceSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef, variant: string, pawnRate: number): number {
+export function pawnPriceSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string, pawnRate: number): number {
   return Math.max(1, Math.floor(itemValueSen(rar, item, crate, variant) * pawnRate));
 }
 

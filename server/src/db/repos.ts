@@ -47,6 +47,24 @@ export interface EconRecord {
   hotbar: Array<HotbarRef | null> | null;
 }
 
+/** Saved progression (Phase 3). Buff timers are saved as time LEFT, so they pause while offline. */
+export interface ProgressRecord {
+  xp: number;
+  level: number;
+  stage: number;
+  title: string | null;
+  titles: string[];
+  stats: Record<string, number>;
+  buffs: Array<{ item: string; kind: string; mult: number; leftMs: number }>;
+  login: { lastDay: string | null; streak: number };
+  quests: { day: string | null; list: Array<{ id: string; base: number; target: number; senReward: number; claimed: boolean }> };
+  path: number;
+  /** Fractional XP not yet credited (manifesting earns a fraction per payout). */
+  xpFrac: number;
+  /** Set by migration 7 for players from before Phase 3: turn their stats into XP on login. */
+  retroXp?: boolean;
+}
+
 function parseJson<T>(s: string | null | undefined, fallback: T): T {
   try {
     return s ? (JSON.parse(s) as T) : fallback;
@@ -86,6 +104,8 @@ export function createRepos(db: DB) {
     rollCountItem: db.prepare('SELECT COUNT(*) AS n FROM roll_log WHERE item_id = ?'),
     txInsert: db.prepare('INSERT INTO transactions (account_id, delta_sen, balance_sen, delta_shards, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     announceInsert: db.prepare('INSERT INTO announcements (text, tier, at) VALUES (?, ?, ?)'),
+    progressById: db.prepare('SELECT xp, level, stage, title, progress_json FROM players WHERE account_id = ?'),
+    setProgress: db.prepare('UPDATE players SET xp = ?, level = ?, stage = ?, title = ?, progress_json = ? WHERE account_id = ?'),
   };
 
   return {
@@ -113,6 +133,30 @@ export function createRepos(db: DB) {
         s.setEconState.run(JSON.stringify(e.equipped), JSON.stringify(e.pity), JSON.stringify(e.jobs), JSON.stringify(e.pages), JSON.stringify(e.skills), accountId),
       logTx: (accountId: number, deltaSen: number, balanceSen: number, deltaShards: number, reason: string, ref: string | null) =>
         s.txInsert.run(accountId, deltaSen, balanceSen, deltaShards, reason, ref, Date.now()),
+    },
+    progress: {
+      load: (accountId: number): ProgressRecord => {
+        const r = s.progressById.get(accountId) as { xp: number; level: number; stage: number; title: string | null; progress_json: string | null } | undefined;
+        const j = parseJson<Partial<ProgressRecord>>(r?.progress_json, {});
+        return {
+          xp: r?.xp ?? 0,
+          level: r?.level ?? 1,
+          stage: r?.stage ?? 1,
+          title: r?.title ?? null,
+          titles: Array.isArray(j.titles) ? j.titles : [],
+          stats: j.stats && typeof j.stats === 'object' ? j.stats : {},
+          buffs: Array.isArray(j.buffs) ? j.buffs : [],
+          login: j.login ?? { lastDay: null, streak: 0 },
+          quests: j.quests ?? { day: null, list: [] },
+          path: typeof j.path === 'number' ? j.path : 0,
+          xpFrac: typeof j.xpFrac === 'number' ? j.xpFrac : 0,
+          retroXp: j.retroXp === true,
+        };
+      },
+      save: (accountId: number, p: ProgressRecord) => {
+        const { xp, level, stage, title, ...rest } = p;
+        s.setProgress.run(xp, level, stage, title, JSON.stringify({ ...rest, retroXp: undefined }), accountId);
+      },
     },
     inventory: {
       list: (accountId: number): InventoryItem[] =>

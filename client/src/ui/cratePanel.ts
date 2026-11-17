@@ -1,5 +1,5 @@
 // Crate machine UI: odds (always visible), pity, the pool, and ×1/×5/×10 rolls.
-import { crateOdds, formatMoney, formatOneIn, type InventoryItem } from '@kh/shared';
+import { crateOdds, effectivePity, formatMoney, formatOneIn, stageDef, type InventoryItem } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { itemCard, openPanel } from './panel';
@@ -12,11 +12,25 @@ export function openCratePanel(app: App, crateId: string) {
   const rar = app.cfg.rarities;
   const panel = openPanel(crate.name, { wide: true, testId: 'crate-panel' });
   let busy = false;
+  /** Auto-Roll (a Hustle Skill): keep rolling the same count until stopped. */
+  let auto = false;
+
+  /** Why we can't roll this crate yet (level / wealth stage), or null. */
+  const lockReason = () => {
+    const pr = app.store.progress;
+    const r = crate.requires;
+    if (r.stage && pr.stage < r.stage) return `Opens at wealth stage ${r.stage}: ${stageDef(app.cfg.stages, r.stage).name} (${formatMoney(stageDef(app.cfg.stages, r.stage).minNetWorthSen)} net worth).`;
+    if (r.level && pr.level < r.level) return `Opens at Level ${r.level} (you're Level ${pr.level}).`;
+    return null;
+  };
 
   const render = () => {
     const st = app.store;
-    const odds = crateOdds(rar, crate, app.items, 1);
+    const mods = app.mods();
+    const odds = crateOdds(rar, crate, app.items, mods.luck);
+    const pityAt = effectivePity(crate, mods.pityMult);
     const pity = st.pity[crate.id] ?? { sinceEpic: 0, sinceLegendary: 0 };
+    const lock = lockReason();
     const head = el(
       'div',
       { class: 'crate-head' },
@@ -40,8 +54,8 @@ export function openCratePanel(app: App, crateId: string) {
     const pityBox = el(
       'div',
       { class: 'pity' },
-      el('div', {}, `Epic+ guaranteed in `, el('b', {}, String(crate.pity.epic - pity.sinceEpic)), ' rolls'),
-      el('div', {}, `Legendary+ guaranteed in `, el('b', {}, String(crate.pity.legendary - pity.sinceLegendary)), ' rolls'),
+      el('div', {}, `Epic+ guaranteed in `, el('b', {}, String(Math.max(1, pityAt.epic - pity.sinceEpic))), ' rolls'),
+      el('div', {}, `Legendary+ guaranteed in `, el('b', {}, String(Math.max(1, pityAt.legendary - pity.sinceLegendary))), ' rolls'),
     );
     const pool = el('div', { class: 'pool' });
     for (const id of crate.pool) {
@@ -51,11 +65,17 @@ export function openCratePanel(app: App, crateId: string) {
     const actions = el('div', { class: 'crate-actions' });
     for (const n of [1, 5, 10] as const) {
       const cost = crate.priceSen * n;
-      const b = el('button', { class: `btn ${n === 1 ? 'primary' : ''}`, type: 'button', 'data-roll': String(n), disabled: busy || st.walletSen < cost }, `Roll ×${n}`, el('small', {}, formatMoney(cost)));
+      const b = el('button', { class: `btn ${n === 1 ? 'primary' : ''}`, type: 'button', 'data-roll': String(n), disabled: busy || !!lock || st.walletSen < cost }, `Roll ×${n}`, el('small', {}, formatMoney(cost)));
       b.addEventListener('click', () => roll(n));
       actions.append(b);
     }
-    panel.body.replaceChildren(head, actions, el('h4', {}, 'Odds (luck ×1.00)'), table, pityBox, el('h4', {}, `Items (${crate.pool.filter((id) => st.index.has(id)).length}/${crate.pool.length} found)`), pool, el('p', { class: 'hint' }, 'All odds are shown. Rolls happen on the server.'));
+    if (mods.autoRoll) {
+      const a = el('label', { class: 'auto-toggle' }, el('input', { type: 'checkbox', checked: auto, 'data-action': 'auto-roll' }), ' 🔁 Auto');
+      a.querySelector('input')!.addEventListener('change', (e) => (auto = (e.target as HTMLInputElement).checked));
+      actions.append(a);
+    }
+    const luckNote = mods.luck > 1.0001 ? ` · ${mods.luckSources.map((x) => (x.type === 'potion' ? app.items.get(x.label ?? '')?.name ?? 'potion' : x.label ?? x.type)).join(', ')}` : '';
+    panel.body.replaceChildren(head, ...(lock ? [el('div', { class: 'crate-lock', 'data-testid': 'crate-lock' }, `🔒 ${lock}`)] : []), actions, el('h4', {}, `Odds (luck ×${mods.luck.toFixed(2)}${luckNote})`), table, pityBox, el('h4', {}, `Items (${crate.pool.filter((id) => st.index.has(id)).length}/${crate.pool.length} found)`), pool, el('p', { class: 'hint' }, 'All odds are shown. Rolls happen on the server.'));
   };
 
   const roll = (count: 1 | 5 | 10) => {
@@ -79,11 +99,15 @@ export function openCratePanel(app: App, crateId: string) {
       st.addItems(items);
       if (res.pageReward) st.pages.add(res.pageReward.crateId);
       panel.root.classList.add('hidden');
+      const mods = app.mods();
       playReveal({
         rar,
         items: app.items,
         crate,
         results: res.results,
+        luck: mods.luck,
+        speed: mods.rollSpeed,
+        auto: auto ? { isOn: () => auto && app.store.walletSen >= crate.priceSen * count && !lockReason(), stop: () => (auto = false) } : undefined,
         shake: (i) => app.town?.shake(i),
         onDone: (again) => {
           panel.root.classList.remove('hidden');

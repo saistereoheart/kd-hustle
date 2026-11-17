@@ -4,10 +4,10 @@ A browser-based **LAN multiplayer 2D social RNG tycoon** set in a cartoon city i
 Hustle from RM 300 to billions: roll crates for rare cosmetics and items, cook at your own pasar malam stall,
 buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), and flex on friends on the same WiFi.
 
-> 🚧 Work in progress: **Phases 1, 1.5 and 2 are done** (town, characters, money, jobs, crates). See [`docs/PROGRESS.md`](docs/PROGRESS.md) for status,
+> 🚧 Work in progress: **Phases 1, 1.5, 2 and 3 are done** (town, characters, money, jobs, crates, progression). See [`docs/PROGRESS.md`](docs/PROGRESS.md) for status,
 > decisions and a step-by-step test guide.
 
-## What works now (Phase 1)
+## What works now (Phases 1–3)
 - Accounts (register / login / auto-login / one session per account) with autosave
 - A chibi vector character creator: face shapes, 23 hairstyles, tudung styles, baju kurung / baju melayu and more
 - A real-scale Kota Damansara built from **OpenStreetMap** (2 m per tile, ~1.5 × 1.15 km): The Strand, Dataran
@@ -18,17 +18,21 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
   🛵 **Ronda** rides from the phone (pick a spot on the map, pay the fare, a rider takes you), 3 gacha crates with visible odds,
   a CS:GO-style reel, 48 collectable items, cosmetics everyone can see, pity, rare-pull announcements, Item Index,
   pawn shop and Shard Shop
+- Progression: XP and levels (1–100), 6 wealth stages from Budak Baru to Tan Sri, 22 titles worn over your head,
+  the **Hustle Skills** tree, potions with buff timers (luck, XP, job pay, passive income), a 7-day login streak,
+  3 daily quests, and the **Hustle Path** (a next-goal tracker that guides your first couple of hours)
+- The 📱 **HustlePhone** (P or Tab): Daily, Quests, Hustle Path, Skills, Titles, Profile, Ronda, Bag, Index, Map, Settings
 
 ## Features (planned)
-- More crates (up to the Tan Sri Diamond Vault), luck upgrades and potions, levels, titles and quests
+- More crates (up to the Tan Sri Diamond Vault)
 - Step-by-step cooking mini-games (Nasi Lemak, Teh Tarik, Roti Canai…) or passive income with staff
 - Buy property: long-term rent or Airbnb with a Sims-style decorate mode and a star rating
-- Shops, businesses, bank loans, a casino, trading, a marketplace, titles, levels and rebirth
+- Shops, businesses, bank loans, a casino, trading, a marketplace, leaderboards and rebirth
 
 Full design: [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md)
 
 ## Where we left off (resume here)
-**Phase 2 and its feedback rounds (2.1–2.3) are done** (local commits, not pushed). **Phase 3 (progression)** is next.
+**Phase 3 (progression) is done** (local commit, not pushed). **Phase 4 (food stalls and cooking)** is next.
 What's verified, decisions and known issues are in [`docs/PROGRESS.md`](docs/PROGRESS.md). To pick up on any device:
 1. Open this folder (same PC via Remote Desktop, or a fresh `git clone` + `npm install` elsewhere).
 2. `npm run typecheck`, `npm test` and `npm run e2e` should all pass.
@@ -81,7 +85,7 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | `npm run backup` | Copy the DB to `server/backups/` with a timestamp |
 | `npm run seed` | Create test accounts `tester1`–`tester4` (password `test123`) |
 | `npm run admin -- list` | List accounts and admins. Also `promote <user>`, `demote <user>`, `password <user> [new]` (reset a forgotten password) |
-| `npm run sim` | Economy balance simulator (arrives in Phase 3) |
+| `npm run sim` | Economy balance simulator: plays N hours with the real config and server systems, prints time to each wealth stage vs the pacing targets, the Hustle Path timeline and income/sinks (`-- --hours=30 --runs=10 --session=2 --budget=0.2`) |
 | `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
 | `npm run map-preview` | PNG of the collision grid, for map editing |
 

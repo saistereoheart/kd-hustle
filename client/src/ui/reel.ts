@@ -13,6 +13,12 @@ export interface RevealOpts {
   /** Camera shake in the game world (0..1 intensity). */
   shake: (intensity: number) => void;
   onDone: (again: boolean) => void;
+  /** Live luck (the reel's filler cards follow the real odds). */
+  luck?: number;
+  /** Fast Hands: 1.3 = the reel spins 30% faster. */
+  speed?: number;
+  /** Auto-Roll is on: roll again by itself after a short look at the result. */
+  auto?: { isOn: () => boolean; stop: () => void };
 }
 
 const tierIndex = (rar: RaritiesConfig, id: string) => rar.tiers.findIndex((t) => t.id === id);
@@ -71,16 +77,36 @@ function resultLine(o: RevealOpts, r: RollResult) {
   );
 }
 
-function buttons(o: RevealOpts, host: HTMLElement) {
+function buttons(o: RevealOpts, host: HTMLElement, best: RollResult) {
   const again = el('button', { class: 'btn primary', type: 'button', 'data-action': 'roll-again' }, 'Roll again');
   const ok = el('button', { class: 'btn', type: 'button', 'data-action': 'reveal-ok' }, 'Nice!');
+  let timer = 0;
+  let closed = false;
   const finish = (a: boolean) => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(timer);
     host.remove();
     o.onDone(a);
   };
   again.addEventListener('click', () => finish(true));
   ok.addEventListener('click', () => finish(false));
-  return el('div', { class: 'reveal-actions' }, ok, again);
+  const row = el('div', { class: 'reveal-actions' }, ok, again);
+  if (o.auto?.isOn()) {
+    // Auto-Roll: keep going by itself; linger longer on good pulls so they can be enjoyed.
+    const stop = el('button', { class: 'btn danger', type: 'button', 'data-action': 'auto-stop' }, '⏹ Stop auto');
+    stop.addEventListener('click', () => {
+      o.auto?.stop();
+      clearTimeout(timer);
+      stop.remove();
+    });
+    row.append(stop);
+    const ti = tierIndex(o.rar, best.tier);
+    timer = window.setTimeout(() => {
+      if (o.auto?.isOn()) finish(true);
+    }, ti >= 4 ? 3500 : ti >= 3 ? 1800 : 800);
+  }
+  return row;
 }
 
 export function playReveal(o: RevealOpts) {
@@ -92,7 +118,7 @@ export function playReveal(o: RevealOpts) {
 function reel(o: RevealOpts) {
   const result = o.results[0];
   const ti = tierIndex(o.rar, result.tier);
-  const odds = crateOdds(o.rar, o.crate, o.items, 1);
+  const odds = crateOdds(o.rar, o.crate, o.items, o.luck ?? 1);
   const pool = o.crate.pool.map((id) => o.items.get(id)!).filter(Boolean);
   const randomFiller = () => {
     // Filler cards follow the real odds so the reel "looks" honest.
@@ -129,7 +155,7 @@ function reel(o: RevealOpts) {
   const jitter = (Math.random() - 0.5) * cardW * 0.6;
   const target = WIN * cardW + cardW / 2 - windowW / 2 + jitter;
   const dramatic = ti >= 5;
-  const duration = dramatic ? 6200 : ti >= 4 ? 5000 : 4200;
+  const duration = (dramatic ? 6200 : ti >= 4 ? 5000 : 4200) / Math.max(1, o.speed ?? 1);
   const start = performance.now();
   let lastIdx = -1;
   let done = false;
@@ -141,7 +167,7 @@ function reel(o: RevealOpts) {
     skip.remove();
     cards[WIN].classList.add('winner');
     revealFx(o, host, result);
-    stage.append(resultLine(o, result), buttons(o, host));
+    stage.append(resultLine(o, result), buttons(o, host, result));
   };
   const frame = (now: number) => {
     if (done) return;
@@ -198,7 +224,7 @@ function grid(o: RevealOpts) {
     for (const f of flippers) if (!f.card.classList.contains('flipped')) f.card.classList.add('flipped');
     skip.remove();
     revealFx(o, host, best);
-    stage.append(resultLine(o, best), buttons(o, host));
+    stage.append(resultLine(o, best), buttons(o, host, best));
   };
   const step = () => {
     if (done) return;
@@ -206,8 +232,9 @@ function grid(o: RevealOpts) {
     const f = flippers[i++];
     flip(f);
     // Pause a little longer after something good.
-    timer = window.setTimeout(step, tierIndex(o.rar, f.r.tier) >= 3 ? 650 : 230);
+    const sp = Math.max(1, o.speed ?? 1);
+    timer = window.setTimeout(step, (tierIndex(o.rar, f.r.tier) >= 3 ? 650 : 230) / sp);
   };
-  timer = window.setTimeout(step, 400);
+  timer = window.setTimeout(step, 400 / Math.max(1, o.speed ?? 1));
   skip.addEventListener('click', end);
 }
