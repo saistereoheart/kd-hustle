@@ -5,7 +5,7 @@ const cfg = { walkSpeed: 100, speedTolerance: 1.25, slackPx: 10, maxBudgetSecond
 // 10x10 open grid with a wall column at tile x=5.
 const solid = new Uint8Array(100);
 for (let y = 0; y < 10; y++) solid[y * 10 + 5] = 1;
-const grid = { width: 10, height: 10, tileSize: 32, solid };
+const grid = { width: 10, height: 10, tileSize: 32, originTx: 0, originTy: 0, solid };
 
 describe('validateMove', () => {
   it('accepts normal walking at the configured speed', () => {

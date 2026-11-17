@@ -29,6 +29,7 @@ export class SaveManager {
       y: Math.round(p.y * 10) / 10,
       dir: p.dir,
       lastSavedAt: p.lastSavedAt,
+      mapVersion: p.mapVersion,
     };
   }
 

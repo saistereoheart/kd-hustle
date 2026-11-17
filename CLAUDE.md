@@ -29,7 +29,10 @@ sections before working on any feature. Progress is tracked in **`docs/PROGRESS.
 5. **Config-driven balance.** Any price, odds, multiplier, cost curve or timer lives in `/shared/config/*.json` and is loaded at startup (hot-reload in dev is a bonus).
 6. **Mobile + desktop.** Every screen must work with touch (virtual joystick, tap) and keyboard/mouse (WASD/arrows, E to interact). Test layouts at 390×844 and 1920×1080.
 7. **Server binds to `0.0.0.0:3000`** and prints the LAN URL(s) on startup, e.g. `Players join at: http://192.168.1.23:3000`.
-8. **Art is drawn in code** (Phaser Graphics / generated SVG → textures). Cartoon/vector, chibi proportions, not realistic. No copyrighted characters, logos or real brand names — use parody names (see spec).
+8. **Art is drawn in code** (Phaser Graphics / generated SVG → textures). Cartoon/vector, chibi proportions, not realistic. No copyrighted characters, logos or real brand names — use parody names (see spec). Chibi but detailed (shading, shaped hair) — not realistic proportions.
+9. **Map data comes from OpenStreetMap** at real scale (**2 m per tile**), imported by `npm run import-map`. The generated map file is **ODbL** (keep "© OpenStreetMap contributors" attribution); game code stays MIT. Never use Google Maps data. Drop all shop/brand names from OSM; parody names live in `shared/map/town.overrides.json`.
+10. **World coordinates are anchored to a fixed origin (Menara Mitraland).** The map grows by extending its bounds, never by moving existing coordinates. Properties reference stable building ids (from OSM ids), never positions.
+11. **Vehicles are driveable** (not just cosmetic): fast on roads, slower off-road (grass), blocked by buildings/water. Terrain speeds live in `shared/config/terrain.json`.
 
 ## How to work
 - Build **one phase at a time** (phases are in `docs/GAME_SPEC.md` §20). Don't start the next phase until the current one's acceptance checks pass.
@@ -47,6 +50,7 @@ sections before working on any feature. Progress is tracked in **`docs/PROGRESS.
 - `npm run typecheck`, `npm test`
 - `npm run sim` — run the economy balance simulator (`/scripts/balance-sim.ts`)
 - `npm run backup` — copy the DB to `/server/backups/` with a timestamp
+- `npm run fetch-osm` / `npm run import-map` — download OSM data (cached in `/data-src/`, git-ignored) / regenerate the map file
 
 ## This repo is PUBLIC on GitHub
 - Never commit secrets, `.env`, the SQLite DB, backups, player data or logs (all in `.gitignore`; keep it that way).

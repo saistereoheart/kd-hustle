@@ -1,79 +1,91 @@
-// Rasterises the authored map layout into tile layers. The SAME function runs on the server
-// (collision for move validation) and the client (rendering + prediction), so both agree
-// on exactly which tiles are walls.
-import { mapLayoutSchema, type BuildingKind, type MapLayout, type ParsedMapLayout, type Point, type Side } from './types';
+// Turns map data (OSM import + our overrides) into a terrain grid. The SAME function runs
+// on the server (collision for move validation) and on the client (rendering, prediction),
+// so both always agree on which tiles are walls.
+//
+// Coordinates: "tile coords" are relative to the fixed world origin (Menara Mitraland) and
+// may be negative. "Grid coords" index the arrays: gx = tx - originTx. World pixels are
+// tile coords × tileSize.
+import type { TerrainConfig } from '../config/schemas';
+import {
+  osmMapDataSchema, overridesSchema,
+  type AreaKind, type BuildingKind, type MapSource, type OsmMapData, type OsmRoad, type ParsedOverrides,
+} from './types';
 
-/** Ground tile ids. Order matters: the client tileset is drawn in this order. */
+/** Terrain ids. The order matches TERRAIN_NAMES (used to look up terrain.json). */
 export const Tile = {
-  Grass: 0,
-  Street: 1,
-  Sidewalk: 2,
-  Zebra: 3,
-  Plaza: 4,
-  Water: 5,
-  Highway: 6,
-  Forest: 7,
-  Field: 8,
-  Building: 9,
-  Parking: 10,
-  Golf: 11,
-  Bridge: 12,
-  Trail: 13,
-  Park: 14,
+  Grass: 0, Road: 1, Sidewalk: 2, Crossing: 3, Plaza: 4, Water: 5, Highway: 6, Forest: 7, Field: 8, Building: 9,
+  Parking: 10, Golf: 11, Bridge: 12, Path: 13, Park: 14, Construction: 15, Roof: 16,
 } as const;
-export const GROUND_TILE_COUNT = 15;
+export const TERRAIN_NAMES = [
+  'grass', 'road', 'sidewalk', 'crossing', 'plaza', 'water', 'highway', 'forest', 'field', 'building',
+  'parking', 'golf', 'bridge', 'path', 'park', 'construction', 'roof',
+] as const;
 
-/** Decor ids (0 = none). Purely visual; never solid. */
+/** Decor ids (0 = none). Visual only, never solid. Trees are drawn above characters. */
 export const Decor = {
-  None: 0,
-  Tree: 1,
-  Palm: 2,
-  Bush: 3,
-  Lamp: 4,
-  Bench: 5,
-  Flowers: 6,
-  CarRed: 7,
-  CarBlue: 8,
-  CarWhite: 9,
-  Fountain: 10,
-  Pine: 11,
-  JobsBoard: 12,
-  Lookout: 13,
-  BusStop: 14,
+  None: 0, Tree: 1, Palm: 2, Bush: 3, Lamp: 4, Bench: 5, Flowers: 6, Fountain: 10, Pine: 11, JobsBoard: 12, Lookout: 13, BusStop: 14,
 } as const;
-export const DECOR_TILE_COUNT = 15;
-/** Decor drawn above characters (tree canopies). */
 export const CANOPY_DECOR: ReadonlySet<number> = new Set([Decor.Tree, Decor.Palm, Decor.Pine]);
 
-const SOLID_TILES: ReadonlySet<number> = new Set([Tile.Water, Tile.Highway, Tile.Building]);
+export interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface BuiltRoad extends OsmRoad {
+  /** Asphalt width in tiles. */
+  width: number;
+  /** Sidewalk width on each side in tiles (0 for highways/service roads). */
+  sidewalk: number;
+  bbox: Box;
+}
 
 export interface BuiltBuilding {
   id: string;
   name?: string;
   kind: BuildingKind;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  door: { side: Side; x: number; y: number; frontX: number; frontY: number };
-  /** Index within its row (for alternating roof colours); 0 for standalone buildings. */
-  unit: number;
+  levels: number | null;
+  poly: number[];
+  bbox: Box;
+  /** Door position (tile coords, on the wall) and the walkable tile in front of it. */
+  door: { x: number; y: number; frontX: number; frontY: number } | null;
+}
+
+export interface BuiltArea {
+  id: string;
+  kind: AreaKind;
+  poly: number[];
+  bbox: Box;
+  name?: string;
 }
 
 export interface BuiltMap {
   width: number;
   height: number;
   tileSize: number;
-  ground: Uint8Array;
+  metersPerTile: number;
+  /** Tile coords of grid cell (0, 0). */
+  originTx: number;
+  originTy: number;
+  terrain: Uint8Array;
   solid: Uint8Array;
   decor: Uint8Array;
+  roads: BuiltRoad[];
+  paths: Array<{ id: string; kind: string; bridge: boolean; width: number; pts: number[]; bbox: Box }>;
+  areas: BuiltArea[];
+  waterways: Array<{ id: string; width: number; pts: number[]; bbox: Box }>;
+  rails: Array<{ id: string; elevated: boolean; pts: number[]; bbox: Box }>;
   buildings: BuiltBuilding[];
-  layout: ParsedMapLayout;
-  /** Spawn point in world pixels (feet position). */
+  crossings: Array<{ x: number; y: number; angle: number; width: number }>;
+  overrides: ParsedOverrides;
+  attribution: string;
+  /** Spawn point in world pixels (feet). */
   spawnPx: { x: number; y: number };
 }
 
-/** Deterministic 0..1 hash of a tile coordinate (so decor is identical on every device). */
+/** Deterministic 0..1 hash of a tile coordinate (identical decor on every device). */
 export function tileHash(x: number, y: number, salt = 0): number {
   let h = (x * 374761393 + y * 668265263 + salt * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -81,126 +93,309 @@ export function tileHash(x: number, y: number, salt = 0): number {
   return (h >>> 0) / 4294967296;
 }
 
-export function buildMap(input: MapLayout): BuiltMap {
-  const layout = mapLayoutSchema.parse(input);
-  const { width: W, height: H, tileSize } = layout;
-  const ground = new Uint8Array(W * H).fill(Tile.Grass);
-  const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
-  const set = (x: number, y: number, t: number) => {
-    if (inBounds(x, y)) ground[y * W + x] = t;
-  };
-  const get = (x: number, y: number) => (inBounds(x, y) ? ground[y * W + x] : -1);
-  const fillRect = (r: readonly number[], t: number) => {
-    for (let y = r[1]; y < r[1] + r[3]; y++) for (let x = r[0]; x < r[0] + r[2]; x++) set(x, y, t);
+export function boxOf(pts: number[], pad = 0): Box {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < pts.length; i += 2) {
+    if (pts[i] < x0) x0 = pts[i];
+    if (pts[i] > x1) x1 = pts[i];
+    if (pts[i + 1] < y0) y0 = pts[i + 1];
+    if (pts[i + 1] > y1) y1 = pts[i + 1];
+  }
+  return { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+}
+
+export function pointInPoly(px: number, py: number, poly: number[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 2; i < poly.length; j = i, i += 2) {
+    const xi = poly[i], yi = poly[i + 1], xj = poly[j], yj = poly[j + 1];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap {
+  const data: OsmMapData = osmMapDataSchema.parse(source.data);
+  const ov = overridesSchema.parse(source.overrides);
+  const [originTx, originTy, W, H] = ov.bounds;
+  const mpt = ov.metersPerTile;
+  const terrain = new Uint8Array(W * H).fill(Tile.Grass);
+  const idx = (tx: number, ty: number) => {
+    const gx = tx - originTx, gy = ty - originTy;
+    return gx < 0 || gy < 0 || gx >= W || gy >= H ? -1 : gy * W + gx;
   };
 
-  const areaTile: Record<string, number> = {
-    plaza: Tile.Plaza, park: Tile.Park, field: Tile.Field, forest: Tile.Forest, water: Tile.Water,
-    parking: Tile.Parking, golf: Tile.Golf, bridge: Tile.Bridge, trail: Tile.Trail,
+  // ------------------------------------------------------------ raster helpers (tile coords)
+  /** Calls fn for every tile whose centre lies within `half` tiles of the polyline. */
+  const stampLine = (pts: number[], half: number, fn: (i: number) => void) => {
+    for (let s = 0; s + 3 < pts.length; s += 2) {
+      const ax = pts[s], ay = pts[s + 1], bx = pts[s + 2], by = pts[s + 3];
+      const x0 = Math.max(originTx, Math.floor(Math.min(ax, bx) - half));
+      const x1 = Math.min(originTx + W - 1, Math.ceil(Math.max(ax, bx) + half));
+      const y0 = Math.max(originTy, Math.floor(Math.min(ay, by) - half));
+      const y1 = Math.min(originTy + H - 1, Math.ceil(Math.max(ay, by) + half));
+      for (let ty = y0; ty <= y1; ty++)
+        for (let tx = x0; tx <= x1; tx++)
+          if (segDist(tx + 0.5, ty + 0.5, ax, ay, bx, by) <= half) fn((ty - originTy) * W + (tx - originTx));
+    }
   };
-
-  // 1. Areas (bridges come later so they sit on top of highways).
-  for (const a of layout.areas) if (a.kind !== 'bridge') fillRect(a.rect, areaTile[a.kind]);
-
-  // 2. Highways, then street sidewalks, then street asphalt. Streets drawn over a highway
-  //    become an underpass, which keeps districts on both sides connected.
-  const stamp = (points: Point[], width: number, fn: (x: number, y: number) => void) => {
-    const half = Math.floor(width / 2);
-    for (let i = 0; i < points.length - 1; i++) {
-      const [x0, y0] = points[i];
-      const [x1, y1] = points[i + 1];
-      const steps = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2));
-      for (let s = 0; s <= steps; s++) {
-        const cx = Math.round(x0 + ((x1 - x0) * s) / steps);
-        const cy = Math.round(y0 + ((y1 - y0) * s) / steps);
-        for (let dy = 0; dy < width; dy++) for (let dx = 0; dx < width; dx++) fn(cx - half + dx, cy - half + dy);
+  /** Calls fn for every tile whose centre is inside the polygon (scanline). */
+  const fillPoly = (poly: number[], fn: (i: number) => void) => {
+    const b = boxOf(poly);
+    const y0 = Math.max(originTy, Math.floor(b.y0));
+    const y1 = Math.min(originTy + H - 1, Math.ceil(b.y1));
+    const xs: number[] = [];
+    for (let ty = y0; ty <= y1; ty++) {
+      const cy = ty + 0.5;
+      xs.length = 0;
+      for (let i = 0, j = poly.length - 2; i < poly.length; j = i, i += 2) {
+        const yi = poly[i + 1], yj = poly[j + 1];
+        if (yi > cy !== yj > cy) xs.push(poly[i] + ((cy - yi) * (poly[j] - poly[i])) / (yj - yi));
+      }
+      xs.sort((a, b2) => a - b2);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const xa = Math.max(originTx, Math.ceil(xs[k] - 0.5));
+        const xb = Math.min(originTx + W - 1, Math.floor(xs[k + 1] - 0.5));
+        for (let tx = xa; tx <= xb; tx++) fn((ty - originTy) * W + (tx - originTx));
       }
     }
   };
-  for (const r of layout.roads) if (r.kind === 'highway') stamp(r.points, r.width, (x, y) => set(x, y, Tile.Highway));
-  for (const r of layout.roads)
-    if (r.kind === 'street' || r.kind === 'avenue')
-      stamp(r.points, r.width + 2, (x, y) => {
-        if (get(x, y) !== Tile.Street) set(x, y, Tile.Sidewalk);
-      });
-  for (const r of layout.roads)
-    if (r.kind === 'street' || r.kind === 'avenue') stamp(r.points, r.width, (x, y) => set(x, y, Tile.Street));
-  for (const r of layout.roads) if (r.kind === 'trail') stamp(r.points, r.width, (x, y) => {
-    const t = get(x, y);
-    if (t !== Tile.Street && t !== Tile.Sidewalk && t !== Tile.Highway && t !== Tile.Water) set(x, y, Tile.Trail);
+  const setIf = (t: number, pred?: (cur: number) => boolean) => (i: number) => {
+    if (!pred || pred(terrain[i])) terrain[i] = t;
+  };
+
+  // ------------------------------------------------------------ areas
+  const AREA_TILE: Record<AreaKind, number> = {
+    park: Tile.Park, grass: Tile.Park, forest: Tile.Forest, water: Tile.Water, parking: Tile.Parking, field: Tile.Field,
+    golf: Tile.Golf, plaza: Tile.Plaza, construction: Tile.Construction,
+  };
+  const areaNames = new Map(ov.areas.filter((a) => a.id && a.name).map((a) => [a.id!, a.name!]));
+  const areas: BuiltArea[] = data.areas.map((a) => ({ ...a, bbox: boxOf(a.poly), name: areaNames.get(a.id) }));
+  for (const a of ov.areas) {
+    if (!a.rect || !a.kind) continue;
+    const [x, y, w, h] = a.rect;
+    areas.push({ id: a.id ?? `ov-${x}-${y}`, kind: a.kind, poly: [x, y, x + w, y, x + w, y + h, x, y + h], bbox: { x0: x, y0: y, x1: x + w, y1: y + h }, name: a.name });
+  }
+  const ORDER: AreaKind[] = ['grass', 'golf', 'forest', 'park', 'field', 'construction', 'parking', 'plaza', 'water'];
+  for (const kind of ORDER) for (const a of areas) if (a.kind === kind) fillPoly(a.poly, setIf(AREA_TILE[kind]));
+
+  const waterways = data.waterways.map((w) => ({ ...w, bbox: boxOf(w.pts, w.width) }));
+  for (const w of waterways) stampLine(w.pts, w.width / 2, setIf(Tile.Water));
+
+  // ------------------------------------------------------------ roads
+  const laneW = terrainCfg.laneWidthMeters / mpt;
+  const sideW = terrainCfg.sidewalkWidthMeters / mpt;
+  const shoulder = terrainCfg.highwayShoulderMeters / mpt;
+  const roads: BuiltRoad[] = data.roads.map((r) => {
+    const width = r.lanes * laneW + (r.cls === 'highway' ? shoulder : 0);
+    const sidewalk = r.cls === 'arterial' || r.cls === 'street' ? sideW : 0;
+    return { ...r, width, sidewalk, bbox: boxOf(r.pts, width / 2 + sidewalk) };
   });
+  // Elevated roads (flyovers, the DASH viaduct) don't block anything on the ground.
+  const ground = roads.filter((r) => !r.elevated);
+  for (const r of ground) if (r.cls === 'highway') stampLine(r.pts, r.width / 2, setIf(Tile.Highway));
+  const notAsphalt = (c: number) => c !== Tile.Road && c !== Tile.Water;
+  for (const r of ground) if (r.sidewalk > 0) stampLine(r.pts, r.width / 2 + r.sidewalk, setIf(Tile.Sidewalk, notAsphalt));
+  // Streets drawn over highways become underpasses, keeping both sides connected.
+  for (const r of ground) if (r.cls !== 'highway') stampLine(r.pts, r.width / 2, setIf(Tile.Road, (c) => c !== Tile.Water));
+  // Flyovers: where an elevated road passes over a highway or river it acts as a bridge
+  // (walkable); elsewhere it's overhead and doesn't affect the ground.
+  for (const r of roads)
+    if (r.elevated && r.cls !== 'highway')
+      stampLine(r.pts, r.width / 2 + r.sidewalk, setIf(Tile.Bridge, (c) => c === Tile.Highway || c === Tile.Water));
 
-  // 3. Zebra crossings (only over asphalt) and bridges (over anything).
-  for (const c of layout.crossings)
-    for (let y = c[1]; y < c[1] + c[3]; y++)
-      for (let x = c[0]; x < c[0] + c[2]; x++) if (get(x, y) === Tile.Street) set(x, y, Tile.Zebra);
-  for (const a of layout.areas) if (a.kind === 'bridge') fillRect(a.rect, Tile.Bridge);
-
-  // 4. Buildings (rows expand into one building per unit).
-  const buildings: BuiltBuilding[] = [];
-  const addBuilding = (id: string, kind: BuildingKind, x: number, y: number, w: number, h: number, side: Side, unit: number, name?: string) => {
-    let dx: number, dy: number, fx: number, fy: number;
-    if (side === 's') { dx = x + Math.floor(w / 2); dy = y + h - 1; fx = dx; fy = dy + 1; }
-    else if (side === 'n') { dx = x + Math.floor(w / 2); dy = y; fx = dx; fy = y - 1; }
-    else if (side === 'e') { dx = x + w - 1; dy = y + Math.floor(h / 2); fx = dx + 1; fy = dy; }
-    else { dx = x; dy = y + Math.floor(h / 2); fx = x - 1; fy = dy; }
-    buildings.push({ id, name, kind, x, y, w, h, unit, door: { side, x: dx, y: dy, frontX: fx, frontY: fy } });
-    fillRect([x, y, w, h], Tile.Building);
-  };
-  for (const b of layout.buildings) addBuilding(b.id, b.kind, b.rect[0], b.rect[1], b.rect[2], b.rect[3], b.door, 0, b.name);
-  for (const r of layout.rows) {
-    for (let i = 0; i < r.count; i++) {
-      const x = r.axis === 'x' ? r.x + i * (r.w + r.gap) : r.x;
-      const y = r.axis === 'y' ? r.y + i * (r.h + r.gap) : r.y;
-      addBuilding(`${r.id}-${i + 1}`, r.kind, x, y, r.w, r.h, r.door, i, r.name);
-    }
+  // ------------------------------------------------------------ footpaths + bridges
+  const paths: BuiltMap['paths'] = data.paths.map((p) => ({ ...p, width: p.kind === 'pedestrian' ? 3 : 1.2, bbox: boxOf(p.pts, 2) }));
+  for (const p of ov.paths) {
+    const pts = p.pts.flat();
+    paths.push({ id: `ov-path-${paths.length}`, kind: p.kind === 'bridge' ? 'footway' : 'footway', bridge: p.kind === 'bridge', width: p.width, pts, bbox: boxOf(pts, p.width) });
+  }
+  for (const p of paths) {
+    stampLine(p.pts, p.width / 2, (i) => {
+      const c = terrain[i];
+      if (c === Tile.Highway || c === Tile.Water) terrain[i] = p.bridge ? Tile.Bridge : c;
+      else if (c !== Tile.Road && c !== Tile.Sidewalk && c !== Tile.Crossing) terrain[i] = Tile.Path;
+    });
   }
 
-  // 5. Solidity.
-  const solid = new Uint8Array(W * H);
-  for (let i = 0; i < ground.length; i++) solid[i] = SOLID_TILES.has(ground[i]) ? 1 : 0;
+  // ------------------------------------------------------------ zebra crossings
+  // Spatial buckets of road segments for nearest-road queries.
+  const BUCKET = 16;
+  const buckets = new Map<string, Array<[BuiltRoad, number]>>();
+  for (const r of ground) {
+    for (let s = 0; s + 3 < r.pts.length; s += 2) {
+      const b = boxOf([r.pts[s], r.pts[s + 1], r.pts[s + 2], r.pts[s + 3]]);
+      for (let by = Math.floor(b.y0 / BUCKET); by <= Math.floor(b.y1 / BUCKET); by++)
+        for (let bx = Math.floor(b.x0 / BUCKET); bx <= Math.floor(b.x1 / BUCKET); bx++) {
+          const k = `${bx},${by}`;
+          const list = buckets.get(k) ?? [];
+          list.push([r, s]);
+          buckets.set(k, list);
+        }
+    }
+  }
+  const nearestRoad = (x: number, y: number, maxD: number, filter: (r: BuiltRoad) => boolean) => {
+    let best: { r: BuiltRoad; s: number; d: number } | null = null;
+    for (let by = Math.floor((y - maxD) / BUCKET); by <= Math.floor((y + maxD) / BUCKET); by++)
+      for (let bx = Math.floor((x - maxD) / BUCKET); bx <= Math.floor((x + maxD) / BUCKET); bx++)
+        for (const [r, s] of buckets.get(`${bx},${by}`) ?? []) {
+          if (!filter(r)) continue;
+          const d = segDist(x, y, r.pts[s], r.pts[s + 1], r.pts[s + 2], r.pts[s + 3]);
+          if (d <= maxD && (!best || d < best.d)) best = { r, s, d };
+        }
+    return best;
+  };
+  const crossings: BuiltMap['crossings'] = [];
+  for (let i = 0; i + 1 < data.crossings.length; i += 2) {
+    const x = data.crossings[i], y = data.crossings[i + 1];
+    const hit = nearestRoad(x, y, 2, (r) => r.cls !== 'highway');
+    if (!hit) continue;
+    const { r, s } = hit;
+    const angle = Math.atan2(r.pts[s + 3] - r.pts[s + 1], r.pts[s + 2] - r.pts[s]);
+    const ux = Math.cos(angle), uy = Math.sin(angle);
+    const half = r.width / 2;
+    for (let ty = Math.floor(y - half - 2); ty <= Math.ceil(y + half + 2); ty++)
+      for (let tx = Math.floor(x - half - 2); tx <= Math.ceil(x + half + 2); tx++) {
+        const dx = tx + 0.5 - x, dy = ty + 0.5 - y;
+        const along = dx * ux + dy * uy;
+        const perp = -dx * uy + dy * ux;
+        const ii = idx(tx, ty);
+        if (ii >= 0 && Math.abs(along) <= 1.1 && Math.abs(perp) <= half && terrain[ii] === Tile.Road) terrain[ii] = Tile.Crossing;
+      }
+    crossings.push({ x, y, angle, width: r.width });
+  }
 
-  // 6. Decor (deterministic, visual only).
-  const decor = new Uint8Array(W * H);
-  const frontTiles = new Set(buildings.map((b) => b.door.frontY * W + b.door.frontX));
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
-      if (frontTiles.has(i)) continue;
-      const t = ground[i];
-      const h = tileHash(x, y);
-      if (t === Tile.Forest) decor[i] = h < 0.3 ? Decor.Tree : h < 0.42 ? Decor.Pine : h < 0.47 ? Decor.Bush : 0;
-      else if (t === Tile.Park) decor[i] = h < 0.07 ? Decor.Tree : h < 0.1 ? Decor.Palm : h < 0.13 ? Decor.Flowers : h < 0.15 ? Decor.Bench : 0;
-      else if (t === Tile.Plaza) decor[i] = h < 0.025 ? Decor.Flowers : h < 0.04 ? Decor.Bench : h < 0.05 ? Decor.Palm : 0;
-      else if (t === Tile.Golf) decor[i] = h < 0.02 ? Decor.Tree : 0;
-      else if (t === Tile.Grass) decor[i] = h < 0.018 ? Decor.Tree : h < 0.026 ? Decor.Bush : 0;
-      else if (t === Tile.Sidewalk) decor[i] = h < 0.035 ? Decor.Lamp : h < 0.05 ? Decor.Palm : 0;
-      else if (t === Tile.Parking && x % 3 !== 2 && y % 3 === 1) {
-        decor[i] = h < 0.25 ? Decor.CarRed : h < 0.5 ? Decor.CarBlue : h < 0.7 ? Decor.CarWhite : 0;
+  // ------------------------------------------------------------ buildings
+  const named = ov.buildings;
+  const builtBuildings: BuiltBuilding[] = [];
+  for (const b of data.buildings) {
+    const o = named[b.id];
+    if (o?.hidden) continue;
+    const kind = o?.kind ?? b.kind;
+    const bb: BuiltBuilding = { id: b.id, name: o?.name, kind, levels: b.levels, poly: b.poly, bbox: boxOf(b.poly), door: null };
+    builtBuildings.push(bb);
+    if (kind === 'roof') fillPoly(b.poly, setIf(Tile.Roof, (c) => c === Tile.Grass || c === Tile.Plaza || c === Tile.Park || c === Tile.Parking || c === Tile.Path));
+    else fillPoly(b.poly, setIf(Tile.Building));
+  }
+
+  // ------------------------------------------------------------ solidity
+  const walkByTerrain = TERRAIN_NAMES.map((n) => terrainCfg.terrains[n]?.walk ?? 1);
+  const solid = new Uint8Array(W * H);
+  for (let i = 0; i < terrain.length; i++) solid[i] = walkByTerrain[terrain[i]] > 0 ? 0 : 1;
+
+  // ------------------------------------------------------------ doors
+  // Use an OSM entrance if there is one, else the wall facing the nearest road.
+  const walkable = (tx: number, ty: number) => {
+    const i = idx(tx, ty);
+    return i >= 0 && !solid[i];
+  };
+  for (const b of builtBuildings) {
+    if (b.kind === 'roof') continue;
+    const p = b.poly;
+    const src = data.buildings.find((x) => x.id === b.id);
+    const cands: Array<{ x: number; y: number; nx: number; ny: number; score: number }> = [];
+    for (let i = 0; i < p.length; i += 2) {
+      const j = (i + 2) % p.length;
+      const ax = p[i], ay = p[i + 1], bx = p[j], by = p[j + 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 1.2) continue;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      let nx = (by - ay) / len, ny = -(bx - ax) / len;
+      if (pointInPoly(mx + nx * 0.5, my + ny * 0.5, p)) { nx = -nx; ny = -ny; }
+      // Prefer facing a real street; back lanes (service roads) only count half as much.
+      const street = nearestRoad(mx, my, 40, (r) => r.cls === 'street' || r.cls === 'arterial');
+      const lane = nearestRoad(mx, my, 40, (r) => r.cls === 'service');
+      let score = Math.min(street ? street.d : 80, lane ? lane.d * 2 + 6 : 80);
+      if (src?.entrances) {
+        for (let e = 0; e < src.entrances.length; e += 2) {
+          if (segDist(src.entrances[e], src.entrances[e + 1], ax, ay, bx, by) < 1) score -= 100;
+        }
+      }
+      cands.push({ x: mx, y: my, nx, ny, score });
+    }
+    const manual = named[b.id]?.door;
+    if (manual) cands.unshift({ x: manual[0], y: manual[1], nx: 0, ny: 1, score: -1e9 });
+    cands.sort((a, c) => a.score - c.score);
+    for (const c of cands) {
+      const fx = Math.floor(c.x + c.nx * 1.2), fy = Math.floor(c.y + c.ny * 1.2);
+      if (walkable(fx, fy)) {
+        b.door = { x: c.x, y: c.y, frontX: fx, frontY: fy };
+        break;
       }
     }
   }
-  const decorIds: Record<string, number> = {
-    fountain: Decor.Fountain, jobsboard: Decor.JobsBoard, lookout: Decor.Lookout, busstop: Decor.BusStop,
-  };
-  for (const d of layout.decor) if (inBounds(d.x, d.y)) decor[d.y * W + d.x] = decorIds[d.kind];
 
+  // ------------------------------------------------------------ decor
+  const decor = new Uint8Array(W * H);
+  const fronts = new Set(builtBuildings.filter((b) => b.door).map((b) => idx(b.door!.frontX, b.door!.frontY)));
+  for (let i = 0; i + 1 < data.trees.length; i += 2) {
+    const ii = idx(Math.floor(data.trees[i]), Math.floor(data.trees[i + 1]));
+    if (ii >= 0 && !solid[ii] && terrain[ii] !== Tile.Road && terrain[ii] !== Tile.Crossing) decor[ii] = Decor.Tree;
+  }
+  for (let gy = 0; gy < H; gy++) {
+    for (let gx = 0; gx < W; gx++) {
+      const i = gy * W + gx;
+      if (decor[i] || fronts.has(i)) continue;
+      const t = terrain[i];
+      const tx = gx + originTx, ty = gy + originTy;
+      const h = tileHash(tx, ty);
+      // Space trees out: only on a sparse lattice so canopies (3-4 tiles wide) don't overlap too much.
+      const lattice = tx % 3 === 0 && ty % 3 === 0;
+      if (t === Tile.Forest) decor[i] = lattice && h < 0.75 ? (h < 0.5 ? Decor.Tree : Decor.Pine) : h < 0.04 ? Decor.Bush : 0;
+      else if (t === Tile.Park) decor[i] = lattice && h < 0.25 ? (h < 0.17 ? Decor.Tree : Decor.Palm) : h < 0.012 ? Decor.Flowers : h < 0.02 ? Decor.Bench : 0;
+      else if (t === Tile.Golf) decor[i] = lattice && h < 0.08 ? Decor.Tree : 0;
+      else if (t === Tile.Grass) decor[i] = lattice && h < 0.07 ? Decor.Tree : h < 0.004 ? Decor.Bush : 0;
+      else if (t === Tile.Plaza) decor[i] = h < 0.012 ? Decor.Flowers : h < 0.022 ? Decor.Bench : lattice && h < 0.08 ? Decor.Palm : 0;
+      else if (t === Tile.Sidewalk) decor[i] = tx % 12 === 0 || ty % 12 === 0 ? (h < 0.22 ? Decor.Lamp : 0) : 0;
+    }
+  }
+  const DECOR_IDS: Record<string, number> = { fountain: Decor.Fountain, jobsboard: Decor.JobsBoard, lookout: Decor.Lookout, busstop: Decor.BusStop };
+  for (const d of ov.decor) {
+    const ii = idx(Math.floor(d.x), Math.floor(d.y));
+    if (ii >= 0) decor[ii] = DECOR_IDS[d.kind];
+  }
+
+  const T = ov.tileSize;
   return {
     width: W,
     height: H,
-    tileSize,
-    ground,
+    tileSize: T,
+    metersPerTile: mpt,
+    originTx,
+    originTy,
+    terrain,
     solid,
     decor,
-    buildings,
-    layout,
-    spawnPx: { x: (layout.spawn[0] + 0.5) * tileSize, y: (layout.spawn[1] + 0.5) * tileSize },
+    roads,
+    paths,
+    areas,
+    waterways,
+    rails: data.rails.map((r) => ({ ...r, bbox: boxOf(r.pts, 3) })),
+    buildings: builtBuildings,
+    crossings,
+    overrides: ov,
+    attribution: data.meta.attribution,
+    spawnPx: { x: (ov.spawn[0] + 0.5) * T, y: (ov.spawn[1] + 0.5) * T },
   };
 }
 
-/** Which district (by rect) contains a tile. Districts listed first win. */
+/** Grid index for a world-pixel position, or -1 outside the map. */
+export function gridIndexAt(map: BuiltMap, wx: number, wy: number): number {
+  const gx = Math.floor(wx / map.tileSize) - map.originTx;
+  const gy = Math.floor(wy / map.tileSize) - map.originTy;
+  return gx < 0 || gy < 0 || gx >= map.width || gy >= map.height ? -1 : gy * map.width + gx;
+}
+
+/** Which district (by rect, tile coords) contains a tile. Districts listed first win. */
 export function districtAt(map: BuiltMap, tx: number, ty: number) {
-  for (const d of map.layout.districts) {
+  for (const d of map.overrides.districts) {
     const [x, y, w, h] = d.rect;
     if (tx >= x && ty >= y && tx < x + w && ty < y + h) return d;
   }

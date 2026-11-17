@@ -16,4 +16,6 @@ window.__kh = {
   remotes: () => app.town?.debugRemotes() ?? [],
   chat: () => app.chat?.lines() ?? [],
   lastSavedAt: () => app.lastSavedAt,
+  // Dev only: move the CAMERA (not the player) to look around, for screenshots.
+  ...(import.meta.env.DEV ? { peek: (x: number, y: number) => app.town?.debugPeek(x, y) } : {}),
 };

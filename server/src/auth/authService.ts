@@ -29,7 +29,7 @@ export class AuthService {
   constructor(
     private readonly repos: Repos,
     private readonly cfg: AuthConfig,
-    private readonly opts: { adminUsername?: string; spawn: { x: number; y: number } },
+    private readonly opts: { adminUsername?: string; spawn: { x: number; y: number }; mapVersion?: number },
   ) {
     const username = z
       .string()
@@ -59,7 +59,7 @@ export class AuthService {
       : this.repos.accounts.count() === 0;
     let id: number;
     try {
-      id = this.repos.accounts.create(username, hash, admin, this.opts.spawn);
+      id = this.repos.accounts.create(username, hash, admin, this.opts.spawn, this.opts.mapVersion ?? 0);
     } catch {
       return { ok: false, error: 'That username is taken' }; // lost a race on the UNIQUE index
     }

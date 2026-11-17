@@ -35,4 +35,11 @@ export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
       );
     `,
   },
+  {
+    id: 2,
+    name: 'players_map_version',
+    // Which map version a saved position belongs to. When the map changes in a way that
+    // invalidates old coordinates, players are moved to a safe spot on next login.
+    sql: `ALTER TABLE players ADD COLUMN map_version INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];

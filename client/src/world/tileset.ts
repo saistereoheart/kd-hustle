@@ -1,111 +1,9 @@
-// Generates the tileset texture in code (no image files). Each 32px tile is drawn into a
-// 34px cell with its edge pixels extruded by 1px, which prevents seams between tiles when
-// the camera zooms to fractional scales.
-import { Decor, DECOR_TILE_COUNT, GROUND_TILE_COUNT, Tile, tileHash } from '@kh/shared';
+// Small decor sprites (lamps, benches, flowers, fountain, jobs board, bus stop) drawn in code.
+// Each sprite is drawn in a 32-unit box and rendered at 64 px for sharpness.
+import { Decor } from '@kh/shared';
 
-export const TILE = 32;
-export const MARGIN = 1;
-export const SPACING = 2;
-const CELL = TILE + SPACING;
-const COLS = 8;
-export const DECOR_OFFSET = GROUND_TILE_COUNT; // decor id d → tile index DECOR_OFFSET + d
-
+const TILE = 32;
 type Ctx = CanvasRenderingContext2D;
-
-function speckle(ctx: Ctx, seed: number, colors: string[], count: number, size = 2) {
-  for (let i = 0; i < count; i++) {
-    ctx.fillStyle = colors[i % colors.length];
-    const x = Math.floor(tileHash(i, seed, 1) * TILE);
-    const y = Math.floor(tileHash(seed, i, 2) * TILE);
-    ctx.fillRect(x, y, size, size);
-  }
-}
-
-function drawGround(ctx: Ctx, id: number) {
-  const fill = (c: string) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(0, 0, TILE, TILE);
-  };
-  switch (id) {
-    case Tile.Grass:
-      fill('#7cc456');
-      speckle(ctx, 11, ['#6db349', '#8fd266'], 18);
-      break;
-    case Tile.Park:
-      fill('#86cf5d');
-      speckle(ctx, 12, ['#77bf4f', '#9bdd73'], 16);
-      break;
-    case Tile.Forest:
-      fill('#4f9a3e');
-      speckle(ctx, 13, ['#438a34', '#5aa948', '#3e7f30'], 24);
-      break;
-    case Tile.Field:
-      fill('#9bd36a');
-      ctx.fillStyle = '#a8dc78';
-      ctx.fillRect(0, 0, 16, TILE);
-      break;
-    case Tile.Golf:
-      fill('#8fdc6a');
-      ctx.fillStyle = '#9be678';
-      ctx.fillRect(0, 0, TILE, 16);
-      break;
-    case Tile.Street:
-      fill('#4b4f59');
-      speckle(ctx, 14, ['#555a64', '#42464f'], 14);
-      break;
-    case Tile.Highway:
-      fill('#3a3d45');
-      speckle(ctx, 15, ['#444851', '#33363d'], 14);
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      ctx.fillRect(14, 0, 4, 12);
-      break;
-    case Tile.Zebra:
-      fill('#4b4f59');
-      ctx.fillStyle = '#f1f3f5';
-      for (let x = 2; x < TILE; x += 8) ctx.fillRect(x, 2, 4, TILE - 4);
-      break;
-    case Tile.Sidewalk:
-      fill('#d8d2c4');
-      ctx.strokeStyle = '#c3bcac';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(0.5, 0.5, 16, 16);
-      ctx.strokeRect(16.5, 16.5, 16, 16);
-      ctx.strokeRect(16.5, 0.5, 16, 16);
-      ctx.strokeRect(0.5, 16.5, 16, 16);
-      break;
-    case Tile.Plaza:
-      fill('#e9d9b6');
-      ctx.fillStyle = '#dccaa2';
-      for (let y = 0; y < TILE; y += 8) for (let x = (y / 8) % 2 ? 0 : 8; x < TILE; x += 16) ctx.fillRect(x, y, 8, 8);
-      break;
-    case Tile.Water:
-      fill('#4aa3df');
-      ctx.strokeStyle = '#7cc0ee';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(9, 12, 5, Math.PI * 1.1, Math.PI * 1.9);
-      ctx.arc(24, 24, 5, Math.PI * 1.1, Math.PI * 1.9);
-      ctx.stroke();
-      break;
-    case Tile.Building:
-      fill('#5a5f6b');
-      break;
-    case Tile.Parking:
-      fill('#8b909a');
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, 0, 2, TILE);
-      break;
-    case Tile.Bridge:
-      fill('#bda98a');
-      ctx.fillStyle = '#a8946f';
-      for (let y = 3; y < TILE; y += 7) ctx.fillRect(0, y, TILE, 2);
-      break;
-    case Tile.Trail:
-      fill('#c9a774');
-      speckle(ctx, 16, ['#b8955f', '#d8b988'], 14);
-      break;
-  }
-}
 
 function tree(ctx: Ctx, color: string, dark: string) {
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -123,20 +21,6 @@ function tree(ctx: Ctx, color: string, dark: string) {
   ctx.arc(14, 11, 9, 0, Math.PI * 2);
   ctx.arc(20, 14, 7, 0, Math.PI * 2);
   ctx.fill();
-}
-
-function car(ctx: Ctx, body: string) {
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(9, 4, 16, 27);
-  ctx.fillStyle = body;
-  ctx.beginPath();
-  ctx.roundRect(7, 2, 16, 27, 5);
-  ctx.fill();
-  ctx.fillStyle = '#2b3445';
-  ctx.fillRect(9, 7, 12, 5);
-  ctx.fillRect(9, 20, 12, 4);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillRect(10, 13, 10, 6);
 }
 
 function drawDecor(ctx: Ctx, id: number) {
@@ -224,15 +108,6 @@ function drawDecor(ctx: Ctx, id: number) {
         ctx.fill();
       }
       break;
-    case Decor.CarRed:
-      car(ctx, '#e03131');
-      break;
-    case Decor.CarBlue:
-      car(ctx, '#1c7ed6');
-      break;
-    case Decor.CarWhite:
-      car(ctx, '#f1f3f5');
-      break;
     case Decor.Fountain:
       ctx.fillStyle = '#adb5bd';
       ctx.beginPath();
@@ -284,32 +159,25 @@ function drawDecor(ctx: Ctx, id: number) {
   }
 }
 
-/** Returns a canvas containing every ground + decor tile. */
-export function buildTilesetCanvas(): HTMLCanvasElement {
-  const total = GROUND_TILE_COUNT + DECOR_TILE_COUNT;
-  const rows = Math.ceil(total / COLS);
+/** Sprite index in the decor sheet for each decor id. */
+export const DECOR_SPRITE: Record<number, number> = {
+  [Decor.Bush]: 0, [Decor.Lamp]: 1, [Decor.Bench]: 2, [Decor.Flowers]: 3, [Decor.Fountain]: 4,
+  [Decor.JobsBoard]: 5, [Decor.Lookout]: 6, [Decor.BusStop]: 7,
+};
+
+/** One row of 64 px decor sprites. */
+export function buildDecorSprites(): HTMLCanvasElement {
+  const ids = Object.keys(DECOR_SPRITE).map(Number);
   const canvas = document.createElement('canvas');
-  canvas.width = MARGIN * 2 + COLS * CELL - SPACING;
-  canvas.height = MARGIN * 2 + rows * CELL - SPACING;
+  canvas.width = ids.length * 64;
+  canvas.height = 64;
   const ctx = canvas.getContext('2d')!;
-  const tmp = document.createElement('canvas');
-  tmp.width = TILE;
-  tmp.height = TILE;
-  const t = tmp.getContext('2d')!;
-  for (let i = 0; i < total; i++) {
-    t.clearRect(0, 0, TILE, TILE);
-    if (i < GROUND_TILE_COUNT) drawGround(t, i);
-    else drawDecor(t, i - DECOR_OFFSET);
-    const x = MARGIN + (i % COLS) * CELL;
-    const y = MARGIN + Math.floor(i / COLS) * CELL;
-    ctx.drawImage(tmp, x, y);
-    if (i < GROUND_TILE_COUNT) {
-      // extrude edges (ground tiles only; decor has transparent edges)
-      ctx.drawImage(tmp, 0, 0, TILE, 1, x, y - 1, TILE, 1);
-      ctx.drawImage(tmp, 0, TILE - 1, TILE, 1, x, y + TILE, TILE, 1);
-      ctx.drawImage(tmp, 0, 0, 1, TILE, x - 1, y, 1, TILE);
-      ctx.drawImage(tmp, TILE - 1, 0, 1, TILE, x + TILE, y, 1, TILE);
-    }
+  for (const id of ids) {
+    ctx.save();
+    ctx.translate(DECOR_SPRITE[id] * 64, 0);
+    ctx.scale(2, 2);
+    drawDecor(ctx, id);
+    ctx.restore();
   }
   return canvas;
 }

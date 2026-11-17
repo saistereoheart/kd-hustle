@@ -1,3 +1,4 @@
+import compression from 'compression';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import type { PublicConfig } from '@kh/shared';
 import type { AuthService } from '../auth/authService';
@@ -11,6 +12,7 @@ export function createHttpApp(deps: { auth: AuthService; cfg: ServerConfig; publ
 
   const app = express();
   app.disable('x-powered-by');
+  app.use(compression()); // the map JSON is a few hundred KB; gzip makes phone joins faster
   app.use('/api', express.json({ limit: '32kb' }));
 
   app.get('/api/health', (_req, res) => {

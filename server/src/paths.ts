@@ -10,7 +10,7 @@ export function getPaths() {
   return {
     root: ROOT,
     sharedConfig: path.join(ROOT, 'shared', 'config'),
-    mapFile: path.join(ROOT, 'shared', 'map', 'town.json'),
+    mapDir: path.join(ROOT, 'shared', 'map'),
     clientRoot: path.join(ROOT, 'client'),
     clientDist: path.join(ROOT, 'client', 'dist'),
     dataDir: path.resolve(ROOT, process.env.KH_DATA_DIR || 'server/data'),

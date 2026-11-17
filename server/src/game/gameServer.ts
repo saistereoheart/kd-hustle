@@ -2,7 +2,7 @@
 // the World, validates every message with zod, and broadcasts position snapshots.
 import type { Server, Socket } from 'socket.io';
 import {
-  C2S, collides, DIR_INDEX, validateAppearance,
+  C2S, DIR_INDEX, validateAppearance,
   type ClientToServerEvents, type InitPayload, type ServerToClientEvents, type SnapshotRow,
 } from '@kh/shared';
 import type { AuthedAccount, AuthService } from '../auth/authService';
@@ -14,6 +14,7 @@ import { log } from '../log';
 import type { SaveManager } from '../save/saveManager';
 import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
+import { placePlayer } from '../systems/movement/placement';
 import type { OnlinePlayer, World } from './world';
 
 interface SocketData {
@@ -88,10 +89,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         socket.disconnect(true);
         return;
       }
-      // If the map changed and the saved spot is now inside a wall, return to spawn.
-      const bad = !Number.isFinite(rec.x) || !Number.isFinite(rec.y) || collides(cfg.map, rec.x, rec.y, cfg.movement.hitbox);
-      const x = bad ? spawn.x : rec.x;
-      const y = bad ? spawn.y : rec.y;
+      // Saved position → safe position (nudged out of new buildings / reset after a map change).
+      const place = placePlayer(cfg.map, cfg.movement.hitbox, rec, { mapVersion: cfg.map.overrides.version, spawn });
+      if (place.moved) log.info(`Placed ${acc.username} at a safe spot (${place.reason})`);
+      const { x, y } = place;
+      const bad = place.moved;
       p = {
         id: acc.id,
         name: acc.username,
@@ -106,6 +108,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         moving: false,
         dirty: bad,
         lastSavedAt: rec.lastSavedAt,
+        mapVersion: cfg.map.overrides.version,
         move: newMoveState(x, y, Date.now(), cfg.movement),
         lastEmoteAt: 0,
       };

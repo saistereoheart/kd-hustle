@@ -1,5 +1,12 @@
-// The town map is authored as data (shared/map/town.json) and rasterised into tiles by
-// buildMap(). Rects are [x, y, w, h] in tile units; points are [x, y] tile centres.
+// Map data v2. Two files:
+//   shared/map/kd.osm.json         GENERATED from OpenStreetMap by `npm run import-map`.
+//                                   © OpenStreetMap contributors, ODbL 1.0. Don't hand-edit.
+//   shared/map/town.overrides.json  OUR additions: origin, bounds, spawn, districts, parody
+//                                   names for landmarks, extra paths/areas, gameplay decor.
+//
+// All coordinates are in TILES relative to a fixed world origin (Menara Mitraland), so the
+// map can grow by extending `bounds` without moving anything that already exists.
+// Geometry is stored flat ([x0, y0, x1, y1, ...]) to keep the JSON small.
 import { z } from 'zod';
 
 const int = z.number().int();
@@ -7,83 +14,96 @@ export const rectSchema = z.tuple([int, int, int.positive(), int.positive()]);
 export const pointSchema = z.tuple([z.number(), z.number()]);
 export type Rect = z.infer<typeof rectSchema>;
 export type Point = z.infer<typeof pointSchema>;
+const flat = z.array(z.number());
 
-export const AREA_KINDS = ['plaza', 'park', 'field', 'forest', 'water', 'parking', 'golf', 'bridge', 'trail'] as const;
+export const ROAD_CLASSES = ['highway', 'arterial', 'street', 'service'] as const;
+export type RoadClass = (typeof ROAD_CLASSES)[number];
+
+export const PATH_KINDS = ['footway', 'steps', 'cycleway', 'track', 'pedestrian'] as const;
+
+export const AREA_KINDS = ['park', 'forest', 'water', 'parking', 'field', 'golf', 'plaza', 'construction', 'grass'] as const;
 export type AreaKind = (typeof AREA_KINDS)[number];
 
-export const ROAD_KINDS = ['street', 'avenue', 'highway', 'trail'] as const;
-export type RoadKind = (typeof ROAD_KINDS)[number];
-
 export const BUILDING_KINDS = [
-  'shoplot', 'office', 'tower', 'mall', 'terrace', 'semid', 'bungalow', 'flat', 'condo',
-  'hospital', 'station', 'casino', 'hypermarket', 'bank', 'shop', 'clubhouse', 'civic', 'furniture',
+  'shoplot', 'office', 'tower', 'mall', 'terrace', 'semid', 'bungalow', 'flat', 'condo', 'hospital', 'station',
+  'casino', 'hypermarket', 'bank', 'shop', 'clubhouse', 'civic', 'furniture', 'school', 'parking', 'construction',
+  'roof', 'religious',
 ] as const;
 export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
-export const SIDES = ['n', 's', 'e', 'w'] as const;
-export type Side = (typeof SIDES)[number];
-
 export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop'] as const;
 
-export const districtSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  rect: rectSchema,
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  /** Optional label position on the full map (tile coords); defaults to the rect centre. */
-  label: pointSchema.optional(),
-});
-
-export const areaSchema = z.object({
-  kind: z.enum(AREA_KINDS),
-  rect: rectSchema,
-  name: z.string().optional(),
-});
-
-export const roadSchema = z.object({
-  name: z.string(),
-  kind: z.enum(ROAD_KINDS),
-  width: int.positive(),
-  points: z.array(pointSchema).min(2),
-});
-
-export const buildingSchema = z.object({
+// ------------------------------------------------------------- generated OSM data
+export const osmRoadSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
-  kind: z.enum(BUILDING_KINDS),
-  rect: rectSchema,
-  door: z.enum(SIDES).default('s'),
+  cls: z.enum(ROAD_CLASSES),
+  lanes: int.positive(),
+  oneway: z.boolean(),
+  elevated: z.boolean(),
+  pts: flat,
 });
+export type OsmRoad = z.infer<typeof osmRoadSchema>;
 
-/** A row of identical units (terraces, shoplots) expanded into individual buildings. */
-export const rowSchema = z.object({
-  id: z.string(),
-  kind: z.enum(BUILDING_KINDS),
-  x: int,
-  y: int,
-  count: int.positive(),
-  w: int.positive(),
-  h: int.positive(),
-  gap: int.nonnegative().default(0),
-  axis: z.enum(['x', 'y']).default('x'),
-  door: z.enum(SIDES).default('s'),
-  name: z.string().optional(),
+export const osmMapDataSchema = z.object({
+  meta: z.object({
+    source: z.string(),
+    license: z.string(),
+    attribution: z.string(),
+    generatedAt: z.string(),
+    metersPerTile: z.number(),
+    origin: z.object({ lat: z.number(), lon: z.number() }),
+  }),
+  roads: z.array(osmRoadSchema),
+  paths: z.array(z.object({ id: z.string(), kind: z.enum(PATH_KINDS), bridge: z.boolean(), pts: flat })),
+  buildings: z.array(
+    z.object({ id: z.string(), kind: z.enum(BUILDING_KINDS), levels: z.number().nullable(), poly: flat, entrances: flat.optional() }),
+  ),
+  areas: z.array(z.object({ id: z.string(), kind: z.enum(AREA_KINDS), poly: flat })),
+  waterways: z.array(z.object({ id: z.string(), width: z.number(), pts: flat })),
+  rails: z.array(z.object({ id: z.string(), elevated: z.boolean(), pts: flat })),
+  trees: flat,
+  crossings: flat,
 });
+export type OsmMapData = z.infer<typeof osmMapDataSchema>;
 
-export const decorSchema = z.object({ kind: z.enum(DECOR_KINDS), x: int, y: int });
-
-export const mapLayoutSchema = z.object({
-  width: int.positive(),
-  height: int.positive(),
+// ------------------------------------------------------------- our overrides
+export const overridesSchema = z.object({
+  version: int.positive(),
+  origin: z.object({ lat: z.number(), lon: z.number(), label: z.string().optional() }),
+  metersPerTile: z.number().positive(),
   tileSize: int.positive(),
+  /** [minX, minY, width, height] in origin-relative tiles. */
+  bounds: rectSchema,
+  osmFetchBbox: z.object({ south: z.number(), west: z.number(), north: z.number(), east: z.number() }),
   spawn: pointSchema,
-  districts: z.array(districtSchema),
-  areas: z.array(areaSchema),
-  roads: z.array(roadSchema),
-  crossings: z.array(rectSchema),
-  buildings: z.array(buildingSchema),
-  rows: z.array(rowSchema),
-  decor: z.array(decorSchema),
+  districts: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      rect: rectSchema,
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      label: pointSchema.optional(),
+    }),
+  ),
+  /** Per-building overrides keyed by OSM id ("w123" / "r456"). */
+  buildings: z.record(
+    z.string(),
+    z.object({ name: z.string().optional(), kind: z.enum(BUILDING_KINDS).optional(), hidden: z.boolean().optional(), door: pointSchema.optional() }),
+  ),
+  /** Extra areas or names for OSM areas. */
+  areas: z.array(
+    z.object({ id: z.string().optional(), kind: z.enum(AREA_KINDS).optional(), rect: rectSchema.optional(), name: z.string().optional() }),
+  ),
+  /** Extra footpaths/bridges to fix connectivity where OSM has gaps. */
+  paths: z.array(z.object({ kind: z.enum(['footway', 'bridge']), width: z.number().positive().default(1.5), pts: z.array(pointSchema).min(2) })),
+  decor: z.array(z.object({ kind: z.enum(DECOR_KINDS), x: z.number(), y: z.number() })),
 });
-export type MapLayout = z.input<typeof mapLayoutSchema>;
-export type ParsedMapLayout = z.output<typeof mapLayoutSchema>;
+export type MapOverrides = z.input<typeof overridesSchema>;
+export type ParsedOverrides = z.output<typeof overridesSchema>;
+
+/** What the server sends to clients and what buildMap() consumes. */
+export interface MapSource {
+  data: OsmMapData;
+  overrides: MapOverrides;
+}

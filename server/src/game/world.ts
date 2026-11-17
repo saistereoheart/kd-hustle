@@ -18,6 +18,7 @@ export interface OnlinePlayer {
   /** Changed since the last save? */
   dirty: boolean;
   lastSavedAt: number | null;
+  mapVersion: number;
   move: MoveState;
   lastEmoteAt: number;
 }

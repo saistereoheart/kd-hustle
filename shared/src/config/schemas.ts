@@ -1,7 +1,7 @@
 // Zod schemas for every JSON file in /shared/config. The server validates config at
 // startup and refuses to boot if a balance file is malformed.
 import { z } from 'zod';
-import { mapLayoutSchema, type MapLayout } from '../map/types';
+import type { MapSource } from '../map/types';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -83,6 +83,16 @@ export const saveConfigSchema = z.object({
 });
 export type SaveConfig = z.infer<typeof saveConfigSchema>;
 
+const terrainEntry = z.object({ walk: z.number().min(0), vehicle: z.number().min(0) });
+export const terrainConfigSchema = z.object({
+  laneWidthMeters: z.number().positive(),
+  sidewalkWidthMeters: z.number().positive(),
+  highwayShoulderMeters: z.number().nonnegative(),
+  /** Speed multipliers per terrain (0 = blocked). Keys must match TERRAIN_NAMES. */
+  terrains: z.record(z.string(), terrainEntry),
+});
+export type TerrainConfig = z.infer<typeof terrainConfigSchema>;
+
 /** Everything the client needs; served by GET /api/config/public. */
 export interface PublicConfig {
   character: CharacterConfig;
@@ -91,7 +101,7 @@ export interface PublicConfig {
   chat: ChatConfig;
   save: Pick<SaveConfig, 'autosaveIntervalMs'>;
   auth: Pick<AuthConfig, 'username' | 'passwordMin' | 'passwordMax'>;
-  map: MapLayout;
+  terrain: TerrainConfig;
+  map: MapSource;
 }
 
-export { mapLayoutSchema };

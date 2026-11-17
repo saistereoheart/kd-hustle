@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, moveWithCollision,
+  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision,
   type BuiltBuilding, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -57,6 +57,11 @@ export class TownScene extends Phaser.Scene {
     this.lastSent = { x: NaN, y: NaN, dir: 'down', moving: false };
   }
 
+  /** Camera zoom for the current screen size. */
+  private zoomFor() {
+    return Phaser.Math.Clamp(Math.min(this.scale.width, this.scale.height) / 620, 0.6, 1.4);
+  }
+
   get selfId() {
     return this.initData.you.id;
   }
@@ -64,8 +69,11 @@ export class TownScene extends Phaser.Scene {
   create() {
     const { map, cfg } = this.app;
     const T = map.tileSize;
-    this.mapView = new MapView(this, map);
-    this.cameras.main.setBounds(0, 0, map.width * T, map.height * T);
+    // Render chunks sharper on high-DPI screens / zoomed-in cameras, capped at 2x for memory.
+    const res = Math.min(2, Math.max(1, Math.round((window.devicePixelRatio || 1) * this.zoomFor() * 2) / 2));
+    this.mapView = new MapView(this, map, res);
+    // World coordinates are relative to the fixed origin (Menara Mitraland), so bounds can be negative.
+    this.cameras.main.setBounds(map.originTx * T, map.originTy * T, map.width * T, map.height * T);
     this.cameras.main.setBackgroundColor('#7cc456');
 
     const you = this.initData.you;
@@ -77,10 +85,7 @@ export class TownScene extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.me.container, true, 0.18, 0.18);
     this.cameras.main.setRoundPixels(true);
-    const applyZoom = () => {
-      const z = Phaser.Math.Clamp(Math.min(this.scale.width, this.scale.height) / 560, 0.6, 1.6);
-      this.cameras.main.setZoom(z);
-    };
+    const applyZoom = () => this.cameras.main.setZoom(this.zoomFor());
     applyZoom();
     this.scale.on('resize', applyZoom);
     this.offs.push(() => this.scale.off('resize', applyZoom));
@@ -89,10 +94,9 @@ export class TownScene extends Phaser.Scene {
     for (const b of map.buildings) {
       for (let dy = -1; dy <= 1; dy++)
         for (let dx = -1; dx <= 1; dx++) {
-          const x = b.door.frontX + dx;
-          const y = b.door.frontY + dy;
-          if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
-          const i = y * map.width + x;
+          if (!b.door) continue;
+          const i = gridIndexAt(map, (b.door.frontX + dx + 0.5) * T, (b.door.frontY + dy + 0.5) * T);
+          if (i < 0) continue;
           const existing = this.doorIndex.get(i);
           if (!existing || (dx === 0 && dy === 0) || (!existing.name && b.name)) this.doorIndex.set(i, b);
         }
@@ -135,10 +139,15 @@ export class TownScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const off of this.offs) off();
+      this.mapView.destroy();
       this.offs = [];
       for (const r of this.remotes.values()) r.avatar.destroy();
       this.remotes.clear();
     });
+    // Draw the chunks around the spawn point right away so the first frame isn't empty.
+    this.cameras.main.centerOn(this.pos.x, this.pos.y);
+    this.cameras.main.preRender();
+    this.mapView.update(this.cameras.main.worldView, true);
     this.app.onTownReady(this);
   }
 
@@ -225,7 +234,7 @@ export class TownScene extends Phaser.Scene {
       r.avatar.tick(now);
     }
 
-    this.mapView.cull(this.cameras.main.worldView);
+    this.mapView.update(this.cameras.main.worldView);
 
     // --- slower checks: doors, district, minimap ---
     this.slowAcc += delta;
@@ -233,7 +242,7 @@ export class TownScene extends Phaser.Scene {
       this.slowAcc = 0;
       const tx = Math.floor(this.pos.x / map.tileSize);
       const ty = Math.floor((this.pos.y - 4) / map.tileSize);
-      const b = this.doorIndex.get(ty * map.width + tx) ?? null;
+      const b = this.doorIndex.get(gridIndexAt(map, this.pos.x, this.pos.y - 4)) ?? null;
       if (b !== this.nearBuilding) {
         this.nearBuilding = b;
         this.app.hud?.setPrompt(b ? `Enter ${b.name ?? (b.kind === 'terrace' || b.kind === 'semid' || b.kind === 'bungalow' ? 'house' : 'shop')}` : null, this.app.touch);
@@ -256,7 +265,11 @@ export class TownScene extends Phaser.Scene {
 
   // --- debug/test helpers ---
   debugSelf() {
-    return { id: this.selfId, x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving };
+    return { id: this.selfId, x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving, chunks: this.mapView.chunkCount };
+  }
+  debugPeek(tx: number, ty: number) {
+    this.cameras.main.stopFollow();
+    this.cameras.main.centerOn(tx * this.app.map.tileSize, ty * this.app.map.tileSize);
   }
   debugRemotes() {
     return [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, x: r.avatar.x, y: r.avatar.y }));

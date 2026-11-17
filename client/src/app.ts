@@ -48,7 +48,7 @@ export class App {
       loading.textContent = 'Cannot reach the server. Check that it is running, then refresh.';
       return;
     }
-    this.map = buildMap(this.cfg.map);
+    this.map = buildMap(this.cfg.map, this.cfg.terrain);
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
@@ -197,6 +197,7 @@ export class App {
         onMap: () => this.minimap?.openFull(),
         onSettings: () => this.openSettings(),
         onInteract: () => this.town?.interact(),
+        attribution: this.map.attribution,
       });
       this.chat = new Chat(
         (text) =>

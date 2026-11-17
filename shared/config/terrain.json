@@ -1,0 +1,24 @@
+{
+  "laneWidthMeters": 3.5,
+  "sidewalkWidthMeters": 2.5,
+  "highwayShoulderMeters": 1,
+  "terrains": {
+    "grass": { "walk": 1, "vehicle": 0.4 },
+    "road": { "walk": 1, "vehicle": 1 },
+    "sidewalk": { "walk": 1, "vehicle": 0.6 },
+    "crossing": { "walk": 1, "vehicle": 1 },
+    "plaza": { "walk": 1, "vehicle": 0.5 },
+    "water": { "walk": 0, "vehicle": 0 },
+    "highway": { "walk": 0, "vehicle": 1 },
+    "forest": { "walk": 1, "vehicle": 0.25 },
+    "field": { "walk": 1, "vehicle": 0.5 },
+    "building": { "walk": 0, "vehicle": 0 },
+    "parking": { "walk": 1, "vehicle": 0.8 },
+    "golf": { "walk": 1, "vehicle": 0.35 },
+    "bridge": { "walk": 1, "vehicle": 0 },
+    "path": { "walk": 1, "vehicle": 0.5 },
+    "park": { "walk": 1, "vehicle": 0.4 },
+    "construction": { "walk": 1, "vehicle": 0.3 },
+    "roof": { "walk": 1, "vehicle": 0.7 }
+  }
+}

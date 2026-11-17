@@ -4,10 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ZodType } from 'zod';
 import {
-  authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, mapLayoutSchema, movementConfigSchema,
-  netConfigSchema, saveConfigSchema,
-  type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapLayout, type MovementConfig,
-  type NetConfig, type PublicConfig, type SaveConfig,
+  authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
+  osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
+  type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
+  type NetConfig, type PublicConfig, type SaveConfig, type TerrainConfig,
 } from '@kh/shared';
 
 export interface ServerConfig {
@@ -17,7 +17,8 @@ export interface ServerConfig {
   chat: ChatConfig;
   auth: AuthConfig;
   save: SaveConfig;
-  mapLayout: MapLayout;
+  terrain: TerrainConfig;
+  mapSource: MapSource;
   map: BuiltMap;
 }
 
@@ -36,9 +37,15 @@ function readJson<T>(file: string, schema: ZodType<T>): T {
   return parsed.data;
 }
 
-export function loadConfig(configDir: string, mapFile: string): ServerConfig {
+export function loadConfig(configDir: string, mapDir: string): ServerConfig {
   const j = (name: string) => path.join(configDir, name);
-  const mapLayout = readJson(mapFile, mapLayoutSchema) as MapLayout;
+  const terrain = readJson(j('terrain.json'), terrainConfigSchema);
+  // Keep the raw JSON for clients (schema defaults are re-applied by buildMap on both sides).
+  const mapSource: MapSource = {
+    data: readJson(path.join(mapDir, 'kd.osm.json'), osmMapDataSchema),
+    overrides: JSON.parse(fs.readFileSync(path.join(mapDir, 'town.overrides.json'), 'utf8')),
+  };
+  readJson(path.join(mapDir, 'town.overrides.json'), overridesSchema); // validate
   return {
     character: readJson(j('character.json'), characterConfigSchema),
     movement: readJson(j('movement.json'), movementConfigSchema),
@@ -46,8 +53,9 @@ export function loadConfig(configDir: string, mapFile: string): ServerConfig {
     chat: readJson(j('chat.json'), chatConfigSchema),
     auth: readJson(j('auth.json'), authConfigSchema),
     save: readJson(j('save.json'), saveConfigSchema),
-    mapLayout,
-    map: buildMap(mapLayout),
+    terrain,
+    mapSource,
+    map: buildMap(mapSource, terrain),
   };
 }
 
@@ -59,6 +67,7 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     chat: cfg.chat,
     save: { autosaveIntervalMs: cfg.save.autosaveIntervalMs },
     auth: { username: cfg.auth.username, passwordMin: cfg.auth.passwordMin, passwordMax: cfg.auth.passwordMax },
-    map: cfg.mapLayout,
+    terrain: cfg.terrain,
+    map: cfg.mapSource,
   };
 }

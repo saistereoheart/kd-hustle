@@ -44,3 +44,6 @@ docs/reference/*
 # Test artifacts
 test-results/
 playwright-report/
+
+# OSM downloads (raw, large)
+data-src/

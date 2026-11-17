@@ -21,7 +21,9 @@
     "e2e": "playwright test",
     "sim": "tsx scripts/balance-sim.ts",
     "backup": "tsx scripts/backup.ts",
-    "seed": "tsx scripts/seed-dev.ts"
+    "seed": "tsx scripts/seed-dev.ts",
+    "fetch-osm": "tsx scripts/fetch-osm.ts",
+    "import-map": "tsx scripts/import-map.ts"
   },
   "engines": {
     "node": ">=20"

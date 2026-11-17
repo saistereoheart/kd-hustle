@@ -10,6 +10,8 @@ export interface HudOptions {
   onMap: () => void;
   onSettings: () => void;
   onInteract: () => void;
+  /** Map data credit, e.g. "© OpenStreetMap contributors" (required by the ODbL). */
+  attribution: string;
 }
 
 export class Hud {
@@ -56,7 +58,7 @@ export class Hud {
       ),
     );
 
-    this.root = el('div', { class: 'hud' }, top, this.banner, this.prompt, this.saved);
+    this.root = el('div', { class: 'hud' }, top, this.banner, this.prompt, this.saved, el('div', { class: 'osm-credit' }, opts.attribution));
     if (opts.joystick) {
       const interact = el('button', { class: 'interact-btn', type: 'button', 'aria-label': 'Interact' }, 'E');
       interact.addEventListener('pointerdown', (e) => {

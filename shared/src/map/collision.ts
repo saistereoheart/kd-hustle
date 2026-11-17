@@ -5,6 +5,9 @@ export interface CollisionGrid {
   width: number;
   height: number;
   tileSize: number;
+  /** Tile coords of grid cell (0,0); world positions are relative to the fixed origin. */
+  originTx: number;
+  originTy: number;
   solid: Uint8Array;
 }
 
@@ -16,10 +19,13 @@ export interface Hitbox {
 /** True if the hitbox with feet at (x, y) overlaps a solid tile or leaves the map. */
 export function collides(grid: CollisionGrid, x: number, y: number, hb: Hitbox): boolean {
   const T = grid.tileSize;
-  const left = x - hb.w / 2;
-  const right = x + hb.w / 2 - 0.001;
-  const top = y - hb.h;
-  const bottom = y - 0.001;
+  // Convert world px (origin-relative) to grid px.
+  const ox = grid.originTx * T;
+  const oy = grid.originTy * T;
+  const left = x - ox - hb.w / 2;
+  const right = x - ox + hb.w / 2 - 0.001;
+  const top = y - oy - hb.h;
+  const bottom = y - oy - 0.001;
   if (left < 0 || top < 0 || right >= grid.width * T || bottom >= grid.height * T) return true;
   const tx0 = Math.floor(left / T);
   const tx1 = Math.floor(right / T);

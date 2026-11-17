@@ -234,3 +234,6 @@ body.touch .saved-chip { bottom: auto; top: calc(60px + var(--safe-t)); right: a
   .hud-name { max-width: 80px; }
   .hud-district { display: none; }
 }
+.map-credit { color: var(--muted); font-size: 11px; margin-top: 6px; }
+.osm-credit { position: absolute; right: calc(6px + var(--safe-r)); bottom: calc(2px + var(--safe-b)); font-size: 10px; color: rgba(255,255,255,0.75); text-shadow: 0 1px 2px #000; pointer-events: none; }
+body.touch .osm-credit { bottom: auto; top: calc(190px + var(--safe-t)); }

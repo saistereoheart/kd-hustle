@@ -11,7 +11,7 @@ import { SaveManager } from './saveManager';
 function online(id: number, x: number): OnlinePlayer {
   return {
     id, name: `p${id}`, isAdmin: false, socketId: `s${id}`, appearance: null, hasCharacter: false,
-    scene: 'town', x, y: 50, dir: 'down', moving: false, dirty: false, lastSavedAt: null,
+    scene: 'town', x, y: 50, dir: 'down', moving: false, dirty: false, lastSavedAt: null, mapVersion: 2,
     move: { x, y: 50, budget: 0, lastAt: 0 }, lastEmoteAt: 0,
   };
 }

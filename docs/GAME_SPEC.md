@@ -91,11 +91,10 @@ Style: cute, simple, flat-colour cartoon with chibi proportions (big head, small
 
 ## 5. The world map (big, inspired by Kota Damansara)
 
-The map should be **big**: at least **256 × 192 tiles at 32 px** (≈ 8,192 × 6,144 px). Top-down view.
+The map is built at **real scale from OpenStreetMap data: 2 m per tile, 32 px tiles**. v2 covers the Kota Damansara core at **768 × 576 tiles** (≈ 1.5 × 1.15 km, 24,576 × 18,432 px) and will grow outward (forest reserve, Rymba Hills, more of PJU 3) by extending the bounds around a **fixed world origin at Menara Mitraland** — existing coordinates, property ownership and player positions never move. Roads have real lane counts (3.5 m lanes ≈ 1.75 tiles), sidewalks and lane markings, so vehicles fit. Top-down view.
 The camera follows the player, with a minimap (toggle M) and a full map screen.
 
-It should be *recognisably inspired by* the real area, not a survey-accurate copy. If screenshots exist in
-`docs/reference/`, use them to approximate road shapes and block positions. Store the map as data
+Road shapes, building footprints, parks and water come from **OpenStreetMap** (ODbL, attributed in-game). Google Maps data must not be used (screenshots in `docs/reference/` are for visual reference only). Shop and brand names from OSM are dropped; landmarks get parody names in an overrides file. Store the map as data
 (a Tiled JSON map, or a JSON layout of roads, blocks and buildings) so it's easy to edit later.
 
 ### Districts
@@ -177,7 +176,7 @@ Odds per crate live in config; better crates shift the weights up and have exclu
 Each crate has **×1, ×5 and ×10 rolls**, **auto-roll** (an upgrade), and a **pity counter** (e.g. a guaranteed Epic+ every 50 rolls and Legendary+ every 300 in that crate; shown on screen).
 
 ### 7.4 Item types
-- **Cosmetics:** hats, glasses, outfits, auras (particle effects around the character), trails (footstep effects), pets (follow you, idle animations), name colours/gradients, chat bubble skins, emote packs, vehicles (cosmetic + small walk-speed boost), Airbnb wall/floor themes.
+- **Cosmetics:** hats, glasses, outfits, auras (particle effects around the character), trails (footstep effects), pets (follow you, idle animations), name colours/gradients, chat bubble skins, emote packs, vehicles (**driveable**: much faster than walking on roads, slower off-road on grass, blocked by buildings and water; the first one is the delivery-rider motorbike in Phase 2), Airbnb wall/floor themes.
 - **Usables (consumables):** Luck Potion (2× luck for 10 min), Mega Luck Potion (5× for 3 min), Income Booster (2× passive income for 30 min), XP Booster, Perfect Cook Token (next 10 dishes auto-Perfect), Cleaner Voucher (instant Airbnb clean), Interest Freeze (loan interest paused for 1 day), Auto-Roll Ticket, Teleport Ticket, Customer Rush (2× stall customers for 5 min).
 - **Furniture:** used in Airbnbs, houses and shops. Rarer furniture adds more to the star rating and belongs to themed sets (§9.3). This ties gambling to property income.
 - **Business boosters:** permanent upgrades that can only be rolled (e.g. "Golden Wok: +15% food price").

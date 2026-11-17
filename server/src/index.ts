@@ -24,7 +24,7 @@ async function main() {
   const paths = getPaths();
   const port = Number(process.env.PORT) || 3000;
 
-  const cfg = loadConfig(paths.sharedConfig, paths.mapFile);
+  const cfg = loadConfig(paths.sharedConfig, paths.mapDir);
   const dbFile = path.join(paths.dataDir, 'game.db');
   const db = openDatabase(dbFile);
   const repos = createRepos(db);
@@ -40,6 +40,7 @@ async function main() {
   const auth = new AuthService(repos, cfg.auth, {
     adminUsername: process.env.ADMIN_USERNAME?.trim() || undefined,
     spawn: cfg.map.spawnPx,
+    mapVersion: cfg.map.overrides.version,
   });
   const world = new World();
   const saves = new SaveManager(repos, world);

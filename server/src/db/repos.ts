@@ -19,6 +19,8 @@ export interface PlayerRecord {
   y: number;
   dir: Direction;
   lastSavedAt: number | null;
+  /** Map version the position was saved on (see town.overrides.json "version"). */
+  mapVersion: number;
 }
 
 interface PlayerRow {
@@ -30,6 +32,7 @@ interface PlayerRow {
   y: number;
   dir: string;
   last_saved_at: number | null;
+  map_version: number;
 }
 
 export function createRepos(db: DB) {
@@ -43,12 +46,12 @@ export function createRepos(db: DB) {
     deleteSession: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
     deleteSessionsFor: db.prepare('DELETE FROM sessions WHERE account_id = ?'),
     insertPlayer: db.prepare(
-      'INSERT INTO players (account_id, scene, x, y, dir, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO players (account_id, scene, x, y, dir, created_at, updated_at, map_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     ),
     playerById: db.prepare('SELECT * FROM players WHERE account_id = ?'),
     savePlayer: db.prepare(
       `UPDATE players SET appearance_json = ?, has_character = ?, scene = ?, x = ?, y = ?, dir = ?,
-       updated_at = ?, last_saved_at = ? WHERE account_id = ?`,
+       updated_at = ?, last_saved_at = ?, map_version = ? WHERE account_id = ?`,
     ),
   };
 
@@ -58,12 +61,12 @@ export function createRepos(db: DB) {
       byName: (username: string) => s.accountByName.get(username) as AccountRow | undefined,
       byId: (id: number) => s.accountById.get(id) as AccountRow | undefined,
       /** Creates the account and its player row atomically. */
-      create: (username: string, passwordHash: string, isAdmin: boolean, spawn: { x: number; y: number }) => {
+      create: (username: string, passwordHash: string, isAdmin: boolean, spawn: { x: number; y: number }, mapVersion = 0) => {
         const now = Date.now();
         return db.transaction(() => {
           const info = s.insertAccount.run(username, passwordHash, isAdmin ? 1 : 0, now);
           const id = Number(info.lastInsertRowid);
-          s.insertPlayer.run(id, 'town', spawn.x, spawn.y, 'down', now, now);
+          s.insertPlayer.run(id, 'town', spawn.x, spawn.y, 'down', now, now, mapVersion);
           return id;
         })();
       },
@@ -93,6 +96,7 @@ export function createRepos(db: DB) {
           y: r.y,
           dir: (['down', 'up', 'left', 'right'].includes(r.dir) ? r.dir : 'down') as Direction,
           lastSavedAt: r.last_saved_at,
+          mapVersion: r.map_version,
         };
       },
       /** Saves many players in ONE transaction (all-or-nothing). */
@@ -108,6 +112,7 @@ export function createRepos(db: DB) {
               p.dir,
               now,
               now,
+              p.mapVersion,
               p.accountId,
             );
           }

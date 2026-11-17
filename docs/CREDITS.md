@@ -28,6 +28,14 @@
 | Playwright | Apache-2.0 |
 | cross-env | MIT |
 
+## Map data
+- Map geometry (roads, lanes, footpaths, building footprints, parks, water, rail) comes from
+  **OpenStreetMap**, © OpenStreetMap contributors, available under the
+  **Open Database License (ODbL) 1.0**: https://www.openstreetmap.org/copyright
+- The generated map file (`shared/map/kd.osm.json`) and our overrides (`shared/map/town.overrides.json`) are
+  distributed under the ODbL. The attribution is shown in-game (HUD and full map).
+- No Google Maps data is used.
+
 ## Places and names
 Real place and road names (Kota Damansara, Dataran Sunway, Persiaran Surian…) are used for inspiration only.
 Every shop, mall, bank and brand in the game is a fictional parody. `docs/reference/` map screenshots are **not**
