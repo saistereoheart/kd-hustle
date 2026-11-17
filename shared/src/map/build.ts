@@ -10,6 +10,7 @@ import {
   osmMapDataSchema, overridesSchema,
   type AreaKind, type BuildingKind, type MapSource, type OsmMapData, type OsmRoad, type ParsedOverrides,
 } from './types';
+import { buildPolyIndex, type CollisionGrid } from './collision';
 
 /** Terrain ids. The order matches TERRAIN_NAMES (used to look up terrain.json). */
 export const Tile = {
@@ -74,6 +75,9 @@ export interface BuiltMap {
   solid: Uint8Array;
   /** Blocked for vehicles (highways are drivable, footbridges and grass-only paths are not). */
   driveSolid: Uint8Array;
+  /** What movement actually collides with: tiles for water/highways + exact building outlines. */
+  collision: CollisionGrid;
+  driveCollision: CollisionGrid;
   decor: Uint8Array;
   roads: BuiltRoad[];
   paths: Array<{ id: string; kind: string; bridge: boolean; width: number; pts: number[]; bbox: Box }>;
@@ -198,7 +202,9 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   const laneW = terrainCfg.laneWidthMeters / mpt;
   const sideW = terrainCfg.sidewalkWidthMeters / mpt;
   const shoulder = terrainCfg.highwayShoulderMeters / mpt;
-  const roads: BuiltRoad[] = data.roads.map((r) => {
+  const elevate = new Set(ov.elevate);
+  const roads: BuiltRoad[] = data.roads.map((src) => {
+    const r = elevate.has(src.id) ? { ...src, elevated: true } : src;
     const width = r.lanes * laneW + (r.cls === 'highway' ? shoulder : 0);
     const sidewalk = r.cls === 'arterial' || r.cls === 'street' ? sideW : 0;
     return { ...r, width, sidewalk, bbox: boxOf(r.pts, width / 2 + sidewalk) };
@@ -386,8 +392,22 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y });
   }
 
+  // Exact collision: buildings collide by their real (often angled) outlines, so walls feel
+  // smooth instead of tile-shaped staircases. Everything else stays tile-based.
+  const polyIndex = buildPolyIndex(builtBuildings.filter((b) => b.kind !== 'roof').map((b) => b.poly));
+  const walkTiles = solid.slice();
+  const driveTiles = driveSolid.slice();
+  for (let i = 0; i < terrain.length; i++) {
+    if (terrain[i] === Tile.Building) {
+      walkTiles[i] = 0;
+      driveTiles[i] = 0;
+    }
+  }
   const T = ov.tileSize;
+  const gridBase = { width: W, height: H, tileSize: T, originTx, originTy };
   return {
+    collision: { ...gridBase, solid: walkTiles, polys: polyIndex },
+    driveCollision: { ...gridBase, solid: driveTiles, polys: polyIndex },
     interactables,
     driveSolid,
     width: W,

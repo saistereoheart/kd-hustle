@@ -95,7 +95,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         return;
       }
       // Saved position → safe position (nudged out of new buildings / reset after a map change).
-      const place = placePlayer(cfg.map, cfg.movement.hitbox, rec, { mapVersion: cfg.map.overrides.version, spawn });
+      const place = placePlayer(cfg.map.collision, cfg.movement.hitbox, rec, { mapVersion: cfg.map.overrides.version, spawn });
       if (place.moved) log.info(`Placed ${acc.username} at a safe spot (${place.reason})`);
       const { x, y } = place;
       const bad = place.moved;
@@ -127,6 +127,9 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         jobs: {},
         job: null,
         vehicle: null,
+        skills: {},
+        manifestBank: 0,
+        manifestSecs: 0,
       };
       economy.loadInto(p);
       world.add(p);
@@ -224,6 +227,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const current = world.get(me.id);
       if (!current || current.socketId !== socket.id) return; // replaced by a newer connection
       if (current.job) economy.cancelJob(current); // gets them off the job's vehicle too
+      economy.flushManifest(current);
       try {
         saves.saveNow(current); // save trigger 3
       } catch (err) {
@@ -253,6 +257,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   return {
     stop() {
       clearInterval(snapshotTimer);
+      economy.stop();
+      for (const p of world.players.values()) economy.flushManifest(p);
     },
   };
 }

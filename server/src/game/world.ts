@@ -42,6 +42,10 @@ export interface OnlinePlayer {
   jobs: Record<string, JobProgress>;
   job: ServerJob | null;
   vehicle: string | null;
+  skills: Record<string, number>;
+  /** Manifest earnings (sen, fractional) not yet paid out. */
+  manifestBank: number;
+  manifestSecs: number;
 }
 
 export class World {
@@ -109,6 +113,7 @@ export class World {
       pity: p.pity,
       jobs: p.jobs,
       job,
+      skills: p.skills,
     };
   }
 }

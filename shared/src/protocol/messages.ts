@@ -22,6 +22,7 @@ export const C2S = {
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), count: z.number().int().min(1).max(10000) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
   jobStart: z.object({ kind: z.enum(['delivery', 'carwash']) }),
+  skillUpgrade: z.object({ skill: z.enum(['manifest']) }),
   carwashSubmit: z.object({ jobId: z.string().max(40), points: z.array(z.number().finite()).max(30000) }),
 };
 export type MoveMsg = z.infer<typeof C2S.move>;
@@ -111,6 +112,8 @@ export interface SelfState extends PlayerPublic {
   pity: Record<string, PityState>;
   jobs: Record<string, JobProgress>;
   job: JobState | null;
+  /** Skill levels, e.g. { manifest: 3 }. */
+  skills: Record<string, number>;
 }
 
 export interface ChatMsg {
@@ -175,6 +178,7 @@ export interface ClientToServerEvents {
   'job:start': (msg: { kind: 'delivery' | 'carwash' }, ack: Ack<Result<{ job: JobState }>>) => void;
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;
   'job:cancel': (ack: Ack<SimpleResult>) => void;
+  'skill:upgrade': (msg: { skill: 'manifest' }, ack: Ack<Result<{ level: number; walletSen: number }>>) => void;
   'carwash:submit': (msg: { jobId: string; points: number[] }, ack: Ack<Result<{ cleaned: number; paidSen: number; levelUp?: number }>>) => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }

@@ -72,6 +72,13 @@ const EMOTE_POSES: Record<string, Pose[]> = {
     { view: F, sit: true, armL: 0.35, armR: 0.35, bendL: -0.6, bendR: -0.6, mouth: 'smile' },
     { view: F, sit: true, armL: 0.35, armR: 0.35, bendL: -0.6, bendR: -0.6, mouth: 'neutral', eyes: 'happy', bob: 0.4 },
   ],
+  // Cross-legged, eyes closed, hands together, gently levitating while wealth flows in.
+  manifest: [
+    { view: F, sit: true, eyes: 'closed', mouth: 'smile', armL: 0.3, bendL: -1.95, armR: 0.3, bendR: -1.95, bob: -3 },
+    { view: F, sit: true, eyes: 'closed', mouth: 'smile', armL: 0.3, bendL: -1.95, armR: 0.3, bendR: -1.95, bob: -4.5 },
+    { view: F, sit: true, eyes: 'closed', mouth: 'smile', armL: 0.3, bendL: -1.95, armR: 0.3, bendR: -1.95, bob: -5.5 },
+    { view: F, sit: true, eyes: 'closed', mouth: 'smile', armL: 0.3, bendL: -1.95, armR: 0.3, bendR: -1.95, bob: -4.5 },
+  ],
   sleep: [
     { view: F, sit: true, eyes: 'closed', mouth: 'neutral', tilt: 0.1, armL: 0.3, armR: 0.3, bendL: -0.8, bendR: -0.8 },
     { view: F, sit: true, eyes: 'closed', mouth: 'open', tilt: 0.11, armL: 0.3, armR: 0.3, bendL: -0.8, bendR: -0.8, bob: 0.5 },

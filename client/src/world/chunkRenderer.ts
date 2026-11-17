@@ -357,13 +357,16 @@ export class ChunkRenderer {
     // 1. grass with soft blotches
     g.fillStyle = COLORS.grass;
     g.fillRect(x0 - BLEED, y0 - BLEED, CHUNK + BLEED * 2, CHUNK + BLEED * 2);
-    for (let i = 0; i < 18; i++) {
-      const h1 = tileHash(cx * 31 + i, cy * 17 + i, 3), h2 = tileHash(cx * 13 + i, cy * 29 + i, 5);
-      g.fillStyle = i % 2 ? 'rgba(255,255,255,0.05)' : 'rgba(0,60,0,0.06)';
-      g.beginPath();
-      g.ellipse(x0 + h1 * CHUNK, y0 + h2 * CHUNK, 0.8 + h1 * 1.8, 0.5 + h2 * 1.2, h1 * 3, 0, Math.PI * 2);
-      g.fill();
-    }
+    // Blotches are placed on a world grid (not per chunk) so they continue across chunk edges.
+    const BL = 4;
+    for (let by = Math.floor((y0 - 3) / BL); by <= Math.floor((y0 + CHUNK + 3) / BL); by++)
+      for (let bx = Math.floor((x0 - 3) / BL); bx <= Math.floor((x0 + CHUNK + 3) / BL); bx++) {
+        const h1 = tileHash(bx, by, 3), h2 = tileHash(bx, by, 5);
+        g.fillStyle = h1 > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,60,0,0.06)';
+        g.beginPath();
+        g.ellipse(bx * BL + h1 * BL, by * BL + h2 * BL, 0.8 + h1 * 1.8, 0.5 + h2 * 1.2, h1 * 3, 0, Math.PI * 2);
+        g.fill();
+      }
     if (!b) {
       this.drawDecor(g, c, x0, y0);
       return this.drawCanopy(c, x0, y0);

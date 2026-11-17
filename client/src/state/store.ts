@@ -15,6 +15,7 @@ export class Store {
   jobs: Record<string, JobProgress> = {};
   job: JobState | null = null;
   isAdmin = false;
+  skills: Record<string, number> = {};
   private listeners = new Set<Listener>();
 
   load(you: SelfState) {
@@ -28,6 +29,7 @@ export class Store {
     this.jobs = { ...you.jobs };
     this.job = you.job;
     this.isAdmin = you.isAdmin;
+    this.skills = { ...you.skills };
     this.emit();
   }
 

@@ -33,7 +33,7 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
     mk(`idle_${view}`, idleFrames(view), 2);
     mk(`walk_${view}`, walkFrames(view), 9);
   }
-  const EMOTE_FPS: Record<string, number> = { dance: 6, cry: 4, sit: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
+  const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
   for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, EMOTE_FPS[id] ?? 5);
   return key;
 }
@@ -261,6 +261,7 @@ export class Avatar {
       dance: [450, () => this.note()],
       cry: [260, () => this.tear()],
       sleep: [900, () => this.zzz()],
+      manifest: [380, () => this.manifestFx()],
     };
     const fx = loopFx[id];
     if (fx) {
@@ -316,6 +317,18 @@ export class Avatar {
     const side = Math.random() < 0.5 ? -1 : 1;
     const d = this.scene.add.ellipse(side * 6, -40, 4, 6, 0x5aaaff, 0.9);
     this.fx(d, { x: side * (16 + Math.random() * 10), y: -14, alpha: { from: 0.9, to: 0 }, duration: 650, ease: 'Quad.easeIn' });
+  }
+
+  private manifestFx() {
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    const g = Math.random() < 0.6 ? this.glyph('✦', '#fcc419', rnd(-22, 22), rnd(-30, -6), 11) : this.glyph('💰', '#fcc419', rnd(-18, 18), -10, 12);
+    this.fx(g, { y: '-=40', alpha: { from: 1, to: 0 }, scale: { from: 0.6, to: 1.2 }, duration: 1500, ease: 'Sine.easeOut' });
+  }
+
+  /** A small floating text above the head (e.g. manifest earnings). */
+  floatText(text: string, color = '#8ce99a') {
+    const t = this.glyph(text, color, 0, -92, 11);
+    this.fx(t, { y: -118, alpha: { from: 1, to: 0 }, duration: 1100, ease: 'Sine.easeOut' });
   }
 
   private zzz() {

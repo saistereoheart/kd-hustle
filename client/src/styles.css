@@ -393,3 +393,18 @@ body.portrait .flip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .hud-name { max-width: 84px; font-size: 13px; }
   .hud-money { font-size: 12px; gap: 6px; }
 }
+/* Job / skill cards: the button keeps its natural width so the text column isn't crushed. */
+.job-card .btn { width: auto; flex: 0 0 auto; white-space: nowrap; }
+.job-info p { overflow-wrap: break-word; }
+@media (max-width: 520px) {
+  .job-card { flex-wrap: wrap; }
+  .job-card .job-info { flex: 1 1 calc(100% - 60px); }
+  .job-card .btn { width: 100%; }
+}
+/* Zoomable full map */
+.fullmap-canvas { position: relative; width: min(1400px, 100%); flex: 1; min-height: 0; border-radius: 12px; border: 2px solid var(--line); overflow: hidden; }
+.fullmap-canvas canvas { display: block; touch-action: none; cursor: grab; max-width: none; max-height: none; border: 0; border-radius: 0; }
+.fullmap-canvas canvas:active { cursor: grabbing; }
+.fullmap-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.fullmap-zoom .icon-btn { font-size: 20px; font-weight: 900; }
+.fullmap { padding-top: calc(12px + var(--safe-t)); padding-bottom: calc(10px + var(--safe-b)); }

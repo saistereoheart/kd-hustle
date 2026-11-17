@@ -31,7 +31,7 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
 }
 
 test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const errors: string[] = [];
   const tag = Date.now().toString(36).slice(-5);
   const A = await player(browser, `rich_${tag}`, false, errors);
@@ -119,6 +119,23 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await A.page.screenshot({ path: `${SHOTS}/p2-7-delivery.png` });
   await A.page.click('[data-testid=job-hud] [data-action=cancel-job]');
   await expect.poll(async () => (await kh(B.page, (k) => k.remotes()))[0]?.vehicle, { timeout: 10_000 }).toBeNull();
+
+  // --- Manifest: hold the 🧘 emote (key −) and earn RM every second, then upgrade the skill ---
+  await A.page.waitForTimeout(500);
+  const beforeManifest = (await wallet(A.page)).sen;
+  await A.page.keyboard.press('Minus');
+  await expect.poll(async () => (await kh(B.page, (k) => k.remotes()))[0] && (await B.page.evaluate(() => (window as unknown as { __kh: { remotes: () => Array<{ emote: string | null }> } }).__kh.remotes()[0]?.emote)), { timeout: 10_000 }).toBe('manifest');
+  await A.page.screenshot({ path: `${SHOTS}/p2-8-manifest.png` });
+  await expect.poll(async () => (await wallet(A.page)).sen, { timeout: 25_000 }).toBeGreaterThanOrEqual(beforeManifest + 10);
+  await A.page.keyboard.press('b');
+  await A.page.click('[data-tab=skills]');
+  await A.page.click('[data-action=upgrade-manifest]');
+  await expect(A.page.getByText('Lv 2')).toBeVisible();
+  await A.page.screenshot({ path: `${SHOTS}/p2-9-skills.png` });
+  await A.page.keyboard.press('Escape');
+  // Stop manifesting (press − again) and let the last payout land before snapshotting.
+  await A.page.keyboard.press('Minus');
+  await A.page.waitForTimeout(2500);
 
   // Money survives a reload (it lives on the server).
   const w = await wallet(A.page);

@@ -109,9 +109,9 @@ export class App {
       this.emotes?.close();
       this.minimap?.closeFull();
     });
-    // 1-9 and 0 fire emotes directly (no need to open the wheel) so they can be spammed.
-    for (let i = 0; i < 10; i++) {
-      this.keyboard.onPress(`Digit${(i + 1) % 10}`, () => {
+    // 1-9, 0 and - fire emotes directly (no need to open the wheel) so they can be spammed.
+    for (let i = 0; i < 11; i++) {
+      this.keyboard.onPress(i === 10 ? 'Minus' : `Digit${(i + 1) % 10}`, () => {
         const e = this.cfg.chat.emotes[i];
         if (inTown() && e) this.triggerEmote(e.id);
       });
@@ -257,6 +257,10 @@ export class App {
 
   /** The continuous emote our own character is playing (null if none). */
   private ownLoop: string | null = null;
+
+  get ownEmote() {
+    return this.ownLoop;
+  }
 
   onOwnEmote(loopId: string | null) {
     this.ownLoop = loopId;

@@ -30,7 +30,7 @@ function setup(walletSen = 30000, seed = 1) {
   const id = repos.accounts.create(`p${seed}`, 'h', false, { x: 0, y: 0 }, 2, walletSen);
   const p = {
     id, name: `p${seed}`, walletSen, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set<string>(),
-    pages: new Set<string>(), pity: {}, jobs: {}, job: null, vehicle: null,
+    pages: new Set<string>(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0,
   } as unknown as OnlinePlayer;
   const econ = new Economy(repos, cfg);
   const gacha = new Gacha(repos, cfg, econ, seeded(seed));

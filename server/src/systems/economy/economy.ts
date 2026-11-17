@@ -27,6 +27,7 @@ export class Economy {
       pages: new Set(p.pages),
       pity: JSON.parse(JSON.stringify(p.pity)),
       jobs: JSON.parse(JSON.stringify(p.jobs)),
+      skills: { ...p.skills },
     };
     try {
       return this.repos.tx(fn);
@@ -68,7 +69,7 @@ export class Economy {
 
   /** Persist equipped/pity/jobs/index-page state (call inside run()). */
   saveState(p: OnlinePlayer) {
-    this.repos.econ.setState(p.id, { equipped: p.equipped, pity: p.pity, jobs: p.jobs, pages: [...p.pages] });
+    this.repos.econ.setState(p.id, { equipped: p.equipped, pity: p.pity, jobs: p.jobs, pages: [...p.pages], skills: p.skills });
   }
 
   /** Rebuilds what other players see equipped. Returns true if it changed. */

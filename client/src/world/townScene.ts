@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, TERRAIN_NAMES, formatMoney,
+  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, TERRAIN_NAMES, formatMoney, manifestRateSen,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -40,12 +40,12 @@ export class TownScene extends Phaser.Scene {
   private sendAcc = 0;
   private slowAcc = 0;
   private districtAcc = 0;
+  private manifestAcc = 0;
   private districtId = '';
   private doorIndex = new Map<number, BuiltBuilding>();
   private nearBuilding: BuiltBuilding | null = null;
   private nearInteract: BuiltMap['interactables'][number] | null = null;
   private marker: Phaser.GameObjects.Container | null = null;
-  private driveGrid!: BuiltMap;
   private vehicleSpeedByTerrain: number[] = [];
   private offs: Array<() => void> = [];
 
@@ -89,7 +89,7 @@ export class TownScene extends Phaser.Scene {
       name: you.name, level: you.level, appearance: you.appearance, x: you.x, y: you.y, isSelf: true,
       cosmetics: you.cosmetics, vehicle: you.vehicle, particles,
     });
-    this.driveGrid = { ...map, solid: map.driveSolid };
+
     this.vehicleSpeedByTerrain = TERRAIN_NAMES.map((n) => cfg.terrain.terrains[n]?.vehicle ?? 0);
     this.createInteractableLabels();
     this.me.setState(you.dir, false);
@@ -232,10 +232,10 @@ export class TownScene extends Phaser.Scene {
         const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
         const mult = i >= 0 ? Math.max(0.2, this.vehicleSpeedByTerrain[map.terrain[i]] ?? 0.4) : 0.4;
         const speed = v.speed * mult;
-        this.pos = moveWithCollision(this.driveGrid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
+        this.pos = moveWithCollision(map.driveCollision, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
       } else {
         const speed = cfg.movement.walkSpeed;
-        this.pos = moveWithCollision(map, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
+        this.pos = moveWithCollision(map.collision, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
       }
       this.me.setPosition(this.pos.x, this.pos.y);
     }
@@ -243,6 +243,16 @@ export class TownScene extends Phaser.Scene {
     this.moving = moving;
     this.me.setState(this.dir, moving);
     this.me.tick(now);
+
+    // --- manifesting: show what we earn each second (the server pays it out) ---
+    this.manifestAcc += delta;
+    if (this.manifestAcc >= 1000) {
+      this.manifestAcc = 0;
+      if (this.app.ownEmote === 'manifest' && !this.moving) {
+        const rate = manifestRateSen(cfg.skills, this.app.store.skills.manifest ?? 1);
+        this.me.floatText(`+RM ${(rate / 100).toFixed(2)}`);
+      }
+    }
 
     // --- report position to the server ---
     this.sendAcc += delta;

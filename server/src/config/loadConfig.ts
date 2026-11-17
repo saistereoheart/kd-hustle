@@ -7,7 +7,7 @@ import {
   authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
   osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
   cratesConfigSchema, economyConfigSchema, itemsConfigSchema, jobsConfigSchema, raritiesConfigSchema, validateEconomyConfigs,
-  vehiclesConfigSchema,
+  vehiclesConfigSchema, skillsConfigSchema, type SkillsConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -30,6 +30,7 @@ export interface ServerConfig {
   economy: EconomyConfig;
   jobs: JobsConfig;
   vehicles: VehiclesConfig;
+  skills: SkillsConfig;
   /** Lookups built from the configs above. */
   itemById: Map<string, ItemDef>;
   crateById: Map<string, CrateDef>;
@@ -74,6 +75,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     economy: readJson(j('economy.json'), economyConfigSchema),
     jobs: readJson(j('jobs.json'), jobsConfigSchema),
     vehicles: readJson(j('vehicles.json'), vehiclesConfigSchema),
+    skills: readJson(j('skills.json'), skillsConfigSchema),
     itemById: new Map(items.items.map((i) => [i.id, i])),
     crateById: new Map(crates.crates.map((c) => [c.id, c])),
     crateOfItem,
@@ -105,5 +107,6 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     economy: cfg.economy,
     jobs: cfg.jobs,
     vehicles: cfg.vehicles,
+    skills: cfg.skills,
   };
 }

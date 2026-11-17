@@ -4,7 +4,7 @@ import overridesJson from '../../map/town.overrides.json';
 import terrainJson from '../../config/terrain.json';
 import { terrainConfigSchema } from '../config/schemas';
 import { buildMap, districtAt, gridIndexAt, pointInPoly, Tile } from './build';
-import { collides, moveWithCollision, pathClear } from './collision';
+import { buildPolyIndex, collides, moveWithCollision, pathClear } from './collision';
 import type { MapSource } from './types';
 
 const source = { data: osmJson, overrides: overridesJson } as unknown as MapSource;
@@ -145,5 +145,26 @@ describe('collision with a world origin', () => {
   it('pathClear rejects walking through walls', () => {
     expect(pathClear(grid, -48, -4, 16, -4, hb)).toBe(false);
     expect(pathClear(grid, -48, -40, 16, -40, hb)).toBe(true);
+  });
+});
+
+describe('exact (polygon) building collision', () => {
+  // A triangle with a 45° wall from (0,0) to (4,4) tiles; the open side is above/right of it.
+  const grid = { width: 10, height: 10, tileSize: 32, originTx: -2, originTy: -2, solid: new Uint8Array(100), polys: buildPolyIndex([[0, 0, 0, 4, 4, 4]]) };
+
+  it('blocks inside the outline and allows standing right next to an angled wall', () => {
+    // Deep inside the triangle (bottom-left corner area).
+    expect(collides(grid, 0.6 * 32, 3.6 * 32, hb)).toBe(true);
+    // Just above the diagonal at x=2.5 tiles: the wall is at y=2.5; feet at y=2.2 are clear.
+    // A tile grid would have blocked this whole tile (its centre is inside the triangle).
+    expect(collides(grid, 2.6 * 32, 2.2 * 32, hb)).toBe(false);
+  });
+
+  it('slides smoothly along the diagonal instead of catching on tile steps', () => {
+    // Walk right along the wall: x keeps increasing, y gets pushed up by the slope.
+    let pos = { x: 1.5 * 32, y: 1.2 * 32 };
+    const start = pos.x;
+    for (let i = 0; i < 40; i++) pos = moveWithCollision(grid, pos.x, pos.y, 2, 0, hb);
+    expect(pos.x - start).toBeGreaterThan(0); // never stuck behind a step
   });
 });

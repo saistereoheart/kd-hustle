@@ -2,7 +2,7 @@
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
 import {
-  C2S, collides, formatMoney, formatOneIn,
+  C2S, collides, formatMoney, formatOneIn, manifestRateSen, skillUpgradeCostSen,
   type Announcement, type EquipSlot, type MovementConfig, type CollisionGrid,
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
@@ -31,11 +31,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const T = cfg.map.tileSize;
 
   // --- vehicles ---------------------------------------------------------------------------
-  const driveGrid: CollisionGrid = { ...cfg.map, solid: cfg.map.driveSolid };
+  const driveGrid: CollisionGrid = cfg.map.driveCollision;
   /** Movement rules for a player right now (walking or riding). */
   const moveRules = (p: OnlinePlayer): { grid: CollisionGrid; movement: MovementConfig } => {
     const v = p.vehicle ? cfg.vehicles.vehicles[p.vehicle] : undefined;
-    if (!v) return { grid: cfg.map, movement: cfg.movement };
+    if (!v) return { grid: cfg.map.collision, movement: cfg.movement };
     return { grid: driveGrid, movement: { ...cfg.movement, walkSpeed: v.speed, hitbox: v.hitbox } };
   };
   const socketOf = (p: OnlinePlayer) => io.sockets.sockets.get(p.socketId);
@@ -48,8 +48,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     dismount(p) {
       p.vehicle = null;
       // Hopping off on a highway or other no-walk tile: step to the nearest walkable spot.
-      if (collides(cfg.map, p.x, p.y, cfg.movement.hitbox)) {
-        const spot = placePlayer(cfg.map, cfg.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
+      if (collides(cfg.map.collision, p.x, p.y, cfg.movement.hitbox)) {
+        const spot = placePlayer(cfg.map.collision, cfg.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
         p.x = spot.x;
         p.y = spot.y;
         p.dirty = true;
@@ -190,7 +190,19 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     if (!text.startsWith('/')) return null;
     if (!me.isAdmin) return 'Unknown command.';
     const [cmd, target, what, value, extra] = text.slice(1).split(/\s+/);
-    if (cmd !== 'give') return 'Commands: /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n>';
+    if (cmd === 'tp') {
+      // /tp <x> <y> in tiles from the origin (Menara Mitraland = 0 0)
+      const x = Number(target), y = Number(what);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return 'Usage: /tp <x> <y> (tiles from Menara Mitraland)';
+      const spot = placePlayer(cfg.map.collision, cfg.movement.hitbox, { x: (x + 0.5) * T, y: (y + 0.5) * T, mapVersion: me.mapVersion }, { mapVersion: me.mapVersion, spawn: cfg.map.spawnPx });
+      me.x = spot.x;
+      me.y = spot.y;
+      me.dirty = true;
+      me.move = newMoveState(me.x, me.y, Date.now(), moveRules(me).movement);
+      socketOf(me)?.emit('move:correct', { x: me.x, y: me.y, seq: 0 });
+      return `Teleported to ${x}, ${y}.`;
+    }
+    if (cmd !== 'give') return 'Commands: /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /tp <x> <y>';
     const p = target === 'me' ? me : world.byName(target ?? '');
     if (!p) return `No online player called "${target}".`;
     try {
@@ -234,8 +246,65 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     p.inventory = repos.inventory.list(p.id);
     p.index = new Set(repos.collection.list(p.id));
     p.cosmetics = {};
+    p.skills = e.skills;
+    p.manifestBank = 0;
+    p.manifestSecs = 0;
     econ.refreshCosmetics(p);
   }
 
-  return { register, chatCommand, moveRules, loadInto, cancelJob: (p: OnlinePlayer) => jobs.cancel(p) };
+  // --- Manifesting: earn RM every second while holding the 🧘 Manifest emote ---------------
+  // Earnings are banked in memory and paid out in one transaction every N seconds (and when
+  // the player stops or leaves), so a busy server isn't writing to the DB every second.
+  const manifestLevel = (p: OnlinePlayer) => Math.max(1, p.skills.manifest ?? 1);
+  function flushManifest(p: OnlinePlayer) {
+    const sen = Math.floor(p.manifestBank);
+    if (sen < 1) return;
+    try {
+      econ.run(p, () => econ.change(p, sen, 0, 'manifest', `${p.manifestSecs}s`));
+      p.manifestBank -= sen;
+      p.manifestSecs = 0;
+      pushWallet(p, sen, 'manifest');
+    } catch (err) {
+      log.error('manifest payout failed', err);
+    }
+  }
+  const manifestTimer = setInterval(() => {
+    for (const p of world.players.values()) {
+      if (p.hasCharacter && p.emote === 'manifest' && !p.moving) {
+        p.manifestBank += manifestRateSen(cfg.skills, manifestLevel(p));
+        p.manifestSecs++;
+        if (p.manifestSecs >= cfg.skills.manifestFlushEverySec) flushManifest(p);
+      } else if (p.manifestBank >= 1) {
+        flushManifest(p);
+      }
+    }
+  }, 1000);
+
+  function registerSkills(socket: AnySocket, me: OnlinePlayer) {
+    handle(socket, 'skill:upgrade', C2S.skillUpgrade, () => {
+      const level = manifestLevel(me);
+      if (level >= cfg.skills.skills.manifest.maxLevel) throw new GameError('Manifesting is already maxed out.');
+      const cost = skillUpgradeCostSen(cfg.skills, level);
+      econ.run(me, () => {
+        econ.change(me, -cost, 0, 'skill', `manifest:${level + 1}`);
+        me.skills = { ...me.skills, manifest: level + 1 };
+        econ.saveState(me);
+      });
+      pushWallet(me, -cost, 'skill');
+      return { level: level + 1, walletSen: me.walletSen };
+    });
+  }
+
+  return {
+    register: (socket: AnySocket, me: OnlinePlayer) => {
+      register(socket, me);
+      registerSkills(socket, me);
+    },
+    chatCommand,
+    moveRules,
+    loadInto,
+    flushManifest,
+    cancelJob: (p: OnlinePlayer) => jobs.cancel(p),
+    stop: () => clearInterval(manifestTimer),
+  };
 }

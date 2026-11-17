@@ -11,10 +11,43 @@ daily quests, HustlePhone, balance simulator) is next.
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 70 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, map, emotes) |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass |
+| `npm test` (Vitest) | ✅ 72 unit tests (luck/odds incl. a 300k-roll statistical check, pity, purchases, rollback, pawn, shards, job pay + anti-cheat, map + polygon collision, emotes) |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1 + Phase 2 specs pass (incl. manifest earning + skill upgrade) |
 | Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
 | Real phone on the LAN | ⏳ needs you (see below) |
+
+---
+
+## Phase 2.1: feedback fixes (map zoom, collision, Manifest, jobs board)
+
+### How to test it
+1. **Zoomable full map:** press **M** or tap the minimap. Use the mouse wheel, double-click, pinch, or the **+ / −**
+   buttons; drag to pan; **📍** recentres on you. Street names appear once you zoom in past about 2×.
+2. **North half no longer blocked:** walk north from Kota Bazaar towards The Strand. You can now cross where the
+   DASH ramps run (see Decisions). If you still hit an invisible wall, tell me roughly where (a screenshot of the full
+   map with the 📍 helps). Admins can jump around with `/tp <x> <y>` (tile coordinates).
+3. **Smooth angled walls:** walk along a slanted building (e.g. the Strand Mall or the angled Mitraland blocks). You slide
+   along the real edge instead of catching on a staircase.
+4. **🧘 Manifest emote:** press **−** (the key after 0) or pick 🧘 on the emote wheel. Sit still: you earn
+   **RM 0.01 per second** at Lv 1 (a small "+RM" floats up every second; the wallet updates every 10 s). Moving stops it.
+5. **Bag → Skills tab:** upgrade Manifesting. Lv 2 costs RM 50 and doubles the rate; each level adds +RM 0.01/s, up to Lv 25.
+6. **Jobs Board:** the job cards now show full-width text with the button beside it (or below on phones).
+
+### What changed
+- **Full map** (`client/src/ui/minimap.ts`): zoom/pan with wheel, buttons, double-click and pinch. Labels scale with zoom
+  (districts → named buildings → streets → interactables).
+- **Exact building collision** (`shared/src/map/collision.ts`): buildings block by their real OSM polygon (segment-vs-hitbox
+  test through a spatial index), not by 2 m tiles. Water and highways still use tiles. Both server and client use the same
+  code, so they agree.
+- **Manifest** (`shared/config/skills.json`, `server/src/game/economyHandlers.ts`): server-timed. The server banks sen each
+  second while you hold the emote and aren't moving, then pays it out every 10 s, when you stop, and on disconnect. Every
+  payout is logged in `transactions` (reason `manifest`). The skill level is saved in `players.skills_json` (migration 4).
+- **Jobs Board card layout** fixed (the button no longer squeezes the text into a 5-letter column).
+- **Grass blotches** are placed on a world grid, so chunk edges no longer show faint square "boxes".
+- **Admin `/tp <x> <y>`** (tile coordinates) for testing.
+- **`npm run admin`**: list admins, promote/demote, reset a forgotten password.
+- **Remote play:** the server labels ZeroTier/Tailscale addresses `Remote players:`. Setup steps are in the README
+  ("Friends on a different WiFi").
 
 ---
 
@@ -235,6 +268,20 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 2.1**
+- **The "invisible box above Kota Bazaar"** was the DASH ramps and links. OSM doesn't tag these ground-level carriageway
+  segments as bridges, so they counted as an unwalkable highway band across the north half. They are now listed under
+  `elevate` in `shared/map/town.overrides.json`: treated as elevated, they don't block the ground. Extend that list if
+  another one turns up.
+- **Polygon collision only for buildings.** Highways and water stay tile-based for now (cheap, and they are wide, so the
+  2 m steps matter less). Roof-only parts (`building:part=roof`, canopies) never block.
+- **Manifest pays 1 sen/s at Lv 1, +1 sen/s per level, max Lv 25 (RM 0.25/s ≈ RM 900/hour).** Upgrade cost =
+  RM 50 × 1.6^(level−1), so reaching Lv 25 costs ~RM 6.6M in total. It's a small idle trickle, not a main income. All values are
+  in `skills.json`. It stops while you move or ride; AFK-farming is intended and will be tuned by the Phase 3 simulator.
+- **Payout every 10 s** (not every second) to keep the DB transaction log small. The client shows a local "+RM" each
+  second for feel; only the server's payout counts.
+- **Skills tab lives in the Bag** for now; it moves into the HustlePhone's Hustle Skills tree in Phase 3.
 
 **Phase 2**
 - **Luck is ×1 for now.** The formula and its tests exist; the sources (upgrades, potions, titles, events, index

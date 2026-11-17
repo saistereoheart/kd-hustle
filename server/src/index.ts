@@ -117,8 +117,10 @@ async function main() {
   console.log(`  Local:            http://localhost:${boundPort}`);
   if (addrs.length === 0) console.log('  No LAN address found. Are you connected to WiFi?');
   for (const a of addrs) {
-    console.log(`  ${a.likely ? 'Players join at:' : 'Also try:       '}  http://${a.address}:${boundPort}   (${a.name})`);
+    const label = a.likely ? 'Players join at:' : a.overlay ? 'Remote players: ' : 'Also try:       ';
+    console.log(`  ${label}  http://${a.address}:${boundPort}   (${a.name})`);
   }
+  if (addrs.some((a) => a.overlay)) console.log('  Remote players must be members of the same ZeroTier/Tailscale network (see README).');
   console.log('  Phones can\'t connect? Allow Node.js through Windows Firewall on Private networks.');
   console.log('');
 

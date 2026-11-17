@@ -22,6 +22,7 @@
     "sim": "tsx scripts/balance-sim.ts",
     "backup": "tsx scripts/backup.ts",
     "seed": "tsx scripts/seed-dev.ts",
+    "admin": "tsx scripts/admin.ts",
     "fetch-osm": "tsx scripts/fetch-osm.ts",
     "import-map": "tsx scripts/import-map.ts",
     "map-preview": "tsx scripts/map-preview.ts"

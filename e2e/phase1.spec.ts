@@ -106,6 +106,8 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   // Full map opens and closes.
   await A.page.click('[data-action=map]');
   await A.page.waitForSelector('[data-testid=fullmap]');
+  await A.page.click('[data-action=zoom-in]');
+  await A.page.click('[data-action=zoom-in]');
   await A.page.screenshot({ path: `${SHOTS}/desktop-4-fullmap.png` });
   await A.page.keyboard.press('Escape');
 

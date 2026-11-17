@@ -115,17 +115,96 @@ export class Minimap {
     return this.full !== null;
   }
 
+  /** Full-map view: zoom (wheel / pinch / buttons / double-click) and pan (drag). */
+  private view = { scale: 1, ox: 0, oy: 0, fit: 1 };
+
   openFull() {
     if (this.full) return;
     const canvas = el('canvas', { 'data-testid': 'fullmap' });
+    const btn = (label: string, action: string, title: string) => el('button', { class: 'icon-btn', type: 'button', 'data-action': action, title, 'aria-label': title }, label);
+    const zin = btn('+', 'zoom-in', 'Zoom in');
+    const zout = btn('−', 'zoom-out', 'Zoom out');
+    const me = btn('📍', 'zoom-me', 'Centre on me');
     const close = el('button', { class: 'btn close', type: 'button' }, 'Close map');
-    const credit = el('div', { class: 'map-credit' }, `Map data ${this.map.attribution} (ODbL)`);
-    this.full = el('div', { class: 'fullmap' }, canvas, credit, close);
+    const credit = el('div', { class: 'map-credit' }, `Map data ${this.map.attribution} (ODbL) · scroll / pinch to zoom, drag to move`);
+    const wrap = el('div', { class: 'fullmap-canvas' }, canvas, el('div', { class: 'fullmap-zoom' }, zin, zout, me));
+    this.full = el('div', { class: 'fullmap' }, wrap, credit, close);
     close.addEventListener('click', () => this.closeFull());
-    this.full.addEventListener('click', (e) => {
-      if (e.target === this.full) this.closeFull();
-    });
     uiRoot().append(this.full);
+
+    // Fit the whole map, centred.
+    const r = wrap.getBoundingClientRect();
+    const fit = Math.min(r.width / this.map.width, r.height / this.map.height);
+    this.view = { scale: fit, fit, ox: (r.width - this.map.width * fit) / 2, oy: (r.height - this.map.height * fit) / 2 };
+
+    const zoomAt = (factor: number, sx: number, sy: number) => {
+      const v = this.view;
+      const next = Math.max(v.fit * 0.9, Math.min(16, v.scale * factor));
+      // keep the map point under (sx, sy) fixed
+      v.ox = sx - ((sx - v.ox) * next) / v.scale;
+      v.oy = sy - ((sy - v.oy) * next) / v.scale;
+      v.scale = next;
+      this.drawFull();
+    };
+    const centre = () => {
+      const rr = wrap.getBoundingClientRect();
+      return [rr.width / 2, rr.height / 2] as const;
+    };
+    zin.addEventListener('click', () => zoomAt(1.6, ...centre()));
+    zout.addEventListener('click', () => zoomAt(1 / 1.6, ...centre()));
+    me.addEventListener('click', () => {
+      const self = this.lastDots.find((d) => d.self);
+      if (!self) return;
+      const [bx, by] = this.toBase(self.x, self.y);
+      const [cx, cy] = centre();
+      this.view.scale = Math.max(this.view.scale, 4);
+      this.view.ox = cx - bx * this.view.scale;
+      this.view.oy = cy - by * this.view.scale;
+      this.drawFull();
+    });
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rr = canvas.getBoundingClientRect();
+      zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - rr.left, e.clientY - rr.top);
+    }, { passive: false });
+    canvas.addEventListener('dblclick', (e) => {
+      const rr = canvas.getBoundingClientRect();
+      zoomAt(2, e.clientX - rr.left, e.clientY - rr.top);
+    });
+    // Drag to pan; two fingers to pinch-zoom.
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchDist = 0;
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture?.(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const prev = pointers.get(e.pointerId);
+      if (!prev) return;
+      const cur = { x: e.clientX, y: e.clientY };
+      pointers.set(e.pointerId, cur);
+      if (pointers.size === 1) {
+        this.view.ox += cur.x - prev.x;
+        this.view.oy += cur.y - prev.y;
+        this.drawFull();
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        const rr = canvas.getBoundingClientRect();
+        if (pinchDist > 0) zoomAt(d / pinchDist, (a.x + b.x) / 2 - rr.left, (a.y + b.y) / 2 - rr.top);
+        pinchDist = d;
+      }
+    });
+    const up = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      pinchDist = 0;
+    };
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
     this.drawFull();
   }
 
@@ -137,63 +216,81 @@ export class Minimap {
   private drawFull() {
     if (!this.full) return;
     const canvas = this.full.querySelector('canvas')!;
-    const scale = Math.min((innerWidth - 24) / this.map.width, (innerHeight - 100) / this.map.height);
+    const wrap = canvas.parentElement!;
+    const r = wrap.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = this.map.width * scale;
-    const h = this.map.height * scale;
-    if (canvas.width !== Math.round(w * dpr)) {
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
+    if (canvas.width !== Math.round(r.width * dpr) || canvas.height !== Math.round(r.height * dpr)) {
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      canvas.style.width = `${r.width}px`;
+      canvas.style.height = `${r.height}px`;
     }
+    const { scale, ox, oy } = this.view;
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.base, 0, 0, w, h);
+    ctx.fillStyle = '#20263a';
+    ctx.fillRect(0, 0, r.width, r.height);
+    ctx.imageSmoothingEnabled = scale < 3;
+    ctx.drawImage(this.base, ox, oy, this.map.width * scale, this.map.height * scale);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const at = (tx: number, ty: number): [number, number] => [(tx - this.map.originTx) * scale, (ty - this.map.originTy) * scale];
-    // District names
-    ctx.font = `800 ${Math.max(12, scale * 16)}px system-ui, sans-serif`;
-    for (const d of this.map.overrides.districts) {
-      const [x, y, dw, dh] = d.rect;
-      if (dw >= this.map.width) continue; // the catch-all district
-      const [lx, ly] = at(...(d.label ?? [x + dw / 2, y + dh / 2]));
-      ctx.lineWidth = 4;
+    const at = (tx: number, ty: number): [number, number] => [ox + (tx - this.map.originTx) * scale, oy + (ty - this.map.originTy) * scale];
+    const label = (text: string, x: number, y: number, font: string, fill: string, lw = 3) => {
+      if (x < -200 || y < -50 || x > r.width + 200 || y > r.height + 50) return;
+      ctx.font = font;
+      ctx.lineWidth = lw;
       ctx.strokeStyle = 'rgba(17,19,31,0.85)';
-      ctx.fillStyle = d.color;
-      ctx.strokeText(d.name, lx, ly);
-      ctx.fillText(d.name, lx, ly);
+      ctx.fillStyle = fill;
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+    };
+    const zoomedIn = scale / this.view.fit;
+    // Street names once you've zoomed in a bit.
+    if (zoomedIn > 2.2) {
+      const seen = new Set<string>();
+      for (const road of this.map.roads) {
+        if (!road.name || road.elevated || seen.has(road.name) || road.pts.length < 4) continue;
+        seen.add(road.name);
+        const mid = Math.floor(road.pts.length / 4) * 2;
+        const [lx, ly] = at(road.pts[mid], road.pts[mid + 1]);
+        label(road.name, lx, ly, '600 11px system-ui, sans-serif', '#dee2e6', 3);
+      }
     }
-    // Landmarks
-    ctx.font = `600 ${Math.max(9, scale * 8)}px system-ui, sans-serif`;
+    // District names (fade out when zoomed far in).
+    if (zoomedIn < 6) {
+      for (const d of this.map.overrides.districts) {
+        const [x, y, dw, dh] = d.rect;
+        if (dw >= this.map.width) continue; // the catch-all district
+        const [lx, ly] = at(...(d.label ?? [x + dw / 2, y + dh / 2]));
+        label(d.name, lx, ly, `800 ${Math.round(Math.min(26, 13 + zoomedIn * 2))}px system-ui, sans-serif`, d.color, 4);
+      }
+    }
+    // Landmarks (all named buildings once zoomed in).
     for (const b of this.map.buildings) {
-      if (!b.name || !LANDMARK_KINDS.has(b.kind)) continue;
+      if (!b.name || (zoomedIn < 1.8 && !LANDMARK_KINDS.has(b.kind))) continue;
       const [lx, ly] = at((b.bbox.x0 + b.bbox.x1) / 2, (b.bbox.y0 + b.bbox.y1) / 2);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(17,19,31,0.8)';
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeText(b.name, lx, ly);
-      ctx.fillText(b.name, lx, ly);
+      label(b.name, lx, ly, `600 ${Math.round(Math.min(15, 10 + zoomedIn))}px system-ui, sans-serif`, '#ffffff');
     }
-    // Players
-    ctx.font = `700 ${Math.max(10, scale * 9)}px system-ui, sans-serif`;
+    // Interactables
+    if (zoomedIn > 1.5) {
+      for (const it of this.map.interactables) {
+        const [lx, ly] = at(it.x, it.y);
+        label(it.type === 'jobs' ? '📋' : it.type === 'pawn' ? '🏪' : '🎰', lx, ly, '16px system-ui, sans-serif', '#ffe066', 0);
+      }
+    }
+    // Players and job targets
     for (const d of this.lastDots) {
       const [bx, by] = this.toBase(d.x, d.y);
-      const px = bx * scale;
-      const py = by * scale;
+      const px = ox + bx * scale;
+      const py = oy + by * scale;
       ctx.beginPath();
-      ctx.arc(px, py, d.self ? 6 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = d.self ? '#ffe066' : '#ffffff';
+      ctx.arc(px, py, d.self ? 6 : d.target ? 7 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : '#ffffff';
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = '#11131f';
       ctx.stroke();
-      ctx.lineWidth = 3;
-      ctx.strokeText(d.name, px, py - 12);
-      ctx.fillStyle = d.self ? '#ffe066' : '#ffffff';
-      ctx.fillText(d.name, px, py - 12);
+      label(d.target ? 'Target' : d.name, px, py - 14, '700 12px system-ui, sans-serif', d.self ? '#ffe066' : '#ffffff');
     }
   }
 

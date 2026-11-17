@@ -105,4 +105,9 @@ export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
       );
     `,
   },
+  {
+    id: 4,
+    name: 'player_skills',
+    sql: "ALTER TABLE players ADD COLUMN skills_json TEXT NOT NULL DEFAULT '{}';",
+  },
 ];

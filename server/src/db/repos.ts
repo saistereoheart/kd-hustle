@@ -42,6 +42,7 @@ export interface EconRecord {
   pity: Record<string, PityState>;
   jobs: Record<string, JobProgress>;
   pages: string[];
+  skills: Record<string, number>;
 }
 
 function parseJson<T>(s: string | null | undefined, fallback: T): T {
@@ -70,9 +71,9 @@ export function createRepos(db: DB) {
       `UPDATE players SET appearance_json = ?, has_character = ?, scene = ?, x = ?, y = ?, dir = ?,
        updated_at = ?, last_saved_at = ?, map_version = ? WHERE account_id = ?`,
     ),
-    econById: db.prepare('SELECT wallet_sen, shards, equipped_json, pity_json, jobs_json, pages_json FROM players WHERE account_id = ?'),
+    econById: db.prepare('SELECT wallet_sen, shards, equipped_json, pity_json, jobs_json, pages_json, skills_json FROM players WHERE account_id = ?'),
     setMoney: db.prepare('UPDATE players SET wallet_sen = ?, shards = ? WHERE account_id = ?'),
-    setEconState: db.prepare('UPDATE players SET equipped_json = ?, pity_json = ?, jobs_json = ?, pages_json = ? WHERE account_id = ?'),
+    setEconState: db.prepare('UPDATE players SET equipped_json = ?, pity_json = ?, jobs_json = ?, pages_json = ?, skills_json = ? WHERE account_id = ?'),
     invList: db.prepare('SELECT iid, item_id, variant, serial, obtained_at FROM inventory_items WHERE account_id = ? ORDER BY iid'),
     invInsert: db.prepare('INSERT INTO inventory_items (account_id, item_id, variant, serial, obtained_at) VALUES (?, ?, ?, ?, ?)'),
     invDelete: db.prepare('DELETE FROM inventory_items WHERE iid = ? AND account_id = ?'),
@@ -90,7 +91,7 @@ export function createRepos(db: DB) {
     econ: {
       load: (accountId: number): EconRecord => {
         const r = s.econById.get(accountId) as
-          | { wallet_sen: number; shards: number; equipped_json: string; pity_json: string; jobs_json: string; pages_json: string }
+          | { wallet_sen: number; shards: number; equipped_json: string; pity_json: string; jobs_json: string; pages_json: string; skills_json: string }
           | undefined;
         return {
           walletSen: r?.wallet_sen ?? 0,
@@ -99,11 +100,12 @@ export function createRepos(db: DB) {
           pity: parseJson(r?.pity_json, {}),
           jobs: parseJson(r?.jobs_json, {}),
           pages: parseJson(r?.pages_json, []),
+          skills: parseJson(r?.skills_json, {}),
         };
       },
       setMoney: (accountId: number, walletSen: number, shards: number) => s.setMoney.run(walletSen, shards, accountId),
-      setState: (accountId: number, e: Pick<EconRecord, 'equipped' | 'pity' | 'jobs' | 'pages'>) =>
-        s.setEconState.run(JSON.stringify(e.equipped), JSON.stringify(e.pity), JSON.stringify(e.jobs), JSON.stringify(e.pages), accountId),
+      setState: (accountId: number, e: Pick<EconRecord, 'equipped' | 'pity' | 'jobs' | 'pages' | 'skills'>) =>
+        s.setEconState.run(JSON.stringify(e.equipped), JSON.stringify(e.pity), JSON.stringify(e.jobs), JSON.stringify(e.pages), JSON.stringify(e.skills), accountId),
       logTx: (accountId: number, deltaSen: number, balanceSen: number, deltaShards: number, reason: string, ref: string | null) =>
         s.txInsert.run(accountId, deltaSen, balanceSen, deltaShards, reason, ref, Date.now()),
     },

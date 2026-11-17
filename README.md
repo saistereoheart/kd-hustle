@@ -45,6 +45,23 @@ prints it. To force a port, copy `.env.example` to `.env` and set `PORT`.
 If other devices can't connect: allow Node.js through Windows Firewall (Private networks), make sure they're on the
 same network, and check that your router doesn't have AP/client isolation turned on.
 
+### Friends on a different WiFi (ZeroTier)
+[ZeroTier](https://www.zerotier.com) makes a private virtual LAN over the internet, so the game still works as "LAN".
+Nothing is opened to the public internet, and only devices you approve can reach the server.
+1. **Host:** install ZeroTier One on the PC and create a free network at my.zerotier.com (keep it **Private**).
+   Join it from the PC with the 16-character network ID.
+2. **Players:** install the ZeroTier app (Windows, macOS, Android, iOS), join the same network ID, and turn the
+   VPN toggle on.
+3. **Host:** on my.zerotier.com, tick **Auth** next to each new member.
+4. Start the server. It prints a `Remote players:` line with the PC's ZeroTier address
+   (e.g. `http://10.147.17.5:3000`). Players open that address.
+5. Windows may mark the ZeroTier adapter as a **Public** network, which the firewall rule for Node.js (Private only) blocks.
+   Fix it once in an admin PowerShell: `Get-NetConnectionProfile`, find the ZeroTier entry, then
+   `Set-NetConnectionProfile -InterfaceAlias "<that name>" -NetworkCategory Private`.
+
+Tailscale works the same way, and its addresses (100.x.y.z) are also printed as `Remote players:`.
+Never port-forward the game on your router: accounts and the server aren't hardened for the open internet.
+
 ## Commands
 | Command | What it does |
 |---|---|
@@ -55,6 +72,7 @@ same network, and check that your router doesn't have AP/client isolation turned
 | `npm run e2e` | Browser smoke test with two players (Playwright, uses a throwaway DB). First time: `npx playwright install chromium` |
 | `npm run backup` | Copy the DB to `server/backups/` with a timestamp |
 | `npm run seed` | Create test accounts `tester1`–`tester4` (password `test123`) |
+| `npm run admin -- list` | List accounts and admins. Also `promote <user>`, `demote <user>`, `password <user> [new]` (reset a forgotten password) |
 | `npm run sim` | Economy balance simulator (arrives in Phase 3) |
 | `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
 | `npm run map-preview` | PNG of the collision grid, for map editing |

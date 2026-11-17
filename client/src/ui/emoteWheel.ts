@@ -13,7 +13,7 @@ export class EmoteWheel {
     const ring = el('div', { class: 'emote-ring' }, closeBtn);
     emotes.forEach((e, i) => {
       const a = (i / emotes.length) * Math.PI * 2 - Math.PI / 2;
-      const key = i < 9 ? String(i + 1) : i === 9 ? '0' : '';
+      const key = i < 9 ? String(i + 1) : i === 9 ? '0' : i === 10 ? '−' : '';
       const b = el(
         'button',
         { type: 'button', 'data-emote': e.id, title: `${e.name}${e.loop ? ' (continuous: tap again to stop)' : ''}`, class: e.loop ? 'loop' : '' },

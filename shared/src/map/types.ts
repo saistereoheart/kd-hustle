@@ -98,6 +98,8 @@ export const overridesSchema = z.object({
   areas: z.array(
     z.object({ id: z.string().optional(), kind: z.enum(AREA_KINDS).optional(), rect: rectSchema.optional(), name: z.string().optional() }),
   ),
+  /** OSM road ids to treat as elevated (viaducts you can walk under), where OSM lacks the bridge tag. */
+  elevate: z.array(z.string()).default([]),
   /** Extra footpaths/bridges to fix connectivity where OSM has gaps. */
   paths: z.array(z.object({ kind: z.enum(['footway', 'bridge']), width: z.number().positive().default(1.5), pts: z.array(pointSchema).min(2) })),
   decor: z.array(z.object({ kind: z.enum(DECOR_KINDS), x: z.number(), y: z.number() })),

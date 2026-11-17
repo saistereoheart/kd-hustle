@@ -139,3 +139,32 @@ export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, cr
   if (!tierIds.has(r.luckAffectsFrom)) errors.push(`luckAffectsFrom: unknown tier ${r.luckAffectsFrom}`);
   return errors;
 }
+
+export const skillsConfigSchema = z.object({
+  skills: z.object({
+    manifest: z.object({
+      name: z.string(),
+      desc: z.string(),
+      maxLevel: z.number().int().positive(),
+      /** Cost to go from level L to L+1 = baseCostSen × costGrowth^(L-1). */
+      baseCostSen: z.number().int().positive(),
+      costGrowth: z.number().min(1),
+      /** Earnings while manifesting = baseSenPerSec + (level-1) × senPerSecPerLevel. */
+      baseSenPerSec: z.number().nonnegative(),
+      senPerSecPerLevel: z.number().nonnegative(),
+    }),
+  }),
+  /** Manifest earnings are banked and paid out (one DB write) every N seconds. */
+  manifestFlushEverySec: z.number().int().positive(),
+});
+export type SkillsConfig = z.infer<typeof skillsConfigSchema>;
+
+export function manifestRateSen(cfg: SkillsConfig, level: number): number {
+  const m = cfg.skills.manifest;
+  return m.baseSenPerSec + (Math.max(1, level) - 1) * m.senPerSecPerLevel;
+}
+
+export function skillUpgradeCostSen(cfg: SkillsConfig, level: number): number {
+  const m = cfg.skills.manifest;
+  return Math.round(m.baseCostSen * Math.pow(m.costGrowth, Math.max(1, level) - 1));
+}

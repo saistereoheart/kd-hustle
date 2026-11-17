@@ -9,6 +9,87 @@ export interface CollisionGrid {
   originTx: number;
   originTy: number;
   solid: Uint8Array;
+  /** Optional exact polygons (building outlines, tile coords). Angled walls collide smoothly
+   *  instead of in tile-sized steps. Tiles under these polygons are NOT marked in `solid`. */
+  polys?: PolyIndex;
+}
+
+export interface PolyIndex {
+  /** Bucket size in tiles. */
+  cell: number;
+  polys: Array<{ pts: number[]; x0: number; y0: number; x1: number; y1: number }>;
+  buckets: Map<number, number[]>;
+}
+
+const bucketKey = (bx: number, by: number) => bx * 65536 + by;
+
+export function buildPolyIndex(polys: number[][], cell = 8): PolyIndex {
+  const index: PolyIndex = { cell, polys: [], buckets: new Map() };
+  polys.forEach((pts, i) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let k = 0; k < pts.length; k += 2) {
+      x0 = Math.min(x0, pts[k]); x1 = Math.max(x1, pts[k]);
+      y0 = Math.min(y0, pts[k + 1]); y1 = Math.max(y1, pts[k + 1]);
+    }
+    index.polys.push({ pts, x0, y0, x1, y1 });
+    for (let by = Math.floor(y0 / cell); by <= Math.floor(y1 / cell); by++)
+      for (let bx = Math.floor(x0 / cell); bx <= Math.floor(x1 / cell); bx++) {
+        const k = bucketKey(bx, by);
+        const list = index.buckets.get(k) ?? [];
+        list.push(i);
+        index.buckets.set(k, list);
+      }
+  });
+  return index;
+}
+
+function inside(px: number, py: number, p: number[]): boolean {
+  let hit = false;
+  for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+    const yi = p[i + 1], yj = p[j + 1];
+    if (yi > py !== yj > py && px < ((p[j] - p[i]) * (py - yi)) / (yj - yi) + p[i]) hit = !hit;
+  }
+  return hit;
+}
+
+/** Does segment (ax,ay)-(bx,by) touch the axis-aligned rect? (Liang–Barsky clipping) */
+function segHitsRect(ax: number, ay: number, bx: number, by: number, x0: number, y0: number, x1: number, y1: number): boolean {
+  let t0 = 0, t1 = 1;
+  const dx = bx - ax, dy = by - ay;
+  const clip = (pp: number, qq: number) => {
+    if (pp === 0) return qq >= 0;
+    const r = qq / pp;
+    if (pp < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  return clip(-dx, ax - x0) && clip(dx, x1 - ax) && clip(-dy, ay - y0) && clip(dy, y1 - ay);
+}
+
+/** Does the rect (tile coords) overlap any indexed polygon? */
+export function rectHitsPolys(index: PolyIndex, x0: number, y0: number, x1: number, y1: number): boolean {
+  const c = index.cell;
+  const seen = new Set<number>();
+  for (let by = Math.floor(y0 / c); by <= Math.floor(y1 / c); by++)
+    for (let bx = Math.floor(x0 / c); bx <= Math.floor(x1 / c); bx++) {
+      for (const i of index.buckets.get(bucketKey(bx, by)) ?? []) {
+        if (seen.has(i)) continue;
+        seen.add(i);
+        const poly = index.polys[i];
+        if (poly.x1 < x0 || poly.x0 > x1 || poly.y1 < y0 || poly.y0 > y1) continue;
+        if (inside((x0 + x1) / 2, (y0 + y1) / 2, poly.pts)) return true;
+        const p = poly.pts;
+        for (let k = 0, j = p.length - 2; k < p.length; j = k, k += 2) {
+          if (segHitsRect(p[j], p[j + 1], p[k], p[k + 1], x0, y0, x1, y1)) return true;
+        }
+      }
+    }
+  return false;
 }
 
 export interface Hitbox {
@@ -36,6 +117,7 @@ export function collides(grid: CollisionGrid, x: number, y: number, hb: Hitbox):
       if (grid.solid[ty * grid.width + tx]) return true;
     }
   }
+  if (grid.polys) return rectHitsPolys(grid.polys, (x - hb.w / 2) / T, (y - hb.h) / T, (x + hb.w / 2) / T, y / T);
   return false;
 }
 
