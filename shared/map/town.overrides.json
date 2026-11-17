@@ -281,6 +281,13 @@
       "type": "pawn",
       "name": "Kedai Pajak Untung",
       "building": "w1275938587"
+    },
+    {
+      "id": "carwash",
+      "type": "carwash",
+      "name": "Kilat Car Wash",
+      "x": -199,
+      "y": 117.5
     }
   ],
   "elevate": [

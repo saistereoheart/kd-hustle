@@ -130,6 +130,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         skills: {},
         manifestBank: 0,
         manifestSecs: 0,
+        hotbar: [],
+        rental: null,
       };
       economy.loadInto(p);
       world.add(p);
@@ -226,7 +228,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     socket.on('disconnect', () => {
       const current = world.get(me.id);
       if (!current || current.socketId !== socket.id) return; // replaced by a newer connection
-      if (current.job) economy.cancelJob(current); // gets them off the job's vehicle too
+      if (current.job) economy.cancelJob(current);
+      economy.leave(current); // off the ride; a rented motorbike is returned
       economy.flushManifest(current);
       try {
         saves.saveNow(current); // save trigger 3

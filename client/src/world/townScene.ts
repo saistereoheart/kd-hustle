@@ -62,9 +62,11 @@ export class TownScene extends Phaser.Scene {
     this.lastSent = { x: NaN, y: NaN, dir: 'down', moving: false };
   }
 
-  /** Camera zoom for the current screen size. */
+  /** Camera zoom for the current screen size. The canvas is in DEVICE pixels (sharp on phones),
+   *  so the zoom includes the device pixel ratio. */
   private zoomFor() {
-    return Phaser.Math.Clamp(Math.min(this.scale.width, this.scale.height) / 620, 0.6, 1.4);
+    const dpr = this.app.dpr;
+    return Phaser.Math.Clamp(Math.min(this.scale.width, this.scale.height) / dpr / 620, 0.6, 1.4) * dpr;
   }
 
   get selfId() {
@@ -74,8 +76,8 @@ export class TownScene extends Phaser.Scene {
   create() {
     const { map, cfg } = this.app;
     const T = map.tileSize;
-    // Render chunks sharper on high-DPI screens / zoomed-in cameras, capped at 2x for memory.
-    const res = Math.min(2, Math.max(1, Math.round((window.devicePixelRatio || 1) * this.zoomFor() * 2) / 2));
+    // Draw map chunks at about one texel per screen pixel (capped for memory).
+    const res = Math.min(2.5, Math.max(1, Math.round(this.zoomFor() * 2) / 2));
     this.mapView = new MapView(this, map, res);
     // World coordinates are relative to the fixed origin (Menara Mitraland), so bounds can be negative.
     this.cameras.main.setBounds(map.originTx * T, map.originTy * T, map.width * T, map.height * T);
@@ -132,7 +134,15 @@ export class TownScene extends Phaser.Scene {
       if (!av) return;
       if (cosmetics) av.setCosmetics(cosmetics);
       if (appearance) av.setAppearance(appearance);
-      if (vehicle !== undefined) av.setVehicle(vehicle);
+      if (vehicle !== undefined) {
+        av.setVehicle(vehicle);
+        if (id === this.selfId) {
+          this.app.store.riding = vehicle;
+          // A rented ride goes back when we hop off it.
+          this.app.store.vehicles = this.app.store.vehicles.filter((v) => v === vehicle || cfg.vehicles.vehicles[v]?.starter);
+          this.app.store.emit();
+        }
+      }
     });
     on('snapshot', (s: SnapshotPayload) => this.onSnapshot(s));
     on('move:correct', ({ x, y }) => {
@@ -228,11 +238,12 @@ export class TownScene extends Phaser.Scene {
       this.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up';
       const v = this.me.vehicle ? cfg.vehicles.vehicles[this.me.vehicle] : undefined;
       if (v) {
-        // Riding: road speed × the terrain's vehicle multiplier (grass is slow, roads are fast).
+        // Riding: top speed × the terrain's vehicle multiplier (grass is slow, roads are fast).
         const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
-        const mult = i >= 0 ? Math.max(0.2, this.vehicleSpeedByTerrain[map.terrain[i]] ?? 0.4) : 0.4;
+        const mult = Math.max(v.minTerrainMult, i >= 0 ? (this.vehicleSpeedByTerrain[map.terrain[i]] ?? 0.4) : 0.4);
         const speed = v.speed * mult;
-        this.pos = moveWithCollision(map.driveCollision, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
+        const grid = v.grid === 'drive' ? map.driveCollision : map.collision;
+        this.pos = moveWithCollision(grid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
       } else {
         const speed = cfg.movement.walkSpeed;
         this.pos = moveWithCollision(map.collision, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, cfg.movement.hitbox);
@@ -248,7 +259,7 @@ export class TownScene extends Phaser.Scene {
     this.manifestAcc += delta;
     if (this.manifestAcc >= 1000) {
       this.manifestAcc = 0;
-      if (this.app.ownEmote === 'manifest' && !this.moving) {
+      if (this.app.ownEmote === 'manifest' && !this.moving && !this.me.vehicle) {
         const rate = manifestRateSen(cfg.skills, this.app.store.skills.manifest ?? 1);
         this.me.floatText(`+RM ${(rate / 100).toFixed(2)}`);
       }
@@ -321,7 +332,8 @@ export class TownScene extends Phaser.Scene {
       const target = job?.kind === 'delivery' ? (job.stage === 'pickup' ? job.pickup : job.dropoff) : null;
       this.updateMarker(target);
       const cam = this.cameras.main;
-      this.app.jobHud?.update(this.pos.x, this.pos.y, { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom, cx: cam.width / 2, cy: cam.height / 2 });
+      const dpr = this.app.dpr; // camera numbers are in device pixels; the DOM HUD uses CSS pixels
+      this.app.jobHud?.update(this.pos.x, this.pos.y, { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom / dpr, cx: cam.width / 2 / dpr, cy: cam.height / 2 / dpr });
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
@@ -344,11 +356,12 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.shake(250 + intensity * 450, 0.004 + intensity * 0.012);
   }
 
-  /** Floating labels above crate machines, the Jobs Board and the pawn shop. */
+  /** Floating labels above crate machines, the Jobs Board, the pawn shop and the car wash. */
   private createInteractableLabels() {
     const T = this.app.map.tileSize;
-    const icon: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰' };
+    const icon: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿' };
     for (const it of this.app.map.interactables) {
+      if (it.type === 'carwash') this.drawCarwashBay(it.x * T, it.y * T);
       const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
       const label = this.add
         .text(it.x * T, it.y * T - 40, `${it.crate === 'luckybag' ? '🧧' : it.crate === 'mallbox' ? '🎁' : icon[it.type]} ${it.name}${crate ? `
@@ -359,6 +372,39 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
         .setDepth(999_000);
       this.tweens.add({ targets: label, y: label.y - 5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+  }
+
+  /** A roadside car wash bay: wet concrete pad, a canopy with a sign, a car waiting, a hose. */
+  private drawCarwashBay(x: number, y: number) {
+    const g = this.add.graphics().setDepth(-800);
+    // concrete pad with drain stripes and puddles
+    g.fillStyle(0x000000, 0.18).fillRoundedRect(x - 118, y - 66, 236, 104, 14);
+    g.fillStyle(0xced4da, 1).fillRoundedRect(x - 120, y - 70, 236, 100, 14);
+    g.fillStyle(0xadb5bd, 1);
+    for (let i = -100; i < 110; i += 26) g.fillRect(x + i, y + 18, 14, 4);
+    g.fillStyle(0x74c0fc, 0.45).fillEllipse(x - 60, y + 4, 54, 16).fillEllipse(x + 52, y - 10, 40, 12);
+    g.fillStyle(0xffffff, 0.6).fillCircle(x - 74, y - 2, 4).fillCircle(x - 66, y + 6, 3).fillCircle(x + 44, y - 14, 3);
+    // a hatchback waiting for a wash (top-down)
+    g.fillStyle(0x000000, 0.2).fillRoundedRect(x - 34, y - 48, 76, 40, 10);
+    g.fillStyle(0x1971c2, 1).fillRoundedRect(x - 38, y - 54, 76, 40, 11);
+    g.fillStyle(0xa5d8ff, 1).fillRoundedRect(x - 18, y - 50, 16, 32, 4).fillRoundedRect(x + 14, y - 50, 12, 32, 4);
+    g.fillStyle(0x1864ab, 1).fillRoundedRect(x - 2, y - 50, 16, 32, 3);
+    g.fillStyle(0x7c5a3a, 0.75).fillCircle(x - 28, y - 22, 5).fillCircle(x + 30, y - 46, 4).fillCircle(x + 6, y - 20, 3);
+    g.fillStyle(0xfff3bf, 1).fillRect(x - 40, y - 50, 3, 8).fillRect(x - 40, y - 26, 3, 8);
+    // hose reel
+    g.fillStyle(0xf59f00, 1).fillCircle(x + 92, y - 40, 10);
+    g.lineStyle(3, 0x2f9e44, 1).strokeCircle(x + 92, y - 40, 7);
+    g.beginPath().moveTo(x + 92, y - 32).lineTo(x + 80, y - 6).lineTo(x + 58, y + 4).strokePath();
+    // canopy posts + sign (drawn above characters so you walk "under" it)
+    const top = this.add.graphics().setDepth(1_000_001);
+    top.fillStyle(0x495057, 1).fillRect(x - 116, y - 112, 6, 50).fillRect(x + 104, y - 112, 6, 50);
+    top.fillStyle(0x1c7ed6, 0.92).fillRoundedRect(x - 124, y - 122, 240, 22, 6);
+    top.fillStyle(0xffffff, 0.92);
+    for (let i = 0; i < 8; i++) top.fillTriangle(x - 120 + i * 30, y - 100, x - 105 + i * 30, y - 100, x - 112 + i * 30, y - 92);
+    this.add
+      .text(x - 4, y - 111, '💦 KILAT CAR WASH 💦', { fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#ffffff', resolution: 2 })
+      .setOrigin(0.5)
+      .setDepth(1_000_002);
   }
 
   private updateMarker(target: { x: number; y: number } | null) {

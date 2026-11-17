@@ -144,12 +144,39 @@ export function moveWithCollision(grid: CollisionGrid, x: number, y: number, dx:
   };
   nx += axis(nx, ny, dx, true);
   ny += axis(nx, ny, dy, false);
+
+  // Angled walls: if the axis moves got (mostly) stuck, glide along the wall instead of
+  // stopping dead. Try directions rotated away from the input, slowed by how far they turn
+  // (the input projected onto that direction), and take the first that is free.
+  const want = Math.hypot(dx, dy);
+  const got = Math.hypot(nx - x, ny - y);
+  if (want > 0 && got < want * 0.5) {
+    for (const deg of SLIDE_ANGLES) {
+      const a = (deg * Math.PI) / 180;
+      const k = Math.cos(a);
+      let best: { x: number; y: number } | null = null;
+      for (const s of [1, -1]) {
+        const c = Math.cos(a * s), sn = Math.sin(a * s);
+        const rx = (dx * c - dy * sn) * k;
+        const ry = (dx * sn + dy * c) * k;
+        if (!collides(grid, x + rx, y + ry, hb)) {
+          // Both sides free (open corner): keep the axis result rather than wobbling.
+          if (best) return got > 0 ? { x: nx, y: ny } : best;
+          best = { x: x + rx, y: y + ry };
+        }
+      }
+      if (best && Math.hypot(best.x - x, best.y - y) > got) return best;
+    }
+  }
   return { x: nx, y: ny };
 }
 
+const SLIDE_ANGLES = [15, 30, 45, 60, 75];
+
 /**
- * Is there a collision-free route from a to b? Checks the two axis-aligned "L" paths
- * (x then y, or y then x), which matches how moveWithCollision slides around corners.
+ * Is there a collision-free route from a to b? Checks the straight line (sliding along angled
+ * walls) and the two axis-aligned "L" paths (x then y, or y then x), which match how
+ * moveWithCollision slides around corners.
  */
 export function pathClear(grid: CollisionGrid, ax: number, ay: number, bx: number, by: number, hb: Hitbox, step = 4): boolean {
   const segClear = (x0: number, y0: number, x1: number, y1: number) => {
@@ -161,5 +188,5 @@ export function pathClear(grid: CollisionGrid, ax: number, ay: number, bx: numbe
     return true;
   };
   if (collides(grid, bx, by, hb)) return false;
-  return (segClear(ax, ay, bx, ay) && segClear(bx, ay, bx, by)) || (segClear(ax, ay, ax, by) && segClear(ax, by, bx, by));
+  return segClear(ax, ay, bx, by) || (segClear(ax, ay, bx, ay) && segClear(bx, ay, bx, by)) || (segClear(ax, ay, ax, by) && segClear(ax, by, bx, by));
 }

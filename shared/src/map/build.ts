@@ -8,7 +8,7 @@
 import type { TerrainConfig } from '../config/schemas';
 import {
   osmMapDataSchema, overridesSchema,
-  type AreaKind, type BuildingKind, type MapSource, type OsmMapData, type OsmRoad, type ParsedOverrides,
+  type AreaKind, type BuildingKind, type InteractType, type MapSource, type OsmMapData, type OsmRoad, type ParsedOverrides,
 } from './types';
 import { buildPolyIndex, type CollisionGrid } from './collision';
 
@@ -89,7 +89,7 @@ export interface BuiltMap {
   overrides: ParsedOverrides;
   attribution: string;
   /** Resolved interactables: where players stand to use them (tile coords of the spot). */
-  interactables: Array<{ id: string; type: 'crate' | 'jobs' | 'pawn'; name: string; crate?: string; x: number; y: number }>;
+  interactables: Array<{ id: string; type: InteractType; name: string; crate?: string; x: number; y: number }>;
   /** Spawn point in world pixels (feet). */
   spawnPx: { x: number; y: number };
 }

@@ -1,6 +1,6 @@
 // Starter jobs from the Jobs Board (spec §8.1). The server picks the locations / mini-game
 // layout, keeps the timer, checks proximity and grades the inputs; the client just plays.
-import { districtAt, gridIndexAt, type BuiltBuilding, type BuiltMap, type JobProgress, type JobsConfig, type RandInt } from '@kh/shared';
+import { districtAt, gridIndexAt, type BuiltBuilding, type BuiltMap, type JobProgress, type JobsConfig, type JobState, type RandInt } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer, ServerJob } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
@@ -23,43 +23,133 @@ export function deliveryPay(cfg: JobsConfig, meters: number, level: number, elap
   return { paySen: base, tipSen: Math.round(base * d.maxTip * remaining), late: false };
 }
 
-/**
- * Car wash grading. `points` is a flat list [x, y, tMs, x, y, tMs, ...] with x/y in 0..1 car
- * coordinates and t measured from the start of the mini-game. A dirt spot is clean after
- * `hitsPerSpot` scrubbing movements over it. Impossible input (too fast, from the future,
- * out of order) scores zero.
- */
-export function gradeCarwash(
-  cfg: JobsConfig['carwash'],
-  spots: Array<[number, number]>,
-  points: number[],
-  serverElapsedMs: number,
-): { cleaned: number; durationMs: number; valid: boolean } {
-  const n = Math.floor(points.length / 3);
-  if (n === 0) return { cleaned: 0, durationMs: 0, valid: true };
-  const limitMs = cfg.timeLimitSec * 1000;
-  let lastT = -1;
-  for (let i = 0; i < n; i++) {
-    const x = points[i * 3], y = points[i * 3 + 1], t = points[i * 3 + 2];
-    if (x < -0.1 || x > 1.1 || y < -0.1 || y > 1.1 || t < lastT || t < 0 || t > limitMs + 500) return { cleaned: 0, durationMs: 0, valid: false };
-    lastT = t;
-  }
-  // Can't have scrubbed for longer than the server says the game has been running.
-  if (lastT > serverElapsedMs + 1500) return { cleaned: 0, durationMs: 0, valid: false };
-  const durationMs = Math.max(1, lastT - points[2]);
-  if (n / Math.max(1, durationMs / 1000) > cfg.maxPointsPerSec * 1.2 && n > 30) return { cleaned: 0, durationMs, valid: false };
-  const hits = new Array(spots.length).fill(0);
-  for (let i = 1; i < n; i++) {
-    const x = points[i * 3], y = points[i * 3 + 1];
-    const px = points[(i - 1) * 3], py = points[(i - 1) * 3 + 1];
-    if (Math.hypot(x - px, y - py) < 0.004) continue; // must be a scrubbing movement, not a tap
-    spots.forEach(([sx, sy], k) => {
-      if (Math.hypot(x - sx, y - sy) <= cfg.spotRadius) hits[k]++;
-    });
-  }
-  const cleaned = hits.filter((h) => h >= cfg.hitsPerSpot).length / spots.length;
-  return { cleaned, durationMs, valid: true };
+export type CarwashJob = Extract<JobState, { kind: 'carwash' }>;
+export interface CarwashInput {
+  soap: number[];
+  rinse: number[];
+  polish: number[];
+  polishStartMs: number;
 }
+export interface CarwashGrade {
+  soap: number;
+  rinse: number;
+  polish: number;
+  /** Weighted total, 0..1. */
+  cleaned: number;
+  durationMs: number;
+  valid: boolean;
+}
+
+/** Scrubbing movements in a stream [x, y, t, ...]: each point that moved since the last one. */
+function moves(points: number[], fn: (x: number, y: number, t: number) => void) {
+  for (let i = 3; i + 2 < points.length; i += 3) {
+    const x = points[i], y = points[i + 1];
+    if (Math.hypot(x - points[i - 3], y - points[i - 2]) < 0.004) continue; // a tap, not a scrub
+    fn(x, y, points[i + 2]);
+  }
+}
+
+/**
+ * Car wash grading, from the raw pointer streams of the three stages (flat [x, y, tMs, ...]
+ * lists, x/y in 0..1 car coordinates, t from the start of the mini-game):
+ *  1. soap: a dirt spot is clean after its number of scrubbing movements over it;
+ *  2. rinse: every cell of a grid over the car body needs a few passes of the hose;
+ *  3. polish: shine marks appear one at a time and must be buffed while they're showing.
+ * Impossible input (too fast, from the future, out of order) scores zero.
+ */
+export function gradeCarwash(cfg: JobsConfig['carwash'], job: CarwashJob, input: CarwashInput, serverElapsedMs: number): CarwashGrade {
+  const zero = (valid: boolean, durationMs = 0): CarwashGrade => ({ soap: 0, rinse: 0, polish: 0, cleaned: 0, durationMs, valid });
+  const limitMs = cfg.timeLimitSec * 1000;
+  const streams = [input.soap, input.rinse, input.polish];
+  let firstT = Infinity;
+  let lastT = -1;
+  let n = 0;
+  const bounds: Array<[number, number]> = [];
+  for (const s of streams) {
+    let prev = -1;
+    let first = Infinity;
+    for (let i = 0; i + 2 < s.length; i += 3) {
+      const x = s[i], y = s[i + 1], t = s[i + 2];
+      if (x < -0.1 || x > 1.1 || y < -0.1 || y > 1.1 || t < prev || t < 0 || t > limitMs + 500) return zero(false);
+      prev = t;
+      first = Math.min(first, t);
+      n++;
+    }
+    bounds.push([first, prev]);
+    if (prev >= 0) {
+      firstT = Math.min(firstT, first);
+      lastT = Math.max(lastT, prev);
+    }
+  }
+  if (n === 0) return zero(true);
+  // Stages happen in order: soap, then rinse, then polish (50 ms of slack for event timing).
+  const [soapB, rinseB, polishB] = bounds;
+  if (rinseB[1] >= 0 && soapB[1] > rinseB[0] + 50) return zero(false);
+  if (polishB[1] >= 0 && (input.polishStartMs + 50 < Math.max(soapB[1], rinseB[1]) || polishB[0] + 50 < input.polishStartMs)) return zero(false);
+  // Can't have played for longer than the server says the game has been running.
+  if (lastT > serverElapsedMs + 1500 || input.polishStartMs > serverElapsedMs + 1500) return zero(false);
+  const durationMs = Math.max(1, lastT - firstT);
+  if (n > 30 && n / Math.max(1, durationMs / 1000) > cfg.maxPointsPerSec * 1.2) return zero(false, durationMs);
+
+  // 1. Soap
+  const spotHits = job.spots.map(() => 0);
+  moves(input.soap, (x, y) => {
+    job.spots.forEach(([sx, sy], k) => {
+      if (Math.hypot(x - sx, y - sy) <= job.spotRadius) spotHits[k]++;
+    });
+  });
+  const soap = job.spots.length ? spotHits.filter((h, k) => h >= job.spots[k][2]).length / job.spots.length : 1;
+
+  // 2. Rinse
+  const r = job.rinse;
+  const [x0, y0, x1, y1] = r.area;
+  const cellHits = new Array(r.cols * r.rows).fill(0);
+  moves(input.rinse, (x, y) => {
+    if (x < x0 || x >= x1 || y < y0 || y >= y1) return;
+    const cx = Math.floor(((x - x0) / (x1 - x0)) * r.cols);
+    const cy = Math.floor(((y - y0) / (y1 - y0)) * r.rows);
+    cellHits[cy * r.cols + cx]++;
+  });
+  const rinse = cellHits.filter((h) => h >= r.hitsPerCell).length / cellHits.length;
+
+  // 3. Polish
+  const p = job.polish;
+  const markHits = p.spots.map(() => 0);
+  moves(input.polish, (x, y, t) => {
+    p.spots.forEach(([sx, sy], k) => {
+      const from = input.polishStartMs + k * p.intervalMs;
+      if (t >= from && t <= from + p.windowMs && Math.hypot(x - sx, y - sy) <= p.radius) markHits[k]++;
+    });
+  });
+  const polish = p.spots.length ? markHits.filter((h) => h >= p.hits).length / p.spots.length : 1;
+
+  const w = cfg.weights;
+  const cleaned = Math.min(1, soap * w.soap + rinse * w.rinse + polish * w.polish);
+  return { soap, rinse, polish, cleaned, durationMs, valid: true };
+}
+
+/** The car wash layout for one job (positions in 0..1 car-picture coordinates). */
+export function makeCarwashJob(cfg: JobsConfig['carwash'], rand: RandInt, jobId: string, now: number): CarwashJob {
+  const r01 = () => rand(1000) / 1000;
+  const stubborn = new Set<number>();
+  while (stubborn.size < Math.min(cfg.stubbornSpots, cfg.spots)) stubborn.add(rand(cfg.spots));
+  const spots: Array<[number, number, number]> = [];
+  for (let i = 0; i < cfg.spots; i++) spots.push([0.15 + r01() * 0.7, 0.32 + r01() * 0.4, stubborn.has(i) ? cfg.stubbornHits : cfg.hitsPerSpot]);
+  const marks: Array<[number, number]> = [];
+  for (let i = 0; i < cfg.polishSpots; i++) marks.push([0.18 + r01() * 0.64, 0.32 + r01() * 0.36]);
+  return {
+    kind: 'carwash',
+    jobId,
+    spots,
+    spotRadius: cfg.spotRadius,
+    rinse: { cols: cfg.rinseCols, rows: cfg.rinseRows, hitsPerCell: cfg.rinseHitsPerCell, area: cfg.rinseArea },
+    polish: { spots: marks, intervalMs: cfg.polishIntervalMs, windowMs: cfg.polishWindowMs, hits: cfg.polishHits, radius: cfg.polishRadius },
+    color: CAR_COLORS[rand(CAR_COLORS.length)],
+    startedAt: now,
+    timeLimitSec: cfg.timeLimitSec,
+  };
+}
+const CAR_COLORS = ['#e03131', '#1971c2', '#f8f9fa', '#212529', '#f59f00', '#2f9e44', '#868e96', '#ae3ec9'];
 
 export function carwashPay(cfg: JobsConfig, cleaned: number, durationMs: number, level: number): number {
   const c = cfg.carwash;
@@ -77,11 +167,6 @@ const SHOP_NAMES = [
 const PICKUP_KINDS = new Set(['shoplot', 'shop', 'mall', 'hypermarket']);
 const DROPOFF_KINDS = new Set(['condo', 'flat', 'semid', 'terrace', 'bungalow']);
 
-export interface JobHooks {
-  mount(p: OnlinePlayer, vehicle: string): void;
-  dismount(p: OnlinePlayer): void;
-}
-
 export class JobSystem {
   private pickups: BuiltBuilding[] = [];
   private dropoffs: BuiltBuilding[] = [];
@@ -90,7 +175,6 @@ export class JobSystem {
     private readonly cfg: ServerConfig,
     private readonly econ: Economy,
     private readonly rand: RandInt,
-    private readonly hooks: JobHooks,
   ) {
     // Only use doors a motorbike can actually get close to.
     const map = cfg.map;
@@ -121,10 +205,7 @@ export class JobSystem {
     const T = this.cfg.map.tileSize;
     const jobId = `${kind}-${now.toString(36)}-${this.rand(1e6).toString(36)}`;
     if (kind === 'carwash') {
-      const c = this.cfg.jobs.carwash;
-      const spots: Array<[number, number]> = [];
-      for (let i = 0; i < c.spots; i++) spots.push([0.15 + (this.rand(1000) / 1000) * 0.7, 0.3 + (this.rand(1000) / 1000) * 0.45]);
-      p.job = { kind, jobId, spots, hitsPerSpot: c.hitsPerSpot, spotRadius: c.spotRadius, startedAt: now, timeLimitSec: c.timeLimitSec };
+      p.job = makeCarwashJob(this.cfg.jobs.carwash, this.rand, jobId, now);
       return p.job;
     }
     // Delivery: a shop near the player, then a home a few hundred metres away.
@@ -148,8 +229,9 @@ export class JobSystem {
     const district = districtAt(this.cfg.map, home.door!.frontX, home.door!.frontY)?.name ?? 'Kota Damansara';
     const unit = 1 + this.rand(40);
     const homeName = home.name ?? `${home.kind === 'condo' || home.kind === 'flat' ? `Unit ${unit}-${1 + this.rand(20)}` : `No. ${unit}`}, ${district}`;
-    const bikeMps = (this.cfg.vehicles.vehicles[d.vehicle]?.speed ?? 400) / T * mpt;
-    const budgetMs = Math.round((meters / bikeMps) * d.timeBudgetFactor * 1000 + d.timeBudgetSlackSec * 1000);
+    // The time budget assumes the starter bicycle, so a rented motorbike earns bigger tips.
+    const rideMps = ((this.cfg.vehicles.vehicles[d.budgetVehicle]?.speed ?? this.cfg.movement.walkSpeed) / T) * mpt;
+    const budgetMs = Math.round((meters / rideMps) * d.timeBudgetFactor * 1000 + d.timeBudgetSlackSec * 1000);
     p.job = {
       kind,
       jobId,
@@ -162,7 +244,6 @@ export class JobSystem {
       baseSen: Math.round((d.baseSen + d.perMeterSen * meters) * levelMult(this.cfg.jobs, this.progress(p, kind).level)),
       budgetMs,
     };
-    this.hooks.mount(p, d.vehicle);
     return p.job;
   }
 
@@ -185,24 +266,21 @@ export class JobSystem {
     const elapsed = now - (job.deadline - budgetMs);
     const { paySen, tipSen } = deliveryPay(this.cfg.jobs, job.meters, prog.level, elapsed, budgetMs);
     const levelUp = this.complete(p, 'delivery', paySen + tipSen, job.jobId);
-    this.hooks.dismount(p);
     return { job: null, paidSen: paySen, tipSen, levelUp };
   }
 
-  submitCarwash(p: OnlinePlayer, jobId: string, points: number[], now = Date.now()) {
+  submitCarwash(p: OnlinePlayer, jobId: string, input: CarwashInput, now = Date.now()) {
     const job = p.job;
     if (!job || job.kind !== 'carwash' || job.jobId !== jobId) throw new GameError('That car wash job has ended.');
-    const grade = gradeCarwash(this.cfg.jobs.carwash, job.spots, points, now - job.startedAt);
+    const grade = gradeCarwash(this.cfg.jobs.carwash, job, input, now - job.startedAt);
     const prog = this.progress(p, 'carwash');
     const pay = grade.valid ? carwashPay(this.cfg.jobs, grade.cleaned, grade.durationMs, prog.level) : 0;
     const levelUp = this.complete(p, 'carwash', pay, job.jobId, pay > 0);
-    return { cleaned: grade.cleaned, paidSen: pay, levelUp };
+    return { cleaned: grade.cleaned, soap: grade.soap, rinse: grade.rinse, polish: grade.polish, paidSen: pay, levelUp };
   }
 
   cancel(p: OnlinePlayer) {
-    const job = p.job;
     p.job = null;
-    if (job?.kind === 'delivery') this.hooks.dismount(p);
   }
 
   /** Pay, count the job, maybe level up. Returns the new level if it went up. */

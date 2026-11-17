@@ -1,11 +1,16 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
-import { buildMap, randomAppearance, type Appearance, type BuiltMap, type CrateDef, type InitPayload, type ItemDef, type PublicConfig } from '@kh/shared';
+import {
+  buildMap, EQUIP_SLOTS, randomAppearance,
+  type Appearance, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type PublicConfig,
+} from '@kh/shared';
 import { Store } from './state/store';
 import { showAnnouncement } from './ui/announce';
 import { openCratePanel } from './ui/cratePanel';
+import { Hotbar } from './ui/hotbar';
 import { openInventoryPanel } from './ui/inventoryPanel';
-import { DeliveryHud, openJobsPanel } from './ui/jobs';
+import { DeliveryHud, openCarwashPanel, openJobsPanel } from './ui/jobs';
+import { openPhonePanel } from './ui/phone';
 import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
 import { sfx } from './ui/sound';
@@ -16,7 +21,15 @@ import { connectSocket, type GameSocket } from './net/socket';
 import { showAuthScreen } from './ui/authScreen';
 import { Chat } from './ui/chat';
 import { showCreator } from './ui/creator';
-import { el, isTouchDevice, messageOverlay, uiRoot } from './ui/dom';
+import { el, isTouchDevice, messageOverlay, toast, uiRoot } from './ui/dom';
+
+/** Device pixel ratio to render at: up to 3× (phones), but keep the canvas under ~8.3 MP
+ *  (about 4K) so big high-DPI monitors don't tank the frame rate. */
+function renderDpr(): number {
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const budget = Math.sqrt(8_300_000 / Math.max(1, innerWidth * innerHeight));
+  return Math.max(1, Math.min(dpr, budget));
+}
 import { EmoteWheel } from './ui/emoteWheel';
 import { Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
@@ -40,6 +53,9 @@ export class App {
   chat: Chat | null = null;
   minimap: Minimap | null = null;
   emotes: EmoteWheel | null = null;
+  hotbar: Hotbar | null = null;
+  /** Canvas pixels per CSS pixel (see renderDpr). */
+  dpr = 1;
   town: TownScene | null = null;
   lastInit: InitPayload | null = null;
   lastSavedAt: number | null = null;
@@ -66,16 +82,24 @@ export class App {
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) for (const id of c.pool) this.cratesOfItem.set(id, c);
     this.store.on(() => this.hud?.setWallet(this.store.walletSen, this.store.shards));
+    // Render in DEVICE pixels (the canvas is shrunk back with CSS) so phones and high-DPI
+    // screens get crisp vector art instead of an upscaled, blurry 1× canvas.
+    this.dpr = renderDpr();
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
       backgroundColor: '#151826',
-      scale: { mode: Phaser.Scale.RESIZE, width: innerWidth, height: innerHeight },
+      scale: { mode: Phaser.Scale.NONE, width: Math.round(innerWidth * this.dpr), height: Math.round(innerHeight * this.dpr), zoom: 1 / this.dpr },
       render: { antialias: true, roundPixels: true, powerPreference: 'high-performance' },
       input: { keyboard: false },
       fps: { target: 60 },
       banner: false,
       scene: [],
+    });
+    addEventListener('resize', () => {
+      this.dpr = renderDpr();
+      this.game.scale.setZoom(1 / this.dpr);
+      this.game.scale.resize(Math.round(innerWidth * this.dpr), Math.round(innerHeight * this.dpr));
     });
     this.game.scene.add('town', TownScene, false);
     this.bindKeys();
@@ -101,21 +125,112 @@ export class App {
       this.chat?.open();
     });
     this.keyboard.onPress('KeyQ', () => inTown() && this.emotes?.toggle());
-    this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggle());
+    this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
+    this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
     this.keyboard.onPress('KeyE', () => inTown() && this.town?.interact());
     this.keyboard.onPress('Tab', () => inTown() && this.openSettings());
     this.keyboard.onPress('KeyB', () => inTown() && !isPanelOpen() && openInventoryPanel(this));
+    this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && openPhonePanel(this));
     this.keyboard.onPress('Escape', () => {
       this.emotes?.close();
       this.minimap?.closeFull();
     });
-    // 1-9, 0 and - fire emotes directly (no need to open the wheel) so they can be spammed.
-    for (let i = 0; i < 11; i++) {
-      this.keyboard.onPress(i === 10 ? 'Minus' : `Digit${(i + 1) % 10}`, () => {
+    // 1-9, 0 use the hotbar. With the emote wheel open (Q) they fire emotes instead, so emotes
+    // stay spammable from the keyboard. − is always Manifest.
+    for (let i = 0; i < 10; i++) {
+      this.keyboard.onPress(`Digit${(i + 1) % 10}`, () => {
+        if (!inTown() || isPanelOpen()) return;
         const e = this.cfg.chat.emotes[i];
-        if (inTown() && e) this.triggerEmote(e.id);
+        if (this.emotes?.isOpen && e) this.triggerEmote(e.id);
+        else this.useHotbar(i);
       });
     }
+    this.keyboard.onPress('Minus', () => {
+      const e = this.cfg.chat.emotes[10];
+      if (inTown() && e) this.triggerEmote(e.id);
+    });
+  }
+
+  // ------------------------------------------------------------------ hotbar + vehicles
+  /** Use hotbar slot i: hop on/off a vehicle, or wear/take off an item. */
+  useHotbar(i: number) {
+    const ref = this.store.hotbar[i];
+    if (!ref) {
+      toast(`Slot ${(i + 1) % 10} is empty. Open the 🎒 Bag (B) and use "Add to hotbar".`);
+      return;
+    }
+    if (ref.kind === 'vehicle') {
+      const v = this.cfg.vehicles.vehicles[ref.id];
+      if (this.store.riding === ref.id) this.ride(null);
+      else if (this.store.vehicles.includes(ref.id)) this.ride(ref.id);
+      else if (v?.orderSen) toast(`Order a ${v.name} from your 📱 Phone (P) first.`);
+      return;
+    }
+    const def = this.items.get(ref.itemId);
+    const inst = this.store.inventory.find((it) => it.itemId === ref.itemId && it.variant === ref.variant);
+    if (!def || !inst) return void toast("You don't have that item any more.", 'bad');
+    if (!(EQUIP_SLOTS as readonly string[]).includes(def.type)) return void toast(`${def.name} can't be used yet.`);
+    const slot = def.type as EquipSlot;
+    const wornIid = this.store.equipped[slot];
+    const wearingThis = this.store.inventory.some((it) => it.iid === wornIid && it.itemId === ref.itemId && it.variant === ref.variant);
+    if (wearingThis) {
+      this.socket?.timeout(5000).emit('inv:unequip', { slot }, (err, res) => {
+        if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        const next = { ...this.store.equipped };
+        delete next[slot];
+        this.store.equipped = next;
+        this.store.emit();
+      });
+    } else {
+      this.socket?.timeout(5000).emit('inv:equip', { iid: inst.iid }, (err, res) => {
+        if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        this.store.equipped = { ...this.store.equipped, [slot]: inst.iid };
+        this.store.emit();
+      });
+    }
+  }
+
+  setHotbarSlot(slot: number, ref: HotbarRef | null) {
+    this.socket?.timeout(5000).emit('hotbar:set', { slot, ref }, (err, res) => {
+      if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.store.hotbar = res.hotbar;
+      this.store.emit();
+    });
+  }
+
+  /** Hop on a vehicle we have (or off, with null). */
+  ride(vehicle: string | null) {
+    this.socket?.timeout(5000).emit('vehicle:ride', { vehicle }, (err, res) => {
+      if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.store.vehicles = res.vehicles;
+      this.store.riding = res.vehicle;
+      this.store.emit();
+    });
+  }
+
+  /** Order a vehicle from the phone (paid) and hop on it. */
+  orderVehicle(vehicle: string) {
+    this.socket?.timeout(5000).emit('vehicle:order', { vehicle }, (err, res) => {
+      if (err || !res.ok) {
+        sfx.error();
+        return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      }
+      sfx.coin();
+      this.store.vehicles = res.vehicles;
+      this.store.riding = res.vehicle;
+      this.store.walletSen = res.walletSen;
+      this.store.emit();
+      toast(`${this.cfg.vehicles.vehicles[vehicle]?.icon ?? ''} Your ${this.cfg.vehicles.vehicles[vehicle]?.name ?? 'ride'} has arrived!`, 'good');
+      closePanel();
+    });
+  }
+
+  openBag() {
+    if (!isPanelOpen()) openInventoryPanel(this);
+  }
+
+  openSettingsPanel() {
+    this.openSettings();
   }
 
   connect(token: string) {
@@ -234,8 +349,10 @@ export class App {
         onSettings: () => this.openSettings(),
         onInteract: () => this.town?.interact(),
         onBag: () => openInventoryPanel(this),
+        onPhone: () => openPhonePanel(this),
         attribution: this.map.attribution,
       });
+      this.hotbar = new Hotbar(this);
       this.hud.setWallet(this.store.walletSen, this.store.shards);
       this.jobHud = new DeliveryHud(this);
       this.chat = new Chat(
@@ -274,11 +391,12 @@ export class App {
     else this.socket.emit('emote', { emote: id });
   }
 
-  /** Open the UI for a crate machine / Jobs Board / pawn shop the player is standing at. */
-  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn'; crate?: string }) {
+  /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
+  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn' | 'carwash'; crate?: string }) {
     if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
     else if (it.type === 'jobs') openJobsPanel(this);
     else if (it.type === 'pawn') openPawnPanel(this);
+    else if (it.type === 'carwash') openCarwashPanel(this);
   }
 
   onTownReady(scene: TownScene) {
@@ -297,7 +415,8 @@ export class App {
     this.chat?.destroy();
     this.minimap?.destroy();
     this.emotes?.destroy();
-    this.hud = this.chat = this.minimap = this.emotes = null;
+    this.hotbar?.destroy();
+    this.hud = this.chat = this.minimap = this.emotes = this.hotbar = null;
   }
 
   private openSettings() {

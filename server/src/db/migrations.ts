@@ -110,4 +110,10 @@ export const MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
     name: 'player_skills',
     sql: "ALTER TABLE players ADD COLUMN skills_json TEXT NOT NULL DEFAULT '{}';",
   },
+  {
+    id: 5,
+    name: 'player_hotbar',
+    // NULL = never set: the server fills in the default (bicycle in slot 1).
+    sql: 'ALTER TABLE players ADD COLUMN hotbar_json TEXT;',
+  },
 ];

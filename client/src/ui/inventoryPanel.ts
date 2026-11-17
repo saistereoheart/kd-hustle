@@ -80,6 +80,18 @@ export function openInventoryPanel(app: App, startTab = 0) {
             actions.append(b);
           }
         }
+        // Hotbar: put this stack in the first free slot (or say where it already is).
+        const ref = { kind: 'item' as const, itemId: s.itemId, variant: s.variant };
+        const inSlot = app.store.hotbar.findIndex((h) => h?.kind === 'item' && h.itemId === s.itemId && h.variant === s.variant);
+        const hb = el('button', { class: 'btn', type: 'button', 'data-action': 'add-hotbar' }, inSlot >= 0 ? `On hotbar (${(inSlot + 1) % 10}) · remove` : 'Add to hotbar');
+        hb.addEventListener('click', () => {
+          if (inSlot >= 0) return app.setHotbarSlot(inSlot, null);
+          const free = app.store.hotbar.findIndex((h) => !h);
+          if (free < 0) return toast('Hotbar is full. Right-click (or long-press) a slot to clear it.', 'bad');
+          app.setHotbarSlot(free, ref);
+          toast(`${def.name} → hotbar slot ${(free + 1) % 10}`, 'good');
+        });
+        actions.append(hb);
         const nameEl = el('h4', {}, def.name);
         nameEl.style.color = tier.color;
         detail = el(

@@ -12,6 +12,7 @@ export interface HudOptions {
   onSettings: () => void;
   onInteract: () => void;
   onBag: () => void;
+  onPhone: () => void;
   /** Map data credit, e.g. "© OpenStreetMap contributors" (required by the ODbL). */
   attribution: string;
 }
@@ -59,6 +60,7 @@ export class Hud {
       el(
         'div',
         { class: 'hud-buttons' },
+        btn('📱', 'Phone (P)', 'phone', opts.onPhone),
         btn('🎒', 'Bag (B)', 'bag', opts.onBag),
         btn('💬', 'Chat (Enter)', 'chat', opts.onChat),
         btn('😀', 'Emotes (Q)', 'emote', opts.onEmote),

@@ -8,7 +8,7 @@ import type { OnlinePlayer } from '../../game/world';
 import { ROOT } from '../../paths';
 import { Gacha } from '../gacha/gacha';
 import { InventorySystem } from '../inventory/inventory';
-import { carwashPay, deliveryPay, gradeCarwash, jobLevel } from '../jobs/jobs';
+import { carwashPay, deliveryPay, gradeCarwash, jobLevel, makeCarwashJob, type CarwashJob } from '../jobs/jobs';
 import { Economy, GameError } from './economy';
 
 const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
@@ -30,7 +30,7 @@ function setup(walletSen = 30000, seed = 1) {
   const id = repos.accounts.create(`p${seed}`, 'h', false, { x: 0, y: 0 }, 2, walletSen);
   const p = {
     id, name: `p${seed}`, walletSen, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set<string>(),
-    pages: new Set<string>(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0,
+    pages: new Set<string>(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0, hotbar: [], rental: null,
   } as unknown as OnlinePlayer;
   const econ = new Economy(repos, cfg);
   const gacha = new Gacha(repos, cfg, econ, seeded(seed));
@@ -168,31 +168,71 @@ describe('job pay and grading', () => {
     expect(deliveryPay(jobs, 400, 5, 10_000, 60_000).paySen).toBeGreaterThan(fast.paySen);
   });
 
-  const spots: Array<[number, number]> = [[0.3, 0.5], [0.7, 0.5]];
+  // A small hand-made car wash: 2 dirt spots (one stubborn), a 2×1 rinse grid, 2 shine marks.
+  const job: CarwashJob = {
+    kind: 'carwash', jobId: 'cw-test', color: '#e03131', startedAt: 0, timeLimitSec: 60,
+    spots: [[0.3, 0.5, 6], [0.7, 0.5, 14]],
+    spotRadius: 0.065,
+    rinse: { cols: 2, rows: 1, hitsPerCell: 3, area: [0.1, 0.3, 0.9, 0.7] },
+    polish: { spots: [[0.4, 0.5], [0.6, 0.5]], intervalMs: 1000, windowMs: 1500, hits: 4, radius: 0.075 },
+  };
+  /** Scrubbing back and forth around (cx, cy): n points, 40 ms apart, from t0. */
   const scrub = (cx: number, cy: number, t0: number, n: number) => {
     const pts: number[] = [];
     for (let i = 0; i < n; i++) pts.push(cx + (i % 2 ? 0.02 : -0.02), cy, t0 + i * 40);
     return pts;
   };
+  const perfect = () => ({
+    soap: [...scrub(0.3, 0.5, 0, 10), ...scrub(0.7, 0.5, 600, 20)],
+    rinse: [...scrub(0.3, 0.5, 1600, 6), ...scrub(0.7, 0.5, 2000, 6)],
+    polishStartMs: 2500,
+    polish: [...scrub(0.4, 0.5, 2600, 8), ...scrub(0.6, 0.5, 3600, 8)],
+  });
 
-  it('grades car wash scrubbing from raw input', () => {
-    const pts = [...scrub(0.3, 0.5, 0, 12), ...scrub(0.7, 0.5, 600, 12)];
-    const g = gradeCarwash(jobs.carwash, spots, pts, 5000);
-    expect(g).toMatchObject({ cleaned: 1, valid: true });
-    const half = gradeCarwash(jobs.carwash, spots, scrub(0.3, 0.5, 0, 12), 5000);
-    expect(half.cleaned).toBe(0.5);
+  it('grades all three car wash stages from raw input', () => {
+    const g = gradeCarwash(jobs.carwash, job, perfect(), 6000);
+    expect(g).toMatchObject({ soap: 1, rinse: 1, polish: 1, cleaned: 1, valid: true });
     expect(carwashPay(jobs, 1, 2000, 1)).toBeGreaterThan(carwashPay(jobs, 1, 20000, 1));
     expect(carwashPay(jobs, 0.1, 2000, 1)).toBe(0);
   });
 
+  it('needs extra scrubbing for stubborn dirt, every rinse cell, and polishing on time', () => {
+    const p = perfect();
+    // Stubborn spot only scrubbed 8 times (needs 14): half the soap stage.
+    const lightSoap = gradeCarwash(jobs.carwash, job, { ...p, soap: [...scrub(0.3, 0.5, 0, 10), ...scrub(0.7, 0.5, 600, 9)] }, 6000);
+    expect(lightSoap.soap).toBe(0.5);
+    expect(lightSoap.cleaned).toBeCloseTo(1 - jobs.carwash.weights.soap / 2);
+    // Rinsed only the left half of the car.
+    expect(gradeCarwash(jobs.carwash, job, { ...p, rinse: scrub(0.3, 0.5, 1600, 6) }, 6000).rinse).toBe(0.5);
+    // Buffed the second mark before it appeared (it shows from 3500 ms): doesn't count.
+    const early = gradeCarwash(jobs.carwash, job, { ...p, polish: [...scrub(0.4, 0.5, 2600, 8), ...scrub(0.6, 0.5, 2950, 8)] }, 6000);
+    expect(early.polish).toBe(0.5);
+  });
+
   it('rejects impossible car wash input', () => {
+    const p = perfect();
     // Timestamps from the future (longer than the server says the game has run).
-    expect(gradeCarwash(jobs.carwash, spots, scrub(0.3, 0.5, 0, 12).map((v, i) => (i % 3 === 2 ? v + 20000 : v)), 3000).valid).toBe(false);
+    expect(gradeCarwash(jobs.carwash, job, p, 1500).valid).toBe(false);
     // Out-of-order timestamps.
-    expect(gradeCarwash(jobs.carwash, spots, [0.3, 0.5, 100, 0.32, 0.5, 50], 3000).valid).toBe(false);
+    expect(gradeCarwash(jobs.carwash, job, { ...p, soap: [0.3, 0.5, 100, 0.32, 0.5, 50] }, 6000).valid).toBe(false);
+    // Rinsing before soaping is finished (stages out of order).
+    expect(gradeCarwash(jobs.carwash, job, { ...p, rinse: scrub(0.3, 0.5, 200, 6) }, 6000).valid).toBe(false);
     // Superhuman speed: 2,000 points in 1 second.
     const bot: number[] = [];
     for (let i = 0; i < 2000; i++) bot.push(0.3 + (i % 2) * 0.01, 0.5, i * 0.5);
-    expect(gradeCarwash(jobs.carwash, spots, bot, 3000).valid).toBe(false);
+    expect(gradeCarwash(jobs.carwash, job, { soap: bot, rinse: [], polish: [], polishStartMs: 0 }, 3000).valid).toBe(false);
+  });
+
+  it('builds a car wash with the configured stubborn spots and shine marks', () => {
+    const cw = makeCarwashJob(jobs.carwash, seeded(3), 'cw', 0);
+    expect(cw.spots).toHaveLength(jobs.carwash.spots);
+    expect(cw.spots.filter((s) => s[2] === jobs.carwash.stubbornHits)).toHaveLength(jobs.carwash.stubbornSpots);
+    expect(cw.polish.spots).toHaveLength(jobs.carwash.polishSpots);
+    for (const [x, y] of [...cw.spots, ...cw.polish.spots]) {
+      expect(x).toBeGreaterThan(0.1);
+      expect(x).toBeLessThan(0.9);
+      expect(y).toBeGreaterThan(0.25);
+      expect(y).toBeLessThan(0.8);
+    }
   });
 });

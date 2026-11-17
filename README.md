@@ -26,6 +26,15 @@ buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), an
 
 Full design: [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md)
 
+## Where we left off (resume here)
+Work in progress: **Phase 2.2 feedback round** (WIP commit, not pushed). Full checklist, what's verified and the next
+steps are in [`docs/PROGRESS.md`](docs/PROGRESS.md) under "Phase 2.2 (in progress)". To pick up on any device:
+1. Open this folder (same PC via Remote Desktop, or a fresh `git clone` + `npm install` elsewhere).
+2. `git log --oneline -3` should show the "WIP Phase 2.2" commit on top.
+3. Run `npm run typecheck`, `npm test`, then `npm run e2e` and fix whatever fails (the e2e tests still need updating
+   for the new hotbar keys, the phone-ordered motorbike and the car wash location).
+4. `npm run dev` and play-test the list in PROGRESS.md.
+
 ## Requirements
 - Node.js LTS (https://nodejs.org), v20 or newer
 - A PC to host the server. Players join from any browser on the same network.

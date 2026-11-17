@@ -18,6 +18,32 @@ daily quests, HustlePhone, balance simulator) is next.
 
 ---
 
+## Phase 2.2 (in progress): second feedback round
+
+**State: WIP commit (local only, not pushed).** All code is written and `npm run typecheck` is clean. The unit test run
+was interrupted, so `npm test` and `npm run e2e` have NOT been run on this commit yet.
+
+| Request | Status |
+|---|---|
+| Full map closes on click outside; **M** toggles it (minimap toggle moved to **N**) | done, untested |
+| Character hidden north of a line across the map | **fixed**: characters drew under the ground when world y < −1000 px (north of Menara Mitraland). Avatars now draw at depth 500 000 + y |
+| Slide along angled walls instead of stopping | done + unit-tested (map tests); the server path check also accepts straight diagonal slides |
+| Manifest 2× base | `baseSenPerSec` 1 → 2 (RM 0.02/s at Lv 1, +RM 0.01/s per level). Stops while riding |
+| Sharper map + characters on phones | the game canvas now renders at device pixel ratio (up to 3×, capped at ~8.3 MP); map chunks at up to 2.5× |
+| Harder car wash, at a car wash | new **Kilat Car Wash** (−199, 117.5, ~60 m east of the Jobs Board). 3 stages graded on the server: 🧽 soap (3 stubborn bird-dropping spots need 14 scrubs), 🚿 rinse a 8×3 grid, ✨ polish timed shine marks. 55 s, pays up to RM 58.50 at Lv 1. Unit-tested |
+| Delivery doesn't spawn a motorbike; order it from the phone | done: 📱 **Phone (P / HUD button)** → order a 🛵 kapcai for RM 8 (rented until you hop off; returned on disconnect). Delivery time budget now assumes the bicycle |
+| Everyone starts with a bicycle | 🚲 Basikal (290 px/s, walk grid: sidewalks/paths yes, highways no), in hotbar slot 1 by default |
+| Hotbar 1–0 | done: 10 slots, bottom centre (above the joystick on phones held upright). Vehicles hop on/off; cosmetics wear/take off. Bag → item → "Add to hotbar"; right-click / long-press clears. Saved in `players.hotbar_json` (migration 5). **Number keys now use the hotbar; emotes use Q then a number, − is still Manifest** |
+| Chat middle-left, larger | done (15 px text, 440 px wide on desktop) |
+
+**Next steps**
+1. `npm test`: confirm the new car wash grading tests, wall-slide tests and the updated map test.
+2. Update e2e: `phase1.spec.ts` (press Q before `5` for the flex emote) and `phase2.spec.ts` (carwash: `/tp -199 117`, then
+   play the 3 stages using `k.job()` data; delivery: no motorbike on start, order it via `[data-action=order-motorbike]`
+   in the phone panel; check hotbar key `1` mounts the bicycle).
+3. Play-test on PC + phone: hotbar layout at 390×844, chat position, car wash difficulty, phone sharpness.
+4. Then update this file (move the table into "What changed"), commit.
+
 ## Phase 2.1: feedback fixes (map zoom, collision, Manifest, jobs board)
 
 ### How to test it

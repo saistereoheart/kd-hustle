@@ -2,8 +2,8 @@
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
 import {
-  C2S, collides, formatMoney, formatOneIn, manifestRateSen, skillUpgradeCostSen,
-  type Announcement, type EquipSlot, type MovementConfig, type CollisionGrid,
+  C2S, collides, formatMoney, formatOneIn, HOTBAR_SLOTS, manifestRateSen, skillUpgradeCostSen,
+  type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid,
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
 import { RateLimiter } from '../auth/rateLimit';
@@ -31,38 +31,43 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const T = cfg.map.tileSize;
 
   // --- vehicles ---------------------------------------------------------------------------
-  const driveGrid: CollisionGrid = cfg.map.driveCollision;
+  world.starterVehicles = Object.entries(cfg.vehicles.vehicles).filter(([, v]) => v.starter).map(([id]) => id);
+  const gridFor = (grid: 'walk' | 'drive'): CollisionGrid => (grid === 'drive' ? cfg.map.driveCollision : cfg.map.collision);
   /** Movement rules for a player right now (walking or riding). */
   const moveRules = (p: OnlinePlayer): { grid: CollisionGrid; movement: MovementConfig } => {
     const v = p.vehicle ? cfg.vehicles.vehicles[p.vehicle] : undefined;
     if (!v) return { grid: cfg.map.collision, movement: cfg.movement };
-    return { grid: driveGrid, movement: { ...cfg.movement, walkSpeed: v.speed, hitbox: v.hitbox } };
+    return { grid: gridFor(v.grid), movement: { ...cfg.movement, walkSpeed: v.speed, hitbox: v.hitbox } };
   };
   const socketOf = (p: OnlinePlayer) => io.sockets.sockets.get(p.socketId);
-  const jobs = new JobSystem(cfg, econ, cryptoRand, {
-    mount(p, vehicle) {
-      p.vehicle = vehicle;
-      p.move = newMoveState(p.x, p.y, Date.now(), moveRules(p).movement);
-      io.to(p.scene).emit('player:updated', { id: p.id, vehicle });
-    },
-    dismount(p) {
-      p.vehicle = null;
-      // Hopping off on a highway or other no-walk tile: step to the nearest walkable spot.
-      if (collides(cfg.map.collision, p.x, p.y, cfg.movement.hitbox)) {
-        const spot = placePlayer(cfg.map.collision, cfg.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
-        p.x = spot.x;
-        p.y = spot.y;
-        p.dirty = true;
-      }
-      p.move = newMoveState(p.x, p.y, Date.now(), cfg.movement);
+  /** Puts the player on a vehicle (or off it, with null) and tells everyone. */
+  function setVehicle(p: OnlinePlayer, vehicle: string | null) {
+    const was = p.vehicle;
+    p.vehicle = vehicle;
+    // A rented ride goes back when you hop off it.
+    if (was && was === p.rental && vehicle !== was) p.rental = null;
+    // Landing somewhere this ride (or your feet) can't be, e.g. hopping off on a highway:
+    // step to the nearest spot that's allowed.
+    const rules = moveRules(p);
+    if (collides(rules.grid, p.x, p.y, rules.movement.hitbox)) {
+      const spot = placePlayer(rules.grid, rules.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
+      p.x = spot.x;
+      p.y = spot.y;
+      p.dirty = true;
       socketOf(p)?.emit('move:correct', { x: p.x, y: p.y, seq: 0 });
-      io.to(p.scene).emit('player:updated', { id: p.id, vehicle: null });
-    },
-  });
+    }
+    p.move = newMoveState(p.x, p.y, Date.now(), rules.movement);
+    if (vehicle && p.emote) {
+      p.emote = null;
+      io.to(p.scene).emit('emote:stopped', { id: p.id });
+    }
+    io.to(p.scene).emit('player:updated', { id: p.id, vehicle });
+  }
+  const jobs = new JobSystem(cfg, econ, cryptoRand);
   log.info(`Delivery jobs: ${jobs.candidateCounts.pickups} pickup shops, ${jobs.candidateCounts.dropoffs} homes`);
 
   /** Is the player standing at an interactable of this type (and crate)? */
-  const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn', crate?: string) =>
+  const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn' | 'carwash', crate?: string) =>
     cfg.map.interactables.some(
       (i) => i.type === type && (!crate || i.crate === crate) && Math.hypot(p.x / T - i.x, p.y / T - i.y) <= cfg.economy.interactRadiusTiles,
     );
@@ -160,7 +165,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
     // --- jobs -----------------------------------------------------------------------------
     handle(socket, 'job:start', C2S.jobStart, ({ kind }) => {
-      if (!nearInteractable(me, 'jobs')) throw new GameError('Find the Jobs Board in Dataran Sunway to take a job.');
+      if (kind === 'carwash') {
+        if (!nearInteractable(me, 'carwash')) throw new GameError('Go to Kilat Car Wash (east of the Jobs Board) to wash cars.');
+        if (me.vehicle) throw new GameError('Hop off your ride first.');
+      } else if (!nearInteractable(me, 'jobs')) throw new GameError('Find the Jobs Board in Dataran Sunway to take a job.');
       const job = jobs.start(me, kind);
       const { budgetMs: _b, ...visible } = job;
       return { job: visible };
@@ -177,11 +185,51 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       socketOf(me)?.emit('job:update', { job: null, jobs: me.jobs });
       return {};
     });
-    handle(socket, 'carwash:submit', C2S.carwashSubmit, ({ jobId, points }) => {
-      const r = jobs.submitCarwash(me, jobId, points);
+    handle(socket, 'carwash:submit', C2S.carwashSubmit, ({ jobId, ...input }) => {
+      const r = jobs.submitCarwash(me, jobId, input);
       if (r.paidSen > 0) pushWallet(me, r.paidSen, 'job');
       socketOf(me)?.emit('job:update', { job: null, jobs: me.jobs });
       return r;
+    });
+
+    // --- vehicles -------------------------------------------------------------------------
+    handle(socket, 'vehicle:ride', C2S.vehicleRide, ({ vehicle }) => {
+      if (vehicle !== null) {
+        if (!world.vehiclesOf(me).includes(vehicle)) throw new GameError("You don't have that ride.");
+        if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
+      }
+      if (vehicle !== me.vehicle) setVehicle(me, vehicle);
+      return { vehicle: me.vehicle, vehicles: world.vehiclesOf(me) };
+    });
+    handle(socket, 'vehicle:order', C2S.vehicleOrder, ({ vehicle }) => {
+      const def = cfg.vehicles.vehicles[vehicle];
+      if (!def?.orderSen) throw new GameError("That ride can't be ordered.");
+      if (me.rental === vehicle) {
+        if (me.vehicle !== vehicle) setVehicle(me, vehicle);
+        return { vehicle, vehicles: world.vehiclesOf(me), walletSen: me.walletSen };
+      }
+      if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
+      econ.run(me, () => econ.change(me, -def.orderSen!, 0, 'vehicle-order', vehicle));
+      pushWallet(me, -def.orderSen, 'vehicle');
+      me.rental = vehicle;
+      setVehicle(me, vehicle);
+      return { vehicle, vehicles: world.vehiclesOf(me), walletSen: me.walletSen };
+    });
+
+    // --- hotbar ---------------------------------------------------------------------------
+    handle(socket, 'hotbar:set', C2S.hotbarSet, ({ slot, ref }) => {
+      if (ref?.kind === 'vehicle' && !cfg.vehicles.vehicles[ref.id]) throw new GameError('Unknown vehicle.');
+      if (ref?.kind === 'item') {
+        if (!cfg.itemById.has(ref.itemId) || !cfg.rarities.variants.some((v) => v.id === ref.variant)) throw new GameError('Unknown item.');
+        if (!me.inventory.some((i) => i.itemId === ref.itemId && i.variant === ref.variant)) throw new GameError("You don't have that item.");
+      }
+      const next = [...me.hotbar];
+      // An item/vehicle lives in one slot at a time: moving it clears the old slot.
+      if (ref) for (let i = 0; i < next.length; i++) if (next[i] && JSON.stringify(next[i]) === JSON.stringify(ref)) next[i] = null;
+      next[slot] = ref;
+      me.hotbar = next;
+      repos.econ.setHotbar(me.id, next);
+      return { hotbar: next };
     });
   }
 
@@ -249,7 +297,22 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     p.skills = e.skills;
     p.manifestBank = 0;
     p.manifestSecs = 0;
+    p.hotbar = normalizeHotbar(e.hotbar);
+    p.rental = null;
     econ.refreshCosmetics(p);
+  }
+
+  /** 10 slots; a brand-new player gets their starter bicycle in slot 1. */
+  function normalizeHotbar(saved: Array<HotbarRef | null> | null): Array<HotbarRef | null> {
+    const bar: Array<HotbarRef | null> = new Array(HOTBAR_SLOTS).fill(null);
+    if (!saved) {
+      world.starterVehicles.forEach((id, i) => {
+        if (i < HOTBAR_SLOTS) bar[i] = { kind: 'vehicle', id };
+      });
+      return bar;
+    }
+    for (let i = 0; i < HOTBAR_SLOTS; i++) bar[i] = saved[i] ?? null;
+    return bar;
   }
 
   // --- Manifesting: earn RM every second while holding the 🧘 Manifest emote ---------------
@@ -270,7 +333,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   }
   const manifestTimer = setInterval(() => {
     for (const p of world.players.values()) {
-      if (p.hasCharacter && p.emote === 'manifest' && !p.moving) {
+      if (p.hasCharacter && p.emote === 'manifest' && !p.moving && !p.vehicle) {
         p.manifestBank += manifestRateSen(cfg.skills, manifestLevel(p));
         p.manifestSecs++;
         if (p.manifestSecs >= cfg.skills.manifestFlushEverySec) flushManifest(p);
@@ -305,6 +368,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     loadInto,
     flushManifest,
     cancelJob: (p: OnlinePlayer) => jobs.cancel(p),
+    /** On disconnect: off the ride (a rented one is returned). */
+    leave: (p: OnlinePlayer) => {
+      p.vehicle = null;
+      p.rental = null;
+    },
     stop: () => clearInterval(manifestTimer),
   };
 }

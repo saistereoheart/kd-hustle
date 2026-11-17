@@ -126,10 +126,14 @@ export class Minimap {
     const zout = btn('−', 'zoom-out', 'Zoom out');
     const me = btn('📍', 'zoom-me', 'Centre on me');
     const close = el('button', { class: 'btn close', type: 'button' }, 'Close map');
-    const credit = el('div', { class: 'map-credit' }, `Map data ${this.map.attribution} (ODbL) · scroll / pinch to zoom, drag to move`);
+    const credit = el('div', { class: 'map-credit' }, `Map data ${this.map.attribution} (ODbL) · scroll / pinch to zoom, drag to move · M or tap outside to close`);
     const wrap = el('div', { class: 'fullmap-canvas' }, canvas, el('div', { class: 'fullmap-zoom' }, zin, zout, me));
     this.full = el('div', { class: 'fullmap' }, wrap, credit, close);
     close.addEventListener('click', () => this.closeFull());
+    // Click/tap anywhere outside the map itself closes it.
+    this.full.addEventListener('click', (e) => {
+      if (e.target === this.full || e.target === credit) this.closeFull();
+    });
     uiRoot().append(this.full);
 
     // Fit the whole map, centred.
@@ -213,6 +217,12 @@ export class Minimap {
     this.full = null;
   }
 
+  /** M: open the full map, or close it if it's open. */
+  toggleFull() {
+    if (this.full) this.closeFull();
+    else this.openFull();
+  }
+
   private drawFull() {
     if (!this.full) return;
     const canvas = this.full.querySelector('canvas')!;
@@ -275,7 +285,7 @@ export class Minimap {
     if (zoomedIn > 1.5) {
       for (const it of this.map.interactables) {
         const [lx, ly] = at(it.x, it.y);
-        label(it.type === 'jobs' ? '📋' : it.type === 'pawn' ? '🏪' : '🎰', lx, ly, '16px system-ui, sans-serif', '#ffe066', 0);
+        label(it.type === 'jobs' ? '📋' : it.type === 'pawn' ? '🏪' : it.type === 'carwash' ? '🚿' : '🎰', lx, ly, '16px system-ui, sans-serif', '#ffe066', 0);
       }
     }
     // Players and job targets

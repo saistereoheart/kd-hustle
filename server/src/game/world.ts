@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, EquipSlot, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, SelfState,
+  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, SelfState,
 } from '@kh/shared';
 import type { MoveState } from '../systems/movement/moveValidator';
 
@@ -46,10 +46,21 @@ export interface OnlinePlayer {
   /** Manifest earnings (sen, fractional) not yet paid out. */
   manifestBank: number;
   manifestSecs: number;
+  hotbar: Array<HotbarRef | null>;
+  /** A vehicle ordered from the phone (returned when you hop off), or null. */
+  rental: string | null;
 }
 
 export class World {
   readonly players = new Map<number, OnlinePlayer>();
+
+  /** Vehicles everyone owns from the start (set from vehicles.json at startup). */
+  starterVehicles: string[] = [];
+
+  /** Vehicles this player can ride right now. */
+  vehiclesOf(p: OnlinePlayer): string[] {
+    return p.rental && !this.starterVehicles.includes(p.rental) ? [...this.starterVehicles, p.rental] : [...this.starterVehicles];
+  }
 
   get(id: number) {
     return this.players.get(id);
@@ -114,6 +125,8 @@ export class World {
       jobs: p.jobs,
       job,
       skills: p.skills,
+      hotbar: p.hotbar,
+      vehicles: this.vehiclesOf(p),
     };
   }
 }

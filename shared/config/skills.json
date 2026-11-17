@@ -6,7 +6,7 @@
       "maxLevel": 25,
       "baseCostSen": 5000,
       "costGrowth": 1.6,
-      "baseSenPerSec": 1,
+      "baseSenPerSec": 2,
       "senPerSecPerLevel": 1
     }
   },

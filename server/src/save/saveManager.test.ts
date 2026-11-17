@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+﻿import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +12,7 @@ function online(id: number, x: number): OnlinePlayer {
   return {
     id, name: `p${id}`, isAdmin: false, socketId: `s${id}`, appearance: null, hasCharacter: false,
     scene: 'town', x, y: 50, dir: 'down', moving: false, dirty: false, lastSavedAt: null, mapVersion: 2,
-    move: { x, y: 50, budget: 0, lastAt: 0 }, emote: null, walletSen: 0, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set(), pages: new Set(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0,
+    move: { x, y: 50, budget: 0, lastAt: 0 }, emote: null, walletSen: 0, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set(), pages: new Set(), pity: {}, jobs: {}, job: null, vehicle: null, skills: {}, manifestBank: 0, manifestSecs: 0, hotbar: [], rental: null,
   };
 }
 

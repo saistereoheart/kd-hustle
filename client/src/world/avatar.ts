@@ -3,7 +3,11 @@ import Phaser from 'phaser';
 import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
-import { ensureBikeTextures } from '../items/vehicleArt';
+import { vehicleTexturePrefix } from '../items/vehicleArt';
+
+/** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
+ *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
+export const AVATAR_DEPTH = 500_000;
 
 /** Turns equipped cosmetics into what the character renderer needs. */
 export function wornFrom(cos: Cosmetics, items: Map<string, ItemDef>): WornCosmetics {
@@ -161,19 +165,21 @@ export class Avatar {
     }
   }
 
-  /** Hop on/off a vehicle (the delivery motorbike). */
+  /** Hop on/off a vehicle (bicycle, motorbike...). */
   setVehicle(v: string | null) {
     this.vehicle = v;
     this.bike?.destroy();
     this.bike = null;
     if (v) {
-      ensureBikeTextures(this.scene);
-      this.bike = this.scene.add.image(0, 2, 'bike_side').setOrigin(0.5, 36 / 40).setScale(0.5);
+      this.bikeTex = vehicleTexturePrefix(this.scene, v);
+      this.bike = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, 36 / 40).setScale(0.5);
       this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
     }
-    this.sprite.setY(v ? -9 : 0);
+    this.sprite.setY(v ? (v === 'bicycle' ? -8 : -9) : 0);
     this.applyAnim(true);
   }
+
+  private bikeTex = 'bike';
 
   private layoutNameplate() {
     const w = this.nameText.width + this.badge.width + 4;
@@ -191,7 +197,9 @@ export class Avatar {
 
   setPosition(x: number, y: number) {
     this.container.setPosition(x, y);
-    this.container.setDepth(y);
+    // Sort by feet y so people further down the screen stand in front. World y is relative to
+    // Menara Mitraland and goes negative up north, so lift it above the ground layers.
+    this.container.setDepth(AVATAR_DEPTH + y);
   }
 
   get x() {
@@ -229,7 +237,7 @@ export class Avatar {
     this.sprite.setFlipX(!this.emoteUntil && this.dir === 'right');
     if (this.bike) {
       const view = VIEW_OF[this.dir];
-      this.bike.setTexture(view === 'side' ? 'bike_side' : view === 'front' ? 'bike_front' : 'bike_back');
+      this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       this.bike.setFlipX(this.dir === 'right');
       // Seen from behind, the bike is in front of the rider.
       this.container.moveTo(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);

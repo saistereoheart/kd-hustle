@@ -23,8 +23,30 @@ export const C2S = {
   shardBuy: z.object({ itemId: z.string().max(40) }),
   jobStart: z.object({ kind: z.enum(['delivery', 'carwash']) }),
   skillUpgrade: z.object({ skill: z.enum(['manifest']) }),
-  carwashSubmit: z.object({ jobId: z.string().max(40), points: z.array(z.number().finite()).max(30000) }),
+  carwashSubmit: z.object({
+    jobId: z.string().max(40),
+    soap: z.array(z.number().finite()).max(20000),
+    rinse: z.array(z.number().finite()).max(20000),
+    polish: z.array(z.number().finite()).max(20000),
+    /** When the polish stage began (ms from the start of the mini-game). */
+    polishStartMs: z.number().finite().nonnegative(),
+  }),
+  hotbarSet: z.object({
+    slot: z.number().int().min(0).max(9),
+    ref: z
+      .discriminatedUnion('kind', [
+        z.object({ kind: z.literal('vehicle'), id: z.string().max(24) }),
+        z.object({ kind: z.literal('item'), itemId: z.string().max(40), variant: z.string().max(16) }),
+      ])
+      .nullable(),
+  }),
+  vehicleRide: z.object({ vehicle: z.string().max(24).nullable() }),
+  vehicleOrder: z.object({ vehicle: z.string().max(24) }),
 };
+
+export const HOTBAR_SLOTS = 10;
+/** What a hotbar slot holds: a vehicle you own, or an item (stack) from your bag. */
+export type HotbarRef = { kind: 'vehicle'; id: string } | { kind: 'item'; itemId: string; variant: string };
 export type MoveMsg = z.infer<typeof C2S.move>;
 
 /** An equipped cosmetic as other players see it. */
@@ -68,10 +90,15 @@ export type JobState =
   | {
       kind: 'carwash';
       jobId: string;
-      /** Dirt spot centres, 0..1 in the car picture. */
-      spots: Array<[number, number]>;
-      hitsPerSpot: number;
+      /** Stage 1: dirt spots [x, y, scrubs needed], 0..1 in the car picture. */
+      spots: Array<[number, number, number]>;
       spotRadius: number;
+      /** Stage 2: rinse every cell of a cols × rows grid over `area` [x0, y0, x1, y1]. */
+      rinse: { cols: number; rows: number; hitsPerCell: number; area: [number, number, number, number] };
+      /** Stage 3: shine marks; mark k shows from polishStart + k × intervalMs for windowMs. */
+      polish: { spots: Array<[number, number]>; intervalMs: number; windowMs: number; hits: number; radius: number };
+      /** Car paint colour (just for looks). */
+      color: string;
       startedAt: number;
       timeLimitSec: number;
     };
@@ -114,6 +141,10 @@ export interface SelfState extends PlayerPublic {
   job: JobState | null;
   /** Skill levels, e.g. { manifest: 3 }. */
   skills: Record<string, number>;
+  /** 10 quick-use slots (keys 1–9, 0). */
+  hotbar: Array<HotbarRef | null>;
+  /** Vehicles you can ride: starter ones plus a rented one, if any. */
+  vehicles: string[];
 }
 
 export interface ChatMsg {
@@ -179,7 +210,13 @@ export interface ClientToServerEvents {
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;
   'job:cancel': (ack: Ack<SimpleResult>) => void;
   'skill:upgrade': (msg: { skill: 'manifest' }, ack: Ack<Result<{ level: number; walletSen: number }>>) => void;
-  'carwash:submit': (msg: { jobId: string; points: number[] }, ack: Ack<Result<{ cleaned: number; paidSen: number; levelUp?: number }>>) => void;
+  'carwash:submit': (
+    msg: { jobId: string; soap: number[]; rinse: number[]; polish: number[]; polishStartMs: number },
+    ack: Ack<Result<{ cleaned: number; soap: number; rinse: number; polish: number; paidSen: number; levelUp?: number }>>,
+  ) => void;
+  'hotbar:set': (msg: { slot: number; ref: HotbarRef | null }, ack: Ack<Result<{ hotbar: Array<HotbarRef | null> }>>) => void;
+  'vehicle:ride': (msg: { vehicle: string | null }, ack: Ack<Result<{ vehicle: string | null; vehicles: string[] }>>) => void;
+  'vehicle:order': (msg: { vehicle: string }, ack: Ack<Result<{ vehicle: string; vehicles: string[]; walletSen: number }>>) => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }
 

@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { EquipSlot, InventoryItem, JobProgress, JobState, PityState, SelfState } from '@kh/shared';
+import type { EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, SelfState } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -16,6 +16,11 @@ export class Store {
   job: JobState | null = null;
   isAdmin = false;
   skills: Record<string, number> = {};
+  hotbar: Array<HotbarRef | null> = [];
+  /** Vehicles we can ride right now (starter + rented). */
+  vehicles: string[] = [];
+  /** The vehicle we're riding (mirrors the town scene's avatar). */
+  riding: string | null = null;
   private listeners = new Set<Listener>();
 
   load(you: SelfState) {
@@ -30,6 +35,9 @@ export class Store {
     this.job = you.job;
     this.isAdmin = you.isAdmin;
     this.skills = { ...you.skills };
+    this.hotbar = [...you.hotbar];
+    this.vehicles = [...you.vehicles];
+    this.riding = you.vehicle;
     this.emit();
   }
 

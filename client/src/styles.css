@@ -172,14 +172,16 @@ body.touch .minimap { transform: scale(0.75); transform-origin: top right; }
 .emote-touch-btn { position: absolute; right: calc(110px + var(--safe-r)); bottom: calc(40px + var(--safe-b)); }
 
 /* ---------- chat ---------- */
+/* Middle-left, so it never sits under the hotbar or the joystick. */
 .chat {
-  position: absolute; left: calc(8px + var(--safe-l)); bottom: calc(8px + var(--safe-b));
-  width: min(380px, calc(100vw - 16px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+  position: absolute; left: calc(10px + var(--safe-l)); top: 50%; transform: translateY(-40%);
+  width: min(440px, calc(100vw - 20px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none;
 }
-body.touch .chat { bottom: calc(160px + var(--safe-b)); width: min(320px, calc(100vw - 16px)); }
-.chat-log { display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow: hidden; justify-content: flex-end; }
-.chat.open .chat-log { overflow-y: auto; pointer-events: auto; background: var(--panel); border-radius: 12px; padding: 8px; max-height: 240px; }
-.chat-line { font-size: 13px; line-height: 1.35; text-shadow: 0 1px 2px #000, 0 0 4px #000; word-wrap: break-word; transition: opacity 1s; }
+body.touch .chat { width: min(340px, calc(100vw - 20px)); }
+.chat-log { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow: hidden; justify-content: flex-end; }
+.chat.open .chat-log { overflow-y: auto; pointer-events: auto; background: var(--panel); border-radius: 12px; padding: 10px; max-height: 320px; }
+.chat-line { font-size: 15px; line-height: 1.4; text-shadow: 0 1px 2px #000, 0 0 4px #000; word-wrap: break-word; transition: opacity 1s; }
+body.touch .chat-line { font-size: 14px; }
 .chat-line b { color: var(--accent-2); }
 .chat-line.system { color: #8ce99a; font-style: italic; }
 .chat-line.faded { opacity: 0; }
@@ -190,7 +192,59 @@ body.touch .chat { bottom: calc(160px + var(--safe-b)); width: min(320px, calc(1
   flex: 1; padding: 10px 12px; min-height: var(--tap); border-radius: 10px; border: 1px solid var(--line);
   background: #11131f; color: var(--text); font-size: 16px;
 }
-body.touch.portrait .chat { bottom: calc(170px + var(--safe-b)); }
+body.touch.portrait .chat { top: 42%; width: min(300px, calc(100vw - 20px)); }
+body.touch.portrait .chat-log { max-height: 170px; }
+
+/* ---------- hotbar ---------- */
+.hotbar {
+  position: absolute; left: 50%; bottom: calc(12px + var(--safe-b)); transform: translateX(-50%);
+  display: flex; gap: 6px; padding: 6px; border-radius: 14px; background: rgba(17, 19, 31, 0.55);
+  border: 1px solid var(--line); pointer-events: auto;
+}
+.hotbar-slot {
+  position: relative; width: 52px; height: 52px; border-radius: 10px; padding: 0;
+  background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.14);
+  display: grid; place-items: center; touch-action: manipulation; -webkit-user-select: none; user-select: none;
+}
+.hotbar-slot:hover { border-color: rgba(255,255,255,0.35); }
+.hotbar-slot img { width: 40px; height: 40px; pointer-events: none; }
+.hotbar-emoji { font-size: 26px; line-height: 1; pointer-events: none; }
+.hotbar-key { position: absolute; left: 4px; top: 1px; font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.65); pointer-events: none; }
+.hotbar-count { position: absolute; right: 3px; bottom: 1px; font-size: 10px; font-weight: 800; pointer-events: none; }
+.hotbar-slot.active { border-color: var(--accent); background: rgba(245, 159, 0, 0.25); box-shadow: 0 0 10px rgba(245, 159, 0, 0.5); }
+.hotbar-slot.missing { opacity: 0.4; }
+body.touch .hotbar { gap: 4px; padding: 4px; }
+body.touch .hotbar-slot { width: 40px; height: 40px; }
+body.touch .hotbar-slot img { width: 30px; height: 30px; }
+body.touch .hotbar-emoji { font-size: 20px; }
+/* Phone held upright: the joystick and E button fill the bottom row, so the hotbar sits above them. */
+body.touch.portrait .hotbar { bottom: calc(158px + var(--safe-b)); }
+body.touch.portrait .hotbar-slot { width: 32px; height: 36px; }
+body.touch.portrait .hotbar-slot img { width: 26px; height: 26px; }
+body.touch.portrait .hotbar-emoji { font-size: 18px; }
+body.touch.portrait .hotbar-key { font-size: 9px; left: 2px; }
+.interact-prompt { bottom: calc(84px + var(--safe-b)); }
+body.touch.portrait .interact-prompt { bottom: calc(212px + var(--safe-b)); }
+body.touch:not(.portrait) .interact-prompt { bottom: calc(68px + var(--safe-b)); }
+
+/* ---------- phone ---------- */
+.phone-section { margin: 4px 0 8px; color: var(--muted, #adb5bd); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+.phone-ride.active { border: 1px solid var(--accent); }
+.phone-actions { display: flex; flex-direction: column; gap: 6px; }
+.phone-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.phone-app {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 14px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--line); font-size: 12px; font-weight: 700;
+}
+.phone-app span { font-size: 28px; }
+
+/* ---------- car wash stages ---------- */
+.cw-stages { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.cw-stage { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.06); font-size: 13px; font-weight: 700; opacity: 0.6; }
+.cw-stage.active { background: var(--accent); color: #1b1300; opacity: 1; }
+.cw-stage.done { opacity: 0.9; text-decoration: line-through; }
+.cw-foot { display: flex; gap: 10px; align-items: center; justify-content: space-between; width: 100%; }
+.cw-tip { flex: 1; min-width: 0; }
 
 /* ---------- emote wheel ---------- */
 /* Doesn't cover the screen: you can keep walking and tapping HUD buttons while it's open. */

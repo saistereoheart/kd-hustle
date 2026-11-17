@@ -113,7 +113,7 @@ describe('town map v2 (OSM, real scale)', () => {
       const i = gridIndexAt(map, it.x * map.tileSize, it.y * map.tileSize);
       expect(seen[i], it.id).toBe(1);
     }
-    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
+    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
   });
 
   it('builds identical maps every time (client and server agree)', () => {
@@ -166,5 +166,27 @@ describe('exact (polygon) building collision', () => {
     const start = pos.x;
     for (let i = 0; i < 40; i++) pos = moveWithCollision(grid, pos.x, pos.y, 2, 0, hb);
     expect(pos.x - start).toBeGreaterThan(0); // never stuck behind a step
+  });
+
+  it('glides along an angled wall when pushing straight into it', () => {
+    // Press "down" onto the 45° wall: instead of stopping dead, slide down-right along it.
+    let pos = { x: 1.6 * 32, y: 1.3 * 32 };
+    for (let i = 0; i < 30; i++) pos = moveWithCollision(grid, pos.x, pos.y, 0, 2, hb);
+    const stuckAt = { ...pos };
+    for (let i = 0; i < 30; i++) pos = moveWithCollision(grid, pos.x, pos.y, 0, 2, hb);
+    expect(pos.x - stuckAt.x).toBeGreaterThan(15);
+    expect(pos.y - stuckAt.y).toBeGreaterThan(15);
+    expect(collides(grid, pos.x, pos.y, hb)).toBe(false);
+    // ...and the server accepts that sliding path.
+    expect(pathClear(grid, stuckAt.x, stuckAt.y, pos.x, pos.y, hb)).toBe(true);
+  });
+
+  it('still stops dead against a wall hit head-on', () => {
+    // Flat wall on the triangle's bottom edge (y = 4 tiles), approached from below, pressing up.
+    let pos = { x: 1.5 * 32, y: 4.6 * 32 };
+    for (let i = 0; i < 40; i++) pos = moveWithCollision(grid, pos.x, pos.y, 0, -2, hb);
+    const x0 = pos.x;
+    for (let i = 0; i < 20; i++) pos = moveWithCollision(grid, pos.x, pos.y, 0, -2, hb);
+    expect(Math.abs(pos.x - x0)).toBeLessThan(0.01);
   });
 });

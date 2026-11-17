@@ -99,15 +99,32 @@ export const jobsConfigSchema = z.object({
     timeBudgetSlackSec: z.number().nonnegative(),
     maxTip: z.number().nonnegative(),
     pickupRadiusTiles: z.number().positive(),
-    vehicle: z.string(),
+    /** The time budget (and so the tip) is set for this vehicle's speed. Faster rides tip more. */
+    budgetVehicle: z.string(),
   }),
   carwash: z.object({
     name: z.string(),
     baseSen: z.number().int().nonnegative(),
     timeLimitSec: z.number().positive(),
+    /** Stage 1, soap: scrub dirt spots. Some are stubborn and need more scrubbing. */
     spots: z.number().int().positive(),
+    stubbornSpots: z.number().int().nonnegative(),
     hitsPerSpot: z.number().int().positive(),
+    stubbornHits: z.number().int().positive(),
     spotRadius: z.number().positive(),
+    /** Stage 2, rinse: hose down every cell of the car body (a cols × rows grid over `rinseArea`). */
+    rinseCols: z.number().int().positive(),
+    rinseRows: z.number().int().positive(),
+    rinseHitsPerCell: z.number().int().positive(),
+    rinseArea: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    /** Stage 3, polish: shine marks pop up one by one; buff each before it fades. */
+    polishSpots: z.number().int().nonnegative(),
+    polishIntervalMs: z.number().int().positive(),
+    polishWindowMs: z.number().int().positive(),
+    polishHits: z.number().int().positive(),
+    polishRadius: z.number().positive(),
+    /** How much each stage counts towards the final score (sums to 1). */
+    weights: z.object({ soap: z.number(), rinse: z.number(), polish: z.number() }),
     maxPointsPerSec: z.number().positive(),
     minCleanToPay: z.number().min(0).max(1),
     speedBonus: z.number().nonnegative(),
@@ -116,9 +133,27 @@ export const jobsConfigSchema = z.object({
 export type JobsConfig = z.infer<typeof jobsConfigSchema>;
 
 export const vehiclesConfigSchema = z.object({
-  vehicles: z.record(z.string(), z.object({ name: z.string(), speed: z.number().positive(), hitbox: z.object({ w: z.number(), h: z.number() }) })),
+  vehicles: z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      icon: z.string(),
+      speed: z.number().positive(),
+      hitbox: z.object({ w: z.number(), h: z.number() }),
+      /** 'walk': goes where people walk (paths, sidewalks, footbridges; no highways).
+       *  'drive': goes where cars go (roads, highways, grass; no footbridges). */
+      grid: z.enum(['walk', 'drive']),
+      /** Slowest terrain multiplier (grass etc. never slows it below this). */
+      minTerrainMult: z.number().min(0).max(1),
+      /** Everyone owns one from the start. */
+      starter: z.boolean().default(false),
+      /** Can be ordered from the phone for this price (rented until you hop off). */
+      orderSen: z.number().int().positive().optional(),
+    }),
+  ),
 });
 export type VehiclesConfig = z.infer<typeof vehiclesConfigSchema>;
+export type VehicleDef = VehiclesConfig['vehicles'][string];
 
 /** Cross-file checks: every pool item exists, every item is in exactly one crate, rarities exist. */
 export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, crates: CratesConfig): string[] {
