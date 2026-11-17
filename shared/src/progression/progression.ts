@@ -85,8 +85,8 @@ export function levelUpReward(cfg: LevelsConfig, level: number): Reward {
 }
 
 // ------------------------------------------------------------------ net worth + stages
-export function netWorthSen(cfg: Pick<ProgCfg, 'rarities' | 'itemById' | 'crateOfItem' | 'pawnRate'>, walletSen: number, inventory: ReadonlyArray<{ itemId: string; variant: string }>): number {
-  let sum = walletSen;
+export function netWorthSen(cfg: Pick<ProgCfg, 'rarities' | 'itemById' | 'crateOfItem' | 'pawnRate'>, walletSen: number, inventory: ReadonlyArray<{ itemId: string; variant: string }>, assetsSen = 0): number {
+  let sum = walletSen + assetsSen;
   for (const i of inventory) {
     const def = cfg.itemById.get(i.itemId);
     if (def) sum += pawnPriceSen(cfg.rarities, def, cfg.crateOfItem.get(def.id), i.variant, cfg.pawnRate);
@@ -170,6 +170,8 @@ export interface Mods {
   carwashExtraSec: number;
   rollSpeed: number;
   autoRoll: boolean;
+  /** Stall bonuses (Business skills + Customer Rush / Speed Tonic). */
+  stall: { dishPrice: number; customers: number; wages: number; customerBuff: number; staffSpeedBuff: number };
 }
 
 /** Combines multipliers: multiply within a source type, add across types (like luck, no cap). */
@@ -210,6 +212,13 @@ export function computeMods(
     carwashExtraSec: sv('carwashSeconds'),
     rollSpeed: 1 + sv('rollSpeed'),
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
+    stall: {
+      dishPrice: sv('dishPrice'),
+      customers: sv('customers'),
+      wages: sv('wages'),
+      customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
+      staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1),
+    },
   };
 }
 
@@ -240,6 +249,8 @@ export function buildSnapshot(
   s: {
     level: number; stage: number; walletSen: number; inventory: ReadonlyArray<{ itemId: string; variant: string }>;
     index: Iterable<string>; pages: Iterable<string>; stats: Record<string, number>; skills: Record<string, number>;
+    /** Businesses / property counted in net worth (e.g. a share of what the stall cost). */
+    assetsSen?: number;
   },
 ): ProgressSnapshot {
   const index = new Set(s.index);
@@ -249,7 +260,7 @@ export function buildSnapshot(
   return {
     level: s.level,
     stage: s.stage,
-    netWorthSen: netWorthSen(cfg, s.walletSen, s.inventory),
+    netWorthSen: netWorthSen(cfg, s.walletSen, s.inventory, s.assetsSen ?? 0),
     stats: s.stats,
     skills: s.skills,
     indexFound: collectibles.filter((i) => index.has(i.id)).length,
@@ -352,9 +363,9 @@ export function makeQuest(def: QuestDef, stage: number, stats: Record<string, nu
   return { id: def.id, base: stats[def.stat] ?? 0, target: byStage(def.targets, stage), senReward: byStage(def.reward.senByStage, stage), claimed: false };
 }
 
-/** Picks `perDay` different quests the player's stage allows. */
-export function pickQuests(cfg: QuestsConfig, stage: number, stats: Record<string, number>, rand: RandInt): QuestState[] {
-  const pool = cfg.daily.filter((q) => q.minStage <= stage);
+/** Picks `perDay` different quests the player's stage (and e.g. owning a stall) allows. */
+export function pickQuests(cfg: QuestsConfig, stage: number, stats: Record<string, number>, rand: RandInt, flags: ReadonlySet<string> = new Set()): QuestState[] {
+  const pool = cfg.daily.filter((q) => q.minStage <= stage && (!q.requires || flags.has(q.requires)));
   const out: QuestState[] = [];
   while (out.length < cfg.perDay && pool.length) out.push(makeQuest(pool.splice(rand(pool.length), 1)[0], stage, stats));
   return out;
@@ -371,12 +382,24 @@ export function questText(def: QuestDef, target: number, money: (sen: number) =>
   return def.text.replace('{n}', n);
 }
 
-/** The current Hustle Path goal index after skipping every goal already met. */
-export function advancePath(cfg: GoalsConfig, from: number, snap: ProgressSnapshot, stages?: StagesConfig): number[] {
-  const done: number[] = [];
-  let i = from;
-  while (i < cfg.goals.length && conditionProgress(cfg.goals[i].cond, snap, stages).done) done.push(i++);
-  return done;
+/**
+ * Hustle Path goals that are met now but weren't done before. Goals can be finished in any order
+ * (a stall goal may have to wait for the night market to open); the HUD shows the first one not
+ * done yet (`currentGoalIndex`).
+ */
+export function newlyDoneGoals(cfg: GoalsConfig, done: ReadonlySet<string>, snap: ProgressSnapshot, stages?: StagesConfig): number[] {
+  const out: number[] = [];
+  cfg.goals.forEach((g, i) => {
+    if (!done.has(g.id) && conditionProgress(g.cond, snap, stages).done) out.push(i);
+  });
+  return out;
+}
+
+/** Index of the first goal not done yet (= goals.length when the path is complete). */
+export function currentGoalIndex(cfg: GoalsConfig, done: ReadonlySet<string> | readonly string[]): number {
+  const set = done instanceof Set ? done : new Set(done as readonly string[]);
+  const i = cfg.goals.findIndex((g) => !set.has(g.id));
+  return i < 0 ? cfg.goals.length : i;
 }
 
 // ------------------------------------------------------------------ config checks

@@ -4,6 +4,9 @@ import { z } from 'zod';
 import type { MapSource } from '../map/types';
 import type { CratesConfig, EconomyConfig, ItemsConfig, JobsConfig, RaritiesConfig, RidesConfig, VehiclesConfig } from '../economy/schemas';
 import type { GoalsConfig, LevelsConfig, QuestsConfig, StagesConfig, TitlesConfig, UpgradesConfig } from '../progression/schemas';
+import type { TimeConfig } from '../time/clock';
+import type { RecipesConfig } from '../cooking/cooking';
+import type { StallsConfig } from '../cooking/stall';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -131,5 +134,8 @@ export interface PublicConfig {
   titles: TitlesConfig;
   quests: QuestsConfig;
   goals: GoalsConfig;
+  time: TimeConfig;
+  recipes: RecipesConfig;
+  stalls: StallsConfig;
 }
 

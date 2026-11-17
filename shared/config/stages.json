@@ -6,17 +6,17 @@
     },
     {
       "n": 2, "name": "Hustler", "icon": "💪", "color": "#51cf66", "minNetWorthSen": 200000,
-      "unlocks": ["Lucky Bag (Pasar Malam)", "Mall Mystery Box (from Level 5)", "Luck skills"],
+      "unlocks": ["Pasar malam stall (cook!)", "Lucky Bag (Pasar Malam)", "Mall Mystery Box (from Level 5)", "Luck and Business skills"],
       "reward": { "sen": 20000, "items": ["luck_potion"] }
     },
     {
       "n": 3, "name": "Towkay Kecil", "icon": "🏪", "color": "#339af0", "minNetWorthSen": 5000000,
-      "unlocks": ["Food truck, SoHo studio, kedai runcit and bank loans (coming in later updates)"],
+      "unlocks": ["Kopitiam", "SoHo studio, kedai runcit and bank loans (coming in later updates)"],
       "reward": { "sen": 200000, "items": ["mega_luck_potion"] }
     },
     {
       "n": 4, "name": "Towkay", "icon": "🏢", "color": "#9c36b5", "minNetWorthSen": 100000000,
-      "unlocks": ["Condos, shoplots, kopitiam, bubble tea, casino high tables (coming in later updates)"],
+      "unlocks": ["Condos, shoplots, bubble tea, casino high tables (coming in later updates)"],
       "reward": { "sen": 2000000 }
     },
     {

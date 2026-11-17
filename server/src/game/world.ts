@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState,
+  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState, StallSelf,
 } from '@kh/shared';
 import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
@@ -63,8 +63,11 @@ export class World {
   /** Builds a player's progress for the client (set by the progression system). */
   progressOf: (p: OnlinePlayer) => ProgressState = (p) => ({
     xp: p.prog.xp, level: p.prog.level, stage: p.prog.stage, title: p.prog.title, titles: p.prog.titles, stats: p.prog.stats,
-    buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: p.prog.path,
+    buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0, goalsDone: p.prog.goalsDone,
   });
+
+  /** A player's food stall for the client (set by the stall system). */
+  stallOf: (p: OnlinePlayer) => StallSelf | null = () => null;
 
   /** Vehicles everyone owns from the start (set from vehicles.json at startup). */
   starterVehicles: string[] = [];
@@ -140,6 +143,7 @@ export class World {
       hotbar: p.hotbar,
       vehicles: this.vehiclesOf(p),
       progress: this.progressOf(p),
+      stall: this.stallOf(p),
     };
   }
 }

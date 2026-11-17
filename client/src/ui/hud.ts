@@ -21,6 +21,7 @@ export interface HudOptions {
 export class Hud {
   readonly root: HTMLElement;
   private district: HTMLElement;
+  private clock: HTMLElement;
   private wallet: HTMLElement;
   private shards: HTMLElement;
   private walletSen = 0;
@@ -50,6 +51,7 @@ export class Hud {
       return b;
     };
     this.district = el('span', { class: 'hud-district' });
+    this.clock = el('span', { class: 'hud-clock', 'data-testid': 'hud-clock', title: 'In-game time (1 hour = 1 real minute)' });
     this.wallet = el('span', { class: 'hud-wallet', 'data-testid': 'wallet', title: 'Tap for the exact amount' }, 'RM 0');
     this.shards = el('span', { class: 'hud-shards', title: 'Shards' }, '💎 0');
     this.wallet.addEventListener('click', () => toast(formatMoneyExact(this.walletSen)));
@@ -68,7 +70,7 @@ export class Hud {
       'div',
       { class: 'pill hud-pill' },
       this.lv,
-      el('div', { class: 'hud-pill-main' }, el('div', { class: 'hud-name-row' }, el('span', { class: 'hud-name' }, opts.name), this.stage), this.moneyRow, xpBar, this.district),
+      el('div', { class: 'hud-pill-main' }, el('div', { class: 'hud-name-row' }, el('span', { class: 'hud-name' }, opts.name), this.stage), this.moneyRow, xpBar, el('div', { class: 'hud-where' }, this.clock, this.district)),
     );
     const top = el(
       'div',
@@ -125,6 +127,11 @@ export class Hud {
     this.stage.replaceChildren(st.icon, el('span', { class: 'stage-name-text' }, ` ${st.name}`));
     this.stage.style.setProperty('--stage', st.color);
     this.stage.title = `Wealth stage ${st.n}: ${st.name}`;
+  }
+
+  /** In-game clock, e.g. "🌙 9:05 PM". */
+  setClock(text: string) {
+    if (this.clock.textContent !== text) this.clock.textContent = text;
   }
 
   setWallet(sen: number, shards: number) {

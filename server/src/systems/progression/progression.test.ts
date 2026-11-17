@@ -62,6 +62,7 @@ describe('XP and levels', () => {
 
   it('levelling up pays the level reward once, broadcasts the level and persists', () => {
     const { p, prog, events, pub, repos, txSum } = setup(0);
+    p.prog.goalsDone = cfg.goals.goals.map((g) => g.id); // only level rewards in this test
     p.prog.xp = totalXpForLevel(cfg.levels, 5) - 1;
     prog.check(p);
     expect(p.prog.level).toBe(4);
@@ -135,7 +136,7 @@ describe('titles and the Hustle Path', () => {
     const { p, prog, events } = setup(0);
     const g = cfg.goals.goals[0];
     prog.onJob(p, 'delivery', 5000, false);
-    expect(p.prog.path).toBe(1);
+    expect(p.prog.goalsDone).toEqual([g.id]);
     expect(events).toContainEqual({ kind: 'goal', id: g.id, rewardSen: g.reward.sen ?? 0, items: g.reward.items ?? [] });
   });
 });
@@ -143,6 +144,7 @@ describe('titles and the Hustle Path', () => {
 describe('Hustle Skills', () => {
   it('charges base × growth^level and refuses locked or unaffordable levels', () => {
     const { p, prog, repos } = setup(100_000); // RM 1,000: still stage 1
+    p.prog.goalsDone = cfg.goals.goals.map((g) => g.id); // no Hustle Path rewards mixed in
     const hh = cfg.upgrades.skills.hustle_harder;
     prog.upgradeSkill(p, 'hustle_harder');
     expect(p.walletSen).toBe(100_000 - hh.baseCostSen);

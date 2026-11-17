@@ -1,74 +1,29 @@
 {
   "perDay": 3,
   "login": [
-    { "sen": 10000, "xp": 25 },
-    { "sen": 20000, "xp": 30, "items": ["kopi_kaw"] },
-    { "sen": 30000, "xp": 40, "shards": 30 },
-    { "sen": 50000, "xp": 50, "items": ["luck_potion"] },
-    { "sen": 75000, "xp": 60, "items": ["xp_booster"] },
-    { "sen": 100000, "xp": 80, "items": ["income_booster", "luck_potion"] },
-    { "xp": 120, "crate": "mallbox", "items": ["mega_luck_potion"] }
+    {"sen": 10000, "xp": 25},
+    {"sen": 20000, "xp": 30, "items": ["kopi_kaw"]},
+    {"sen": 30000, "xp": 40, "shards": 30},
+    {"sen": 50000, "xp": 50, "items": ["luck_potion"]},
+    {"sen": 75000, "xp": 60, "items": ["xp_booster"]},
+    {"sen": 100000, "xp": 80, "items": ["income_booster", "luck_potion"]},
+    {"xp": 120, "crate": "mallbox", "items": ["mega_luck_potion"]}
   ],
   "daily": [
-    {
-      "id": "roll", "icon": "🎰", "text": "Roll any crate {n} times", "stat": "rolls",
-      "targets": [10, 20, 30, 50, 80, 100],
-      "reward": { "senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 60 }
-    },
-    {
-      "id": "jobs", "icon": "📋", "text": "Finish {n} jobs", "stat": "jobs",
-      "targets": [5, 8, 10, 12, 15, 20],
-      "reward": { "senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80 }
-    },
-    {
-      "id": "deliveries", "icon": "🛵", "text": "Make {n} food deliveries", "stat": "jobs_delivery",
-      "targets": [3, 5, 6, 8, 10, 12],
-      "reward": { "senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 70 }
-    },
-    {
-      "id": "carwash", "icon": "🧽", "text": "Wash {n} cars", "stat": "jobs_carwash",
-      "targets": [3, 5, 6, 8, 10, 12],
-      "reward": { "senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 70 }
-    },
-    {
-      "id": "perfect_wash", "icon": "✨", "text": "Get a 100% car wash {n} times", "stat": "perfectWashes",
-      "targets": [1, 2, 3, 3, 4, 5],
-      "reward": { "senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80, "items": ["kopi_kaw"] }
-    },
-    {
-      "id": "earn_jobs", "icon": "💵", "text": "Earn {n} from jobs", "stat": "jobEarnSen", "format": "money",
-      "targets": [30000, 100000, 300000, 1000000, 3000000, 10000000],
-      "reward": { "senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 70 }
-    },
-    {
-      "id": "manifest", "icon": "🧘", "text": "Manifest for {n} minutes", "stat": "manifestSecs", "format": "minutes",
-      "targets": [120, 300, 300, 600, 600, 900],
-      "reward": { "senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 50, "items": ["income_booster"] }
-    },
-    {
-      "id": "spend_crates", "icon": "🛍️", "text": "Spend {n} on crates", "stat": "crateSpendSen", "format": "money",
-      "targets": [20000, 150000, 1500000, 10000000, 100000000, 1000000000],
-      "reward": { "senByStage": [10000, 50000, 400000, 4000000, 40000000, 400000000], "xp": 60, "items": ["luck_potion"] }
-    },
-    {
-      "id": "epic_pull", "icon": "💜", "text": "Pull {n} Epic-or-better item", "stat": "epicPlusRolls",
-      "targets": [1], "minStage": 2,
-      "reward": { "senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80 }
-    },
-    {
-      "id": "pawn", "icon": "🏷️", "text": "Sell {n} items at Kedai Pajak", "stat": "sells",
-      "targets": [5, 10, 15, 20, 30, 40],
-      "reward": { "senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 40 }
-    },
-    {
-      "id": "skill", "icon": "⬆️", "text": "Buy {n} Hustle Skill levels", "stat": "skillLevels",
-      "targets": [1, 2, 3, 3, 4, 5],
-      "reward": { "senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 60 }
-    },
-    {
-      "id": "potion", "icon": "🧪", "text": "Drink {n} potion", "stat": "potionsUsed",
-      "targets": [1], "minStage": 2,
-      "reward": { "senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 40 }
-    }
+    {"id": "roll", "icon": "🎰", "text": "Roll any crate {n} times", "stat": "rolls", "targets": [10, 20, 30, 50, 80, 100], "reward": {"senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 60}},
+    {"id": "jobs", "icon": "📋", "text": "Finish {n} jobs", "stat": "jobs", "targets": [5, 8, 10, 12, 15, 20], "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80}},
+    {"id": "deliveries", "icon": "🛵", "text": "Make {n} food deliveries", "stat": "jobs_delivery", "targets": [3, 5, 6, 8, 10, 12], "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 70}},
+    {"id": "carwash", "icon": "🧽", "text": "Wash {n} cars", "stat": "jobs_carwash", "targets": [3, 5, 6, 8, 10, 12], "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 70}},
+    {"id": "perfect_wash", "icon": "✨", "text": "Get a 100% car wash {n} times", "stat": "perfectWashes", "targets": [1, 2, 3, 3, 4, 5], "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80, "items": ["kopi_kaw"]}},
+    {"id": "earn_jobs", "icon": "💵", "text": "Earn {n} from jobs", "stat": "jobEarnSen", "format": "money", "targets": [30000, 100000, 300000, 1000000, 3000000, 10000000], "reward": {"senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 70}},
+    {"id": "manifest", "icon": "🧘", "text": "Manifest for {n} minutes", "stat": "manifestSecs", "format": "minutes", "targets": [120, 300, 300, 600, 600, 900], "reward": {"senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 50, "items": ["income_booster"]}},
+    {"id": "spend_crates", "icon": "🛍️", "text": "Spend {n} on crates", "stat": "crateSpendSen", "format": "money", "targets": [20000, 150000, 1500000, 10000000, 100000000, 1000000000], "reward": {"senByStage": [10000, 50000, 400000, 4000000, 40000000, 400000000], "xp": 60, "items": ["luck_potion"]}},
+    {"id": "epic_pull", "icon": "💜", "text": "Pull {n} Epic-or-better item", "stat": "epicPlusRolls", "targets": [1], "minStage": 2, "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80}},
+    {"id": "pawn", "icon": "🏷️", "text": "Sell {n} items at Kedai Pajak", "stat": "sells", "targets": [5, 10, 15, 20, 30, 40], "reward": {"senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 40}},
+    {"id": "skill", "icon": "⬆️", "text": "Buy {n} Hustle Skill levels", "stat": "skillLevels", "targets": [1, 2, 3, 3, 4, 5], "reward": {"senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 60}},
+    {"id": "potion", "icon": "🧪", "text": "Drink {n} potion", "stat": "potionsUsed", "targets": [1], "minStage": 2, "reward": {"senByStage": [10000, 40000, 300000, 3000000, 30000000, 300000000], "xp": 40}},
+    {"id": "cook", "icon": "🍳", "text": "Cook {n} dishes at your stall", "stat": "dishes", "targets": [10, 15, 20, 25, 30, 40], "minStage": 2, "requires": "stall", "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80}},
+    {"id": "perfect_dishes", "icon": "✨", "text": "Cook {n} Perfect dishes", "stat": "perfectDishes", "targets": [5, 8, 10, 12, 15, 20], "minStage": 2, "requires": "stall", "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 90, "items": ["customer_rush"]}},
+    {"id": "stall_earn", "icon": "🏪", "text": "Earn {n} at your stall", "stat": "stallEarnSen", "format": "money", "targets": [30000, 50000, 500000, 5000000, 50000000, 500000000], "minStage": 2, "requires": "stall", "reward": {"senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 70}}
   ]
 }

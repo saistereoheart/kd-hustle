@@ -9,7 +9,9 @@
     "manifestPerMinute": 3,
     "skillLevel": 15,
     "pawnSellPerItem": 1,
-    "potionUse": 5
+    "potionUse": 5,
+    "dish": 8,
+    "dishPerfectBonus": 6
   },
   "levelUpSenPerLevel": 2000,
   "milestones": [

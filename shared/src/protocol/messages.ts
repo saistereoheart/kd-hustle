@@ -5,6 +5,8 @@ import { DIRECTIONS, type Appearance, type Direction } from '../character/appear
 import { EQUIP_SLOTS, type EquipSlot } from '../economy/schemas';
 import type { PityState } from '../luck';
 import type { ActiveBuff, QuestState } from '../progression/progression';
+import { STALL_UPGRADES, type StallState } from '../cooking/stall';
+import type { StepParams } from '../cooking/cooking';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -27,6 +29,15 @@ export const C2S = {
   itemUse: z.object({ iid: z.number().int().positive() }),
   titleEquip: z.object({ title: z.string().max(32).nullable() }),
   questClaim: z.object({ id: z.string().min(1).max(32) }),
+  stallBuy: z.object({ tier: z.number().int().positive().max(10) }),
+  stallOpen: z.object({ open: z.boolean() }),
+  stallCook: z.object({ customerId: z.number().int().nonnegative().optional(), token: z.boolean().optional() }),
+  stallServe: z.object({
+    dishId: z.string().max(40),
+    inputs: z.array(z.object({ startMs: z.number().finite(), ev: z.array(z.number().finite()).max(6000) })).max(12),
+  }),
+  stallUpgrade: z.object({ key: z.enum(STALL_UPGRADES) }),
+  stallStock: z.object({ recipe: z.string().max(32), qty: z.number().int().positive().max(1000), delivery: z.boolean() }),
   carwashSubmit: z.object({
     jobId: z.string().max(40),
     soap: z.array(z.number().finite()).max(20000),
@@ -145,8 +156,10 @@ export interface ProgressState {
   daily: { canClaim: boolean; nextDay: number; streak: number };
   /** Today's quests. */
   quests: QuestState[];
-  /** Index of the current Hustle Path goal (= number of goals when the path is done). */
+  /** Index of the first Hustle Path goal not done yet (= number of goals when the path is done). */
   path: number;
+  /** Hustle Path goals done (any order). */
+  goalsDone: string[];
 }
 
 /** Something to celebrate, sent with a progress update. */
@@ -156,6 +169,56 @@ export type ProgressEvent =
   | { kind: 'title'; id: string }
   | { kind: 'goal'; id: string; rewardSen: number; items: string[] }
   | { kind: 'questReady'; id: string };
+
+/** A customer at a stall (everyone sees them queue). */
+export interface StallCustomer {
+  id: number;
+  /** Seeds the customer's look (same on every screen). */
+  seed: number;
+  recipe: string;
+  /** Server ms they arrived, and how long they'll wait. */
+  arrivedAt: number;
+  patienceMs: number;
+  blogger: boolean;
+  /** Being cooked for right now (by the owner, or a cook). */
+  serving: 'owner' | 'staff' | null;
+}
+
+/** A food stall as everyone sees it. */
+export interface StallPublic {
+  owner: number;
+  ownerName: string;
+  plot: string;
+  tier: number;
+  /** Owner online and the stall open for business (within its hours). */
+  open: boolean;
+  rep: number;
+  staff: number;
+  queue: StallCustomer[];
+}
+
+/** Your stall, with the private bits (stock, upgrades, mastery...). */
+export type StallSelf = StallState & { earnedToday: number };
+
+/** A dish you're cooking: the steps the server built for it. */
+export interface DishState {
+  dishId: string;
+  recipe: string;
+  customerId: number;
+  steps: StepParams[];
+  /** Equipment widens the windows (the client's instant feedback uses it too). */
+  windowMult: number;
+  blogger: boolean;
+}
+
+export interface ServeResult {
+  quality: string;
+  grades: string[];
+  paidSen: number;
+  tipSen: number;
+  combo: number;
+  rep: number;
+}
 
 export interface PlayerPublic {
   id: number;
@@ -195,6 +258,8 @@ export interface SelfState extends PlayerPublic {
   /** Vehicles you own and can ride yourself. */
   vehicles: string[];
   progress: ProgressState;
+  /** Your food stall, or null if you don't own one. */
+  stall: StallSelf | null;
 }
 
 export interface ChatMsg {
@@ -212,6 +277,8 @@ export interface InitPayload {
   players: PlayerPublic[];
   chat: ChatMsg[];
   serverTime: number;
+  /** Every food stall on the map (owners' names, open or not, queues). */
+  stalls: StallPublic[];
 }
 
 /** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)] */
@@ -266,6 +333,16 @@ export interface ClientToServerEvents {
   /** Day 7 includes a free crate roll (`roll`), played with the normal reel. */
   'daily:claim': (ack: Ack<Result<{ day: number; roll?: { crateId: string; results: RollResult[] } }>>) => void;
   'quest:claim': (msg: { id: string }, ack: Ack<SimpleResult>) => void;
+  'stall:buy': (msg: { tier: number }, ack: Ack<SimpleResult>) => void;
+  'stall:open': (msg: { open: boolean }, ack: Ack<SimpleResult>) => void;
+  /** Start cooking for the front customer (or a given one). `token` = use a Perfect Cook Token. */
+  'stall:cook': (msg: { customerId?: number; token?: boolean }, ack: Ack<Result<{ dish: DishState | null; served?: ServeResult }>>) => void;
+  'stall:serve': (msg: { dishId: string; inputs: Array<{ startMs: number; ev: number[] }> }, ack: Ack<Result<{ result: ServeResult }>>) => void;
+  'stall:cancel': (ack: Ack<SimpleResult>) => void;
+  'stall:upgrade': (msg: { key: string }, ack: Ack<SimpleResult>) => void;
+  'stall:hire': (ack: Ack<SimpleResult>) => void;
+  'stall:fire': (ack: Ack<SimpleResult>) => void;
+  'stall:stock': (msg: { recipe: string; qty: number; delivery: boolean }, ack: Ack<SimpleResult>) => void;
   'carwash:submit': (
     msg: { jobId: string; soap: number[]; rinse: number[]; polish: number[]; polishStartMs: number },
     ack: Ack<Result<{ cleaned: number; soap: number; rinse: number; polish: number; paidSen: number; levelUp?: number }>>,
@@ -286,6 +363,14 @@ export interface ServerToClientEvents {
   'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
+  /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */
+  stalls: (p: { stalls: StallPublic[]; removed?: string[] }) => void;
+  /** An admin moved the in-game clock (the new offset, in game minutes). */
+  'time:offset': (p: { offsetGameMinutes: number }) => void;
+  /** Your stall's private state changed. */
+  'stall:self': (p: { stall: StallSelf | null }) => void;
+  /** Something happened at your stall that's worth a toast (a cook served a dish, a customer left...). */
+  'stall:event': (p: { kind: 'staffServed' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   snapshot: (p: SnapshotPayload) => void;
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;

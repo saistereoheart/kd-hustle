@@ -11,6 +11,7 @@ import {
   upgradesConfigSchema, levelsConfigSchema, stagesConfigSchema, titlesConfigSchema, questsConfigSchema, goalsConfigSchema,
   validateProgressionConfigs, type ProgCfg, type UpgradesConfig, type LevelsConfig, type StagesConfig, type TitlesConfig,
   type QuestsConfig, type GoalsConfig,
+  timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -40,6 +41,10 @@ export interface ServerConfig {
   titles: TitlesConfig;
   quests: QuestsConfig;
   goals: GoalsConfig;
+  time: TimeConfig;
+  recipes: RecipesConfig;
+  stalls: StallsConfig;
+  recipeById: Map<string, RecipeDef>;
   /** The configs progression needs, in one bundle (shared with the client's maths). */
   prog: ProgCfg;
   /** Lookups built from the configs above. */
@@ -90,6 +95,11 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     quests: readJson(j('quests.json'), questsConfigSchema),
     goals: readJson(j('goals.json'), goalsConfigSchema),
   };
+  const time = readJson(j('time.json'), timeConfigSchema);
+  const recipes = readJson(j('recipes.json'), recipesConfigSchema);
+  const stalls = readJson(j('stalls.json'), stallsConfigSchema);
+  const recipeById = new Map(recipes.recipes.map((r) => [r.id, r]));
+  for (const r of recipes.recipes) if (r.unlock && !recipeById.has(r.unlock.recipe)) throw new Error(`recipes.json: ${r.id} unlocks from unknown recipe ${r.unlock.recipe}`);
   const progProblems = validateProgressionConfigs(prog);
   if (progProblems.length) throw new Error(`Invalid progression config:\n  - ${progProblems.slice(0, 8).join('\n  - ')}`);
   return {
@@ -106,6 +116,10 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     titles: prog.titles,
     quests: prog.quests,
     goals: prog.goals,
+    time,
+    recipes,
+    stalls,
+    recipeById,
     prog,
     itemById,
     crateById: new Map(crates.crates.map((c) => [c.id, c])),
@@ -145,5 +159,8 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     titles: cfg.titles,
     quests: cfg.quests,
     goals: cfg.goals,
+    time: cfg.time,
+    recipes: cfg.recipes,
+    stalls: cfg.stalls,
   };
 }

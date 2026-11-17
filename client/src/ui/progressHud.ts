@@ -1,6 +1,6 @@
 // Under the top-left pill (spec §1, §16): the next-goal tracker, the daily reward + quest chips,
 // the luck readout and active potion timers. Ticks once a second so timers count down.
-import { conditionProgress, formatMoney, formatMoneyExact, nextStage, questProgress, type CondProgress } from '@kh/shared';
+import { conditionProgress, dayPhase, formatClock, formatMoney, formatMoneyExact, gameTime, nextStage, questProgress, rushHour, type CondProgress } from '@kh/shared';
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
 
@@ -64,6 +64,11 @@ export class ProgressHud {
     const app = this.app;
     const st = app.store;
     const pr = st.progress;
+    // In-game clock in the pill.
+    const gt = gameTime(app.cfg.time, st.serverNow());
+    const phase = dayPhase(app.cfg.time, gt.hourF);
+    const rush = rushHour(app.cfg.time, gt.hourF);
+    app.hud?.setClock(`${phase === 'day' ? '☀️' : phase === 'dawn' ? '🌅' : phase === 'dusk' ? '🌇' : '🌙'} ${formatClock(gt)}${rush ? ' 🍽️' : ''}`);
     // Sit just under the pill, whatever its height on this screen.
     const pill = app.hud?.pill.getBoundingClientRect();
     if (pill) this.root.style.top = `${Math.round(pill.bottom + 6)}px`;

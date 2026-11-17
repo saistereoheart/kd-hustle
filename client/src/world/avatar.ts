@@ -87,6 +87,8 @@ export class Avatar {
     opts: {
       name: string; level: number; appearance: Appearance; x: number; y: number; isSelf: boolean;
       cosmetics?: Cosmetics; vehicle?: string | null; particles?: boolean; title?: { name: string; color: string } | null;
+      /** An NPC (stall customer): no nameplate. */
+      npc?: boolean;
     },
   ) {
     this.appearance = opts.appearance;
@@ -104,6 +106,10 @@ export class Avatar {
       .setOrigin(0.5, 1);
     this.container = scene.add.container(opts.x, opts.y, [this.sprite, this.badge, this.nameText, this.titleText]);
     this.setTitle(opts.title ?? null);
+    if (opts.npc) {
+      this.nameText.setVisible(false);
+      this.badge.setVisible(false);
+    }
     this.layoutNameplate();
     this.cosmetics = opts.cosmetics ?? {};
     this.setAppearance(opts.appearance);

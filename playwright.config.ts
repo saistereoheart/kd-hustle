@@ -17,7 +17,8 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npx cross-env NODE_ENV=development KH_TEST_ALL_ADMIN=1 PORT=${port} KH_DATA_DIR=test-results/e2e-data KH_BACKUP_DIR=test-results/e2e-backups tsx server/src/index.ts`,
+        // Starts from an empty database every run (stall plots etc. don't pile up between runs).
+        command: `node -e "require('fs').rmSync('test-results/e2e-data',{recursive:true,force:true})" && npx cross-env NODE_ENV=development KH_TEST_ALL_ADMIN=1 PORT=${port} KH_DATA_DIR=test-results/e2e-data KH_BACKUP_DIR=test-results/e2e-backups tsx server/src/index.ts`,
         url: `http://localhost:${port}/api/health`,
         reuseExistingServer: false,
         timeout: 90_000,

@@ -93,6 +93,8 @@ export interface BuiltMap {
   attribution: string;
   /** Resolved interactables: where players stand to use them (tile coords of the spot). */
   interactables: Array<{ id: string; type: InteractType; name: string; crate?: string; x: number; y: number }>;
+  /** Food stall spots (tile coords): where the stall stands, and where its queue forms. */
+  stallPlots: Array<{ id: string; tier: number; x: number; y: number; queueFrom: [number, number]; queueStep: [number, number]; building?: string }>;
   /** Spawn point in world pixels (feet). */
   spawnPx: { x: number; y: number };
 }
@@ -399,6 +401,25 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y });
   }
 
+  // Stall plots: a point, or a shoplot's door (the queue forms outside, along the shopfront).
+  const stallPlots: BuiltMap['stallPlots'] = [];
+  for (const sp of ov.stallPlots) {
+    if (sp.building) {
+      const b = builtBuildings.find((bb) => bb.id === sp.building);
+      if (!b?.door) continue;
+      // Which way the door faces (dominant axis): the queue forms outside, along the shopfront.
+      const dx = b.door.frontX - b.door.x, dy = b.door.frontY - b.door.y;
+      const ox = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
+      const oy = ox === 0 ? Math.sign(dy) || 1 : 0;
+      stallPlots.push({
+        id: sp.id, tier: sp.tier, building: sp.building, x: b.door.frontX + 0.5, y: b.door.frontY + 0.5,
+        queueFrom: sp.queueFrom ?? [ox * 1.2 - oy * 0.6, oy * 1.2 + ox * 0.6], queueStep: sp.queueStep ?? [oy !== 0 ? 0.75 : 0, ox !== 0 ? 0.75 : 0],
+      });
+    } else if (sp.x !== undefined && sp.y !== undefined) {
+      stallPlots.push({ id: sp.id, tier: sp.tier, x: sp.x, y: sp.y, queueFrom: sp.queueFrom ?? [1.6, 1.4], queueStep: sp.queueStep ?? [0.75, 0] });
+    }
+  }
+
   // Exact collision: buildings collide by their real (often angled) outlines, so walls feel
   // smooth instead of tile-shaped staircases. Everything else stays tile-based.
   const polyIndex = buildPolyIndex(builtBuildings.filter((b) => b.kind !== 'roof').map((b) => b.poly));
@@ -416,6 +437,7 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     collision: { ...gridBase, solid: walkTiles, polys: polyIndex },
     driveCollision: { ...gridBase, solid: driveTiles, polys: polyIndex },
     interactables,
+    stallPlots,
     driveSolid,
     deck,
     width: W,

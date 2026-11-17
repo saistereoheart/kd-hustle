@@ -172,6 +172,21 @@ export const MIGRATIONS: Migration[] = [
     // their next login (it needs the XP config for that).
     run: (db) => backfillProgress(db),
   },
+  {
+    id: 8,
+    name: 'stalls',
+    // Phase 4: one food business per player (tier + plot as columns; stock, upgrades, mastery,
+    // reputation... as JSON). Customers and the queue live in memory only.
+    sql: `
+      CREATE TABLE stalls (
+        account_id INTEGER PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+        tier       INTEGER NOT NULL,
+        plot       TEXT NOT NULL UNIQUE,
+        data_json  TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

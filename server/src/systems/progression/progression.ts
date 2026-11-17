@@ -10,11 +10,11 @@
 //    is just "this stat went up by N since the quest was handed out".
 //  - The client gets the whole progress state back after every change (it's small).
 import {
-  advancePath, buildSnapshot, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward,
+  newlyDoneGoals, currentGoalIndex, buildSnapshot, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward,
   loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
   stageForNetWorth, formatMoney,
   type ActiveBuff, type BuffKind, type CrateDef, type InventoryItem, type Mods, type ProgressEvent, type ProgressState,
-  type RandInt, type Reward, type RollResult,
+  type RandInt, type Reward, type RollResult, type ItemDef,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { ProgressRecord, Repos } from '../../db/repos';
@@ -39,12 +39,12 @@ export interface ServerProgress {
   buffs: ServerBuff[];
   login: { lastDay: string | null; streak: number };
   quests: ProgressRecord['quests'];
-  path: number;
+  goalsDone: string[];
   xpFrac: number;
 }
 
 export function emptyProgress(): ServerProgress {
-  return { xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], login: { lastDay: null, streak: 0 }, quests: { day: null, list: [] }, path: 0, xpFrac: 0 };
+  return { xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], login: { lastDay: null, streak: 0 }, quests: { day: null, list: [] }, goalsDone: [], xpFrac: 0 };
 }
 
 export interface ProgressionHooks {
@@ -58,6 +58,12 @@ export interface ProgressionHooks {
   announce: (text: string, tier: string, banner: boolean) => void;
   /** One free roll of a crate (login streak day 7). Runs inside the caller's transaction. */
   freeRoll: (p: OnlinePlayer, crateId: string) => { crateId: string; results: RollResult[] };
+  /** Items that aren't timed buffs (Perfect Cook Token): apply them, or throw a GameError. */
+  useSpecial?: (p: OnlinePlayer, item: ItemDef) => void;
+  /** Value of businesses/property for net worth (sen). */
+  assetsOf?: (p: OnlinePlayer) => number;
+  /** Things that decide which quests can be offered ('stall' = owns a stall). */
+  flagsOf?: (p: OnlinePlayer) => Set<string>;
 }
 
 /** XP a pre-Phase-3 player earns for what their stats say they already did. */
@@ -85,7 +91,7 @@ export class ProgressionSystem {
   load(p: OnlinePlayer) {
     const now = this.clock();
     const r = this.repos.progress.load(p.id);
-    const kinds = new Set(['luck', 'xp', 'passive', 'jobPay']);
+    const kinds = new Set(['luck', 'xp', 'passive', 'jobPay', 'customers', 'staffSpeed']);
     p.prog = {
       xp: r.xp,
       level: r.level,
@@ -96,7 +102,8 @@ export class ProgressionSystem {
       buffs: r.buffs.filter((b) => b.leftMs > 0 && kinds.has(b.kind)).map((b) => ({ item: b.item, kind: b.kind as BuffKind, mult: b.mult, until: now + b.leftMs })),
       login: r.login,
       quests: r.quests,
-      path: r.path,
+      // Before Phase 4 the path was done strictly in order: the first `path` goals are done.
+      goalsDone: r.goalsDone.length ? r.goalsDone : this.cfg.goals.goals.slice(0, r.path ?? 0).map((g) => g.id),
       xpFrac: r.xpFrac,
     };
     if (r.retroXp) {
@@ -114,7 +121,7 @@ export class ProgressionSystem {
     this.repos.progress.save(p.id, {
       xp: g.xp, level: g.level, stage: g.stage, title: g.title, titles: g.titles, stats: g.stats,
       buffs: g.buffs.map((b) => ({ item: b.item, kind: b.kind, mult: b.mult, leftMs: Math.max(0, b.until - now) })).filter((b) => b.leftMs > 0),
-      login: g.login, quests: g.quests, path: g.path, xpFrac: g.xpFrac,
+      login: g.login, quests: g.quests, goalsDone: g.goalsDone, xpFrac: g.xpFrac,
     });
   }
 
@@ -131,7 +138,8 @@ export class ProgressionSystem {
       buffs: this.activeBuffs(p),
       daily: { canClaim: st.canClaim, nextDay: st.nextDay, streak: g.login.streak },
       quests: g.quests.day === dayKey(this.clock()) ? g.quests.list.map((q) => ({ ...q })) : [],
-      path: g.path,
+      path: currentGoalIndex(this.cfg.goals, g.goalsDone),
+      goalsDone: [...g.goalsDone],
     };
   }
 
@@ -161,7 +169,8 @@ export class ProgressionSystem {
     if (n) p.prog.stats[stat] = (p.prog.stats[stat] ?? 0) + n;
   }
 
-  private max(p: OnlinePlayer, stat: string, v: number) {
+  /** Raises a stat to at least `v` (e.g. the highest stall tier owned). */
+  max(p: OnlinePlayer, stat: string, v: number) {
     if (v > (p.prog.stats[stat] ?? 0)) p.prog.stats[stat] = v;
   }
 
@@ -260,6 +269,21 @@ export class ProgressionSystem {
     if (!inst) throw new GameError('You no longer have that item.');
     const def = this.cfg.itemById.get(inst.itemId);
     if (!def?.effect) throw new GameError(`${def?.name ?? 'That item'} can't be used.`);
+    if (!def.effect.durationSec) {
+      // Not a timed buff (e.g. Perfect Cook Token): the owning system applies it.
+      if (!this.hooks.useSpecial) throw new GameError(`${def.name} can't be used yet.`);
+      this.hooks.useSpecial(p, def); // throws if it can't be used right now
+      const changed = this.econ.run(p, () => {
+        this.econ.remove(p, iid);
+        const c = this.econ.refreshCosmetics(p);
+        this.econ.saveState(p);
+        return c;
+      });
+      this.bump(p, 'potionsUsed');
+      this.addXp(p, this.cfg.levels.xp.potionUse);
+      this.check(p);
+      return { removed: iid, cosmeticsChanged: changed };
+    }
     const now = this.clock();
     const durMs = Math.round(def.effect.durationSec * 1000 * this.mods(p).potionDuration);
     const capMs = this.cfg.economy.potionMaxStackMin * 60_000;
@@ -337,7 +361,7 @@ export class ProgressionSystem {
   private rolloverQuests(p: OnlinePlayer) {
     const today = dayKey(this.clock());
     if (p.prog.quests.day === today) return;
-    p.prog.quests = { day: today, list: pickQuests(this.cfg.quests, p.prog.stage, p.prog.stats, this.rand) };
+    p.prog.quests = { day: today, list: pickQuests(this.cfg.quests, p.prog.stage, p.prog.stats, this.rand, this.hooks.flagsOf?.(p)) };
     this.notified.delete(p.id);
   }
 
@@ -394,11 +418,11 @@ export class ProgressionSystem {
           if (tierIdx(t.rarity) >= tierIdx(this.cfg.titles.announceFrom)) announcements.push([`🏷️ ${p.name} earned the title "${t.name}"!`, t.rarity, false]);
           changed = true;
         }
-        for (const i of advancePath(this.cfg.goals, g.path, snap2, this.cfg.stages)) {
+        for (const i of newlyDoneGoals(this.cfg.goals, new Set(g.goalsDone), snap2, this.cfg.stages)) {
           const goal = this.cfg.goals.goals[i];
           items.push(...this.grant(p, goal.reward, `goal-${goal.id}`));
           events.push({ kind: 'goal', id: goal.id, rewardSen: goal.reward.sen ?? 0, items: goal.reward.items ?? [] });
-          g.path = i + 1;
+          g.goalsDone.push(goal.id);
           changed = true;
         }
         if (!changed) break;
@@ -425,7 +449,7 @@ export class ProgressionSystem {
   private snapshot(p: OnlinePlayer) {
     return buildSnapshot(this.cfg.prog, {
       level: p.prog.level, stage: p.prog.stage, walletSen: p.walletSen, inventory: p.inventory,
-      index: p.index, pages: p.pages, stats: p.prog.stats, skills: p.skills,
+      index: p.index, pages: p.pages, stats: p.prog.stats, skills: p.skills, assetsSen: this.hooks.assetsOf?.(p) ?? 0,
     });
   }
 

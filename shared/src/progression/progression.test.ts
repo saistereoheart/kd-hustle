@@ -11,7 +11,7 @@ import titlesJson from '../../config/titles.json';
 import upgradesJson from '../../config/upgrades.json';
 import { cratesConfigSchema, itemsConfigSchema, raritiesConfigSchema, economyConfigSchema, type CrateDef } from '../economy/schemas';
 import {
-  advancePath, buildSnapshot, combineMults, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward, loginStatus,
+  newlyDoneGoals, currentGoalIndex, buildSnapshot, combineMults, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward, loginStatus,
   manifestRateSen, netWorthSen, pickQuests, prevDayKey, questProgress, skillCostSen, skillLevel, skillLockReason, stageForNetWorth,
   totalXpForLevel, validateProgressionConfigs, xpToNext, type ProgCfg,
 } from './progression';
@@ -163,12 +163,15 @@ describe('conditions', () => {
     expect(conditionProgress({ type: 'always' }, s).done).toBe(true);
   });
 
-  it('the Hustle Path completes goals in order, several at once if already met', () => {
-    expect(advancePath(cfg.goals, 0, snap(), cfg.stages)).toEqual([]);
-    // First job done AND rolled: goals 0 and 1 complete together; goal 2 (wear) stops it.
-    expect(advancePath(cfg.goals, 0, snap({ stats: { jobs: 1, rolls: 1 } }), cfg.stages)).toEqual([0, 1]);
-    // Rolled but no job yet: nothing (goals go in order).
-    expect(advancePath(cfg.goals, 0, snap({ stats: { rolls: 1 } }), cfg.stages)).toEqual([]);
+  it('Hustle Path goals complete in any order; the HUD shows the first one not done', () => {
+    expect(newlyDoneGoals(cfg.goals, new Set(), snap(), cfg.stages)).toEqual([]);
+    expect(newlyDoneGoals(cfg.goals, new Set(), snap({ stats: { jobs: 1, rolls: 1 } }), cfg.stages)).toEqual([0, 1]);
+    // Rolled before taking a job: the roll goal pays now, the job goal stays current.
+    expect(newlyDoneGoals(cfg.goals, new Set(), snap({ stats: { rolls: 1 } }), cfg.stages)).toEqual([1]);
+    expect(newlyDoneGoals(cfg.goals, new Set(['first_roll']), snap({ stats: { rolls: 1 } }), cfg.stages)).toEqual([]);
+    expect(currentGoalIndex(cfg.goals, ['first_roll'])).toBe(0);
+    expect(currentGoalIndex(cfg.goals, ['first_job', 'first_roll'])).toBe(2);
+    expect(currentGoalIndex(cfg.goals, cfg.goals.goals.map((g) => g.id))).toBe(cfg.goals.goals.length);
   });
 });
 

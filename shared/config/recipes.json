@@ -1,0 +1,49 @@
+{
+  "recipes": [
+    {
+      "id": "nasi_lemak", "name": "Nasi Lemak", "icon": "🍛", "basePriceSen": 1500, "ingredientCostSen": 375,
+      "steps": [
+        { "kind": "hold", "label": "Scoop the rice", "hint": "Hold, then let go in the green zone", "art": "rice", "fillMs": 1600, "zoneWidth": 0.16, "zoneCenter": [0.5, 0.85] },
+        { "kind": "path", "label": "Swirl the sambal", "hint": "Drag through the dots in order", "art": "sambal", "shape": "spiral", "points": 7, "radius": 0.085 },
+        { "kind": "timing", "label": "Flip the egg", "hint": "Tap when the edges turn golden", "art": "egg", "targetMs": [1800, 3200], "maxMs": 6000 },
+        { "kind": "sequence", "label": "Add the sides", "hint": "In the order the customer asked", "art": "sides", "pick": 3,
+          "options": [ { "id": "ikan_bilis", "name": "Ikan bilis", "icon": "🐟" }, { "id": "kacang", "name": "Kacang", "icon": "🥜" }, { "id": "timun", "name": "Timun", "icon": "🥒" }, { "id": "telur", "name": "Telur rebus", "icon": "🥚" } ] },
+        { "kind": "path", "label": "Wrap the banana leaf", "hint": "Fold across, top to bottom", "art": "leaf", "shape": "fold", "points": 4, "radius": 0.1 }
+      ]
+    },
+    {
+      "id": "teh_tarik", "name": "Teh Tarik", "icon": "🧋", "basePriceSen": 800, "ingredientCostSen": 200,
+      "unlock": { "recipe": "nasi_lemak", "mastery": 1 },
+      "steps": [
+        { "kind": "timing", "label": "Brew the tea", "hint": "Stop when it turns deep amber", "art": "tea", "targetMs": [1500, 3000], "maxMs": 6000 },
+        { "kind": "rhythm", "label": "Tarik!", "hint": "Pull on every beat", "art": "pull", "beats": 6, "intervalMs": [480, 620], "leadMs": 900 },
+        { "kind": "meter", "label": "Froth it up", "hint": "Hold to pour higher; keep the foam in the zone", "art": "foam", "durationMs": 3500, "zoneWidth": 0.22, "zoneCenter": [0.45, 0.7], "rise": 0.55, "fall": 0.4 }
+      ]
+    },
+    {
+      "id": "roti_canai", "name": "Roti Canai", "icon": "🫓", "basePriceSen": 1200, "ingredientCostSen": 300,
+      "unlock": { "recipe": "teh_tarik", "mastery": 1 },
+      "steps": [
+        { "kind": "rhythm", "label": "Stretch the dough", "hint": "Slap it on every beat", "art": "dough", "beats": 5, "intervalMs": [520, 680], "leadMs": 900 },
+        { "kind": "timing", "label": "Flip it!", "hint": "Flip when it's golden underneath", "art": "flip", "targetMs": [1400, 2600], "maxMs": 5000 },
+        { "kind": "path", "label": "Fold the corners", "hint": "Each corner into the middle", "art": "fold", "shape": "corners", "points": 8, "radius": 0.09 },
+        { "kind": "sequence", "label": "Serve it with…", "hint": "What the customer asked for", "art": "curry", "pick": 2,
+          "options": [ { "id": "dhal", "name": "Dhal", "icon": "🥣" }, { "id": "kari_ayam", "name": "Kari ayam", "icon": "🍗" }, { "id": "kari_ikan", "name": "Kari ikan", "icon": "🐠" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
+      ]
+    }
+  ],
+  "windows": {
+    "hold": { "perfect": 0.35, "great": 0.8, "good": 1.6 },
+    "timingMs": { "perfect": 110, "great": 230, "good": 420 },
+    "rhythmMs": { "perfect": 70, "great": 140, "good": 230 },
+    "share": { "perfect": 0.9, "great": 0.75, "good": 0.5 }
+  },
+  "gradeScore": { "perfect": 1, "great": 0.8, "good": 0.55, "miss": 0 },
+  "quality": [
+    { "id": "perfect", "name": "Perfect", "min": 0.95, "mult": 1.8 },
+    { "id": "great", "name": "Great", "min": 0.8, "mult": 1.3 },
+    { "id": "good", "name": "Good", "min": 0.6, "mult": 1 },
+    { "id": "ok", "name": "OK", "min": 0.35, "mult": 0.8 },
+    { "id": "burnt", "name": "Burnt", "min": 0, "mult": 0.3 }
+  ]
+}

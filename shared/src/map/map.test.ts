@@ -113,7 +113,23 @@ describe('town map v2 (OSM, real scale)', () => {
       const i = gridIndexAt(map, it.x * map.tileSize, it.y * map.tileSize);
       expect(seen[i], it.id).toBe(1);
     }
-    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
+    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'gergasi', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
+  });
+
+  it('puts every stall plot, and its queue, on reachable ground', () => {
+    const seen = floodFromSpawn();
+    const tiers = new Map<number, number>();
+    for (const p of map.stallPlots) {
+      tiers.set(p.tier, (tiers.get(p.tier) ?? 0) + 1);
+      expect(seen[gridIndexAt(map, p.x * map.tileSize, p.y * map.tileSize)], p.id).toBe(1);
+      for (let k = 0; k < 6; k++) {
+        const qx = p.x + p.queueFrom[0] + p.queueStep[0] * k, qy = p.y + p.queueFrom[1] + p.queueStep[1] * k;
+        expect(map.solid[gridIndexAt(map, qx * map.tileSize, qy * map.tileSize)], `${p.id} queue ${k}`).toBe(0);
+      }
+    }
+    // Room for 5 players at every tier.
+    for (const t of [1, 2, 3]) expect(tiers.get(t) ?? 0).toBeGreaterThanOrEqual(5);
+    expect(new Set(map.stallPlots.map((p) => p.id)).size).toBe(map.stallPlots.length);
   });
 
   it('builds identical maps every time (client and server agree)', () => {

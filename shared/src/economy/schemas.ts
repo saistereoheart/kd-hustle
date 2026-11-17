@@ -33,7 +33,7 @@ export type RaritiesConfig = z.infer<typeof raritiesConfigSchema>;
 export const ITEM_TYPES = ['hat', 'face', 'aura', 'back', 'namecolor', 'trinket', 'furniture', 'booster', 'potion'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 /** What a potion does when used: multiplies one kind of buff for a while. */
-export const BUFF_KINDS = ['luck', 'xp', 'passive', 'jobPay'] as const;
+export const BUFF_KINDS = ['luck', 'xp', 'passive', 'jobPay', 'customers', 'staffSpeed', 'perfectCook'] as const;
 export type BuffKind = (typeof BUFF_KINDS)[number];
 /** Item types that can be equipped, and the slot they go into. */
 export const EQUIP_SLOTS = ['hat', 'face', 'aura', 'back', 'namecolor'] as const;
@@ -53,7 +53,8 @@ export const itemsConfigSchema = z.object({
       /** Limited items: only this many can ever be rolled on the server (serial #1..limit). */
       limit: z.number().int().positive().optional(),
       /** Potions: the buff they give when used. */
-      effect: z.object({ buff: z.enum(BUFF_KINDS), mult: z.number().min(1), durationSec: z.number().int().positive() }).optional(),
+      /** Timed buffs have `durationSec`; perfectCook gives `charges` (dishes auto-Perfect). */
+      effect: z.object({ buff: z.enum(BUFF_KINDS), mult: z.number().min(1), durationSec: z.number().int().positive().optional(), charges: z.number().int().positive().optional() }).optional(),
       /** Fixed value (sen) for items that don't come from a crate (potions from rewards). */
       valueSen: z.number().int().positive().optional(),
       /** Shard Shop price, overriding the price for its rarity. */
@@ -223,6 +224,7 @@ export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, cr
   }
   for (const i of items.items) {
     if (i.type === 'potion' && !i.effect) errors.push(`potion ${i.id} has no effect`);
+    if (i.effect && (i.effect.buff === 'perfectCook' ? !i.effect.charges : !i.effect.durationSec)) errors.push(`item ${i.id}: effect needs ${i.effect.buff === 'perfectCook' ? 'charges' : 'durationSec'}`);
     if (seen.has(i.id)) continue;
     if (isCollectible(i)) errors.push(`item ${i.id} is not in any crate`);
     else if (!i.valueSen) errors.push(`item ${i.id} is in no crate and has no valueSen`);

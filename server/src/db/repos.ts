@@ -58,7 +58,9 @@ export interface ProgressRecord {
   buffs: Array<{ item: string; kind: string; mult: number; leftMs: number }>;
   login: { lastDay: string | null; streak: number };
   quests: { day: string | null; list: Array<{ id: string; base: number; target: number; senReward: number; claimed: boolean }> };
-  path: number;
+  /** Legacy (before Phase 4): how many goals were done, in order. */
+  path?: number;
+  goalsDone: string[];
   /** Fractional XP not yet credited (manifesting earns a fraction per payout). */
   xpFrac: number;
   /** Set by migration 7 for players from before Phase 3: turn their stats into XP on login. */
@@ -104,6 +106,11 @@ export function createRepos(db: DB) {
     rollCountItem: db.prepare('SELECT COUNT(*) AS n FROM roll_log WHERE item_id = ?'),
     txInsert: db.prepare('INSERT INTO transactions (account_id, delta_sen, balance_sen, delta_shards, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     announceInsert: db.prepare('INSERT INTO announcements (text, tier, at) VALUES (?, ?, ?)'),
+    stallsAll: db.prepare('SELECT s.account_id, s.tier, s.plot, s.data_json, a.username FROM stalls s JOIN accounts a ON a.id = s.account_id'),
+    stallUpsert: db.prepare(
+      `INSERT INTO stalls (account_id, tier, plot, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET tier = excluded.tier, plot = excluded.plot, data_json = excluded.data_json, updated_at = excluded.updated_at`,
+    ),
     progressById: db.prepare('SELECT xp, level, stage, title, progress_json FROM players WHERE account_id = ?'),
     setProgress: db.prepare('UPDATE players SET xp = ?, level = ?, stage = ?, title = ?, progress_json = ? WHERE account_id = ?'),
   };
@@ -134,6 +141,17 @@ export function createRepos(db: DB) {
       logTx: (accountId: number, deltaSen: number, balanceSen: number, deltaShards: number, reason: string, ref: string | null) =>
         s.txInsert.run(accountId, deltaSen, balanceSen, deltaShards, reason, ref, Date.now()),
     },
+    stalls: {
+      all: () =>
+        (s.stallsAll.all() as Array<{ account_id: number; tier: number; plot: string; data_json: string; username: string }>).map((r) => ({
+          owner: r.account_id,
+          ownerName: r.username,
+          tier: r.tier,
+          plot: r.plot,
+          data: parseJson<Record<string, unknown>>(r.data_json, {}),
+        })),
+      save: (accountId: number, tier: number, plot: string, data: unknown) => s.stallUpsert.run(accountId, tier, plot, JSON.stringify(data), Date.now()),
+    },
     progress: {
       load: (accountId: number): ProgressRecord => {
         const r = s.progressById.get(accountId) as { xp: number; level: number; stage: number; title: string | null; progress_json: string | null } | undefined;
@@ -149,6 +167,7 @@ export function createRepos(db: DB) {
           login: j.login ?? { lastDay: null, streak: 0 },
           quests: j.quests ?? { day: null, list: [] },
           path: typeof j.path === 'number' ? j.path : 0,
+          goalsDone: Array.isArray(j.goalsDone) ? j.goalsDone : [],
           xpFrac: typeof j.xpFrac === 'number' ? j.xpFrac : 0,
           retroXp: j.retroXp === true,
         };

@@ -7,6 +7,7 @@ import { openInventoryPanel } from '../inventoryPanel';
 import { el } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
+import { renderBusiness } from './business';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -62,7 +63,10 @@ const APPS: PhoneApp[] = [
   { id: 'index', name: 'Index', icon: '📖', color: '#5f3dc4', open: (app) => openInventoryPanel(app, 1) },
   { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
   { id: 'properties', name: 'Properties', icon: '🏠', color: '#868e96', soon: 'Buy rooms, flats and condos, rent them out or run an Airbnb. Coming with Phase 5.' },
-  { id: 'business', name: 'Businesses', icon: '🏪', color: '#868e96', soon: 'Stalls, a food truck and your own kopitiam. The pasar malam stall arrives in Phase 4.' },
+  {
+    id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
+    badge: (app) => (app.store.stall && Object.values(app.store.stall.stock).every((b) => !b.reduce((a, x) => a + x.qty, 0)) ? '!' : null),
+  },
   { id: 'bank', name: 'Bank Kota', icon: '🏦', color: '#868e96', soon: 'Loans, credit score and the Ah Long. Coming with Phase 6.' },
   { id: 'market', name: 'Pasar Online', icon: '🛒', color: '#868e96', soon: 'Trade and sell items to other players. Coming with Phase 7.' },
   { id: 'leaderboard', name: 'Leaderboard', icon: '🏆', color: '#868e96', soon: 'Race your friends on net worth, rarest pull and more. Coming with Phase 7.' },

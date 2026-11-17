@@ -76,6 +76,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     players: world.inScene(p.scene).filter((o) => o.id !== p.id).map((o) => world.toPublic(o)),
     chat: chat.list(),
     serverTime: Date.now(),
+    stalls: economy.stallsPublic(),
   });
 
   io.on('connection', (socket: GameSocket) => {
@@ -239,6 +240,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       economy.flushManifest(current);
       try {
         economy.saveProgress(current); // buff timers pause while offline
+        economy.leaveStall(current); // the stall closes while its owner is away
         saves.saveNow(current); // save trigger 3
       } catch (err) {
         log.error(`Save on disconnect failed for ${me.name}`, err);

@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState } from '@kh/shared';
+import type { ActiveBuff, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -23,10 +23,16 @@ export class Store {
   riding: string | null = null;
   /** XP, level, stage, titles, stats, buffs, quests (Phase 3). */
   progress: ProgressState = {
-    xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0,
+    xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0, goalsDone: [],
   };
   /** When `progress` arrived (buff timers count down from here). */
   progressAt = Date.now();
+  /** Our food stall (private view), or null. */
+  stall: StallSelf | null = null;
+  /** Every stall on the map, by plot id. */
+  stalls = new Map<string, StallPublic>();
+  /** Server clock − local clock (ms), so the game clock matches the server's. */
+  clockOffset = 0;
   private listeners = new Set<Listener>();
 
   load(you: SelfState) {
@@ -45,6 +51,22 @@ export class Store {
     this.vehicles = [...you.vehicles];
     this.riding = you.vehicle;
     this.setProgress(you.progress, false);
+    this.stall = you.stall;
+    this.emit();
+  }
+
+  /** Now, on the server's clock. */
+  serverNow() {
+    return Date.now() + this.clockOffset;
+  }
+
+  setStalls(list: StallPublic[], replace = false) {
+    if (replace) this.stalls.clear();
+    for (const s of list) {
+      // A stall that moved (upgraded to the next tier) leaves its old plot.
+      for (const [plot, old] of this.stalls) if (old.owner === s.owner && plot !== s.plot) this.stalls.delete(plot);
+      this.stalls.set(s.plot, s);
+    }
     this.emit();
   }
 

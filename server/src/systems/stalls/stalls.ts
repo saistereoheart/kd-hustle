@@ -1,0 +1,581 @@
+// Food stalls on the server (spec §8.2). Everything that decides money happens here:
+//  - customers arrive (a Poisson process: rate depends on tier, reputation, signage, meal-time
+//    rush, the food blogger's buzz, skills and potions), queue, and leave when out of patience;
+//  - the owner cooks a dish: the server builds the steps, the client plays them and sends raw
+//    inputs, the server grades them (shared/cooking) and pays: base × quality × combo + tip;
+//  - cooks (staff) serve the queue on their own at ~50% of the "Good" price, for an hourly wage;
+//  - ingredients are bought as stock and go off after a few in-game days of play time.
+// A stall only runs while its owner is online (offline income arrives in Phase 5).
+import {
+  ageStock, customerRate, dayKey, dishBaseSen, dishPay, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
+  queueCapacity, rushHour, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
+  validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES,
+  type DishState, type RandInt, type ServeResult, type StallCustomer, type StallPublic, type StallSelf, type StallState, type StallUpgrade,
+  type StepInput,
+} from '@kh/shared';
+import type { ServerConfig } from '../../config/loadConfig';
+import type { Repos } from '../../db/repos';
+import type { OnlinePlayer, World } from '../../game/world';
+import { GameError, type Economy } from '../economy/economy';
+import type { ProgressionSystem } from '../progression/progression';
+
+interface Dish {
+  state: DishState;
+  startedAt: number;
+  deadline: number;
+  customer: StallCustomer;
+}
+
+interface Live {
+  owner: number;
+  ownerName: string;
+  s: StallState;
+  queue: StallCustomer[];
+  /** One entry per cook: who they're cooking for and when it's done. */
+  cooks: Array<{ customer: StallCustomer; doneAt: number } | null>;
+  dish: Dish | null;
+  /** Stall open for business right now (owner online + switched on + within hours). */
+  live: boolean;
+  /** Cooks wait for their wages if the owner couldn't pay. */
+  unpaid: boolean;
+  lastTick: number;
+  wageAcc: number;
+  earned: { day: string; sen: number };
+  dirtyPublic: boolean;
+  dirtySelf: boolean;
+  dirtySave: boolean;
+  outOfStockWarned: boolean;
+}
+
+export interface StallHooks {
+  publicChanged: (stalls: StallPublic[]) => void;
+  selfChanged: (p: OnlinePlayer, stall: StallSelf | null) => void;
+  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
+}
+
+const nextId = (() => {
+  let n = 1;
+  return () => n++;
+})();
+
+export class StallSystem {
+  private stalls = new Map<number, Live>();
+
+  constructor(
+    private readonly cfg: ServerConfig,
+    private readonly repos: Repos,
+    private readonly econ: Economy,
+    private readonly prog: ProgressionSystem,
+    private readonly world: World,
+    private readonly rand: RandInt,
+    private readonly hooks: StallHooks,
+    private readonly clock: () => number = Date.now,
+  ) {
+    for (const r of repos.stalls.all()) this.stalls.set(r.owner, this.wrap(r.owner, r.ownerName, this.fromData(r.tier, r.plot, r.data)));
+  }
+
+  // ---------------------------------------------------------------- state helpers
+  private fromData(tier: number, plot: string, d: Record<string, unknown>): StallState {
+    const st = this.cfg.stalls;
+    return {
+      tier, plot,
+      open: d.open !== false,
+      rep: typeof d.rep === 'number' ? d.rep : st.reputation.start,
+      upgrades: (d.upgrades as StallState['upgrades']) ?? {},
+      staff: typeof d.staff === 'number' ? d.staff : 0,
+      stock: (d.stock as StallState['stock']) ?? {},
+      mastery: (d.mastery as StallState['mastery']) ?? {},
+      combo: typeof d.combo === 'number' ? d.combo : 0,
+      perfectTokens: typeof d.perfectTokens === 'number' ? d.perfectTokens : 0,
+      investedSen: typeof d.investedSen === 'number' ? d.investedSen : 0,
+      buzzUntil: 0,
+    };
+  }
+
+  private wrap(owner: number, ownerName: string, s: StallState): Live {
+    return {
+      owner, ownerName, s, queue: [], cooks: [], dish: null, live: false, unpaid: false, lastTick: this.clock(), wageAcc: 0,
+      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false,
+    };
+  }
+
+  private save(l: Live) {
+    const { tier, plot, buzzUntil: _b, ...rest } = l.s;
+    this.repos.stalls.save(l.owner, tier, plot, rest);
+    l.dirtySave = false;
+  }
+
+  private mine(p: OnlinePlayer): Live {
+    const l = this.stalls.get(p.id);
+    if (!l) throw new GameError("You don't have a stall yet. 📱 → Business to buy one.");
+    return l;
+  }
+
+  get(ownerId: number) {
+    return this.stalls.get(ownerId);
+  }
+
+  publicOf(l: Live): StallPublic {
+    return { owner: l.owner, ownerName: l.ownerName, plot: l.s.plot, tier: l.s.tier, open: l.live, rep: Math.round(l.s.rep), staff: l.s.staff, queue: l.queue };
+  }
+
+  all(): StallPublic[] {
+    return [...this.stalls.values()].map((l) => this.publicOf(l));
+  }
+
+  selfOf(p: OnlinePlayer): StallSelf | null {
+    const l = this.stalls.get(p.id);
+    if (!l) return null;
+    const today = dayKey(this.clock());
+    return { ...l.s, stock: structuredClone(l.s.stock), earnedToday: l.earned.day === today ? l.earned.sen : 0 };
+  }
+
+  assetsOf(p: OnlinePlayer): number {
+    return stallAssetSen(this.cfg.stalls, this.stalls.get(p.id)?.s);
+  }
+
+  private bonuses(p: OnlinePlayer) {
+    return this.prog.mods(p).stall;
+  }
+
+  private hourF(now = this.clock()) {
+    return gameTime(this.cfg.time, now).hourF;
+  }
+
+  private plotDef(id: string) {
+    return this.cfg.map.stallPlots.find((x) => x.id === id);
+  }
+
+  /** Is the player standing at their stall? */
+  private atStall(p: OnlinePlayer, l: Live) {
+    const plot = this.plotDef(l.s.plot);
+    const T = this.cfg.map.tileSize;
+    return !!plot && Math.hypot(p.x / T - plot.x, p.y / T - plot.y) <= this.cfg.stalls.cookRadiusTiles;
+  }
+
+  private touch(l: Live, save = true) {
+    l.dirtyPublic = true;
+    l.dirtySelf = true;
+    if (save) l.dirtySave = true;
+  }
+
+  private earn(l: Live, sen: number) {
+    const today = dayKey(this.clock());
+    if (l.earned.day !== today) l.earned = { day: today, sen: 0 };
+    l.earned.sen += sen;
+  }
+
+  // ---------------------------------------------------------------- buying + managing
+  /** Buy your first stall (tier 1) or move up to the next tier. */
+  buy(p: OnlinePlayer, tier: number) {
+    const cur = this.stalls.get(p.id);
+    const want = cur ? cur.s.tier + 1 : 1;
+    if (tier !== want) throw new GameError(cur ? `Your next upgrade is the ${tierDef(this.cfg.stalls, want).name}.` : 'Start with a pasar malam stall.');
+    const def = this.cfg.stalls.tiers.find((t) => t.tier === tier);
+    if (!def) throw new GameError("That's the best there is!");
+    if (def.requires.stage && p.prog.stage < def.requires.stage) throw new GameError(`${def.name} needs wealth stage ${def.requires.stage}.`);
+    if (def.requires.level && p.prog.level < def.requires.level) throw new GameError(`${def.name} needs Level ${def.requires.level}.`);
+    if (p.walletSen < def.priceSen) throw new GameError(`${def.name} costs ${formatMoney(def.priceSen)}.`);
+    const taken = new Set([...this.stalls.values()].map((x) => x.s.plot));
+    const plot = this.cfg.map.stallPlots.find((x) => x.tier === tier && !taken.has(x.id));
+    if (!plot) throw new GameError(`All the ${def.name} spots are taken.`);
+    if (cur?.dish) throw new GameError('Finish the dish you are cooking first.');
+    const l = cur ?? this.wrap(p.id, p.name, this.fromData(tier, plot.id, {}));
+    this.econ.run(p, () => {
+      this.econ.change(p, -def.priceSen, 0, 'stall-buy', `${def.id}:${plot.id}`);
+      l.s.tier = tier;
+      l.s.plot = plot.id;
+      l.s.investedSen += def.priceSen;
+      // A brand-new stall comes with a few portions to get going.
+      if (!cur) l.s.stock = { [this.cfg.recipes.recipes[0].id]: [{ qty: 10, age: 0 }] };
+      this.save(l);
+    });
+    if (cur) {
+      // Moving: the old queue stays behind.
+      cur.queue = [];
+      cur.cooks = [];
+    }
+    this.stalls.set(p.id, l);
+    this.hooks.wallet(p, -def.priceSen, 'stall');
+    this.prog.max(p, 'stallTier', tier);
+    this.touch(l);
+    this.flush();
+    this.prog.check(p);
+  }
+
+  setOpen(p: OnlinePlayer, open: boolean) {
+    const l = this.mine(p);
+    l.s.open = open;
+    if (!open) this.closeUp(p, l, false);
+    this.touch(l);
+    this.flush();
+  }
+
+  upgrade(p: OnlinePlayer, key: StallUpgrade) {
+    const l = this.mine(p);
+    const def = this.cfg.stalls.upgrades[key];
+    if (!def) throw new GameError('Unknown upgrade.');
+    const lv = upgradeLevel(l.s, key);
+    if (lv >= def.maxLevel) throw new GameError(`${def.name} is maxed out.`);
+    const cost = upgradeCostSen(this.cfg.stalls, l.s.tier, key, lv);
+    if (p.walletSen < cost) throw new GameError(`${def.name} Lv ${lv + 1} costs ${formatMoney(cost)}.`);
+    this.econ.run(p, () => {
+      this.econ.change(p, -cost, 0, 'stall-upgrade', `${key}:${lv + 1}`);
+      l.s.upgrades = { ...l.s.upgrades, [key]: lv + 1 };
+      l.s.investedSen += cost;
+      this.save(l);
+    });
+    this.hooks.wallet(p, -cost, 'stall');
+    this.touch(l);
+    this.flush();
+    this.prog.check(p); // net worth includes the stall
+  }
+
+  hire(p: OnlinePlayer) {
+    const l = this.mine(p);
+    const t = tierDef(this.cfg.stalls, l.s.tier);
+    if (l.s.staff >= t.staffMax) throw new GameError(`A ${t.name} has room for ${t.staffMax} cook${t.staffMax === 1 ? '' : 's'}.`);
+    if (p.walletSen < t.hireSen) throw new GameError(`Hiring a cook costs ${formatMoney(t.hireSen)}.`);
+    this.econ.run(p, () => {
+      this.econ.change(p, -t.hireSen, 0, 'stall-hire', String(l.s.staff + 1));
+      l.s.staff++;
+      this.save(l);
+    });
+    this.hooks.wallet(p, -t.hireSen, 'stall');
+    this.prog.bump(p, 'staffHired');
+    l.unpaid = false;
+    this.touch(l);
+    this.flush();
+    this.prog.check(p);
+  }
+
+  fire(p: OnlinePlayer) {
+    const l = this.mine(p);
+    if (l.s.staff <= 0) throw new GameError('You have no cooks.');
+    l.s.staff--;
+    const busy = l.cooks.pop();
+    if (busy) busy.customer.serving = null;
+    this.touch(l);
+    this.save(l);
+    this.flush();
+  }
+
+  /** Buy a pack of ingredients: in person at the hypermarket, or delivered (costs extra). */
+  buyStock(p: OnlinePlayer, recipeId: string, qty: number, delivery: boolean) {
+    const l = this.mine(p);
+    const recipe = this.cfg.recipeById.get(recipeId);
+    if (!recipe) throw new GameError('Unknown recipe.');
+    if (!menuRecipes(this.cfg.stalls, this.cfg.recipes.recipes, l.s).some((r) => r.id === recipeId)) throw new GameError(`${recipe.name} isn't on your menu yet.`);
+    const price = stockPriceSen(this.cfg.stalls, recipe, l.s, qty, delivery);
+    if (!Number.isFinite(price)) throw new GameError('Pick a pack size.');
+    if (stockCount(l.s, recipeId) + qty > this.cfg.stalls.stock.maxPerRecipe) throw new GameError(`You can keep up to ${this.cfg.stalls.stock.maxPerRecipe} portions of each dish.`);
+    if (p.walletSen < price) throw new GameError(`That's ${formatMoney(price)}.`);
+    this.econ.run(p, () => {
+      this.econ.change(p, -price, 0, 'stall-stock', `${recipeId}x${qty}${delivery ? ':delivery' : ''}`);
+      l.s.stock = { ...l.s.stock, [recipeId]: [...(l.s.stock[recipeId] ?? []), { qty, age: 0 }] };
+      this.save(l);
+    });
+    l.outOfStockWarned = false;
+    this.hooks.wallet(p, -price, 'stock');
+    this.prog.bump(p, 'stockBought', qty);
+    this.touch(l);
+    this.flush();
+    this.prog.check(p);
+  }
+
+  /** Perfect Cook Token: the next N dishes are auto-Perfect. */
+  addPerfectTokens(p: OnlinePlayer, n: number) {
+    const l = this.mine(p);
+    l.s.perfectTokens += n;
+    this.touch(l);
+    this.save(l);
+    this.flush();
+  }
+
+  // ---------------------------------------------------------------- cooking (active mode)
+  cook(p: OnlinePlayer, customerId: number | undefined, useToken: boolean): { dish: DishState | null; served?: ServeResult } {
+    const l = this.mine(p);
+    if (!l.live) throw new GameError(this.closedReason(l));
+    if (!this.atStall(p, l)) throw new GameError('Walk to your stall to cook.');
+    if (l.dish) throw new GameError("You're already cooking!");
+    const waiting = l.queue.filter((c) => !c.serving);
+    const customer = customerId !== undefined ? waiting.find((c) => c.id === customerId) : waiting[0];
+    if (!customer) throw new GameError('No one is waiting. Customers come when the stall is open and has stock.');
+    const recipe = this.cfg.recipeById.get(customer.recipe)!;
+    if (useToken && l.s.perfectTokens <= 0) throw new GameError('You have no Perfect Cook Tokens.');
+    if (!takeStock(l.s, recipe.id)) throw new GameError(`Out of ${recipe.name} ingredients! 📱 → Business → Stock.`);
+    customer.serving = 'owner';
+    if (useToken) {
+      l.s.perfectTokens--;
+      const served = this.finish(p, l, customer, recipe.id, recipe.steps.map(() => 'perfect'));
+      return { dish: null, served };
+    }
+    const steps = makeDish(recipe, this.rand);
+    const now = this.clock();
+    const state: DishState = {
+      dishId: `dish-${now.toString(36)}-${this.rand(1e6).toString(36)}`, recipe: recipe.id, customerId: customer.id, steps,
+      windowMult: windowMult(this.cfg.stalls, l.s), blogger: customer.blogger,
+    };
+    const budget = steps.reduce((a, s) => a + s.maxMs, 0);
+    l.dish = { state, startedAt: now, deadline: now + budget + this.cfg.stalls.dishTimeoutSlackSec * 1000, customer };
+    this.touch(l);
+    this.flush();
+    return { dish: state };
+  }
+
+  serve(p: OnlinePlayer, dishId: string, inputs: StepInput[]): ServeResult {
+    const l = this.mine(p);
+    const d = l.dish;
+    if (!d || d.state.dishId !== dishId) throw new GameError('That dish is gone (it took too long?).');
+    const elapsed = this.clock() - d.startedAt;
+    const bad = validateDishInputs(d.state.steps, inputs, elapsed);
+    const grades = bad
+      ? d.state.steps.map(() => 'miss' as const)
+      : d.state.steps.map((s, i) => gradeStep(this.cfg.recipes, s, inputs[i].ev, d.state.windowMult).grade);
+    l.dish = null;
+    return this.finish(p, l, d.customer, d.state.recipe, grades);
+  }
+
+  cancel(p: OnlinePlayer) {
+    const l = this.mine(p);
+    if (!l.dish) return;
+    // The ingredients are used up; the customer goes back to waiting.
+    l.dish.customer.serving = null;
+    l.dish = null;
+    l.s.combo = 0;
+    this.touch(l);
+    this.flush();
+  }
+
+  /** Pay for a dish the owner cooked (graded steps → quality → money, reputation, mastery). */
+  private finish(p: OnlinePlayer, l: Live, customer: StallCustomer, recipeId: string, grades: Array<'perfect' | 'great' | 'good' | 'miss'>): ServeResult {
+    const st = this.cfg.stalls;
+    const recipe = this.cfg.recipeById.get(recipeId)!;
+    const q = dishQuality(this.cfg.recipes, grades);
+    const now = this.clock();
+    const rush = rushHour(this.cfg.time, this.hourF(now)) !== null;
+    const b = this.bonuses(p);
+    const base = dishBaseSen(st, recipe, l.s, rush, b);
+    // Combo: each Perfect in a row adds a bit (applies from the next dish).
+    const combo = l.s.combo;
+    const patienceLeft = 1 - (now - customer.arrivedAt) / customer.patienceMs;
+    const { paySen, tipSen } = dishPay(st, base, q.mult, q.quality, combo, patienceLeft, customer.blogger);
+    l.s.combo = q.quality === 'perfect' ? Math.min(st.combo.max, combo + st.combo.perPerfect) : 0;
+    const repDelta = st.reputation.perQuality[q.quality as keyof typeof st.reputation.perQuality] ?? 0;
+    l.s.rep = Math.max(0, Math.min(st.reputation.max, l.s.rep + repDelta));
+    if (customer.blogger) {
+      const happy = q.quality === 'perfect' || q.quality === 'great';
+      l.s.rep = Math.max(0, Math.min(st.reputation.max, l.s.rep + (happy ? st.blogger.repBonus : -st.blogger.repPenalty)));
+      if (happy) {
+        l.s.buzzUntil = now + st.blogger.boostGameHours * 60 * this.cfg.time.realMsPerGameMinute;
+        this.prog.bump(p, 'bloggers');
+      }
+    }
+    const before = masteryLevel(st, l.s.mastery[recipeId] ?? 0);
+    l.s.mastery = { ...l.s.mastery, [recipeId]: (l.s.mastery[recipeId] ?? 0) + 1 };
+    l.queue = l.queue.filter((c) => c.id !== customer.id);
+    const total = paySen + tipSen;
+    this.econ.run(p, () => {
+      this.econ.change(p, total, 0, 'stall-dish', `${recipeId}:${q.quality}${customer.blogger ? ':blogger' : ''}`);
+      this.save(l);
+    });
+    this.earn(l, total);
+    this.hooks.wallet(p, total, 'stall');
+    this.prog.bump(p, 'dishes');
+    this.prog.bump(p, `dishes_${recipeId}`);
+    if (q.quality === 'perfect') this.prog.bump(p, 'perfectDishes');
+    this.prog.bump(p, 'stallEarnSen', total);
+    this.prog.addXp(p, this.cfg.levels.xp.dish + (q.quality === 'perfect' ? this.cfg.levels.xp.dishPerfectBonus : 0));
+    if (masteryLevel(st, l.s.mastery[recipeId]) > before) this.hooks.event(p, { kind: 'staffServed', text: `⭐ ${recipe.name} mastery ${masteryLevel(st, l.s.mastery[recipeId])}! Prices up.` });
+    this.touch(l);
+    this.flush();
+    this.prog.check(p);
+    return { quality: q.quality, grades, paidSen: paySen, tipSen, combo: l.s.combo, rep: Math.round(l.s.rep) };
+  }
+
+  private closedReason(l: Live): string {
+    const t = tierDef(this.cfg.stalls, l.s.tier);
+    if (!l.s.open) return 'Your stall is closed. Open it first.';
+    const [a, b] = t.hours;
+    const fmt = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+    return `Your ${t.name} opens ${fmt(a)} – ${fmt(b)} (in-game).`;
+  }
+
+  // ---------------------------------------------------------------- the simulation tick
+  /** Customers clear off and cooks stop (owner left, closed, or hours over). */
+  private closeUp(p: OnlinePlayer | undefined, l: Live, announce: boolean) {
+    l.queue = [];
+    l.cooks = [];
+    if (l.dish) {
+      l.dish = null;
+      l.s.combo = 0;
+    }
+    if (l.live && announce && p) this.hooks.event(p, { kind: 'closed', text: `🌙 Your ${tierDef(this.cfg.stalls, l.s.tier).name} closed for the night.` });
+    l.live = false;
+    this.touch(l, false);
+  }
+
+  /** Runs every stall (call ~4×/s). */
+  tick(now = this.clock()) {
+    const hourF = this.hourF(now);
+    const rush = rushHour(this.cfg.time, hourF) !== null;
+    for (const l of this.stalls.values()) {
+      const p = this.world.get(l.owner);
+      const dt = Math.min(5000, Math.max(0, now - l.lastTick));
+      l.lastTick = now;
+      const shouldBeLive = !!p && p.hasCharacter && l.s.open && stallOpenNow(this.cfg.stalls, l.s.tier, hourF);
+      if (!shouldBeLive) {
+        if (l.live || l.queue.length) this.closeUp(p, l, !!p);
+        continue;
+      }
+      if (!l.live) {
+        l.live = true;
+        this.touch(l, false);
+      }
+      const owner = p!;
+      const st = this.cfg.stalls;
+      const b = this.bonuses(owner);
+
+      // Stock ages (play time only); spoiled stock is thrown away.
+      const gameMin = dt / this.cfg.time.realMsPerGameMinute;
+      const spoiled = ageStock(st, l.s, gameMin);
+      if (spoiled > 0) {
+        this.hooks.event(owner, { kind: 'spoiled', text: `🗑️ ${spoiled} portions of ingredients went off.` });
+        this.touch(l);
+      }
+
+      // A dish left too long is thrown away; the customer leaves unhappy.
+      if (l.dish && now > l.dish.deadline) {
+        const c = l.dish.customer;
+        l.dish = null;
+        l.s.combo = 0;
+        l.queue = l.queue.filter((x) => x.id !== c.id);
+        l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer);
+        this.touch(l);
+      }
+
+      // Customers who run out of patience leave (not the ones being served).
+      const before = l.queue.length;
+      const lost = l.queue.filter((c) => !c.serving && now > c.arrivedAt + c.patienceMs);
+      if (lost.length) {
+        l.queue = l.queue.filter((c) => !lost.includes(c));
+        l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer * lost.length);
+        this.prog.bump(owner, 'customersLost', lost.length);
+        this.hooks.event(owner, { kind: 'lost', text: `😤 ${lost.length === 1 ? 'A customer' : `${lost.length} customers`} gave up waiting.` });
+      }
+
+      // New customers: they only come for dishes you have ingredients for.
+      const menu = menuRecipes(st, this.cfg.recipes.recipes, l.s).filter((r) => stockCount(l.s, r.id) > 0);
+      if (!menu.length) {
+        if (!l.outOfStockWarned) {
+          l.outOfStockWarned = true;
+          this.hooks.event(owner, { kind: 'lost', text: '📦 Out of ingredients: no one can order. 📱 → Business → Stock.' });
+        }
+      } else if (l.queue.length < queueCapacity(st, l.s)) {
+        const perMs = customerRate(st, l.s, rush, now, b) / 60_000;
+        if (this.rand(1_000_000) / 1_000_000 < perMs * dt) {
+          const tier = tierDef(st, l.s.tier);
+          const blogger = l.s.rep >= st.blogger.minReputation && this.rand(1_000_000) / 1_000_000 < st.blogger.chance;
+          const [p0, p1] = tier.patienceSec;
+          l.queue.push({
+            id: nextId(), seed: this.rand(1 << 30), recipe: menu[this.rand(menu.length)].id, arrivedAt: now,
+            patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000), blogger, serving: null,
+          });
+          if (blogger) this.hooks.event(owner, { kind: 'blogger', text: '📸 A food blogger is in your queue! Cook them something Great (5× pay).' });
+        }
+      }
+
+      // Cooks: each free cook takes the next waiting customer; finished dishes pay out.
+      while (l.cooks.length < l.s.staff) l.cooks.push(null);
+      l.cooks.length = l.s.staff;
+      let staffSen = 0;
+      let staffDishes = 0;
+      for (let i = 0; i < l.cooks.length; i++) {
+        const c = l.cooks[i];
+        if (c && now >= c.doneAt) {
+          const recipe = this.cfg.recipeById.get(c.customer.recipe)!;
+          // Cooks make "Good" food at the passive rate: no combo, no tips, no blogger bonus.
+          staffSen += Math.round(dishBaseSen(st, recipe, l.s, rush, b) * st.staff.passiveRate);
+          staffDishes++;
+          l.queue = l.queue.filter((x) => x.id !== c.customer.id);
+          l.cooks[i] = null;
+        }
+        if (!l.cooks[i] && !l.unpaid) {
+          // Cooks leave food bloggers to the boss.
+          const next = l.queue.find((x) => !x.serving && !x.blogger && stockCount(l.s, x.recipe) > 0);
+          if (next && takeStock(l.s, next.recipe)) {
+            next.serving = 'staff';
+            l.cooks[i] = { customer: next, doneAt: now + staffCookMs(st, l.s, b) };
+          }
+        }
+      }
+      if (staffSen > 0) {
+        try {
+          this.econ.run(owner, () => this.econ.change(owner, staffSen, 0, 'stall-staff', `${staffDishes}`));
+          this.earn(l, staffSen);
+          this.hooks.wallet(owner, staffSen, 'stall-staff');
+          this.prog.bump(owner, 'staffDishes', staffDishes);
+          this.prog.bump(owner, 'stallEarnSen', staffSen);
+        } catch {
+          /* never fails: income */
+        }
+      }
+
+      // Wages: per cook per in-game hour worked.
+      if (l.s.staff > 0) {
+        l.wageAcc += gameMin;
+        if (l.wageAcc >= 60) {
+          l.wageAcc -= 60;
+          const wage = wagePerHourSen(st, l.s.tier, b) * l.s.staff;
+          try {
+            this.econ.run(owner, () => this.econ.change(owner, -wage, 0, 'stall-wages', `${l.s.staff}`));
+            this.hooks.wallet(owner, -wage, 'wages');
+            l.unpaid = false;
+          } catch {
+            if (!l.unpaid) this.hooks.event(owner, { kind: 'wagesUnpaid', text: `💸 You can't pay your cooks (${formatMoney(wage)}/hour). They've stopped working.`, sen: wage });
+            l.unpaid = true;
+          }
+        }
+      }
+
+      if (lost.length || l.queue.length !== before || staffDishes) this.touch(l);
+      if (staffDishes) this.prog.check(owner);
+    }
+    this.flush();
+  }
+
+  /** Sends what changed: public stall state to everyone, private state to owners. */
+  flush() {
+    const changed: StallPublic[] = [];
+    for (const l of this.stalls.values()) {
+      if (l.dirtyPublic) {
+        changed.push(this.publicOf(l));
+        l.dirtyPublic = false;
+      }
+      if (l.dirtySelf) {
+        const p = this.world.get(l.owner);
+        if (p) this.hooks.selfChanged(p, this.selfOf(p));
+        l.dirtySelf = false;
+      }
+    }
+    if (changed.length) this.hooks.publicChanged(changed);
+  }
+
+  /** Save stalls with unsaved changes (call every few seconds and on shutdown). */
+  saveDirty(force = false) {
+    for (const l of this.stalls.values()) if (l.dirtySave || force) this.save(l);
+  }
+
+  /** The owner left: close up and save. */
+  leave(p: OnlinePlayer) {
+    const l = this.stalls.get(p.id);
+    if (!l) return;
+    this.closeUp(undefined, l, false);
+    this.save(l);
+    this.flush();
+  }
+
+  /** For the Business app / tests: list of upgrades with costs. */
+  static upgradeKeys = STALL_UPGRADES;
+}

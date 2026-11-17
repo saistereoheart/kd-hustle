@@ -11,6 +11,7 @@ import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { Avatar } from './avatar';
 import { MapView } from './mapRenderer';
+import { StallLayer } from './stallLayer';
 
 interface Sample {
   t: number;
@@ -56,6 +57,8 @@ export class TownScene extends Phaser.Scene {
   private doorIndex = new Map<number, BuiltBuilding>();
   private nearBuilding: BuiltBuilding | null = null;
   private nearInteract: BuiltMap['interactables'][number] | null = null;
+  private nearPlot: BuiltMap['stallPlots'][number] | null = null;
+  private stalls!: StallLayer;
   private marker: Phaser.GameObjects.Container | null = null;
   private vehicleSpeed: Float32Array = new Float32Array(0);
   private offs: Array<() => void> = [];
@@ -97,6 +100,7 @@ export class TownScene extends Phaser.Scene {
     if (res !== this.mapRes) {
       this.mapRes = res;
       this.mapView.destroy();
+      this.stalls.destroy();
       this.mapView = new MapView(this, this.app.map, res);
     }
     this.mapView.update(cam.worldView, true);
@@ -126,6 +130,8 @@ export class TownScene extends Phaser.Scene {
 
     this.vehicleSpeed = vehicleSpeedGrid(this.app.map, cfg.terrain);
     this.createInteractableLabels();
+    this.stalls = new StallLayer(this, this.app);
+    this.offs.push(this.app.store.on(() => this.stalls.sync()));
     this.me.setState(you.dir, false);
     for (const p of this.initData.players) this.addRemote(p);
 
@@ -254,6 +260,10 @@ export class TownScene extends Phaser.Scene {
 
   /** Called by the HUD's interact button / E key. */
   interact() {
+    if (this.nearPlot) {
+      this.app.openStallAt(this.nearPlot.id);
+      return;
+    }
     if (this.nearInteract) {
       this.app.openInteractable(this.nearInteract);
       return;
@@ -283,6 +293,7 @@ export class TownScene extends Phaser.Scene {
       }
       this.me.tick(now);
       this.updateRemotes(now);
+      this.stalls.update(delta);
       this.mapView.update(this.cameras.main.worldView);
       this.slowChecks(delta);
       return;
@@ -339,6 +350,7 @@ export class TownScene extends Phaser.Scene {
     }
 
     this.updateRemotes(now);
+    this.stalls.update(delta);
     this.mapView.update(this.cameras.main.worldView);
 
     this.slowChecks(delta);
@@ -365,11 +377,21 @@ export class TownScene extends Phaser.Scene {
           it = c;
         }
       }
-      if (it !== this.nearInteract || b !== this.nearBuilding) {
+      // Stall plots: your own stall wins from further away; others when you're right there.
+      const myPlot = this.app.store.stall?.plot;
+      let plot = this.stalls.nearest(this.pos.x, this.pos.y, 4);
+      const mine = myPlot ? map.stallPlots.find((p) => p.id === myPlot) : undefined;
+      if (mine && Math.hypot(this.pos.x / map.tileSize - mine.x, this.pos.y / map.tileSize - mine.y) <= cfg.stalls.cookRadiusTiles - 1) plot = mine;
+      if (plot && it && Math.hypot(this.pos.x / map.tileSize - it.x, this.pos.y / map.tileSize - it.y) < Math.hypot(this.pos.x / map.tileSize - plot.x, this.pos.y / map.tileSize - plot.y) && plot !== mine) plot = null;
+      if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot) {
         this.nearInteract = it;
         this.nearBuilding = b;
+        this.nearPlot = plot;
         let prompt: string | null = null;
-        if (it) {
+        if (plot) {
+          const s = this.app.store.stalls.get(plot.id);
+          prompt = !s ? `${cfg.stalls.tiers.find((t) => t.tier === plot.tier)?.name ?? 'Stall'} spot (free)` : plot === mine ? '🍳 Your stall' : `${s.ownerName}'s stall`;
+        } else if (it) {
           const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
           prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
         } else if (b) prompt = `Enter ${b.name ?? (b.kind === 'terrace' || b.kind === 'semid' || b.kind === 'bungalow' ? 'house' : 'shop')}`;
@@ -385,6 +407,7 @@ export class TownScene extends Phaser.Scene {
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
+        ...(mine ? [{ x: mine.x * map.tileSize, y: mine.y * map.tileSize, name: 'Your stall', stall: true }] : []),
         ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.name })),
       ]);
       this.districtAcc += 150;

@@ -1,0 +1,189 @@
+import { describe, expect, it } from 'vitest';
+import recipesJson from '../../config/recipes.json';
+import stallsJson from '../../config/stalls.json';
+import timeJson from '../../config/time.json';
+import { darkness, dayPhase, gameTime, inHours, rushHour, timeConfigSchema } from '../time/clock';
+import { dishQuality, gradeStep, makeDish, recipesConfigSchema, validateDishInputs, type StepParams } from './cooking';
+import {
+  ageStock, customerRate, dishBaseSen, dishPay, masteryLevel, menuRecipes, NO_BONUS, queueCapacity, stallOpenNow, stallsConfigSchema,
+  stockPriceSen, takeStock, upgradeCostSen, wagePerHourSen, type StallState,
+} from './stall';
+
+const recipes = recipesConfigSchema.parse(recipesJson);
+const stalls = stallsConfigSchema.parse(stallsJson);
+const time = timeConfigSchema.parse(timeJson);
+const nasi = recipes.recipes.find((r) => r.id === 'nasi_lemak')!;
+let seed = 3;
+const rand = (max: number) => (seed = (seed * 16807) % 2147483647) % max;
+const stall = (o: Partial<StallState> = {}): StallState => ({
+  tier: 1, plot: 'pasar_1', open: true, rep: 50, upgrades: {}, staff: 0, stock: {}, mastery: {}, combo: 0, perfectTokens: 0, investedSen: 0, buzzUntil: 0, ...o,
+});
+
+describe('the game clock', () => {
+  it('runs an in-game hour per real minute and wraps at midnight', () => {
+    const t0 = gameTime(time, 0);
+    const t1 = gameTime(time, 60_000);
+    expect(t1.total - t0.total).toBeCloseTo(60);
+    expect(gameTime(time, 24 * 60_000).hourF).toBeCloseTo(t0.hourF);
+  });
+
+  it('knows opening hours that wrap past midnight, rush hours and dark', () => {
+    expect(inHours(23, 17, 2)).toBe(true);
+    expect(inHours(1.5, 17, 2)).toBe(true);
+    expect(inHours(10, 17, 2)).toBe(false);
+    expect(rushHour(time, 12.5)).toBe('Lunch rush');
+    expect(rushHour(time, 16)).toBeNull();
+    expect(dayPhase(time, 12)).toBe('day');
+    expect(dayPhase(time, 23)).toBe('night');
+    expect(darkness(time, 12)).toBe(0);
+    expect(darkness(time, 1)).toBe(1);
+    expect(darkness(time, 19)).toBeGreaterThan(0);
+    expect(darkness(time, 19)).toBeLessThan(1);
+  });
+});
+
+describe('building a dish', () => {
+  it('makes the steps the recipe lists, with orders from the recipe options', () => {
+    for (let i = 0; i < 20; i++) {
+      const steps = makeDish(nasi, rand);
+      expect(steps.map((s) => s.kind)).toEqual(nasi.steps.map((s) => s.kind));
+      const seq = steps.find((s) => s.kind === 'sequence') as Extract<StepParams, { kind: 'sequence' }>;
+      expect(new Set(seq.order).size).toBe(3);
+      for (const id of seq.order) expect(seq.options.some((o) => o.id === id)).toBe(true);
+      const hold = steps[0] as Extract<StepParams, { kind: 'hold' }>;
+      expect(hold.zone[1] - hold.zone[0]).toBeCloseTo(0.16);
+    }
+  });
+});
+
+describe('grading steps', () => {
+  const hold: StepParams = { kind: 'hold', label: '', hint: '', art: '', maxMs: 5000, fillMs: 1000, zone: [0.6, 0.8] };
+  const timing: StepParams = { kind: 'timing', label: '', hint: '', art: '', maxMs: 5000, targetMs: 2000 };
+  const rhythm: StepParams = { kind: 'rhythm', label: '', hint: '', art: '', maxMs: 5000, beats: [1000, 1500, 2000, 2500] };
+  const seq: StepParams = { kind: 'sequence', label: '', hint: '', art: '', maxMs: 9000, options: [{ id: 'a', name: 'A', icon: '' }, { id: 'b', name: 'B', icon: '' }, { id: 'c', name: 'C', icon: '' }], order: ['b', 'a', 'c'] };
+  const path: StepParams = { kind: 'path', label: '', hint: '', art: '', maxMs: 9000, points: [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8]], radius: 0.08 };
+  const meter: StepParams = { kind: 'meter', label: '', hint: '', art: '', maxMs: 6000, durationMs: 2000, zone: [0.4, 0.7], rise: 0.6, fall: 0.4 };
+
+  it('hold: release in the middle of the zone = Perfect, outside = Miss', () => {
+    expect(gradeStep(recipes, hold, [100, 800]).grade).toBe('perfect');
+    expect(gradeStep(recipes, hold, [100, 870]).grade).toBe('great');
+    expect(gradeStep(recipes, hold, [100, 400]).grade).toBe('miss');
+    expect(gradeStep(recipes, hold, []).grade).toBe('miss');
+  });
+
+  it('timing: closer to the moment is better; better equipment forgives more', () => {
+    expect(gradeStep(recipes, timing, [2050]).grade).toBe('perfect');
+    expect(gradeStep(recipes, timing, [2200]).grade).toBe('great');
+    expect(gradeStep(recipes, timing, [2350]).grade).toBe('good');
+    expect(gradeStep(recipes, timing, [2600]).grade).toBe('miss');
+    expect(gradeStep(recipes, timing, [2600], 1.6).grade).not.toBe('miss');
+  });
+
+  it('rhythm: on the beat = Perfect; mashing the button = Miss', () => {
+    expect(gradeStep(recipes, rhythm, [1010, 1490, 2030, 2500]).grade).toBe('perfect');
+    expect(gradeStep(recipes, rhythm, [1010, 1490]).grade).toBe('good');
+    expect(gradeStep(recipes, rhythm, [1010]).grade).toBe('miss');
+    expect(gradeStep(recipes, rhythm, Array.from({ length: 40 }, (_, i) => i * 70)).grade).toBe('miss');
+  });
+
+  it('sequence: the exact order = Perfect, mostly right = Good', () => {
+    expect(gradeStep(recipes, seq, [1, 100, 0, 200, 2, 300]).grade).toBe('perfect');
+    expect(gradeStep(recipes, seq, [1, 100, 2, 200, 2, 300]).grade).toBe('good');
+    expect(gradeStep(recipes, seq, [0, 100, 2, 200, 1, 300]).grade).toBe('miss');
+  });
+
+  it('path: passing every dot in order = Perfect, skipping = less', () => {
+    expect(gradeStep(recipes, path, [0.2, 0.2, 10, 0.5, 0.2, 20, 0.8, 0.2, 30, 0.8, 0.5, 40, 0.8, 0.8, 50]).grade).toBe('perfect');
+    // Dots out of order don't count.
+    expect(gradeStep(recipes, path, [0.8, 0.8, 10, 0.8, 0.2, 20]).grade).toBe('miss');
+  });
+
+  it('meter: keeping it in the zone scores; never pressing does not', () => {
+    // Rise from 0.15 to ~0.51 (0.6 s), then hold 40% of the time to keep it level.
+    const ev: number[] = [0, 600];
+    for (let t = 700; t < 2000; t += 200) ev.push(t, t + 80);
+    expect(gradeStep(recipes, meter, ev).grade).toBe('perfect');
+    // Holding the whole time overflows the zone.
+    expect(gradeStep(recipes, meter, [0, 2000]).grade).toBe('miss');
+    expect(gradeStep(recipes, meter, []).grade).toBe('miss');
+  });
+
+  it('turns step grades into a dish quality', () => {
+    expect(dishQuality(recipes, ['perfect', 'perfect', 'perfect']).quality).toBe('perfect');
+    expect(dishQuality(recipes, ['perfect', 'great', 'great']).quality).toBe('great');
+    expect(dishQuality(recipes, ['good', 'good', 'good']).quality).toBe('ok');
+    expect(dishQuality(recipes, ['miss', 'miss', 'good']).quality).toBe('burnt');
+    expect(dishQuality(recipes, ['perfect']).mult).toBe(1.8);
+  });
+
+  it('rejects impossible submissions (too fast, out of order, wrong step count)', () => {
+    const steps = [timing, hold];
+    expect(validateDishInputs(steps, [{ startMs: 0, ev: [2000] }, { startMs: 2600, ev: [100, 800] }], 4000)).toBeNull();
+    expect(validateDishInputs(steps, [{ startMs: 0, ev: [2000] }, { startMs: 2600, ev: [100, 800] }], 1000)).toMatch(/faster/);
+    expect(validateDishInputs(steps, [{ startMs: 0, ev: [2000] }], 9000)).toMatch(/steps/);
+    expect(validateDishInputs(steps, [{ startMs: 3000, ev: [2000] }, { startMs: 100, ev: [1, 2] }], 9000)).toMatch(/order/);
+  });
+});
+
+describe('stall economics', () => {
+  it('prices dishes by tier, mastery, rush and skills', () => {
+    const base = dishBaseSen(stalls, nasi, stall(), false);
+    expect(base).toBe(nasi.basePriceSen);
+    expect(dishBaseSen(stalls, nasi, stall({ tier: 2 }), false)).toBe(Math.round(nasi.basePriceSen * stalls.tiers[1].priceMult));
+    expect(dishBaseSen(stalls, nasi, stall(), true)).toBe(Math.round(base * stalls.rush.price));
+    expect(dishBaseSen(stalls, nasi, stall({ mastery: { nasi_lemak: 30 } }), false)).toBe(Math.round(base * (1 + 2 * stalls.mastery.pricePerLevel)));
+    expect(dishBaseSen(stalls, nasi, stall(), false, { ...NO_BONUS, dishPrice: 0.1 })).toBe(Math.round(base * 1.1));
+  });
+
+  it('pays quality × combo, tips for Great+ and 5× for the food blogger', () => {
+    expect(dishPay(stalls, 1000, 1.8, 'perfect', 0.1, 1, false)).toEqual({ paySen: 1980, tipSen: Math.round(1980 * stalls.tips.max) });
+    expect(dishPay(stalls, 1000, 1, 'good', 0, 1, false).tipSen).toBe(0);
+    expect(dishPay(stalls, 1000, 1.3, 'great', 0, 0, false).tipSen).toBe(0); // they waited too long
+    expect(dishPay(stalls, 1000, 1, 'good', 0, 1, true).paySen).toBe(1000 * stalls.blogger.payMult);
+  });
+
+  it('customers come faster with reputation, signage, rush and skills', () => {
+    const base = customerRate(stalls, stall(), false, 0);
+    expect(customerRate(stalls, stall({ rep: 100 }), false, 0)).toBeGreaterThan(base);
+    expect(customerRate(stalls, stall({ upgrades: { signage: 2 } }), false, 0)).toBeCloseTo(base * 1.2);
+    expect(customerRate(stalls, stall(), true, 0)).toBeCloseTo(base * stalls.rush.customers);
+    expect(customerRate(stalls, stall({ buzzUntil: 10 }), false, 0)).toBeCloseTo(base * stalls.blogger.boostCustomers);
+    expect(customerRate(stalls, stall(), false, 0, { ...NO_BONUS, customerBuff: 2 })).toBeCloseTo(base * 2);
+    expect(queueCapacity(stalls, stall({ upgrades: { queue: 2 } }))).toBe(stalls.tiers[0].queueBase + 2);
+  });
+
+  it('opens at the tier hours only', () => {
+    expect(stallOpenNow(stalls, 1, 20)).toBe(true);
+    expect(stallOpenNow(stalls, 1, 12)).toBe(false);
+    expect(stallOpenNow(stalls, 3, 12)).toBe(true);
+  });
+
+  it('costs scale with level and tier; wages and stock have discounts', () => {
+    const e0 = upgradeCostSen(stalls, 1, 'equipment', 0);
+    expect(upgradeCostSen(stalls, 1, 'equipment', 2)).toBe(Math.round(stalls.upgrades.equipment!.baseCostSen * stalls.upgrades.equipment!.costGrowth ** 2));
+    expect(upgradeCostSen(stalls, 2, 'equipment', 0)).toBe(Math.round(e0 * stalls.tiers[1].upgradeCostMult));
+    expect(wagePerHourSen(stalls, 1, { ...NO_BONUS, wages: 0.5 })).toBe(Math.round((stalls.tiers[0].wagePerDaySen / 24) * 0.5));
+    const ten = stockPriceSen(stalls, nasi, stall(), 10, false);
+    expect(ten).toBe(nasi.ingredientCostSen * 10);
+    expect(stockPriceSen(stalls, nasi, stall(), 50, false)).toBe(Math.round(nasi.ingredientCostSen * 50 * 0.9));
+    expect(stockPriceSen(stalls, nasi, stall(), 10, true)).toBe(Math.round(ten * (1 + stalls.stock.deliveryFee)));
+    expect(stockPriceSen(stalls, nasi, stall({ upgrades: { supplier: 2 } }), 10, false)).toBe(Math.round(ten * 0.9));
+  });
+
+  it('uses the oldest stock first and throws away what goes off', () => {
+    const s = stall({ stock: { nasi_lemak: [{ qty: 2, age: 100 }, { qty: 5, age: 0 }] } });
+    expect(takeStock(s, 'nasi_lemak', 3)).toBe(true);
+    expect(s.stock.nasi_lemak).toEqual([{ qty: 4, age: 0 }]);
+    expect(takeStock(s, 'nasi_lemak', 9)).toBe(false);
+    expect(ageStock(stalls, s, stalls.stock.shelfLifeGameHours * 60)).toBe(4);
+    expect(s.stock.nasi_lemak).toEqual([]);
+  });
+
+  it('unlocks Teh Tarik and Roti Canai through mastery', () => {
+    expect(menuRecipes(stalls, recipes.recipes, stall()).map((r) => r.id)).toEqual(['nasi_lemak']);
+    const t = stalls.mastery.thresholds[0];
+    expect(masteryLevel(stalls, t)).toBe(1);
+    expect(menuRecipes(stalls, recipes.recipes, stall({ mastery: { nasi_lemak: t } })).map((r) => r.id)).toEqual(['nasi_lemak', 'teh_tarik']);
+    expect(menuRecipes(stalls, recipes.recipes, stall({ mastery: { nasi_lemak: t, teh_tarik: t } }))).toHaveLength(3);
+  });
+});

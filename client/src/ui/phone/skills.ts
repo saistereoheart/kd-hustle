@@ -24,6 +24,9 @@ export function effectText(def: SkillDef, level: number): string {
     case 'carwashSeconds': return `+${v} s car wash time`;
     case 'manifestRate': return `RM ${(v / 100).toFixed(2)}/s · RM ${((v * 3600) / 100).toFixed(0)}/hour`;
     case 'unlock': return v > 0 ? 'Unlocked' : 'Locked';
+    case 'dishPrice': return `+${pct} dish prices`;
+    case 'customers': return `+${pct} stall customers`;
+    case 'wages': return `−${pct} staff wages`;
   }
 }
 

@@ -17,6 +17,8 @@ import { openPhone } from './ui/phone/phone';
 import { openRonda, type RideHud } from './ui/ronda';
 import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
+import { openMarketPanel } from './ui/stall/market';
+import { openStallPanel } from './ui/stall/stallPanel';
 import { sfx } from './ui/sound';
 import { Joystick } from './input/joystick';
 import { Keyboard } from './input/keyboard';
@@ -55,6 +57,8 @@ export class App {
   cratesOfItem = new Map<string, CrateDef>();
   jobHud: DeliveryHud | null = null;
   progressHud: ProgressHud | null = null;
+  /** The dish being cooked right now (debug/tests). */
+  cookingDish: import('@kh/shared').DishState | null = null;
   /** Config bundle for the shared progression maths (same as the server's). */
   prog!: ProgCfg;
   chat: Chat | null = null;
@@ -330,6 +334,16 @@ export class App {
       this.store.emit();
     });
     socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
+    socket.on('stalls', ({ stalls }) => this.store.setStalls(stalls));
+    socket.on('time:offset', ({ offsetGameMinutes }) => {
+      this.cfg.time.offsetGameMinutes = offsetGameMinutes;
+      this.store.emit();
+    });
+    socket.on('stall:self', ({ stall }) => {
+      this.store.stall = stall;
+      this.store.emit();
+    });
+    socket.on('stall:event', (ev) => toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' ? 'info' : 'bad', 4500));
     socket.on('progress', ({ progress, events }) => {
       this.store.setProgress(progress);
       if (events.length) celebrate(this, events);
@@ -361,6 +375,8 @@ export class App {
     this.rideHud?.destroy();
     this.rideHud = null;
     this.store.load(p.you);
+    this.store.clockOffset = p.serverTime - Date.now();
+    this.store.setStalls(p.stalls, true);
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {
       this.leaveTown();
@@ -459,11 +475,17 @@ export class App {
   }
 
   /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
-  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn' | 'carwash'; crate?: string }) {
-    if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
+  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn' | 'carwash' | 'market'; crate?: string }) {
+    if (it.type === 'market') openMarketPanel(this);
+    else if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
     else if (it.type === 'jobs') openJobsPanel(this);
     else if (it.type === 'pawn') openPawnPanel(this);
     else if (it.type === 'carwash') openCarwashPanel(this);
+  }
+
+  /** At a stall plot: ours opens the stall (cook / manage), anyone else's shows what it sells. */
+  openStallAt(plot: string) {
+    openStallPanel(this, plot);
   }
 
   onTownReady(scene: TownScene) {

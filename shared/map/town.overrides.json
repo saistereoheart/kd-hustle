@@ -242,8 +242,8 @@
     },
     {
       "kind": "stall",
-      "x": -218,
-      "y": 115
+      "x": -268,
+      "y": 229
     }
   ],
   "interactables": [
@@ -266,8 +266,8 @@
       "type": "crate",
       "name": "Lucky Bag Stall",
       "crate": "luckybag",
-      "x": -217.5,
-      "y": 116.5
+      "x": -267.5,
+      "y": 230.5
     },
     {
       "id": "mallbox_counter",
@@ -288,6 +288,12 @@
       "name": "Kilat Car Wash",
       "x": -199,
       "y": 117.5
+    },
+    {
+      "id": "gergasi",
+      "type": "market",
+      "name": "Gergasi Hypermarket",
+      "building": "w366614388"
     }
   ],
   "elevate": [
@@ -299,5 +305,117 @@
     "w1137610671",
     "w859098640",
     "w1137610670"
+  ],
+  "stallPlots": [
+    {
+      "id": "pasar_1",
+      "tier": 1,
+      "x": -259.5,
+      "y": 229.5
+    },
+    {
+      "id": "pasar_2",
+      "tier": 1,
+      "x": -250.5,
+      "y": 229.5
+    },
+    {
+      "id": "pasar_3",
+      "tier": 1,
+      "x": -241.5,
+      "y": 229.5
+    },
+    {
+      "id": "pasar_4",
+      "tier": 1,
+      "x": -232.5,
+      "y": 229.5
+    },
+    {
+      "id": "pasar_5",
+      "tier": 1,
+      "x": -223.5,
+      "y": 229.5
+    },
+    {
+      "id": "truck_1",
+      "tier": 2,
+      "x": -245.5,
+      "y": 233.5,
+      "queueFrom": [
+        2.4,
+        1.3
+      ]
+    },
+    {
+      "id": "truck_2",
+      "tier": 2,
+      "x": -234.5,
+      "y": 233.5,
+      "queueFrom": [
+        2.4,
+        1.3
+      ]
+    },
+    {
+      "id": "truck_3",
+      "tier": 2,
+      "x": -223.5,
+      "y": 233.5,
+      "queueFrom": [
+        2.4,
+        1.3
+      ]
+    },
+    {
+      "id": "truck_4",
+      "tier": 2,
+      "x": -212.5,
+      "y": 233.5,
+      "queueFrom": [
+        2.4,
+        1.3
+      ]
+    },
+    {
+      "id": "truck_5",
+      "tier": 2,
+      "x": -201.5,
+      "y": 233.5,
+      "queueFrom": [
+        2.4,
+        1.3
+      ]
+    },
+    {
+      "id": "kopitiam_1",
+      "tier": 3,
+      "building": "w1275938566"
+    },
+    {
+      "id": "kopitiam_2",
+      "tier": 3,
+      "building": "w1275938580"
+    },
+    {
+      "id": "kopitiam_3",
+      "tier": 3,
+      "building": "w1275938553"
+    },
+    {
+      "id": "kopitiam_4",
+      "tier": 3,
+      "building": "w1275938549"
+    },
+    {
+      "id": "kopitiam_5",
+      "tier": 3,
+      "building": "w1275938545"
+    },
+    {
+      "id": "kopitiam_6",
+      "tier": 3,
+      "building": "w1275938543"
+    }
   ]
 }

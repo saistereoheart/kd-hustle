@@ -2,7 +2,7 @@
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
 import {
-  C2S, collides, formatMoney, formatOneIn, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
+  C2S, collides, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
   type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid,
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
@@ -18,6 +18,7 @@ import { newMoveState } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
 import { RideSystem } from '../systems/rides/rides';
 import { ProgressionSystem } from '../systems/progression/progression';
+import { StallSystem } from '../systems/stalls/stalls';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
@@ -81,7 +82,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   log.info(`Delivery jobs: ${jobs.candidateCounts.pickups} pickup shops, ${jobs.candidateCounts.dropoffs} homes`);
 
   /** Is the player standing at an interactable of this type (and crate)? */
-  const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn' | 'carwash', crate?: string) =>
+  const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn' | 'carwash' | 'market', crate?: string) =>
     cfg.map.interactables.some(
       (i) => i.type === type && (!crate || i.crate === crate) && Math.hypot(p.x / T - i.x, p.y / T - i.y) <= cfg.economy.interactRadiusTiles,
     );
@@ -129,6 +130,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   };
 
   // --- progression (Phase 3) ---------------------------------------------------------------
+  // eslint-disable-next-line prefer-const
+  let stalls: StallSystem;
   const prog: ProgressionSystem = new ProgressionSystem(cfg, repos, econ, cryptoRand, {
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
@@ -144,7 +147,29 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       for (const r of batch.announce) announce(p, r);
       return { crateId, results: batch.results };
     },
+    useSpecial: (p, item) => {
+      if (item.effect?.buff === 'perfectCook') return stalls.addPerfectTokens(p, item.effect.charges ?? 0);
+      throw new GameError(`${item.name} can't be used yet.`);
+    },
+    assetsOf: (p) => stalls.assetsOf(p),
+    flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
+  // --- food stalls (Phase 4) ------------------------------------------------------------------
+  stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
+    publicChanged: (list) => io.emit('stalls', { stalls: list }),
+    selfChanged: (p, stall) => socketOf(p)?.emit('stall:self', { stall }),
+    event: (p, ev) => socketOf(p)?.emit('stall:event', ev),
+    wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+  });
+  world.stallOf = (p) => stalls.selfOf(p);
+  const stallTimer = setInterval(() => {
+    try {
+      stalls.tick();
+    } catch (err) {
+      log.error('stall tick failed', err);
+    }
+  }, 250);
+  const stallSaveTimer = setInterval(() => stalls.saveDirty(), 10_000);
   world.progressOf = (p) => prog.state(p);
   jobs.modsFor = (p) => {
     const m = prog.mods(p);
@@ -203,6 +228,43 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return {};
     });
     handle(socket, 'skill:upgrade', C2S.skillUpgrade, ({ skill }) => prog.upgradeSkill(me, skill));
+
+    // --- food stall (Phase 4) -----------------------------------------------------------------
+    handle(socket, 'stall:buy', C2S.stallBuy, ({ tier }) => {
+      stalls.buy(me, tier);
+      return {};
+    });
+    handle(socket, 'stall:open', C2S.stallOpen, ({ open }) => {
+      stalls.setOpen(me, open);
+      return {};
+    });
+    handle(socket, 'stall:cook', C2S.stallCook, ({ customerId, token }) => {
+      if (me.vehicle) throw new GameError('Hop off your ride first.');
+      if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
+      return stalls.cook(me, customerId, !!token);
+    });
+    handle(socket, 'stall:serve', C2S.stallServe, ({ dishId, inputs }) => ({ result: stalls.serve(me, dishId, inputs) }));
+    handle(socket, 'stall:cancel', null, () => {
+      stalls.cancel(me);
+      return {};
+    });
+    handle(socket, 'stall:upgrade', C2S.stallUpgrade, ({ key }) => {
+      stalls.upgrade(me, key);
+      return {};
+    });
+    handle(socket, 'stall:hire', null, () => {
+      stalls.hire(me);
+      return {};
+    });
+    handle(socket, 'stall:fire', null, () => {
+      stalls.fire(me);
+      return {};
+    });
+    handle(socket, 'stall:stock', C2S.stallStock, ({ recipe, qty, delivery }) => {
+      if (!delivery && !nearInteractable(me, 'market')) throw new GameError('Buy in person at Gergasi Hypermarket (The Strand), or order delivery for a fee.');
+      stalls.buyStock(me, recipe, qty, delivery);
+      return {};
+    });
     handle(socket, 'inv:unequip', C2S.unequip, ({ slot }) => {
       if (inv.unequip(me, slot as EquipSlot)) broadcastCosmetics(me);
       return {};
@@ -337,7 +399,17 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       socketOf(me)?.emit('move:correct', { x: me.x, y: me.y, seq: 0 });
       return `Teleported to ${x}, ${y}.`;
     }
-    const HELP = 'Commands: /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
+    if (cmd === 'time') {
+      // /time <hour>: jump the in-game clock for everyone (testing, events).
+      const h = Number(target);
+      if (!(h >= 0 && h < 24)) return 'Usage: /time <hour 0-23> (moves the in-game clock for everyone)';
+      const cur = gameTime(cfg.time, Date.now());
+      cfg.time.offsetGameMinutes += ((h * 60 - (cur.total % 1440)) % 1440 + 1440) % 1440;
+      io.emit('time:offset', { offsetGameMinutes: cfg.time.offsetGameMinutes });
+      stalls.tick();
+      return `It's now ${formatClock(gameTime(cfg.time, Date.now()))} in-game.`;
+    }
+    const HELP = 'Commands: /time <hour> · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
     if (cmd === 'setlevel' || cmd === 'setstage') {
       const p = target === 'me' ? me : world.byName(target ?? '');
       if (!p) return `No online player called "${target}".`;
@@ -481,6 +553,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (p.hasCharacter) prog.check(p);
     },
     saveProgress: (p: OnlinePlayer) => prog.save(p),
+    stallsPublic: () => stalls.all(),
+    leaveStall: (p: OnlinePlayer) => stalls.leave(p),
     chatCommand,
     moveRules,
     loadInto,
@@ -504,6 +578,9 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       clearInterval(manifestTimer);
       clearInterval(rideTimer);
       clearInterval(dayTimer);
+      clearInterval(stallTimer);
+      clearInterval(stallSaveTimer);
+      stalls.saveDirty(true);
     },
   };
 }

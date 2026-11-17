@@ -11,8 +11,9 @@ export function renderPath({ app }: PhoneCtx): HTMLElement[] {
   const snap = app.snapshot();
   const goals = app.cfg.goals.goals;
   const list = el('ol', { class: 'path-list' });
+  const doneSet = new Set(pr.goalsDone);
   goals.forEach((g, i) => {
-    const done = i < pr.path;
+    const done = doneSet.has(g.id);
     const current = i === pr.path;
     const p = conditionProgress(g.cond, snap, app.cfg.stages);
     const pct = done ? 100 : (p.cur / Math.max(1e-9, p.target)) * 100;
@@ -21,7 +22,7 @@ export function renderPath({ app }: PhoneCtx): HTMLElement[] {
     list.append(
       el(
         'li',
-        { class: `path-goal${done ? ' done' : ''}${current ? ' current' : ''}${i > pr.path ? ' later' : ''}`, 'data-goal': g.id },
+        { class: `path-goal${done ? ' done' : ''}${current ? ' current' : ''}${!done && i > pr.path ? ' later' : ''}`, 'data-goal': g.id },
         el('span', { class: 'path-dot' }, done ? '✓' : String(i + 1)),
         el(
           'div',
@@ -35,8 +36,9 @@ export function renderPath({ app }: PhoneCtx): HTMLElement[] {
     );
   });
   const doneAll = pr.path >= goals.length;
+  const doneCount = goals.filter((g) => doneSet.has(g.id)).length;
   return [
-    el('p', { class: 'muted' }, doneAll ? '🎉 You finished the Hustle Path! The HUD now tracks your next wealth stage.' : `${pr.path} of ${goals.length} done. Every goal pays out as soon as you reach it.`),
+    el('p', { class: 'muted' }, doneAll ? '🎉 You finished the Hustle Path! The HUD now tracks your next wealth stage.' : `${doneCount} of ${goals.length} done, in any order. Every goal pays out as soon as you reach it.`),
     list,
   ];
 }

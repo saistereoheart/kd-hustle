@@ -14,7 +14,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  carwashPay, deliveryPay, formatMoney, jobLevel, levelMult, netWorthSen, skillCostSen, skillLevel, skillLockReason,
+  carwashPay, currentGoalIndex, deliveryPay, formatMoney, jobLevel, levelMult, netWorthSen, skillCostSen, skillLevel, skillLockReason,
   stageDef, type RandInt,
 } from '@kh/shared';
 import { loadConfig, type ServerConfig } from '../server/src/config/loadConfig';
@@ -163,10 +163,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
   const netWorthByHour: number[] = [];
   const record = () => {
     for (let s = 1; s <= p.prog.stage; s++) if (stageAt[s] === undefined) stageAt[s] = t;
-    for (let i = 0; i < p.prog.path; i++) {
-      const g = cfg.goals.goals[i].id;
-      if (goalAt[g] === undefined) goalAt[g] = t;
-    }
+    for (const g of p.prog.goalsDone) if (goalAt[g] === undefined) goalAt[g] = t;
   };
 
   // --- what the player does ---
@@ -229,7 +226,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
   ];
   const buySkills = () => {
     // The Hustle Path asks for a skill level: buy it if it's affordable.
-    const goal = cfg.goals.goals[p.prog.path];
+    const goal = cfg.goals.goals[currentGoalIndex(cfg.goals, p.prog.goalsDone)];
     if (goal?.cond.type === 'skill') {
       const def = cfg.upgrades.skills[goal.cond.id];
       const lv = skillLevel(cfg.upgrades, p.skills, goal.cond.id);
@@ -264,7 +261,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
   const rollCrates = () => {
     // The player saves their fun budget for the best crate they're allowed (×10 if it stretches
     // that far). If the Hustle Path asks for a crate, they roll that one once, budget or not.
-    const goal = cfg.goals.goals[p.prog.path];
+    const goal = cfg.goals.goals[currentGoalIndex(cfg.goals, p.prog.goalsDone)];
     const goalCrate = goal?.cond.type === 'stat' && goal.cond.stat.startsWith('rolls') ? (goal.cond.stat.split('_')[1] ?? 'capsule') : null;
     const best = [...cfg.crates.crates].filter((c) => !prog.crateLock(p, c)).sort((a, b) => b.priceSen - a.priceSen)[0];
     const forced = goalCrate ? cfg.crateById.get(goalCrate) : undefined;
@@ -373,7 +370,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
       // Quests decide the job when one asks for it; otherwise the better-paying one.
       const open = (stat: string) => p.prog.quests.list.some((q) => !q.claimed && cfg.quests.daily.find((d) => d.id === q.id)?.stat === stat);
       // Otherwise players mix the two jobs, favouring the one that pays better (∝ rate³).
-      const goal = cfg.goals.goals[p.prog.path];
+      const goal = cfg.goals.goals[currentGoalIndex(cfg.goals, p.prog.goalsDone)];
       const goalWash = goal?.cond.type === 'stat' && (goal.cond.stat === 'perfectWashes' || goal.cond.stat === 'jobs_carwash');
       const rd = jobRate('delivery') ** 3, rc = jobRate('carwash') ** 3;
       const kind = open('jobs_delivery') ? 'delivery' : open('jobs_carwash') || open('perfectWashes') || goalWash ? 'carwash' : r01() < rd / (rd + rc) ? 'delivery' : 'carwash';

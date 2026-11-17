@@ -56,6 +56,9 @@ export const levelsConfigSchema = z.object({
     skillLevel: z.number().nonnegative(),
     pawnSellPerItem: z.number().nonnegative(),
     potionUse: z.number().nonnegative(),
+    /** Cooking a dish by hand, + a bonus for a Perfect one. */
+    dish: z.number().nonnegative(),
+    dishPerfectBonus: z.number().nonnegative(),
   }),
   /** Reaching level L pays L × this (sen). */
   levelUpSenPerLevel: z.number().int().nonnegative(),
@@ -115,6 +118,7 @@ export type TitleDef = TitlesConfig['titles'][number];
 export const SKILL_EFFECTS = [
   'luck', 'variantChance', 'pity', 'potionDuration', 'unlock', 'rollSpeed',
   'manifestRate', 'passiveIncome', 'jobPay', 'carwashSeconds', 'xp', 'walkSpeed',
+  'dishPrice', 'customers', 'wages',
 ] as const;
 export type SkillEffect = (typeof SKILL_EFFECTS)[number];
 
@@ -169,6 +173,8 @@ export const questsConfigSchema = z.object({
       /** Target per wealth stage (index 0 = stage 1; the last entry is used for higher stages). */
       targets: z.array(z.number().positive()).min(1),
       minStage: z.number().int().positive().default(1),
+      /** Only offered to players who own a stall. */
+      requires: z.enum(['stall']).optional(),
       reward: z.object({
         /** RM per wealth stage (same indexing as targets). */
         senByStage: z.array(z.number().int().nonnegative()).min(1),

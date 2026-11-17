@@ -18,7 +18,7 @@
     { "id": "halo", "name": "Halo", "type": "hat", "rarity": "mythic", "shape": "halo", "color": "#fff3bf" },
 
     { "id": "straw_hat", "name": "Straw Hat", "type": "hat", "rarity": "common", "shape": "straw", "color": "#e9c46a", "color2": "#e03131" },
-    { "id": "speed_tonic", "name": "Speed Tonic", "type": "booster", "rarity": "common", "shape": "bottle", "color": "#4dabf7", "desc": "A stall booster. Usable from Phase 4." },
+    { "id": "speed_tonic", "name": "Speed Tonic", "type": "booster", "rarity": "common", "shape": "bottle", "color": "#4dabf7", "desc": "A stall booster: your cooks work 50% faster for 10 minutes.", "effect": { "buff": "staffSpeed", "mult": 1.5, "durationSec": 600 } },
     { "id": "teh_tarik_mug", "name": "Teh Tarik Mug", "type": "trinket", "rarity": "common", "shape": "cup", "color": "#c9a87c" },
     { "id": "beret", "name": "Beret", "type": "hat", "rarity": "common", "shape": "beret", "color": "#c92a2a" },
     { "id": "chef_hat", "name": "Chef Hat", "type": "hat", "rarity": "uncommon", "shape": "chef", "color": "#f8f9fa" },
@@ -55,6 +55,8 @@
     { "id": "luck_potion", "name": "Luck Potion", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#40c057", "desc": "2× luck on every crate for 10 minutes.", "effect": { "buff": "luck", "mult": 2, "durationSec": 600 }, "valueSen": 10000, "shardPrice": 40 },
     { "id": "income_booster", "name": "Income Booster", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#fcc419", "desc": "2× passive income (Manifesting) for 30 minutes.", "effect": { "buff": "passive", "mult": 2, "durationSec": 1800 }, "valueSen": 10000, "shardPrice": 40 },
     { "id": "xp_booster", "name": "XP Booster", "type": "potion", "rarity": "rare", "shape": "potion", "color": "#339af0", "desc": "2× XP from everything for 15 minutes.", "effect": { "buff": "xp", "mult": 2, "durationSec": 900 }, "valueSen": 15000, "shardPrice": 60 },
-    { "id": "mega_luck_potion", "name": "Mega Luck Potion", "type": "potion", "rarity": "epic", "shape": "potion", "color": "#cc5de8", "desc": "5× luck on every crate for 3 minutes. Save it for a big crate.", "effect": { "buff": "luck", "mult": 5, "durationSec": 180 }, "valueSen": 50000, "shardPrice": 200 }
+    { "id": "mega_luck_potion", "name": "Mega Luck Potion", "type": "potion", "rarity": "epic", "shape": "potion", "color": "#cc5de8", "desc": "5× luck on every crate for 3 minutes. Save it for a big crate.", "effect": { "buff": "luck", "mult": 5, "durationSec": 180 }, "valueSen": 50000, "shardPrice": 200 },
+    { "id": "customer_rush", "name": "Customer Rush", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#ff922b", "desc": "2× customers at your stall for 5 minutes.", "effect": { "buff": "customers", "mult": 2, "durationSec": 300 }, "valueSen": 15000, "shardPrice": 50 },
+    { "id": "perfect_token", "name": "Perfect Cook Token", "type": "potion", "rarity": "rare", "shape": "coin", "color": "#ffd43b", "desc": "Your next 10 dishes are auto-Perfect (no mini-game).", "effect": { "buff": "perfectCook", "mult": 1, "charges": 10 }, "valueSen": 30000, "shardPrice": 90 }
   ]
 }

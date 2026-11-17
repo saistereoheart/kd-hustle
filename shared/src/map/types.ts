@@ -33,7 +33,7 @@ export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop', 'stall'] as const;
 
-export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash'] as const;
+export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash', 'market'] as const;
 export type InteractType = (typeof INTERACT_TYPES)[number];
 
 // ------------------------------------------------------------- generated OSM data
@@ -115,6 +115,22 @@ export const overridesSchema = z.object({
         building: z.string().optional(),
         x: z.number().optional(),
         y: z.number().optional(),
+      }),
+    )
+    .default([]),
+  /** Spots where players' food stalls go (Phase 4): pasar malam plots (tier 1), food truck spots
+   *  (tier 2) and kopitiam shoplots (tier 3, at a building's door). Ids are stable: ownership
+   *  refers to them. Customers queue from `queueFrom` (offset from the spot) every `queueStep`. */
+  stallPlots: z
+    .array(
+      z.object({
+        id: z.string(),
+        tier: z.number().int().positive(),
+        building: z.string().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        queueFrom: z.tuple([z.number(), z.number()]).optional(),
+        queueStep: z.tuple([z.number(), z.number()]).optional(),
       }),
     )
     .default([]),

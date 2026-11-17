@@ -19,6 +19,11 @@ window.__kh = {
   wallet: () => ({ sen: app.store.walletSen, shards: app.store.shards, items: app.store.inventory.length }),
   job: () => app.store.job,
   progress: () => app.store.progress,
+  stall: () => app.store.stall,
+  stalls: () => [...app.store.stalls.values()],
+  dish: () => app.cookingDish,
+  openStall: (plot: string) => app.openStallAt(plot),
+  plotPos: (plot: string) => app.map?.stallPlots.find((p) => p.id === plot) ?? null,
   luck: () => app.mods().luck,
   /** Open the UI of an interactable by id (the server still checks you are standing there). */
   open: (id: string) => {

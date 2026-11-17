@@ -25,6 +25,8 @@ export interface Dot {
   self?: boolean;
   /** A job target (drawn as a gold ring). */
   target?: boolean;
+  /** Your food stall (green). */
+  stall?: boolean;
 }
 
 export class Minimap {
@@ -85,8 +87,8 @@ export class Minimap {
       const py = (dy - oy) * this.zoom;
       if (px < -4 || py < -4 || px > this.size.w + 4 || py > this.size.h + 4) continue;
       ctx.beginPath();
-      ctx.arc(px, py, d.self ? 4 : d.target ? 5 : 3.2, 0, Math.PI * 2);
-      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : '#ffffff';
+      ctx.arc(px, py, d.self ? 4 : d.target || d.stall ? 5 : 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : d.stall ? '#69db7c' : '#ffffff';
       ctx.fill();
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#11131f';
@@ -384,13 +386,13 @@ export class Minimap {
       const px = ox + bx * scale;
       const py = oy + by * scale;
       ctx.beginPath();
-      ctx.arc(px, py, d.self ? 6 : d.target ? 7 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : '#ffffff';
+      ctx.arc(px, py, d.self ? 6 : d.target || d.stall ? 7 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = d.self ? '#ffe066' : d.target ? '#ff922b' : d.stall ? '#69db7c' : '#ffffff';
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = '#11131f';
       ctx.stroke();
-      label(d.target ? 'Target' : d.name, px, py - 14, '700 12px system-ui, sans-serif', d.self ? '#ffe066' : '#ffffff');
+      label(d.target ? 'Target' : d.stall ? `🍳 ${d.name}` : d.name, px, py - 14, '700 12px system-ui, sans-serif', d.self ? '#ffe066' : '#ffffff');
     }
     // Picked destination
     const dest = this.route?.dest ?? this.pin;
