@@ -987,6 +987,475 @@
       "color": "#ffd43b",
       "color2": "#ffdbac",
       "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "strand_token",
+      "name": "Strand Token",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "coin",
+      "color": "#74c0fc"
+    },
+    {
+      "id": "strand_latte",
+      "name": "Strand Latte Cup",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "cup",
+      "color": "#c49a6c"
+    },
+    {
+      "id": "aqua_bucket_hat",
+      "name": "Aqua Bucket Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "bucket",
+      "color": "#22b8cf"
+    },
+    {
+      "id": "sunset_shades",
+      "name": "Sunset Shades",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "star_shades",
+      "color": "#ff922b"
+    },
+    {
+      "id": "ocean_glow_aura",
+      "name": "Ocean Glow Aura",
+      "type": "aura",
+      "rarity": "rare",
+      "shape": "glow",
+      "color": "#339af0"
+    },
+    {
+      "id": "teal_name",
+      "name": "Teal Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#20c997"
+    },
+    {
+      "id": "batik_cape",
+      "name": "Batik Cape",
+      "type": "back",
+      "rarity": "rare",
+      "shape": "cape",
+      "color": "#e8590c",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "neon_bunny_ears",
+      "name": "Neon Bunny Ears",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "bunny",
+      "color": "#f783ac"
+    },
+    {
+      "id": "silver_jetpack",
+      "name": "Silver Jetpack",
+      "type": "back",
+      "rarity": "epic",
+      "shape": "jetpack",
+      "color": "#dee2e6",
+      "color2": "#4dabf7"
+    },
+    {
+      "id": "ember_hearts_aura",
+      "name": "Ember Hearts Aura",
+      "type": "aura",
+      "rarity": "epic",
+      "shape": "hearts",
+      "color": "#ff6b6b"
+    },
+    {
+      "id": "platinum_crown",
+      "name": "Platinum Crown",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "crown",
+      "color": "#e9ecef",
+      "color2": "#74c0fc"
+    },
+    {
+      "id": "golden_angel_wings",
+      "name": "Golden Angel Wings",
+      "type": "back",
+      "rarity": "legendary",
+      "shape": "angel_wings",
+      "color": "#fcc419"
+    },
+    {
+      "id": "cosmic_halo",
+      "name": "Cosmic Halo",
+      "type": "hat",
+      "rarity": "mythic",
+      "shape": "halo",
+      "color": "#b197fc"
+    },
+    {
+      "id": "strand_skyline_aura",
+      "name": "Strand Skyline Aura",
+      "type": "aura",
+      "rarity": "divine",
+      "shape": "sparkle",
+      "color": "#74c0fc",
+      "limit": 10
+    },
+    {
+      "id": "angpow_coin",
+      "name": "Ang Pow Coin",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "coin",
+      "color": "#e03131"
+    },
+    {
+      "id": "kopi_o_cup",
+      "name": "Kopi-O Cup",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "cup",
+      "color": "#3b2a20"
+    },
+    {
+      "id": "towkay_cowboy_hat",
+      "name": "Towkay Cowboy Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "cowboy",
+      "color": "#212529"
+    },
+    {
+      "id": "gold_monocle",
+      "name": "Gold Monocle",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "monocle",
+      "color": "#fcc419"
+    },
+    {
+      "id": "jade_name",
+      "name": "Jade Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#2b8a3e"
+    },
+    {
+      "id": "business_backpack",
+      "name": "Business Backpack",
+      "type": "back",
+      "rarity": "rare",
+      "shape": "backpack",
+      "color": "#343a40"
+    },
+    {
+      "id": "prosperity_glow_aura",
+      "name": "Prosperity Glow Aura",
+      "type": "aura",
+      "rarity": "rare",
+      "shape": "glow",
+      "color": "#e03131"
+    },
+    {
+      "id": "ruby_shades",
+      "name": "Ruby Shades",
+      "type": "face",
+      "rarity": "epic",
+      "shape": "diamond_shades",
+      "color": "#e03131"
+    },
+    {
+      "id": "golden_viking_helmet",
+      "name": "Golden Viking Helmet",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "viking",
+      "color": "#fcc419"
+    },
+    {
+      "id": "fire_cape",
+      "name": "Fire Cape",
+      "type": "back",
+      "rarity": "epic",
+      "shape": "cape",
+      "color": "#ff6b00",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "dragon_flame_aura",
+      "name": "Dragon Flame Aura",
+      "type": "aura",
+      "rarity": "legendary",
+      "shape": "flame",
+      "color": "#fa5252",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "jade_crown",
+      "name": "Jade Crown",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "crown",
+      "color": "#2f9e44",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "golden_naga_aura",
+      "name": "Golden Naga Aura",
+      "type": "aura",
+      "rarity": "mythic",
+      "shape": "naga",
+      "color": "#fcc419",
+      "color2": "#e03131"
+    },
+    {
+      "id": "angpow_phoenix_wings",
+      "name": "Ang Pow Phoenix Wings",
+      "type": "back",
+      "rarity": "divine",
+      "shape": "phoenix_wings",
+      "color": "#e03131",
+      "color2": "#fcc419",
+      "limit": 10
+    },
+    {
+      "id": "silver_coin",
+      "name": "Silver Coin",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "coin",
+      "color": "#ced4da"
+    },
+    {
+      "id": "golden_duck",
+      "name": "Golden Rubber Duck",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "duck",
+      "color": "#fcc419"
+    },
+    {
+      "id": "tycoon_top_hat",
+      "name": "Tycoon Top Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "tophat",
+      "color": "#343a40"
+    },
+    {
+      "id": "smart_glasses",
+      "name": "Smart Glasses",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "nerd",
+      "color": "#1c7ed6"
+    },
+    {
+      "id": "platinum_name",
+      "name": "Platinum Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#dee2e6"
+    },
+    {
+      "id": "velvet_cape",
+      "name": "Velvet Cape",
+      "type": "back",
+      "rarity": "rare",
+      "shape": "cape",
+      "color": "#862e9c"
+    },
+    {
+      "id": "sapphire_shades",
+      "name": "Sapphire Shades",
+      "type": "face",
+      "rarity": "epic",
+      "shape": "diamond_shades",
+      "color": "#339af0"
+    },
+    {
+      "id": "purple_propeller_cap",
+      "name": "Purple Propeller Cap",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "propeller",
+      "color": "#9775fa"
+    },
+    {
+      "id": "royal_backpack",
+      "name": "Royal Backpack",
+      "type": "back",
+      "rarity": "epic",
+      "shape": "backpack",
+      "color": "#fcc419"
+    },
+    {
+      "id": "diamond_halo",
+      "name": "Diamond Halo",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "halo",
+      "color": "#a5d8ff"
+    },
+    {
+      "id": "midnight_bat_wings",
+      "name": "Midnight Bat Wings",
+      "type": "back",
+      "rarity": "legendary",
+      "shape": "bat_wings",
+      "color": "#141414",
+      "color2": "#9775fa"
+    },
+    {
+      "id": "galaxy_sparkle_aura",
+      "name": "Galaxy Sparkle Aura",
+      "type": "aura",
+      "rarity": "mythic",
+      "shape": "sparkle",
+      "color": "#9775fa"
+    },
+    {
+      "id": "emerald_phoenix_wings",
+      "name": "Emerald Phoenix Wings",
+      "type": "back",
+      "rarity": "mythic",
+      "shape": "phoenix_wings",
+      "color": "#20c997",
+      "color2": "#63e6be"
+    },
+    {
+      "id": "aurora_name",
+      "name": "Aurora Name",
+      "type": "namecolor",
+      "rarity": "divine",
+      "shape": "name",
+      "color": "#63e6be",
+      "limit": 10
+    },
+    {
+      "id": "diamond_chip",
+      "name": "Diamond Chip",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "coin",
+      "color": "#a5d8ff"
+    },
+    {
+      "id": "crystal_cup",
+      "name": "Crystal Cup",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "cup",
+      "color": "#e7f5ff"
+    },
+    {
+      "id": "silk_songkok",
+      "name": "Silk Songkok",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "songkok",
+      "color": "#1c7ed6",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "diamond_monocle",
+      "name": "Diamond Monocle",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "monocle",
+      "color": "#a5d8ff"
+    },
+    {
+      "id": "crystal_name",
+      "name": "Crystal Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#a5d8ff"
+    },
+    {
+      "id": "ice_cape",
+      "name": "Ice Cape",
+      "type": "back",
+      "rarity": "rare",
+      "shape": "cape",
+      "color": "#74c0fc",
+      "color2": "#e7f5ff"
+    },
+    {
+      "id": "prism_bubbles_aura",
+      "name": "Prism Bubbles Aura",
+      "type": "aura",
+      "rarity": "epic",
+      "shape": "bubbles",
+      "color": "#e599f7"
+    },
+    {
+      "id": "diamond_bunny_ears",
+      "name": "Diamond Bunny Ears",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "bunny",
+      "color": "#e7f5ff"
+    },
+    {
+      "id": "tan_sri_crown",
+      "name": "Tan Sri Crown",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "crown",
+      "color": "#fff3bf",
+      "color2": "#a5d8ff"
+    },
+    {
+      "id": "crystal_angel_wings",
+      "name": "Crystal Angel Wings",
+      "type": "back",
+      "rarity": "legendary",
+      "shape": "angel_wings",
+      "color": "#e7f5ff"
+    },
+    {
+      "id": "diamond_naga_aura",
+      "name": "Diamond Naga Aura",
+      "type": "aura",
+      "rarity": "mythic",
+      "shape": "naga",
+      "color": "#a5d8ff",
+      "color2": "#e7f5ff"
+    },
+    {
+      "id": "starfire_jetpack",
+      "name": "Starfire Jetpack",
+      "type": "back",
+      "rarity": "mythic",
+      "shape": "jetpack",
+      "color": "#fcc419",
+      "color2": "#f06595"
+    },
+    {
+      "id": "datuk_diamond_shades",
+      "name": "Datuk's Diamond Shades",
+      "type": "face",
+      "rarity": "divine",
+      "shape": "diamond_shades",
+      "color": "#e7f5ff",
+      "limit": 5
+    },
+    {
+      "id": "menara_halo",
+      "name": "Menara Mitraland Halo",
+      "type": "hat",
+      "rarity": "secret",
+      "shape": "halo",
+      "color": "#ffd43b",
+      "color2": "#ffffff",
+      "limit": 1
     }
   ]
 }

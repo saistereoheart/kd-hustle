@@ -346,6 +346,10 @@
     }
   ],
   "interactables": [
+    { "id": "strand_crate", "type": "crate", "name": "Strand Premium Crate", "crate": "strand", "building": "w328914587" },
+    { "id": "towkay_crate", "type": "crate", "name": "Towkay Crate", "crate": "towkay", "building": "w467995024" },
+    { "id": "tycoon_vault", "type": "crate", "name": "Tycoon Vault", "crate": "tycoon", "building": "w1030583397" },
+    { "id": "diamond_vault", "type": "crate", "name": "Tan Sri Diamond Vault", "crate": "diamond", "building": "w1030583397" },
     { "id": "casino_slots", "type": "casino", "game": "slots", "name": "Slot Machines", "building": "w467995024" },
     { "id": "casino_roulette", "type": "casino", "game": "roulette", "name": "Roulette", "building": "w467995024" },
     { "id": "casino_blackjack", "type": "casino", "game": "blackjack", "name": "Blackjack", "building": "w467995024" },

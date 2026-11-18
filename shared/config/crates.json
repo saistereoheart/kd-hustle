@@ -124,6 +124,122 @@
       }
     },
     {
+      "id": "strand",
+      "name": "Strand Premium Crate",
+      "priceSen": 2500000,
+      "requires": {
+        "stage": 3
+      },
+      "color": "#4dabf7",
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
+      "pool": [
+        "strand_token",
+        "strand_latte",
+        "aqua_bucket_hat",
+        "sunset_shades",
+        "ocean_glow_aura",
+        "teal_name",
+        "batik_cape",
+        "neon_bunny_ears",
+        "silver_jetpack",
+        "ember_hearts_aura",
+        "platinum_crown",
+        "golden_angel_wings",
+        "cosmic_halo",
+        "strand_skyline_aura"
+      ]
+    },
+    {
+      "id": "towkay",
+      "name": "Towkay Crate",
+      "priceSen": 50000000,
+      "requires": {
+        "stage": 4
+      },
+      "color": "#e8590c",
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
+      "pool": [
+        "angpow_coin",
+        "kopi_o_cup",
+        "towkay_cowboy_hat",
+        "gold_monocle",
+        "jade_name",
+        "business_backpack",
+        "prosperity_glow_aura",
+        "ruby_shades",
+        "golden_viking_helmet",
+        "fire_cape",
+        "dragon_flame_aura",
+        "jade_crown",
+        "golden_naga_aura",
+        "angpow_phoenix_wings"
+      ]
+    },
+    {
+      "id": "tycoon",
+      "name": "Tycoon Vault",
+      "priceSen": 1000000000,
+      "requires": {
+        "stage": 5
+      },
+      "color": "#7048e8",
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
+      "pool": [
+        "silver_coin",
+        "golden_duck",
+        "tycoon_top_hat",
+        "smart_glasses",
+        "platinum_name",
+        "velvet_cape",
+        "sapphire_shades",
+        "purple_propeller_cap",
+        "royal_backpack",
+        "diamond_halo",
+        "midnight_bat_wings",
+        "galaxy_sparkle_aura",
+        "emerald_phoenix_wings",
+        "aurora_name"
+      ]
+    },
+    {
+      "id": "diamond",
+      "name": "Tan Sri Diamond Vault",
+      "priceSen": 25000000000,
+      "requires": {
+        "stage": 6
+      },
+      "color": "#22b8cf",
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
+      "pool": [
+        "diamond_chip",
+        "crystal_cup",
+        "silk_songkok",
+        "diamond_monocle",
+        "crystal_name",
+        "ice_cape",
+        "prism_bubbles_aura",
+        "diamond_bunny_ears",
+        "tan_sri_crown",
+        "crystal_angel_wings",
+        "diamond_naga_aura",
+        "starfire_jetpack",
+        "datuk_diamond_shades",
+        "menara_halo"
+      ]
+    },
+    {
       "id": "durian",
       "name": "Durian Crate",
       "priceSen": 200000,
