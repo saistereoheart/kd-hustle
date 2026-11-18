@@ -9,7 +9,7 @@ import { STALL_UPGRADES, type StallState } from '../cooking/stall';
 import type { StepParams } from '../cooking/cooking';
 import type { Placed, PropertyMode } from '../property/schemas';
 import type { Rating, Suggestion } from '../property/rating';
-import type { Checkout, Ventures } from '../business/business';
+import type { BoutiqueSelf, Checkout, Listing, Ventures } from '../business/business';
 import type { BankView, Loan } from '../business/loans';
 
 export const C2S = {
@@ -32,6 +32,8 @@ export const C2S = {
   shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
   shopCashier: z.object({ on: z.boolean() }),
   checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
+  boutiqueList: z.object({ iid: z.number().int().positive(), priceSen: z.number().int().positive().max(1e15) }),
+  boutiqueId: z.object({ id: z.number().int().positive() }),
   loanTake: z.object({ kind: z.enum(['personal', 'business', 'property', 'ahlong']), amountSen: z.number().int().positive().max(1e15), collateral: z.string().min(1).max(60).optional() }),
   loanRepay: z.object({ id: z.number().int().positive(), amountSen: z.number().int().positive().max(1e15).optional() }),
   // --- property (Phase 5) ---
@@ -504,6 +506,11 @@ export interface ClientToServerEvents {
   /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
   'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
   'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
+  // --- the boutique (Phase 6) ---
+  'boutique:open': (ack: Ack<SimpleResult>) => void;
+  'boutique:list': (msg: { iid: number; priceSen: number }, ack: Ack<Result<{ listing: Listing }>>) => void;
+  'boutique:cancel': (msg: { id: number }, ack: Ack<Result<{ item: InventoryItem }>>) => void;
+  'boutique:buy': (msg: { id: number }, ack: Ack<Result<{ item: InventoryItem }>>) => void;
   // --- loans (Phase 6) ---
   'bank:view': (ack: Ack<Result<{ bank: BankView }>>) => void;
   'loan:take': (msg: { kind: 'personal' | 'business' | 'property' | 'ahlong'; amountSen: number; collateral?: string }, ack: Ack<Result<{ loan: Loan }>>) => void;
@@ -538,6 +545,10 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** Everything on display in player boutiques. */
+  boutique: (p: { listings: Listing[] }) => void;
+  /** Your own boutique (open, sales waiting to be paid). */
+  'boutique:self': (p: { boutique: BoutiqueSelf }) => void;
   /** Your loans and credit (after any change, and each loan day). */
   'bank:self': (p: { bank: BankView }) => void;
   /** A loan event worth a toast (missed instalment, repossession, debt collectors...). */

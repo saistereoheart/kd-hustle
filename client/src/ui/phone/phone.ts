@@ -10,6 +10,7 @@ import { sfx } from '../sound';
 import { renderBusiness } from './business';
 import { renderVentures } from './ventures';
 import { renderBank } from './bank';
+import { renderBoutique } from './boutique';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -87,6 +88,7 @@ const APPS: PhoneApp[] = [
     id: 'ventures', name: 'Ventures', icon: '🏢', color: '#5c940d', render: renderVentures,
     badge: (app) => (Object.values(app.store.ventures.businesses).some((b) => b.level && !b.manager && b.stored) ? '💰' : null),
   },
+  { id: 'boutique', name: 'Butik', icon: '👜', color: '#c2255c', render: renderBoutique },
   {
     id: 'bank', name: 'Bank', icon: '🏦', color: '#1864ab', render: renderBank,
     badge: (app) => (app.store.bank?.owesAhLong ? '🦈' : app.store.bank?.loans.some((l) => l.missed) ? '!' : null),

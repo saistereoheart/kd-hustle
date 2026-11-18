@@ -16,6 +16,15 @@
     { "id": "supermarket", "name": "Pasaraya Rakyat", "icon": "🛒", "requires": { "stage": 6 }, "baseCostSen": 12000000000, "cycleSec": 160, "revenueSen": 7000000, "rushName": "Mega sale!" },
     { "id": "mall", "name": "KD Mega Mall", "icon": "🏬", "requires": { "stage": 6 }, "baseCostSen": 60000000000, "cycleSec": 320, "revenueSen": 40000000, "rushName": "Grand opening!" }
   ],
+  "boutique": {
+    "name": "Butik",
+    "icon": "👜",
+    "requires": { "stage": 3 },
+    "openSen": 2000000,
+    "slots": 8,
+    "feeRate": 0.05,
+    "maxPriceSen": 100000000000
+  },
   "retail": {
     "name": "Kedai Runcit",
     "icon": "🏪",

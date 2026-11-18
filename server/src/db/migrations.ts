@@ -226,6 +226,24 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    id: 12,
+    name: 'boutique listings',
+    // Phase 6: items on display in player boutiques (taken out of the seller's inventory while
+    // listed; back in it if the listing is cancelled, in the buyer's when sold).
+    sql: `
+      CREATE TABLE boutique_listings (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        item_id    TEXT NOT NULL,
+        variant    TEXT NOT NULL,
+        grade      TEXT NOT NULL,
+        serial     INTEGER,
+        price_sen  INTEGER NOT NULL,
+        listed_at  INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

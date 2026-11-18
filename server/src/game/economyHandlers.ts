@@ -211,6 +211,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     cfg, repos, econ, world, socketOf, pushWallet,
     incomeMult: (p) => prog.mods(p).passive * finance.incomeMult(p), // Passive Income (skill + gear); half while late on the Ah Long
     check: (p) => prog.check(p),
+    io,
+    lockedIids: (p) => propSys.lockedIids(p),
   });
   // --- loans (Phase 6): Bank Kota and the Ah Long -----------------------------------------------
   finance = createLoans({

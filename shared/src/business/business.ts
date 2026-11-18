@@ -26,6 +26,17 @@ export const businessesConfigSchema = z.object({
       rushName: z.string(),
     }),
   ),
+  /** The player-item boutique (consignment): list gacha items for other players to buy. */
+  boutique: z.object({
+    name: z.string(),
+    icon: z.string(),
+    requires,
+    openSen: z.number().int().positive(),
+    slots: z.number().int().positive(),
+    /** Consignment fee taken from each sale (a money sink). */
+    feeRate: z.number().min(0).max(1),
+    maxPriceSen: z.number().int().positive(),
+  }),
   retail: z.object({
     name: z.string(),
     icon: z.string(),
@@ -44,6 +55,29 @@ export const businessesConfigSchema = z.object({
 });
 export type BusinessesConfig = z.infer<typeof businessesConfigSchema>;
 export type BusinessTypeDef = BusinessesConfig['types'][number];
+
+// ------------------------------------------------------------------ boutique
+/** An item on display in someone's boutique (everyone sees these). */
+export interface Listing {
+  id: number;
+  seller: number;
+  sellerName: string;
+  itemId: string;
+  variant: string;
+  grade: string;
+  serial: number | null;
+  priceSen: number;
+  listedAt: number;
+}
+
+/** Your boutique: open or not, and sales waiting to be paid out (you were offline). */
+export interface BoutiqueSelf {
+  open: boolean;
+  pendingSen: number;
+  pendingSales: Array<{ itemId: string; priceSen: number; buyer: string }>;
+  soldCount: number;
+  earnedSen: number;
+}
 
 // ------------------------------------------------------------------ state (saved per player)
 export interface BizState {

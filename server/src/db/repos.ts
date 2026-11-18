@@ -118,6 +118,9 @@ export function createRepos(db: DB) {
        ON CONFLICT(unit_id) DO UPDATE SET account_id = excluded.account_id, type = excluded.type, data_json = excluded.data_json, updated_at = excluded.updated_at`,
     ),
     propDelete: db.prepare('DELETE FROM properties WHERE unit_id = ?'),
+    bqAll: db.prepare('SELECT b.*, a.username FROM boutique_listings b JOIN accounts a ON a.id = b.seller_id ORDER BY b.id'),
+    bqInsert: db.prepare('INSERT INTO boutique_listings (seller_id, item_id, variant, grade, serial, price_sen, listed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    bqDelete: db.prepare('DELETE FROM boutique_listings WHERE id = ?'),
     pdGet: db.prepare('SELECT data_json FROM player_data WHERE account_id = ? AND kind = ?'),
     pdUpsert: db.prepare(
       `INSERT INTO player_data (account_id, kind, data_json, updated_at) VALUES (?, ?, ?, ?)
@@ -176,7 +179,18 @@ export function createRepos(db: DB) {
       save: (unit: string, owner: number, type: string, data: unknown) => s.propUpsert.run(unit, owner, type, JSON.stringify(data), Date.now()),
       delete: (unit: string) => s.propDelete.run(unit),
     },
-    /** Per-player JSON blobs by kind ('ventures', 'finance'). */
+    /** Items on display in player boutiques. */
+    boutique: {
+      all: () =>
+        (s.bqAll.all() as Array<{ id: number; seller_id: number; username: string; item_id: string; variant: string; grade: string; serial: number | null; price_sen: number; listed_at: number }>).map((r) => ({
+          id: r.id, seller: r.seller_id, sellerName: r.username, itemId: r.item_id, variant: r.variant, grade: r.grade, serial: r.serial, priceSen: r.price_sen, listedAt: r.listed_at,
+        })),
+      insert: (seller: number, itemId: string, variant: string, grade: string, serial: number | null, priceSen: number, at: number) =>
+        Number(s.bqInsert.run(seller, itemId, variant, grade, serial, priceSen, at).lastInsertRowid),
+      /** True if it was still there (so two buyers can't both get it). */
+      delete: (id: number) => s.bqDelete.run(id).changes === 1,
+    },
+    /** Per-player JSON blobs by kind ('ventures', 'finance', 'boutique'). */
     playerData: {
       load: <T>(accountId: number, kind: string): T | null => {
         const r = s.pdGet.get(accountId, kind) as { data_json: string } | undefined;

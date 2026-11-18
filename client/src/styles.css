@@ -927,3 +927,4 @@ body.touch .phone-btn-label kbd { display: none; }
 .welcome-line small { font-size: 11px; }
 .welcome-line b.neg { color: #ff8787; }
 .welcome-lines { max-height: 40vh; overflow-y: auto; }
+.bq-card .item-card { flex: 0 0 86px; }

@@ -438,6 +438,14 @@ export class App {
       this.store.emit();
     });
     socket.on('loan:event', (ev) => toast(ev.text, ev.kind, 6000));
+    socket.on('boutique', ({ listings }) => {
+      this.store.listings = listings;
+      this.store.emit();
+    });
+    socket.on('boutique:self', ({ boutique }) => {
+      this.store.boutique = boutique;
+      this.store.emit();
+    });
     socket.on('prop:event', (ev) => toast(ev.text, ev.kind, 5000));
     socket.on('welcome', (w) => showWelcomeBack(this, w));
     socket.on('time:vote', (v) => {

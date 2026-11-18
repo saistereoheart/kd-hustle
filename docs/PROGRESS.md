@@ -11,8 +11,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
-**Phase 6 (shops, businesses, loans): in progress.** 6a (idle businesses + the retail shop) and 6b (Bank Kota + Ah
-Long loans) are done; next 6c (the player-item boutique).
+**Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
+income for stalls). Next: Phase 7 (casino and social economy).
 
 | Check | Result |
 |---|---|
@@ -30,6 +30,18 @@ Long loans) are done; next 6c (the player-item boutique).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 6c: the player-item boutique (Butik)
+
+### How to test it (two players)
+- **📱 → 👜 Butik → My Butik** (stage 3, RM 20,000): open it, tap an item from your bag, pick a price (its value,
+  1.5×, 2×, 3×, or your own). It goes on display (out of your bag) in one of 8 slots. **Take back** returns it.
+- **📱 → 👜 Butik → Browse:** everything other players have on display, rarest first, with what it's worth.
+  **Buy** moves it straight into your bag (tier, variant and serial kept).
+- The seller gets the price minus a **5% consignment fee**: straight away if they're online (with a toast), or at
+  their next login (one line per item sold on the welcome-back screen). Worn items and furniture placed in a home
+  can't be listed. Items on display still count towards your net worth.
+- Database: migration 12 adds `boutique_listings`.
 
 ## Offline income: stalls stay open, real time, a breakdown per source
 
@@ -1153,9 +1165,6 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
-## Next: Phase 6 (shops, businesses and loans)
+## Next: Phase 7 (casino and social economy)
 
-From the spec (§20): the retail shop (pricing, shelves, the cashier mini-game), the player-item boutique, the other
-businesses (levels, milestones, managers), Bank Kota (credit score, loans, repayment, repossession), the Ah Long and
-debt collectors, and money sinks (tax, wages, maintenance).
-**Done when:** players can choose different money-making strategies and loans add real risk/reward.
+From the spec (§20): Lucky Strand Casino, player-to-player trading, and the rest of the social economy.
