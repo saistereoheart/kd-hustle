@@ -297,6 +297,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     });
 
     socket.on('net:ping', (ack) => typeof ack === 'function' && ack({ ok: true }));
+    socket.on('money:ledger', (ack) => {
+      if (typeof ack !== 'function') return;
+      const now = Date.now();
+      ack({ ok: true, hour: repos.econ.sums(me.id, now - 3_600_000), day: repos.econ.sums(me.id, now - 86_400_000) });
+    });
 
     socket.on('emote', (msg) => {
       if (!me.hasCharacter) return;

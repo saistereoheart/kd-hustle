@@ -1016,3 +1016,15 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 /* Head chef stats (📱 Business → Head chef) */
 .chef-stats { display: grid; gap: 2px; margin-top: 4px; font-size: 0.85em; }
 .chef-card.on { outline: 2px solid #f59f00; }
+
+/* 💰 Money breakdown */
+.money-head { text-align: center; margin-bottom: 6px; }
+.money-big { font-size: 1.6em; font-weight: 800; }
+.money-list { display: grid; gap: 6px; }
+.money-row { background: rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+.money-row.total { border-top: 2px solid rgba(255, 255, 255, 0.2); }
+.money-row-head { display: flex; justify-content: space-between; gap: 8px; }
+.money-row b.good { color: #69db7c; }
+.money-row b.bad { color: #ff8787; }
+.money-split { color: #ffd43b; }
+.hud-wallet { cursor: pointer; }

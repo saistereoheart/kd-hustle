@@ -478,3 +478,22 @@ export function validateProgressionConfigs(cfg: ProgCfg): string[] {
   for (let i = 1; i < sorted.length; i++) if (sorted[i].minNetWorthSen <= sorted[i - 1].minNetWorthSen) errors.push('stages: net worth thresholds must increase');
   return errors;
 }
+
+// ------------------------------------------------------------------ income breakdown
+/** One multiplier: 1 + the sum of its parts (bonuses of different kinds add up). */
+export type IncomeFactor = Array<{ label: string; add: number }>;
+
+/** Splits an amount into base pay + what each bonus added. */
+export function splitIncome(total: number, fs: IncomeFactor[]): { base: number; parts: Array<{ label: string; sen: number }> } {
+  const mult = fs.reduce((m, f) => m * (1 + f.reduce((a, p) => a + p.add, 0)), 1);
+  const base = total / mult;
+  let running = base;
+  const parts: Array<{ label: string; sen: number }> = [];
+  for (const f of fs) {
+    const sum = f.reduce((a, p) => a + p.add, 0);
+    const inc = running * sum;
+    for (const p of f) parts.push({ label: p.label, sen: sum > 0 ? (inc * p.add) / sum : 0 });
+    running += inc;
+  }
+  return { base, parts: parts.filter((p) => Math.round(p.sen) !== 0) };
+}

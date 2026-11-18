@@ -1,6 +1,7 @@
 import type { Joystick } from '../input/joystick';
 import { formatMoney, formatMoneyExact, levelInfo, stageDef } from '@kh/shared';
 import type { App } from '../app';
+import { openMoneyPanel } from './moneyPanel';
 import { el, toast, uiRoot } from './dom';
 
 export interface HudOptions {
@@ -53,9 +54,9 @@ export class Hud {
     };
     this.district = el('span', { class: 'hud-district' });
     this.clock = el('span', { class: 'hud-clock', 'data-testid': 'hud-clock', title: 'In-game time (1 hour = 1 real minute)' });
-    this.wallet = el('span', { class: 'hud-wallet', 'data-testid': 'wallet', title: 'Tap for the exact amount' }, 'RM 0');
+    this.wallet = el('span', { class: 'hud-wallet', 'data-testid': 'wallet', title: 'Tap for your money breakdown' }, 'RM 0');
     this.shards = el('span', { class: 'hud-shards', title: 'Shards' }, '💎 0');
-    this.wallet.addEventListener('click', () => toast(formatMoneyExact(this.walletSen)));
+    this.wallet.addEventListener('click', () => openMoneyPanel(this.app));
     this.banner = el('div', { class: 'district-banner hidden' });
     this.prompt = el('div', { class: 'interact-prompt hidden' });
     this.saved = el('div', { class: 'saved-chip hidden', 'data-testid': 'saved' }, 'Saved ✓');

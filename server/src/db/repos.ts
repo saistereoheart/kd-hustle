@@ -105,6 +105,7 @@ export function createRepos(db: DB) {
     indexAdd: db.prepare('INSERT OR IGNORE INTO collection_index (account_id, item_id, first_found_at) VALUES (?, ?, ?)'),
     rollInsert: db.prepare('INSERT INTO roll_log (account_id, crate_id, item_id, tier, variant, serial, rolled_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     rollCountItem: db.prepare('SELECT COUNT(*) AS n FROM roll_log WHERE item_id = ?'),
+    txSums: db.prepare('SELECT reason, SUM(CASE WHEN delta_sen > 0 THEN delta_sen ELSE 0 END) AS inSen, SUM(CASE WHEN delta_sen < 0 THEN -delta_sen ELSE 0 END) AS outSen, COUNT(*) AS n FROM transactions WHERE account_id = ? AND at >= ? AND delta_sen != 0 GROUP BY reason'),
     txInsert: db.prepare('INSERT INTO transactions (account_id, delta_sen, balance_sen, delta_shards, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     announceInsert: db.prepare('INSERT INTO announcements (text, tier, at) VALUES (?, ?, ?)'),
     stallDelete: db.prepare('DELETE FROM stalls WHERE account_id = ?'),
@@ -161,6 +162,8 @@ export function createRepos(db: DB) {
       setMoney: (accountId: number, walletSen: number, shards: number) => s.setMoney.run(walletSen, shards, accountId),
       setState: (accountId: number, e: Pick<EconRecord, 'equipped' | 'pity' | 'jobs' | 'pages' | 'skills'>) =>
         s.setEconState.run(JSON.stringify(e.equipped), JSON.stringify(e.pity), JSON.stringify(e.jobs), JSON.stringify(e.pages), JSON.stringify(e.skills), accountId),
+      /** Money in/out per reason since a time (for the 💰 money breakdown). */
+      sums: (accountId: number, since: number) => s.txSums.all(accountId, since) as Array<{ reason: string; inSen: number; outSen: number; n: number }>,
       logTx: (accountId: number, deltaSen: number, balanceSen: number, deltaShards: number, reason: string, ref: string | null) =>
         s.txInsert.run(accountId, deltaSen, balanceSen, deltaShards, reason, ref, Date.now()),
     },

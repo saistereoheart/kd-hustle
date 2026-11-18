@@ -439,6 +439,12 @@ export interface SnapshotPayload {
 }
 
 type Ack<T> = (res: T) => void;
+export interface LedgerRow {
+  reason: string;
+  inSen: number;
+  outSen: number;
+  n: number;
+}
 export type SimpleResult = { ok: true } | { ok: false; error: string };
 export type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -549,6 +555,8 @@ export interface ClientToServerEvents {
   'coinflip:challenge': (msg: { to: number; sen: number }, ack: Ack<SimpleResult>) => void;
   /** Round-trip time check (the debug overlay). */
   'net:ping': (ack: Ack<SimpleResult>) => void;
+  /** 💰 Money in/out per reason over the last hour and the last 24 hours. */
+  'money:ledger': (ack: Ack<Result<{ hour: LedgerRow[]; day: LedgerRow[] }>>) => void;
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
   'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
   /** Start a new life (you type REBIRTH to confirm). */
