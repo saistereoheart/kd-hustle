@@ -45,7 +45,18 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 4. **Chef gacha:** roll your chef, with a tier and a variation buff (like shiny items).
 5. **Items get tiny buffs by tier**, with a multiplier for their variation.
 6. **Stall stock display:** no stock sign over stalls outside the stall view. Instead, big logos down the side of
-   the screen with "x 200" counts and no label; hovering one stretches it to show the full name.
+   the screen showing "x <stock count>" and no label; hovering one stretches it to show the full name.
+
+**Your answers and additions:**
+- The condensed-milk spoon count is graded.
+- Chef buffs should be noticeable; strong is fine.
+- Item buffs can cover every stat; strong is fine. Tiers exaggerate them (common very low, legendary quite high).
+- **Shards get real uses:** chef rolls, rerolling an item's variation, and rerolling its tier (a chance).
+- **Tiers are a separate measure from rarity.** Every rolled item can have a tier AND a variation, and they
+  multiply (e.g. tier S ×5 and diamond ×5 = base ×25).
+- **Merge copies of the same item to raise its tier,** one step at a time and not too cheaply (e.g. 5 → 1 of the
+  next step). The merged item keeps the best variation among its inputs (one golden input → golden result).
+- *To confirm:* does merging raise the tier or the rarity? What are the tier names and multipliers?
 
 ---
 
