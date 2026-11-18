@@ -54,6 +54,7 @@ import { DebugOverlay } from './ui/debugOverlay';
 import { showTrade, showTradeRequest } from './ui/trade';
 import { showCoinflipChallenge, showCoinflipResult } from './ui/coinflip';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
+import { introCancel, introCover } from './ui/intro';
 import { openErrandOffer } from './ui/errand';
 import { HomeScene } from './world/homeScene';
 import { openPropertyPanel } from './ui/property/propertyPanel';
@@ -202,12 +203,16 @@ export class App {
   /** The START GAME screen (after login, and after losing the connection for good). */
   showTitle(username: string, notice?: string) {
     this.username = username;
+    introCancel();
     showTitleScreen(this.cfg, {
       notice,
       username,
       onStart: () => {
         const token = loadToken();
-        if (token) this.connect(token);
+        if (token) {
+          introCover(); // dark + a dot until the town is drawn, then it opens up
+          this.connect(token);
+        }
         else void this.showLoginThenTitle();
       },
       onLogout: () => {

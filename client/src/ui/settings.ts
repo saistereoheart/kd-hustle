@@ -82,7 +82,7 @@ export function openSettings(opts: {
     el('h3', {}, '⚙️ Settings'),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, 'Last saved'), savedLabel)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
-    el('div', { class: 'setting-row' }, el('span', {}, '🎵 Shared radio'), musicOn),
+    el('div', { class: 'setting-row' }, el('span', {}, '🎵 Music (lofi / shared radio)'), musicOn),
     el('div', { class: 'setting-row' }, el('span', {}, 'Music volume'), musicVol),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),

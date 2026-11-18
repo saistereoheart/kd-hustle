@@ -6,6 +6,7 @@ import type { MusicView } from '@kh/shared';
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
 import { loadPrefs } from './settings';
+import { lofi } from './lofi';
 
 export class Radio {
   readonly audio = new Audio();
@@ -93,6 +94,7 @@ export class Radio {
         this.audio.removeAttribute('src');
       }
       this.applyPrefs();
+      lofi.yieldTo(!!id); // the built-in lofi plays only when the radio has nothing on
     } else if (v && v.startedAt !== this.startedAt) this.seek(); // same track, restarted (skipped with only one in the genre)
     this.startedAt = v?.startedAt ?? 0;
     this.paint();

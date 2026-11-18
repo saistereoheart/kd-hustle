@@ -81,3 +81,6 @@ export const sfx = {
     tone(380, 0.12, 'sine', 0.1, 0.12, 220);
   },
 };
+
+/** The shared AudioContext (resumed if the browser suspended it). */
+export const audioCtx = ac;

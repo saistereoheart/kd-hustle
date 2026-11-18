@@ -15,6 +15,7 @@ import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
 import { Culler } from './culler';
 import { Collectors } from './collectors';
+import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 
 interface Sample {
@@ -270,6 +271,8 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.preRender();
     this.mapView.update(this.cameras.main.worldView, true);
     this.app.onTownReady(this);
+    // First frame drawn: open the town up from the intro dot (no-op if there's no intro).
+    this.events.once('postupdate', () => this.time.delayedCall(60, () => introReveal()));
   }
 
   /** A title id → the text and rarity colour drawn over a head. */
