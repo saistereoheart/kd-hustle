@@ -44,6 +44,46 @@
         { "kind": "assemble", "label": "Serve it with…", "hint": "Tap the curries the customer asked for (any order)", "art": "curry", "pick": [1, 2], "fastMs": 4500, "maxMs": 12000,
           "options": [ { "id": "dhal", "name": "Dhal", "icon": "🥣" }, { "id": "kari_ayam", "name": "Kari ayam", "icon": "🍗" }, { "id": "kari_ikan", "name": "Kari ikan", "icon": "🐠" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
       ]
+    },
+    {
+      "id": "nasi_goreng", "name": "Nasi Goreng Kampung", "icon": "🍚", "basePriceSen": 1700, "ingredientCostSen": 425,
+      "unlock": { "recipe": "nasi_lemak", "mastery": 2 },
+      "steps": [
+        { "kind": "hold", "label": "Scoop the rice", "hint": "Hold, then let go in the green zone", "art": "rice", "fillMs": 1500, "zoneWidth": 0.16, "zoneCenter": [0.5, 0.85] },
+        { "kind": "rhythm", "label": "Toss it in the wok", "hint": "Toss on every beat (keep the fire going!)", "art": "wok_rice", "beats": 6, "intervalMs": [460, 620], "leadMs": 900 },
+        { "kind": "assemble", "label": "Plate it up", "hint": "Tap the toppings the customer asked for (any order)", "art": "friedrice", "pick": [2, 4], "fastMs": 6000, "maxMs": 14000,
+          "options": [ { "id": "telur_mata", "name": "Telur mata", "icon": "🍳" }, { "id": "ikan_bilis", "name": "Ikan bilis", "icon": "🐟" }, { "id": "keropok", "name": "Keropok", "icon": "🦐" }, { "id": "timun", "name": "Timun", "icon": "🥒" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
+      ],
+      "addons": [
+        { "id": "udang", "name": "Udang goreng", "icon": "🍤", "basePriceSen": 650, "ingredientCostSen": 220 },
+        { "id": "ayam_kunyit", "name": "Ayam goreng kunyit", "icon": "🍗", "basePriceSen": 700, "ingredientCostSen": 230 }
+      ],
+      "addonChance": 0.35, "maxAddons": 1
+    },
+    {
+      "id": "mee_goreng", "name": "Mee Goreng Mamak", "icon": "🍜", "basePriceSen": 1700, "ingredientCostSen": 425,
+      "unlock": { "recipe": "roti_canai", "mastery": 1 },
+      "steps": [
+        { "kind": "rhythm", "label": "Toss the noodles", "hint": "Toss on every beat", "art": "wok_mee", "beats": 6, "intervalMs": [440, 600], "leadMs": 900 },
+        { "kind": "timing", "label": "Off the fire!", "hint": "Take it off when it's red-brown and smoky, before it burns", "art": "wok_mee", "targetMs": [1500, 2600], "maxMs": 5200 },
+        { "kind": "assemble", "label": "Garnish", "hint": "Tap what the customer asked for (any order)", "art": "mee", "pick": [2, 4], "fastMs": 6000, "maxMs": 14000,
+          "options": [ { "id": "telur_mata", "name": "Telur mata", "icon": "🍳" }, { "id": "sotong", "name": "Sotong", "icon": "🦑" }, { "id": "tauge", "name": "Taugeh", "icon": "🌱" }, { "id": "limau", "name": "Limau", "icon": "🍋" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
+      ],
+      "addons": [
+        { "id": "udang_mee", "name": "Extra udang", "icon": "🍤", "basePriceSen": 650, "ingredientCostSen": 220 }
+      ],
+      "addonChance": 0.3, "maxAddons": 1
+    },
+    {
+      "id": "murtabak", "name": "Murtabak", "icon": "🫓", "basePriceSen": 2400, "ingredientCostSen": 600,
+      "unlock": { "recipe": "mee_goreng", "mastery": 1 },
+      "steps": [
+        { "kind": "rhythm", "label": "Stretch the dough", "hint": "Slap it on every beat", "art": "dough", "beats": 5, "intervalMs": [520, 680], "leadMs": 900 },
+        { "kind": "assemble", "label": "Fill it", "hint": "Spread the fillings the customer asked for (any order)", "art": "filling", "pick": [3, 4], "fastMs": 6500, "maxMs": 15000,
+          "options": [ { "id": "daging_cincang", "name": "Daging", "icon": "🥩" }, { "id": "ayam_cincang", "name": "Ayam", "icon": "🍗" }, { "id": "bawang", "name": "Bawang", "icon": "🧅" }, { "id": "telur_pecah", "name": "Telur", "icon": "🥚" }, { "id": "daun_bawang", "name": "Daun bawang", "icon": "🌿" } ] },
+        { "kind": "path", "label": "Fold it into a parcel", "hint": "Each corner into the middle", "art": "fold", "shape": "corners", "points": 8, "radius": 0.09 },
+        { "kind": "timing", "label": "Flip it!", "hint": "Flip when it's golden underneath", "art": "murtabak", "targetMs": [1600, 2800], "maxMs": 5400 }
+      ]
     }
   ],
   "windows": {

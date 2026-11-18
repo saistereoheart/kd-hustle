@@ -5,7 +5,7 @@
 import { gradeStep, meterLevel, meterZoneAt, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
-import { foodIcon, drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas } from './foodArt';
+import { foodIcon, drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas, drawFriedRice, drawMurtabak, drawNoodles, drawWok } from './foodArt';
 
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
 const GRADE_COLOR: Record<Grade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#74c0fc', miss: '#ff6b6b' };
@@ -211,7 +211,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       box.classList.toggle('track', s.kind === 'track');
       if (s.kind !== 'assemble' && (W !== W0 || H !== H0)) sizeCanvas(W0, H0);
       action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path' || s.kind === 'track');
-      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : s.art === 'kole' ? 'Hold to lift' : 'Hold to pour';
+      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? (s.art.startsWith('wok') ? 'Toss!' : 'Tap!') : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : s.art === 'kole' ? 'Hold to lift' : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
       if (s.kind === 'assemble') setupAssemble(s);
       if (s.kind === 'track') setupTrack();
@@ -439,6 +439,16 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
             ctx.bezierCurveTo(sx + Math.sin(ph) * 10, cy - gh / 2 - 34, sx - Math.sin(ph) * 10, cy - gh / 2 - 46, sx, cy - gh / 2 - 60);
             ctx.stroke();
           }
+        } else if (s.art === 'wok_mee') {
+          // Mee goreng in a blazing wok: pale noodles → saucy red-brown → burnt.
+          const rad = Math.min(W * 0.36, H * 0.5);
+          drawWok(ctx, cx - rad * 0.2, cy - 6, rad, 1, t);
+          drawNoodles(ctx, cx - rad * 0.2, cy - 10, rad * 0.62, rad * 0.36, p);
+        } else if (s.art === 'murtabak') {
+          // A murtabak on the griddle, browning.
+          const rad = Math.min(W, H) * 0.34;
+          drawGriddle(ctx, cx, cy - 8, rad * 1.15);
+          drawMurtabak(ctx, cx, cy - 8, rad * 1.3, p);
         } else {
           // Roti on a hot griddle, browning from pale to golden to burnt.
           const rad = Math.min(W, H) * 0.34;
@@ -484,6 +494,15 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.strokeStyle = 'rgba(255, 230, 190, 0.6)';
           ctx.lineWidth = 2;
           ctx.stroke();
+        } else if (s.art.startsWith('wok')) {
+          // Tossing in the wok: the food jumps after every tap and settles back down.
+          const rad = Math.min(W * 0.36, H * 0.5);
+          const since = ev.length ? t - ev[ev.length - 1] : 9999;
+          const jump = since < 320 ? Math.sin((since / 320) * Math.PI) * rad * 0.45 : 0;
+          drawWok(ctx, tx, ty, rad, 1, t);
+          const fy = ty - 4 - jump;
+          if (s.art === 'wok_mee') drawNoodles(ctx, tx, fy, rad * 0.6, rad * 0.34, 0.3 + done * 0.6);
+          else drawFriedRice(ctx, tx, fy, rad * 0.6, rad * 0.34, 0.2 + done * 0.8);
         } else {
           // Roti dough on an oiled steel counter, getting thinner and wider with every slap.
           drawCounter(ctx, W, H);
@@ -650,10 +669,21 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.fill();
           drawRoti(ctx, cx - prx * 0.25, pcy, pry * 0.78, 0.95);
           picked.forEach((id, i) => drawBowl(ctx, id, cx + prx * (0.42 + (i % 2) * 0.02), pcy + (i % 2 ? 0.42 : -0.42) * pry * (i > 1 ? 0.2 : 1), pry * 0.42));
+        } else if (s.art === 'filling') {
+          // Murtabak: the stretched dough sheet on the counter, the fillings spread on top.
+          drawCounter(ctx, W, H);
+          drawDough(ctx, cx, pcy, Math.min(prx * 1.1, (H - top) * 0.6), 1);
+          picked.forEach((id, i) => {
+            const a = (i / Math.max(1, picked.length)) * Math.PI * 2 + 0.4;
+            const fw = prx * 0.6, fh = pry * 0.6;
+            drawFood(ctx, id, cx + Math.cos(a) * prx * 0.28 - fw / 2, pcy + Math.sin(a) * pry * 0.3 - fh / 2, fw, fh, 0.7);
+          });
         } else {
-          // The plate: banana leaf, the rice, and what you've added, each in its place.
+          // The plate: banana leaf, the rice (or fried rice / mee goreng), and what you've added.
           drawPlate(ctx, cx, pcy, prx, pry);
-          drawRice(ctx, cx - prx * 0.12, pcy + pry * 0.05, prx * 0.3, pry * 0.42);
+          if (s.art === 'friedrice') drawFriedRice(ctx, cx - prx * 0.12, pcy + pry * 0.02, prx * 0.36, pry * 0.46, 1);
+          else if (s.art === 'mee') drawNoodles(ctx, cx - prx * 0.12, pcy + pry * 0.02, prx * 0.38, pry * 0.46, 1);
+          else drawRice(ctx, cx - prx * 0.12, pcy + pry * 0.05, prx * 0.3, pry * 0.42);
           const slots: Array<[number, number]> = [[0.32, -0.42], [0.5, 0.05], [0.3, 0.45], [-0.05, 0.55], [-0.45, 0.42], [-0.55, -0.05], [-0.38, -0.48], [0.05, -0.6]];
           picked.forEach((id, i) => {
             const [sx, sy] = slots[i % slots.length];
