@@ -63,8 +63,32 @@ function give(s: ReturnType<typeof setup>, items: string[]) {
 }
 
 describe('buying homes', () => {
+  it('your first home is free (up to the cap) and you can only have so many', () => {
+    const s = setup();
+    s.goTo(s.studio);
+    s.p.prog.stage = 4;
+    const before = s.p.walletSen;
+    s.props.buy(s.p, s.studio.id);
+    expect(s.p.walletSen).toBe(before); // claimed free
+    expect(s.props.assetsOf(s.p)).toBe(0); // a free home adds nothing to net worth
+    const lofts = s.props.units.filter((u) => u.type === 'loft');
+    expect(lofts.length).toBeGreaterThan(0); // plain shoplots hold homes too
+    const cl = cfg.properties.claim;
+    const others = s.props.units.filter((u) => u.id !== s.studio.id && u.priceSen <= s.p.walletSen).slice(0, cl.maxHomes);
+    for (const u of others.slice(0, cl.maxHomes - 1)) {
+      s.goTo(u);
+      s.props.buy(s.p, u.id);
+    }
+    const extra = others[cl.maxHomes - 1];
+    s.goTo(extra);
+    expect(() => s.props.buy(s.p, extra.id)).toThrow(/up to/);
+  });
+
   it('needs you at the door, the wealth stage and the money; then it is yours', () => {
     const s = setup();
+    const cap = cfg.properties.claim.firstFreeMaxSen;
+    cfg.properties.claim.firstFreeMaxSen = 0; // this test is about paying
+    try {
     expect(() => s.props.buy(s.p, s.studio.id)).toThrow(/Go to the building/);
     s.goTo(s.studio);
     s.p.prog.stage = 1;
@@ -78,16 +102,25 @@ describe('buying homes', () => {
     // Survives a restart.
     const again = new PropertySystem(cfg, s.repos, s.econ, s.world, seeded(1), { publicChanged: () => {}, selfChanged: () => {}, wallet: () => {}, event: () => {} }, s.now);
     expect(again.all()).toEqual([expect.objectContaining({ unit: s.studio.id, owner: s.p.id })]);
+    } finally {
+      cfg.properties.claim.firstFreeMaxSen = cap;
+    }
   });
 
-  it('selling pays back part of the price', () => {
+  it('selling pays back part of what you paid (a free home pays nothing back)', () => {
     const s = setup();
     s.goTo(s.studio);
-    s.props.buy(s.p, s.studio.id);
-    const w = s.p.walletSen;
+    s.props.buy(s.p, s.studio.id); // the free first home
+    const w0 = s.p.walletSen;
     s.props.sell(s.p, s.studio.id);
-    expect(s.p.walletSen - w).toBe(Math.floor(s.studio.priceSen * cfg.properties.sellBackRate));
-    expect(s.props.all()).toEqual([]);
+    expect(s.p.walletSen).toBe(w0);
+    s.props.buy(s.p, s.studio.id); // free again (you own none), so check with a paid one
+    const paid = s.props.units.find((u) => u.id !== s.studio.id && u.type === 'studio')!;
+    s.goTo(paid);
+    s.props.buy(s.p, paid.id);
+    const w = s.p.walletSen;
+    s.props.sell(s.p, paid.id);
+    expect(s.p.walletSen - w).toBe(Math.floor(paid.priceSen * cfg.properties.sellBackRate));
   });
 });
 

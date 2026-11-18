@@ -50,7 +50,11 @@ export const propertiesConfigSchema = z.object({
       nightBaseSen: z.number().int().positive(),
     }),
   ),
-  byKind: z.record(z.string(), z.object({ type: z.string().optional(), types: z.array(z.string()).optional(), units: z.number().int().positive() })),
+  /** Building kind → its homes. `perM2`: one unit per this much floor (capped at `units`), so a
+   *  bigger building holds more players. */
+  byKind: z.record(z.string(), z.object({ type: z.string().optional(), types: z.array(z.string()).optional(), units: z.number().int().positive(), perM2: z.number().positive().optional() })),
+  /** Claiming homes: your first one is free if it costs up to `firstFreeMaxSen`; at most `maxHomes` each. */
+  claim: z.object({ firstFreeMaxSen: z.number().int().nonnegative(), maxHomes: z.number().int().positive() }).default({ firstFreeMaxSen: 10_000_000, maxHomes: 3 }),
   hotspots: z.array(z.object({ name: z.string(), building: z.string().optional(), point: z.tuple([z.number(), z.number()]).optional() })),
   locationBonus: z.number().nonnegative(),
   locationRangeTiles: z.number().positive(),

@@ -28,7 +28,13 @@ function hash01(s: string): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-export function buildListings(map: Pick<BuiltMap, 'buildings'>, cfg: PropertiesConfig): Unit[] {
+/**
+ * Plain shoplots become homes (lofts), but never one that's a shop, has a counter or machine
+ * inside, or holds a stall (named buildings are landmarks).
+ */
+export function buildListings(map: Pick<BuiltMap, 'buildings'> & Partial<Pick<BuiltMap, 'interactables' | 'stallPlots' | 'metersPerTile'>>, cfg: PropertiesConfig): Unit[] {
+  const busy = new Set<string>([...(map.interactables ?? []).map((i) => i.building ?? ''), ...(map.stallPlots ?? []).map((p) => p.building ?? '')]);
+  const mpt = map.metersPerTile ?? 2;
   const spots: Array<[number, number]> = [];
   for (const h of cfg.hotspots) {
     if (h.point) spots.push(h.point);
@@ -41,10 +47,13 @@ export function buildListings(map: Pick<BuiltMap, 'buildings'>, cfg: PropertiesC
   for (const b of map.buildings) {
     const rule = cfg.byKind[b.kind];
     if (!rule || !b.door) continue;
+    if (b.kind === 'shoplot' && (b.name || busy.has(b.id))) continue;
+    const area = (b.bbox.x1 - b.bbox.x0) * (b.bbox.y1 - b.bbox.y0) * mpt * mpt;
+    const units = rule.perM2 ? Math.max(1, Math.min(rule.units, Math.floor(area / rule.perM2))) : rule.units;
     const x = b.door.frontX + 0.5, y = b.door.frontY + 0.5;
     const dist = Math.min(1e9, ...spots.map(([sx, sy]) => Math.hypot(sx - x, sy - y)));
     const loc = locationMult(cfg, dist);
-    for (let n = 1; n <= rule.units; n++) {
+    for (let n = 1; n <= units; n++) {
       const type = rule.types ? rule.types[(n - 1) % rule.types.length] : rule.type!;
       const t = cfg.types[type];
       if (!t) continue;

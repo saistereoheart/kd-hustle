@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (item tiers)_
+_Last updated: 2026-11-18 (claiming homes)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -17,7 +17,7 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 196 unit tests |
+| `npm test` (Vitest) | ✅ 215 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | Real phone on the LAN | ⏳ needs you |
@@ -64,6 +64,17 @@ All tier numbers are in `shared/config/grades.json`.
 - **👨‍🍳 Make head chef** puts one in the chef slot: + stall prices AND faster cooks. The base is stronger than
   gear: common 5%, uncommon 8%, rare 12%, epic 18%, legendary 28%, mythic 40%, then × tier × variation.
 - The head chef isn't drawn on your character (it's a stall buff).
+
+### Claiming a home
+- **Your first home is free:** walk to the door of any unit costing up to RM 100,000 (studio, 2-bed condo or a
+  shoplot loft) and press **🎁 Claim free (first home)**. After that you pay the listed price.
+- **Up to 3 homes each.** Sell one to claim another. Selling a free home pays nothing back.
+- **Plain shoplots are homes now** ("Shoplot loft", RM 40,000, no stage needed). A bigger shoplot holds more
+  players: one loft per 70 m² of floor, up to 4 per building. That makes 460 of the 537 shoplots homes (1,206 lofts).
+- Shoplots that are shops, have a counter or machine inside, hold a stall, or have a name stay as they are. Malls,
+  hypermarkets and other non-homes never become homes.
+- Flats and condos keep their fixed unit counts (8 and 12), so several players already share them.
+- No database changes: a claim is a normal property record with a bought price of RM 0.
 
 ---
 
@@ -764,6 +775,16 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 5.7 (claiming homes)**
+- **Claiming works through the existing property system** rather than as a separate one. "Claim" is a purchase at
+  RM 0 for your first home, if its price is ≤ `properties.json → claim.firstFreeMaxSen` (RM 100,000). Stage
+  requirements still apply: a studio needs stage 2, but a shoplot loft needs nothing, so a new player can claim one
+  straight away. The limit is `claim.maxHomes` (3).
+- **Free homes count as RM 0 in net worth** (bought price 0), so claiming can't push you up a wealth stage.
+- **Building capacity by size only applies to shoplots** (`byKind.shoplot.perM2`). Flats and condos keep fixed unit
+  counts so that unit ids people already own never disappear.
+- A plain shoplot that used to open a generic walk-in room now opens the home panel instead.
 
 **Phase 5.1**
 - **Road rules for Ronda:** roads with 2+ lanes (and highways) mapped one-way are never ridden backwards; on two-way

@@ -200,15 +200,20 @@ export class PropertySystem {
     const t = this.cfg.properties.types[u.type];
     if (t.requires.stage && p.prog.stage < t.requires.stage) throw new GameError(`A ${t.name} needs wealth stage ${t.requires.stage}.`);
     if (t.requires.level && p.prog.level < t.requires.level) throw new GameError(`A ${t.name} needs level ${t.requires.level}.`);
-    if (p.walletSen < u.priceSen) throw new GameError('Not enough money.');
-    const s = this.hydrate(unitId, p.id, p.name, u.type, { boughtSen: u.priceSen });
+    // Your first home is free (up to a price cap); there's a limit on how many you can have.
+    const owned = [...this.props.values()].filter((x) => x.owner === p.id).length;
+    const cl = this.cfg.properties.claim;
+    if (owned >= cl.maxHomes) throw new GameError(`You can have up to ${cl.maxHomes} homes. Sell one first.`);
+    const price = owned === 0 && u.priceSen <= cl.firstFreeMaxSen ? 0 : u.priceSen;
+    if (p.walletSen < price) throw new GameError('Not enough money.');
+    const s = this.hydrate(unitId, p.id, p.name, u.type, { boughtSen: price });
     this.econ.run(p, () => {
-      this.econ.change(p, -u.priceSen, 0, 'property-buy', unitId);
+      this.econ.change(p, -price, 0, price ? 'property-buy' : 'property-claim', unitId);
       this.props.set(unitId, s);
       this.save(s);
     });
     this.bump(p, 'propertiesBought');
-    this.hooks.wallet(p, -u.priceSen, 'property');
+    this.hooks.wallet(p, -price, 'property');
     this.hooks.publicChanged();
     this.hooks.selfChanged(p);
     return s;

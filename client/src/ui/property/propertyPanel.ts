@@ -25,9 +25,19 @@ export function openPropertyPanel(app: App, b: BuiltBuilding) {
         action = el('span', { class: 'muted' }, `Owned by ${owner.ownerName}${owner.mode === 'airbnb' ? ` · Airbnb ${owner.stars.toFixed(1)}★` : ''}`);
       } else {
         const req = t.requires.stage && app.store.progress.stage < t.requires.stage ? `Needs stage ${t.requires.stage}` : null;
-        action = el('button', { class: 'btn', type: 'button', 'data-buy-unit': u.id, disabled: !!req || app.store.walletSen < u.priceSen }, req ?? `🏷️ Buy ${formatMoney(u.priceSen)}`);
+        // Your first home is free (up to a price cap); there's a limit on how many you can own.
+        const cl = app.cfg.properties.claim;
+        const mine = app.store.myProps.length;
+        const free = mine === 0 && u.priceSen <= cl.firstFreeMaxSen;
+        const full = mine >= cl.maxHomes;
+        const price = free ? 0 : u.priceSen;
+        action = el(
+          'button',
+          { class: `btn${free ? ' primary' : ''}`, type: 'button', 'data-buy-unit': u.id, disabled: !!req || full || app.store.walletSen < price },
+          req ?? (full ? `You have ${cl.maxHomes} homes` : free ? '🎁 Claim free (first home)' : `🏷️ Buy ${formatMoney(u.priceSen)}`),
+        );
         action.addEventListener('click', () => {
-          if (!confirm(`Buy ${t.name}${units.length > 1 ? ` (unit ${u.n})` : ''} for ${formatMoney(u.priceSen)}?`)) return;
+          if (!confirm(free ? `Claim ${t.name}${units.length > 1 ? ` (unit ${u.n})` : ''} as your free first home?` : `Buy ${t.name}${units.length > 1 ? ` (unit ${u.n})` : ''} for ${formatMoney(u.priceSen)}?`)) return;
           app.socket?.timeout(5000).emit('prop:buy', { unit: u.id }, (err, res) => {
             if (err || !res.ok) {
               sfx.error();
