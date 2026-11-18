@@ -27,7 +27,7 @@ export function openErrandOffer(app: App, npc: number, offer: { text: string; re
       sfx.chime();
       app.store.errand = res.errand;
       app.store.emit();
-      toast(`🧺 Go to ${res.errand.place.name}. Follow the arrow!`, 'info', 4000);
+      toast(`🧺 Go to ${res.errand.place.name}. Follow the arrow to the green beacon!`, 'info', 4500);
     });
   });
   uiRoot().append(back);

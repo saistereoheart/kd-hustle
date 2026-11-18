@@ -30,8 +30,8 @@ function lastLook(cfg: PublicConfig): Appearance {
 export interface TitleOptions {
   /** A line under the title (e.g. "Connection lost"). */
   notice?: string;
-  /** Logged in already? (shows "Log out" in Settings) */
-  loggedIn: boolean;
+  /** Who is logged in (shown under the menu; Settings gets "Log out"). */
+  username: string;
   onStart: () => void;
   onLogout: () => void;
 }
@@ -41,7 +41,7 @@ export function showTitleScreen(cfg: PublicConfig, opts: TitleOptions): { close:
   const items: Array<[string, () => void]> = [
     ['START GAME', () => start()],
     ['HINTS', () => showHints(cfg)],
-    ['SETTINGS', () => openSettings(opts.loggedIn ? { onLogout: opts.onLogout } : {})],
+    ['SETTINGS', () => openSettings({ onLogout: opts.onLogout })],
   ];
   let sel = 0;
   const buttons = items.map(([label, fn], i) => {
@@ -59,6 +59,11 @@ export function showTitleScreen(cfg: PublicConfig, opts: TitleOptions): { close:
   const logo = el('div', { class: 'title-logo' }, el('div', { class: 'title-name' }, 'KOTA', el('span', {}, 'HUSTLE')), el('div', { class: 'title-tag' }, 'From Budak Baru to Tan Sri · Kota Damansara'));
   const notice = opts.notice ? el('div', { class: 'title-notice' }, opts.notice) : null;
   const credit = el('div', { class: 'title-credit' }, 'Map © OpenStreetMap contributors');
+  const who = el('div', { class: 'title-who' }, '👤 ', el('b', {}, opts.username), ' · ');
+  const switchBtn = el('button', { class: 'title-switch', type: 'button' }, 'Not you? Log out');
+  switchBtn.addEventListener('click', () => opts.onLogout());
+  who.append(switchBtn);
+  menu.append(who);
   const root = el('div', { class: 'title-screen', 'data-testid': 'title-screen' }, canvas, logo, ...(notice ? [notice] : []), menu, credit);
   uiRoot().append(root);
   document.body.dataset.state = 'title';
@@ -113,6 +118,13 @@ function showHints(cfg: PublicConfig) {
   close.addEventListener('click', dismiss);
   back.addEventListener('click', (e) => e.target === back && dismiss());
   uiRoot().append(back);
+}
+
+/** The animated dusk scene on its own (behind the login screen). */
+export function titleBackdrop(cfg: PublicConfig): { canvas: HTMLCanvasElement; stop: () => void } {
+  const canvas = el('canvas', { class: 'title-bg' });
+  const scene = new TitleScene(canvas, lastLook(cfg), cfg);
+  return { canvas, stop: () => scene.stop() };
 }
 
 // ------------------------------------------------------------------ the animated scene

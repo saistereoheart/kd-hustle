@@ -28,12 +28,12 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`));
   await page.goto('/');
-  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
   await page.fill('input[name=confirm]', 'secret123');
   await page.click('#auth button[type=submit]');
+  await page.click('[data-testid=title-start]'); // then the start screen
   await page.waitForSelector('#creator');
   await page.click('[data-action=save]');
   await page.waitForFunction(() => document.body.dataset.state === 'town');

@@ -3,6 +3,7 @@ import { EQUIP_SLOTS, formatMoney, isCollectible, itemValueSen, pawnPriceSen, ty
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
+import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
 
 export function openInventoryPanel(app: App, startTab = 0) {
@@ -49,7 +50,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
       return;
     }
     const equippedIids = new Set(Object.values(st.equipped));
-    const gridEl = el('div', { class: 'item-grid' });
+    const cards = new Map<(typeof stacks)[number], HTMLElement>();
     let detail: HTMLElement | null = null;
     for (const s of stacks) {
       const def = app.items.get(s.itemId)!;
@@ -63,7 +64,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         selected = selected === key ? null : key;
         render();
       });
-      gridEl.append(card);
+      cards.set(s, card);
       if (selected === key) {
         const crate = app.cratesOfItem.get(def.id);
         const tier = tierOf(rar, def.rarity).tier;
@@ -116,7 +117,9 @@ export function openInventoryPanel(app: App, startTab = 0) {
         );
       }
     }
-    content.replaceChildren(...(detail ? [detail] : []), gridEl);
+    // Grouped by what it's for: outfit (head, face, back...), potions, collectibles, furniture.
+    const grouped = groupedItems(stacks, (s) => app.items.get(s.itemId)!.type, (s) => cards.get(s)!);
+    content.replaceChildren(...(detail ? [detail] : []), grouped);
   };
 
   const renderIndex = () => {

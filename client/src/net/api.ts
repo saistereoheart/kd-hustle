@@ -37,6 +37,17 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
   return (await res.json()) as PublicConfig;
 }
 
+/** Checks a saved session token. 'offline' when the server can't be reached. */
+export async function checkSession(token: string): Promise<{ ok: true; username: string } | { ok: false; offline?: boolean }> {
+  try {
+    const res = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    const data = (await res.json()) as { ok: boolean; username?: string };
+    return data.ok && data.username ? { ok: true, username: data.username } : { ok: false };
+  } catch {
+    return { ok: false, offline: true };
+  }
+}
+
 export type AuthResponse = { ok: true; token: string; username: string } | { ok: false; error: string };
 
 export async function postAuth(path: '/api/login' | '/api/register', body: Record<string, string>): Promise<AuthResponse> {

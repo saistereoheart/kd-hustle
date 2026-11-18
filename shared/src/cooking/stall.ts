@@ -3,7 +3,7 @@
 // upgrades, shared by the server (which runs the stall) and the client / simulator.
 import { z } from 'zod';
 import { inHours } from '../time/clock';
-import type { RecipeDef } from './cooking';
+import type { AddonDef, RecipeDef } from './cooking';
 
 const money = z.number().int().nonnegative();
 export const STALL_UPGRADES = ['equipment', 'signage', 'queue', 'supplier', 'training'] as const;
@@ -135,8 +135,43 @@ export function stockCount(s: Pick<StallState, 'stock'>, recipe: string): number
   return (s.stock[recipe] ?? []).reduce((a, b) => a + b.qty, 0);
 }
 
+/** Something you can stock: a dish's ingredients, or one of its add-ons (own stock). */
+export interface StockItem {
+  id: string;
+  name: string;
+  icon: string;
+  ingredientCostSen: number;
+  /** For an add-on: the dish it goes with. */
+  parent?: string;
+}
+
+/** Everything this stall can stock: each dish on the menu, then its add-ons. */
+export function stockItems(cfg: StallsConfig, recipes: RecipeDef[], s: Pick<StallState, 'mastery'>): StockItem[] {
+  const out: StockItem[] = [];
+  for (const r of menuRecipes(cfg, recipes, s)) {
+    out.push({ id: r.id, name: r.name, icon: r.icon, ingredientCostSen: r.ingredientCostSen });
+    for (const a of r.addons) out.push({ id: a.id, name: a.name, icon: a.icon, ingredientCostSen: a.ingredientCostSen, parent: r.id });
+  }
+  return out;
+}
+
+/** An add-on's price before quality, combo and tips (tier, skills and rush apply; mastery doesn't). */
+export function addonBaseSen(cfg: StallsConfig, addon: AddonDef, s: Pick<StallState, 'tier'>, rush: boolean, b: StallBonuses = NO_BONUS): number {
+  return Math.round(addon.basePriceSen * tierDef(cfg, s.tier).priceMult * (1 + b.dishPrice) * (rush ? cfg.rush.price : 1));
+}
+
+/** A whole order's base price: the dish plus its add-ons. */
+export function orderBaseSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'tier' | 'mastery'>, rush: boolean, addons: readonly string[] = [], b: StallBonuses = NO_BONUS): number {
+  let sen = dishBaseSen(cfg, recipe, s, rush, b);
+  for (const id of addons) {
+    const a = recipe.addons.find((x) => x.id === id);
+    if (a) sen += addonBaseSen(cfg, a, s, rush, b);
+  }
+  return sen;
+}
+
 /** Price for a pack of ingredients (bulk discount, supplier upgrade, optional delivery fee). */
-export function stockPriceSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'upgrades'>, packQty: number, delivery: boolean): number {
+export function stockPriceSen(cfg: StallsConfig, recipe: Pick<RecipeDef, 'ingredientCostSen'>, s: Pick<StallState, 'upgrades'>, packQty: number, delivery: boolean): number {
   const pack = cfg.stock.packs.find((p) => p.qty === packQty);
   if (!pack) return NaN;
   const supplier = 1 - upgradeLevel(s, 'supplier') * cfg.upgrades.supplier!.perLevel;

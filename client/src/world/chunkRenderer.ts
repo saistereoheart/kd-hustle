@@ -866,6 +866,24 @@ export class ChunkRenderer {
         const spr = DECOR_SPRITE[d];
         if (spr === undefined) continue;
         const size = d === Decor.Fountain ? 4 : d === Decor.Stall ? 3 : d === Decor.JobsBoard || d === Decor.BusStop ? 2 : 1;
+        if (d === Decor.Lamp) {
+          // A long thin cast shadow (same sun as the buildings): pole, arm and head.
+          const bx = tx + 0.52, by = ty + 0.88, sx = 0.62, sy = 0.9;
+          g.save();
+          g.strokeStyle = 'rgba(0,0,0,0.2)';
+          g.lineCap = 'round';
+          g.lineWidth = 0.1;
+          g.beginPath();
+          g.moveTo(bx, by);
+          g.lineTo(bx + sx * 1.15, by + sy * 1.15);
+          g.lineTo(bx + sx * 1.15 + 0.32, by + sy * 1.15 - 0.04);
+          g.stroke();
+          g.fillStyle = 'rgba(0,0,0,0.2)';
+          g.beginPath();
+          g.ellipse(bx + sx * 1.15 + 0.36, by + sy * 1.15 - 0.02, 0.13, 0.08, 0.5, 0, Math.PI * 2);
+          g.fill();
+          g.restore();
+        }
         g.drawImage(this.decorSprites, spr * 64, 0, 64, 64, tx + 0.5 - size / 2, ty + 0.5 - size / 2, size, size);
       }
     }

@@ -21,6 +21,8 @@ export const roomStyleSchema = z.object({
   wall: hexColor,
   trim: hexColor,
   furniture: z.array(z.enum(FURNITURE)).max(10),
+  /** Pieces repeated to fill the extra floor of a big room (default: the big pieces above). */
+  fill: z.array(z.enum(FURNITURE)).optional(),
   /** Who stands behind the counter (null: nobody). */
   keeper: z.string().nullable(),
   greeting: z.string(),
@@ -31,6 +33,9 @@ export const interiorsConfigSchema = z
   .object({
     /** How close (tiles) to a door's front you must be to go in. */
     enterRadiusTiles: z.number().positive(),
+    /** The room follows the building's real footprint: metres of building per room tile, and
+     *  the biggest room (tiles). A style's w × h is the smallest. */
+    sizing: z.object({ metersPerRoomTile: z.number().positive(), maxW: z.number().int().min(8), maxH: z.number().int().min(6) }),
     lockedKinds: z.array(z.string()),
     lockedMessage: z.string(),
     byKind: z.record(z.string(), z.string()),
@@ -50,6 +55,39 @@ export function roomStyleOf(cfg: InteriorsConfig, b: Pick<BuiltBuilding, 'id' | 
   if (byId) return byId;
   if (cfg.lockedKinds.includes(b.kind)) return null;
   return cfg.byKind[b.kind] ?? null;
+}
+
+/**
+ * Room size (tiles) for a building, from its footprint: the wall with the door you came in by
+ * becomes the room's width (the doorway is at the bottom), the depth behind it the height. So a
+ * deep shoplot is a long narrow room, and malls and hypermarkets are big halls.
+ */
+export function roomSize(
+  cfg: InteriorsConfig,
+  style: Pick<RoomStyle, 'w' | 'h'>,
+  b: Pick<BuiltBuilding, 'poly' | 'bbox'>,
+  door: { nx: number; ny: number } | null,
+  metersPerTile: number,
+): { w: number; h: number } {
+  let wide: number, deep: number;
+  const l = door ? Math.hypot(door.nx, door.ny) : 0;
+  if (door && l > 0 && b.poly.length >= 6) {
+    const nx = door.nx / l, ny = door.ny / l;
+    let n0 = Infinity, n1 = -Infinity, t0 = Infinity, t1 = -Infinity;
+    for (let i = 0; i + 1 < b.poly.length; i += 2) {
+      const x = b.poly[i], y = b.poly[i + 1];
+      const n = x * nx + y * ny, t = -x * ny + y * nx;
+      n0 = Math.min(n0, n), n1 = Math.max(n1, n), t0 = Math.min(t0, t), t1 = Math.max(t1, t);
+    }
+    wide = t1 - t0;
+    deep = n1 - n0;
+  } else {
+    wide = b.bbox.x1 - b.bbox.x0;
+    deep = b.bbox.y1 - b.bbox.y0;
+  }
+  const z = cfg.sizing;
+  const fit = (m: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), Math.round((m * metersPerTile) / z.metersPerRoomTile)));
+  return { w: fit(wide, style.w, z.maxW), h: fit(deep, style.h, z.maxH) };
 }
 
 /** Is a player at tile (tx, ty) standing at one of this building's doors? (server check) */

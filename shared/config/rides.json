@@ -1,9 +1,9 @@
 {
   "appName": "Ronda",
   "vehicle": "ronda",
-  "baseFareSen": 300,
-  "perKmSen": 160,
-  "minFareSen": 350,
+  "baseFareSen": 400,
+  "perKmSen": 200,
+  "minFareSen": 450,
   "fareRoundSen": 10,
   "speedPxPerSec": 400,
   "pickupMs": 1800,
@@ -13,5 +13,6 @@
   "snapRadiusTiles": 10,
   "offroadPenaltyPow": 2,
   "simplifyTiles": 0.8,
-  "maxSearchNodes": 500000
+  "maxSearchNodes": 500000,
+  "roadDetourMax": 2.2
 }

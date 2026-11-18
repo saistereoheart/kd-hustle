@@ -9,8 +9,14 @@ import { sfx } from '../sound';
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
 const GRADE_COLOR: Record<Grade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#74c0fc', miss: '#ff6b6b' };
 
+/** Live stock shown while you cook: the dish's portions and each add-on (id → count). */
+export interface CookStock {
+  dish: { icon: string; name: string; qty: number };
+  addons: Array<{ id: string; icon: string; name: string; qty: number }>;
+}
+
 /** Plays a dish. Resolves with the inputs to send (or null if the player gave up). */
-export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void): Promise<StepInput[] | null> {
+export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void, stock?: () => CookStock | null): Promise<StepInput[] | null> {
   return new Promise((resolve) => {
     const W = Math.min(innerWidth - 28, 520);
     const H = Math.round(Math.min(W * 0.72, innerHeight * 0.48));
@@ -28,10 +34,22 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     const action = el('button', { class: 'btn primary cook-action', type: 'button', 'data-action': 'cook-action' });
     const options = el('div', { class: 'cook-options' });
     const quit = el('button', { class: 'btn small', type: 'button', 'data-action': 'cook-quit' }, 'Give up');
+    // Stock, big and always visible: portions left and every add-on.
+    const stockBar = el('div', { class: 'cook-stock', 'data-testid': 'cook-stock' });
+    const paintStock = () => {
+      const st = stock?.();
+      if (!st) return void stockBar.classList.add('hidden');
+      const chip = (icon: string, name: string, qty: number, main = false) =>
+        el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${main ? ' main' : ''}`, title: name }, `${icon} `, el('b', {}, String(qty)), main ? ` ${name} left` : '');
+      stockBar.replaceChildren(el('span', { class: 'cook-stock-label' }, '📦'), chip(st.dish.icon, st.dish.name, st.dish.qty, true), ...st.addons.map((a) => chip(a.icon, a.name, a.qty)));
+    };
+    paintStock();
+    const stockTimer = window.setInterval(paintStock, 1000);
     const box = el(
       'div',
       { class: 'carwash-box cook-box' },
       el('h3', {}, title, dish.blogger ? el('span', { class: 'lv-badge blogger' }, '📸 Food blogger!') : null),
+      stockBar,
       el('div', { class: 'cw-stages' }, ...stepPills),
       label,
       hint,
@@ -57,6 +75,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
 
     const done = (result: StepInput[] | null) => {
       cancelAnimationFrame(raf);
+      clearInterval(stockTimer);
       for (const c of [...stepCleanup, ...cleanup]) c();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKeyUp);
@@ -114,7 +133,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ev.push(t);
           holding = true;
         }
-      }
+      } else if (s.kind === 'assemble') finish(); // "Serve it" with what's in the box
     }
     function release() {
       const s = step();
@@ -165,8 +184,9 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       stepStart = performance.now();
       options.replaceChildren();
       action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path');
-      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : 'Hold to pour';
+      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? '✅ Bungkus! (serve)' : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
+      if (s.kind === 'assemble') setupAssemble(s);
       if (s.kind === 'path') setupPath(s);
     }
 
@@ -179,6 +199,36 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ev.push(i, now());
           sfx.click();
           if (ev.length / 2 >= s.order.length) finish();
+        });
+        options.append(b);
+      });
+    }
+
+    // ---------------------------------------------------------------- assemble (ingredient boxes)
+    let picked: string[] = [];
+    function setupAssemble(s: Extract<StepParams, { kind: 'assemble' }>) {
+      picked = [];
+      options.classList.add('cook-boxes');
+      stepCleanup.push(() => options.classList.remove('cook-boxes'));
+      const counts = new Map((stock?.()?.addons ?? []).map((a) => [a.id, a.qty]));
+      s.options.forEach((o, i) => {
+        const qty = o.addon ? counts.get(o.id) : undefined;
+        const b = el(
+          'button',
+          { class: `cook-box-btn${o.addon ? ' addon' : ''}${qty === 0 ? ' empty' : ''}`, type: 'button', 'data-opt': o.id },
+          el('span', { class: 'cook-box-icon' }, o.icon),
+          el('span', { class: 'cook-box-name' }, `${i < 9 ? `${i + 1}. ` : ''}${o.name}`),
+          o.addon ? el('span', { class: 'cook-box-qty' }, qty === undefined ? '' : `×${qty}`) : null,
+        );
+        b.addEventListener('click', () => {
+          if (finishedStep) return;
+          ev.push(i, now());
+          picked.push(o.id);
+          const right = s.want.includes(o.id) && picked.filter((x) => x === o.id).length === 1;
+          b.classList.add(right ? 'right' : 'wrong');
+          if (right) sfx.click();
+          else sfx.error();
+          if (s.want.every((w) => picked.includes(w))) finish();
         });
         options.append(b);
       });
@@ -233,7 +283,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     // Hold/timing/rhythm/meter can also be played by touching the canvas itself.
     const cDown = (e: PointerEvent) => {
       const s = step();
-      if (s && s.kind !== 'path' && s.kind !== 'sequence') {
+      if (s && s.kind !== 'path' && s.kind !== 'sequence' && s.kind !== 'assemble') {
         e.preventDefault();
         press();
       }
@@ -361,6 +411,53 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.fillStyle = '#fff';
           ctx.fillText(`${i + 1}. ${o.name}`, x, cy + 28);
         });
+        if (t > s.maxMs) finish();
+      } else if (s.kind === 'assemble') {
+        // The order ticket (what the customer asked for), and the open banana leaf filling up.
+        ctx.fillStyle = '#fff9db';
+        const tw = Math.min(W - 24, 64 + s.want.length * 54);
+        ctx.fillRect(cx - tw / 2, 8, tw, 64);
+        ctx.fillStyle = '#495057';
+        ctx.font = 'bold 12px system-ui';
+        ctx.fillText('ORDER', cx, 20);
+        s.want.forEach((id, i) => {
+          const o = s.options.find((x) => x.id === id)!;
+          const x = cx + (i - (s.want.length - 1) / 2) * 52;
+          const got = picked.includes(id);
+          ctx.globalAlpha = got ? 0.35 : 1;
+          ctx.font = '26px system-ui';
+          ctx.fillText(o.icon, x, 44);
+          ctx.globalAlpha = 1;
+          if (got) {
+            ctx.fillStyle = '#2f9e44';
+            ctx.font = 'bold 20px system-ui';
+            ctx.fillText('✓', x + 14, 54);
+          }
+          if (o.addon) {
+            ctx.fillStyle = '#e8590c';
+            ctx.font = 'bold 9px system-ui';
+            ctx.fillText('+ADD', x, 64);
+          }
+          ctx.fillStyle = '#495057';
+        });
+        ctx.fillStyle = '#2f9e44';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + H * 0.2, W * 0.34, H * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(cx - W * 0.06, cy + H * 0.2, W * 0.1, H * 0.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '22px system-ui';
+        picked.forEach((id, i) => {
+          const o = s.options.find((x) => x.id === id);
+          if (!o) return;
+          const a = (i / Math.max(1, picked.length)) * Math.PI * 2;
+          ctx.fillText(o.icon, cx - W * 0.06 + Math.cos(a) * W * 0.17, cy + H * 0.2 + Math.sin(a) * H * 0.12);
+        });
+        ctx.fillStyle = t > s.fastMs * dish.windowMult ? '#ffa94d' : '#adb5bd';
+        ctx.font = 'bold 13px system-ui';
+        ctx.fillText(`${Math.max(0, (s.maxMs - t) / 1000).toFixed(1)} s`, W - 30, H - 14);
         if (t > s.maxMs) finish();
       } else if (s.kind === 'path') {
         // A leaf / plate with numbered dots; your trail shows where you've been.

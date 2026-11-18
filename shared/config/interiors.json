@@ -1,5 +1,6 @@
 {
   "enterRadiusTiles": 1.6,
+  "sizing": { "metersPerRoomTile": 1.6, "maxW": 46, "maxH": 32 },
   "lockedKinds": ["terrace", "semid", "bungalow", "flat", "condo", "parking", "construction", "roof", "school", "religious"],
   "lockedMessage": "🔒 Private. You can't go in here (homes become buyable later).",
   "byKind": {
@@ -35,6 +36,7 @@
       "w": 12, "h": 8,
       "floor": "#e9dcc9", "floor2": "#dfcfb7", "wall": "#81b29a", "trim": "#5c8a74",
       "furniture": ["shelf", "shelf", "fridge", "plant"],
+      "fill": ["shelf"],
       "keeper": "Pak Abu",
       "greeting": "Selamat datang! Try your luck at the capsule machine."
     },
@@ -59,6 +61,7 @@
       "w": 18, "h": 11,
       "floor": "#f1f3f5", "floor2": "#e9ecef", "wall": "#d62828", "trim": "#9d0208",
       "furniture": ["shelf", "shelf", "shelf", "shelf", "fridge", "fridge", "trolleys"],
+      "fill": ["shelf", "shelf", "fridge", "shelf"],
       "keeper": "Cashier",
       "greeting": "Stock up for your stall here. Delivery costs extra!"
     },
@@ -67,6 +70,7 @@
       "w": 18, "h": 11,
       "floor": "#f3e9d8", "floor2": "#eadcc4", "wall": "#e8cfa0", "trim": "#b08d57",
       "furniture": ["fountain", "plant", "plant", "bench", "bench", "kiosk"],
+      "fill": ["kiosk", "bench", "plant", "fountain", "bench"],
       "keeper": "Info counter",
       "greeting": "Welcome! The Mystery Box counter is right here."
     },
@@ -75,6 +79,7 @@
       "w": 14, "h": 9,
       "floor": "#dee2e6", "floor2": "#d0d5da", "wall": "#1d3557", "trim": "#0b1d33",
       "furniture": ["atm", "atm", "sofa", "plant"],
+      "fill": ["sofa", "plant"],
       "keeper": "Teller",
       "greeting": "Loans and savings open soon. For now, enjoy the aircon."
     },
@@ -83,6 +88,7 @@
       "w": 18, "h": 11,
       "floor": "#5a189a", "floor2": "#4c1585", "wall": "#240046", "trim": "#ffd43b",
       "furniture": ["slot", "slot", "slot", "slot", "table", "table"],
+      "fill": ["slot", "slot", "table"],
       "keeper": "Croupier",
       "greeting": "Tables open in a later update. Come back with big money."
     },
@@ -91,6 +97,7 @@
       "w": 14, "h": 9,
       "floor": "#e6eef3", "floor2": "#dbe5ec", "wall": "#7fa7c9", "trim": "#4d7799",
       "furniture": ["sofa", "plant", "plant", "desk"],
+      "fill": ["desk", "plant"],
       "keeper": "Receptionist",
       "greeting": "Office space for rent later. Visitors, please sign in."
     },
@@ -99,6 +106,7 @@
       "w": 14, "h": 9,
       "floor": "#f8f9fa", "floor2": "#eef0f2", "wall": "#a5d8ff", "trim": "#4dabf7",
       "furniture": ["bench", "bench", "plant", "desk"],
+      "fill": ["bench"],
       "keeper": "Nurse",
       "greeting": "Feeling unlucky? Rest here a while."
     },
@@ -107,6 +115,7 @@
       "w": 16, "h": 9,
       "floor": "#ced4da", "floor2": "#c3c9cf", "wall": "#868e96", "trim": "#495057",
       "furniture": ["gate", "gate", "bench", "kiosk"],
+      "fill": ["gate", "bench"],
       "keeper": "Station staff",
       "greeting": "Trains aren't running yet. Book a Ronda ride from your phone!"
     },
@@ -123,6 +132,7 @@
       "w": 16, "h": 10,
       "floor": "#f1e3c6", "floor2": "#e7d6b4", "wall": "#1d4ed8", "trim": "#facc15",
       "furniture": ["sofa", "sofa", "table", "bed", "plant"],
+      "fill": ["sofa", "bed", "table"],
       "keeper": "Sales",
       "greeting": "Decorating your Airbnb comes later. Browse for now!"
     }

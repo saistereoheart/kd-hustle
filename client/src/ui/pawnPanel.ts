@@ -3,6 +3,7 @@ import { formatMoney, isCollectible, pawnPriceSen, scrapShards } from '@kh/share
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
+import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
 
 export function openPawnPanel(app: App) {
@@ -48,7 +49,7 @@ export function openPawnPanel(app: App) {
       content.replaceChildren(el('p', { class: 'empty' }, 'Nothing to pawn. (Limited items with serial numbers can\'t be pawned.)'));
       return;
     }
-    const list = el('div', { class: 'stack-list' });
+    const rows = new Map<(typeof stacks)[number], HTMLElement>();
     for (const s of stacks) {
       const def = app.items.get(s.itemId)!;
       const crate = app.cratesOfItem.get(def.id);
@@ -62,8 +63,9 @@ export function openPawnPanel(app: App) {
         all.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, s.items.length));
         row.lastElementChild!.append(all);
       }
-      list.append(row);
+      rows.set(s, row);
     }
+    const list = groupedItems(stacks, (s) => app.items.get(s.itemId)!.type, (s) => rows.get(s)!, { list: true });
     content.replaceChildren(
       el('p', { class: 'muted' }, mode === 'sell' ? `The pawn shop pays ${Math.round(app.cfg.economy.pawnRate * 100)}% of an item's value. Worn items are sold last.` : 'Scrap items into 💎 shards, then buy exactly what you want in the Shard Shop.'),
       list,
@@ -72,8 +74,8 @@ export function openPawnPanel(app: App) {
 
   const renderShop = () => {
     const prices = app.cfg.economy.shardShopPrices;
-    const list = el('div', { class: 'item-grid' });
-    // Potions first (always for sale), then items you've discovered.
+    const cards: Array<{ type: string; card: HTMLElement }> = [];
+    // Grouped like the bag; inside a group, potions (always for sale) then items you've discovered.
     const defs = [...app.cfg.items.items].sort((a, b) => Number(isCollectible(a)) - Number(isCollectible(b)));
     for (const def of defs) {
       const price = def.shardPrice ?? prices[def.rarity];
@@ -94,8 +96,9 @@ export function openPawnPanel(app: App) {
           }),
         );
       }
-      list.append(card);
+      cards.push({ type: def.type, card });
     }
+    const list = groupedItems(cards, (c) => c.type, (c) => c.card, { small: true });
     content.replaceChildren(el('p', { class: 'muted' }, `You have ${app.store.shards} 💎. Potions are always in stock; other items only once you've discovered them (Common to Epic).`), list);
   };
 

@@ -145,7 +145,7 @@ export function openPhone(app: App, startApp?: string) {
   const off = app.store.on(() => render());
   // Timers in apps (buffs, quest progress) refresh every second while the phone is open.
   const refresh = window.setInterval(() => {
-    if (current === 'profile') render();
+    if (current === 'profile' || current === 'clock') render();
   }, 1000);
   panel.onClose = () => {
     off();

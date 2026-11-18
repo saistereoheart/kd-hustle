@@ -10,6 +10,8 @@
 //   sequence  pick ingredients in the order the customer asked           (sides, curry)
 //   path      drag through numbered points in order                     (sambal swirl, fold)
 //   meter     hold to raise / release to drop; keep it in the zone       (teh tarik foam)
+//   assemble  tap the ingredient boxes the customer's order needs          (pack a nasi lemak)
+//             (the base sides plus any paid add-ons, e.g. ayam goreng, which have their own stock)
 import { z } from 'zod';
 import type { RandInt } from '../luck';
 
@@ -27,6 +29,16 @@ export const stepTemplateSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('path'), ...base, shape: z.enum(['spiral', 'fold', 'corners']), points: z.number().int().min(2), radius: z.number().positive() }),
   z.object({ kind: z.literal('meter'), ...base, durationMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range, rise: z.number().positive(), fall: z.number().positive() }),
+  z.object({
+    kind: z.literal('assemble'), ...base,
+    /** The base sides (part of the dish's own stock). The recipe's add-ons are added as boxes too. */
+    options: z.array(z.object({ id: z.string(), name: z.string(), icon: z.string() })).min(2),
+    /** How many base sides an order asks for [min, max]. */
+    pick: z.tuple([z.number().int().positive(), z.number().int().positive()]),
+    /** All correct within this long = Perfect (slower = Great). */
+    fastMs: z.number().positive(),
+    maxMs: z.number().positive(),
+  }),
 ]);
 export type StepTemplate = z.infer<typeof stepTemplateSchema>;
 
@@ -43,6 +55,13 @@ export const recipesConfigSchema = z.object({
       /** Needs this mastery of another recipe to go on the menu. */
       unlock: z.object({ recipe: z.string(), mastery: z.number().int().positive() }).optional(),
       steps: z.array(stepTemplateSchema).min(1),
+      /** Paid extras a customer may ask for (separate stock, bought like a dish's ingredients). */
+      addons: z
+        .array(z.object({ id: z.string().regex(/^[a-z0-9_]+$/), name: z.string(), icon: z.string(), basePriceSen: z.number().int().positive(), ingredientCostSen: z.number().int().positive() }))
+        .default([]),
+      /** Chance a customer adds each add-on that's in stock, and the most per order. */
+      addonChance: z.number().min(0).max(1).default(0.45),
+      maxAddons: z.number().int().nonnegative().default(2),
     }),
   ),
   /** Grading windows (× the stall's equipment bonus, so better gear is more forgiving). */
@@ -63,6 +82,7 @@ export const recipesConfigSchema = z.object({
 });
 export type RecipesConfig = z.infer<typeof recipesConfigSchema>;
 export type RecipeDef = RecipesConfig['recipes'][number];
+export type AddonDef = RecipeDef['addons'][number];
 export type Grade = 'perfect' | 'great' | 'good' | 'miss';
 export type Quality = RecipesConfig['quality'][number]['id'];
 
@@ -73,12 +93,13 @@ export type StepParams =
   | (Base & { kind: 'rhythm'; beats: number[] })
   | (Base & { kind: 'sequence'; options: Array<{ id: string; name: string; icon: string }>; order: string[] })
   | (Base & { kind: 'path'; points: Array<[number, number]>; radius: number })
-  | (Base & { kind: 'meter'; durationMs: number; zone: [number, number]; rise: number; fall: number });
+  | (Base & { kind: 'meter'; durationMs: number; zone: [number, number]; rise: number; fall: number })
+  | (Base & { kind: 'assemble'; options: Array<{ id: string; name: string; icon: string; addon?: boolean }>; want: string[]; fastMs: number });
 
 /** What the player did in one step. `startMs` is when the step began (ms since the dish began);
  *  `ev` times are ms since the step began:
  *  hold [down, up] · timing [press] · rhythm [tap...] · sequence [optionIndex, t, ...] ·
- *  path [x, y, t, ...] (x/y 0..1) · meter [down, up, down, up...] */
+ *  path [x, y, t, ...] (x/y 0..1) · meter [down, up, down, up...] · assemble [optionIndex, t, ...] */
 export interface StepInput {
   startMs: number;
   ev: number[];
@@ -115,8 +136,9 @@ function pathPoints(shape: 'spiral' | 'fold' | 'corners', n: number, rand: RandI
   return pts.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]);
 }
 
-/** Builds one dish's steps (zones, targets, beats, the customer's order...). */
-export function makeDish(recipe: RecipeDef, rand: RandInt): StepParams[] {
+/** Builds one dish's steps (zones, targets, beats, the customer's order...). `addons`: the paid
+ *  extras this customer ordered (they go into the assemble step's order). */
+export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []): StepParams[] {
   return recipe.steps.map((s): StepParams => {
     const b = { label: s.label, hint: s.hint, art: s.art };
     switch (s.kind) {
@@ -145,6 +167,18 @@ export function makeDish(recipe: RecipeDef, rand: RandInt): StepParams[] {
       case 'meter': {
         const c = between(rand, s.zoneCenter);
         return { ...b, kind: 'meter', durationMs: s.durationMs, zone: [c - s.zoneWidth / 2, c + s.zoneWidth / 2], rise: s.rise, fall: s.fall, maxMs: s.durationMs + 2500 };
+      }
+      case 'assemble': {
+        // The customer wants some of the base sides (e.g. "no timun") plus their add-ons.
+        const pool = s.options.map((o) => o.id);
+        const [lo, hi] = [Math.min(s.pick[0], pool.length), Math.min(s.pick[1], pool.length)];
+        const n = lo + rand(Math.max(1, hi - lo + 1));
+        const want: string[] = [];
+        while (want.length < n) want.push(pool.splice(rand(pool.length), 1)[0]);
+        const known = new Set(recipe.addons.map((a) => a.id));
+        for (const a of addons) if (known.has(a) && !want.includes(a)) want.push(a);
+        const options = [...s.options, ...recipe.addons.map((a) => ({ id: a.id, name: a.name, icon: a.icon, addon: true }))];
+        return { ...b, kind: 'assemble', options, want, fastMs: s.fastMs, maxMs: s.maxMs };
       }
     }
   });
@@ -230,6 +264,22 @@ export function gradeStep(cfg: RecipesConfig, step: StepParams, ev: number[], wi
       const share = Math.max(0, (right - extra) / step.order.length);
       return { grade: share >= 1 ? 'perfect' : share >= 0.66 ? 'good' : 'miss', accuracy: share };
     }
+    case 'assemble': {
+      // Right boxes count, wrong (or repeated) boxes count against you; all right and quick = Perfect.
+      const want = new Set(step.want);
+      const got = new Set<string>();
+      let wrong = 0, lastT = 0;
+      for (let i = 0; i + 1 < ev.length; i += 2) {
+        const id = step.options[ev[i]]?.id;
+        lastT = Math.max(lastT, ev[i + 1]);
+        if (id && want.has(id) && !got.has(id)) got.add(id);
+        else wrong++;
+      }
+      const share = Math.max(0, (got.size - wrong) / Math.max(1, want.size));
+      const all = got.size === want.size && wrong === 0;
+      const grade: Grade = all ? (lastT <= step.fastMs * windowMult ? 'perfect' : 'great') : share >= 0.6 ? 'good' : 'miss';
+      return { grade, accuracy: share };
+    }
     case 'path': {
       let next = 0;
       const r = step.radius * windowMult;
@@ -285,14 +335,19 @@ export function validateDishInputs(steps: StepParams[], inputs: StepInput[], ser
     if (!(startMs >= 0) || startMs < prevStart) return 'steps out of order';
     prevStart = startMs;
     const step = steps[i];
-    const stride = step.kind === 'path' ? 3 : step.kind === 'sequence' ? 2 : 1;
-    const off = step.kind === 'path' ? 2 : step.kind === 'sequence' ? 1 : 0;
+    const pairs = step.kind === 'sequence' || step.kind === 'assemble';
+    const stride = step.kind === 'path' ? 3 : pairs ? 2 : 1;
+    const off = step.kind === 'path' ? 2 : pairs ? 1 : 0;
     for (let j = off; j < ev.length; j += stride) {
       const t = ev[j];
       if (!Number.isFinite(t) || t < 0 || t > step.maxMs + 300) return 'event outside the step';
       end = Math.max(end, startMs + t);
     }
     if (step.kind === 'path') for (let j = 0; j + 1 < ev.length; j += 3) if (ev[j] < -0.2 || ev[j] > 1.2 || ev[j + 1] < -0.2 || ev[j + 1] > 1.2) return 'point off the board';
+    if (step.kind === 'assemble') {
+      if (ev.length > step.options.length * 4) return 'too many taps';
+      for (let j = 0; j < ev.length; j += 2) if (!Number.isInteger(ev[j]) || ev[j] < 0 || ev[j] >= step.options.length) return 'no such box';
+    }
   }
   if (end > serverElapsedMs + 1500) return 'faster than real time';
   return null;

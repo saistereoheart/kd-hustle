@@ -3,11 +3,13 @@
 //    rush, the food blogger's buzz, skills and potions), queue, and leave when out of patience;
 //  - the owner cooks a dish: the server builds the steps, the client plays them and sends raw
 //    inputs, the server grades them (shared/cooking) and pays: base × quality × combo + tip;
-//  - cooks (staff) serve the queue on their own at ~50% of the "Good" price, for an hourly wage;
+//  - cooks (staff) serve the queue on their own at a share of the "Good" price (stalls.json →
+//    staff.passiveRate), for an hourly wage;
+//  - orders can come with paid add-ons (ayam goreng, telur mata...) that have their own stock;
 //  - ingredients are bought as stock and go off after a few in-game days of play time.
 // A stall only runs while its owner is online (offline income arrives in Phase 5).
 import {
-  ageStock, customerRate, dayKey, dishBaseSen, dishPay, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
+  ageStock, customerRate, dayKey, dishPay, orderBaseSen, stockItems, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
   queueCapacity, rushHour, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
   validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES,
   type DishState, type RandInt, type ServeResult, type StallCustomer, type StallPublic, type StallSelf, type StallState, type StallUpgrade,
@@ -50,7 +52,7 @@ interface Live {
 export interface StallHooks {
   publicChanged: (stalls: StallPublic[]) => void;
   selfChanged: (p: OnlinePlayer, stall: StallSelf | null) => void;
-  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
 }
 
@@ -188,7 +190,11 @@ export class StallSystem {
       l.s.plot = plot.id;
       l.s.investedSen += def.priceSen;
       // A brand-new stall comes with a few portions to get going.
-      if (!cur) l.s.stock = { [this.cfg.recipes.recipes[0].id]: [{ qty: 10, age: 0 }] };
+      if (!cur) {
+        const first = this.cfg.recipes.recipes[0];
+        l.s.stock = { [first.id]: [{ qty: 10, age: 0 }] };
+        for (const a of first.addons.slice(0, 2)) l.s.stock[a.id] = [{ qty: 4, age: 0 }];
+      }
       this.save(l);
     });
     if (cur) {
@@ -264,9 +270,11 @@ export class StallSystem {
   /** Buy a pack of ingredients: in person at the hypermarket, or delivered (costs extra). */
   buyStock(p: OnlinePlayer, recipeId: string, qty: number, delivery: boolean) {
     const l = this.mine(p);
-    const recipe = this.cfg.recipeById.get(recipeId);
+    // A dish's ingredients, or one of its add-ons.
+    const all = this.cfg.recipes.recipes.flatMap((r) => [{ id: r.id, name: r.name, ingredientCostSen: r.ingredientCostSen }, ...r.addons]);
+    const recipe = all.find((x) => x.id === recipeId);
     if (!recipe) throw new GameError('Unknown recipe.');
-    if (!menuRecipes(this.cfg.stalls, this.cfg.recipes.recipes, l.s).some((r) => r.id === recipeId)) throw new GameError(`${recipe.name} isn't on your menu yet.`);
+    if (!stockItems(this.cfg.stalls, this.cfg.recipes.recipes, l.s).some((r) => r.id === recipeId)) throw new GameError(`${recipe.name} isn't on your menu yet.`);
     const price = stockPriceSen(this.cfg.stalls, recipe, l.s, qty, delivery);
     if (!Number.isFinite(price)) throw new GameError('Pick a pack size.');
     if (stockCount(l.s, recipeId) + qty > this.cfg.stalls.stock.maxPerRecipe) throw new GameError(`You can keep up to ${this.cfg.stalls.stock.maxPerRecipe} portions of each dish.`);
@@ -305,13 +313,14 @@ export class StallSystem {
     const recipe = this.cfg.recipeById.get(customer.recipe)!;
     if (useToken && l.s.perfectTokens <= 0) throw new GameError('You have no Perfect Cook Tokens.');
     if (!takeStock(l.s, recipe.id)) throw new GameError(`Out of ${recipe.name} ingredients! 📱 → Business → Stock.`);
+    this.takeAddons(l, customer);
     customer.serving = 'owner';
     if (useToken) {
       l.s.perfectTokens--;
       const served = this.finish(p, l, customer, recipe.id, recipe.steps.map(() => 'perfect'));
       return { dish: null, served };
     }
-    const steps = makeDish(recipe, this.rand);
+    const steps = makeDish(recipe, this.rand, customer.addons ?? []);
     const now = this.clock();
     const state: DishState = {
       dishId: `dish-${now.toString(36)}-${this.rand(1e6).toString(36)}`, recipe: recipe.id, customerId: customer.id, steps,
@@ -356,7 +365,7 @@ export class StallSystem {
     const now = this.clock();
     const rush = rushHour(this.cfg.time, this.hourF(now)) !== null;
     const b = this.bonuses(p);
-    const base = dishBaseSen(st, recipe, l.s, rush, b);
+    const base = orderBaseSen(st, recipe, l.s, rush, customer.addons ?? [], b);
     // Combo: each Perfect in a row adds a bit (applies from the next dish).
     const combo = l.s.combo;
     const patienceLeft = 1 - (now - customer.arrivedAt) / customer.patienceMs;
@@ -392,6 +401,29 @@ export class StallSystem {
     this.flush();
     this.prog.check(p);
     return { quality: q.quality, grades, paidSen: paySen, tipSen, combo: l.s.combo, rep: Math.round(l.s.rep) };
+  }
+
+  /** Add-ons a new customer asks for: each one in stock (not already promised to someone in
+   *  the queue) with the recipe's chance, up to its max per order. */
+  private pickAddons(l: Live, recipeId: string): string[] {
+    const recipe = this.cfg.recipeById.get(recipeId);
+    if (!recipe?.addons.length || recipe.maxAddons <= 0) return [];
+    const promised = new Map<string, number>();
+    for (const c of l.queue) if (!c.serving) for (const a of c.addons ?? []) promised.set(a, (promised.get(a) ?? 0) + 1);
+    const pool = recipe.addons.filter((a) => stockCount(l.s, a.id) - (promised.get(a.id) ?? 0) > 0);
+    const out: string[] = [];
+    while (pool.length && out.length < recipe.maxAddons) {
+      const a = pool.splice(this.rand(pool.length), 1)[0];
+      if (this.rand(1_000_000) / 1_000_000 < recipe.addonChance) out.push(a.id);
+    }
+    return out;
+  }
+
+  /** Uses up the order's add-ons; ones that ran out are dropped from the order (and the bill). */
+  private takeAddons(l: Live, c: StallCustomer) {
+    if (!c.addons?.length) return;
+    c.addons = c.addons.filter((a) => takeStock(l.s, a));
+    if (!c.addons.length) delete c.addons;
   }
 
   private closedReason(l: Live): string {
@@ -478,8 +510,10 @@ export class StallSystem {
           const tier = tierDef(st, l.s.tier);
           const blogger = l.s.rep >= st.blogger.minReputation && this.rand(1_000_000) / 1_000_000 < st.blogger.chance;
           const [p0, p1] = tier.patienceSec;
+          const recipe = menu[this.rand(menu.length)];
+          const addons = this.pickAddons(l, recipe.id);
           l.queue.push({
-            id: nextId(), seed: this.rand(1 << 30), recipe: menu[this.rand(menu.length)].id, arrivedAt: now,
+            id: nextId(), seed: this.rand(1 << 30), recipe: recipe.id, ...(addons.length ? { addons } : {}), arrivedAt: now,
             patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000), blogger, serving: null,
           });
           if (blogger) this.hooks.event(owner, { kind: 'blogger', text: '📸 A food blogger is in your queue! Cook them something Great (5× pay).' });
@@ -496,7 +530,7 @@ export class StallSystem {
         if (c && now >= c.doneAt) {
           const recipe = this.cfg.recipeById.get(c.customer.recipe)!;
           // Cooks make "Good" food at the passive rate: no combo, no tips, no blogger bonus.
-          staffSen += Math.round(dishBaseSen(st, recipe, l.s, rush, b) * st.staff.passiveRate);
+          staffSen += Math.round(orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * st.staff.passiveRate);
           staffDishes++;
           l.queue = l.queue.filter((x) => x.id !== c.customer.id);
           l.cooks[i] = null;
@@ -505,6 +539,7 @@ export class StallSystem {
           // Cooks leave food bloggers to the boss.
           const next = l.queue.find((x) => !x.serving && !x.blogger && stockCount(l.s, x.recipe) > 0);
           if (next && takeStock(l.s, next.recipe)) {
+            this.takeAddons(l, next);
             next.serving = 'staff';
             l.cooks[i] = { customer: next, doneAt: now + staffCookMs(st, l.s, b) };
           }
@@ -515,6 +550,7 @@ export class StallSystem {
           this.econ.run(owner, () => this.econ.change(owner, staffSen, 0, 'stall-staff', `${staffDishes}`));
           this.earn(l, staffSen);
           this.hooks.wallet(owner, staffSen, 'stall-staff');
+          this.hooks.event(owner, { kind: 'staffSale', text: `🧑‍🍳 Your cook sold ${staffDishes === 1 ? 'a dish' : `${staffDishes} dishes`}`, sen: staffSen });
           this.prog.bump(owner, 'staffDishes', staffDishes);
           this.prog.bump(owner, 'stallEarnSen', staffSen);
         } catch {

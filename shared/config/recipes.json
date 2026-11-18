@@ -1,18 +1,23 @@
 {
   "recipes": [
     {
-      "id": "nasi_lemak", "name": "Nasi Lemak", "icon": "🍛", "basePriceSen": 1500, "ingredientCostSen": 375,
+      "id": "nasi_lemak", "name": "Nasi Lemak", "icon": "🍛", "basePriceSen": 1800, "ingredientCostSen": 450,
       "steps": [
         { "kind": "hold", "label": "Scoop the rice", "hint": "Hold, then let go in the green zone", "art": "rice", "fillMs": 1600, "zoneWidth": 0.16, "zoneCenter": [0.5, 0.85] },
-        { "kind": "path", "label": "Swirl the sambal", "hint": "Drag through the dots in order", "art": "sambal", "shape": "spiral", "points": 7, "radius": 0.085 },
-        { "kind": "timing", "label": "Flip the egg", "hint": "Tap when the edges turn golden", "art": "egg", "targetMs": [1800, 3200], "maxMs": 6000 },
-        { "kind": "sequence", "label": "Add the sides", "hint": "In the order the customer asked", "art": "sides", "pick": 3,
-          "options": [ { "id": "ikan_bilis", "name": "Ikan bilis", "icon": "🐟" }, { "id": "kacang", "name": "Kacang", "icon": "🥜" }, { "id": "timun", "name": "Timun", "icon": "🥒" }, { "id": "telur", "name": "Telur rebus", "icon": "🥚" } ] },
-        { "kind": "path", "label": "Wrap the banana leaf", "hint": "Fold across, top to bottom", "art": "leaf", "shape": "fold", "points": 4, "radius": 0.1 }
-      ]
+        { "kind": "assemble", "label": "Pack the order", "hint": "Tap the boxes the customer asked for (any order)", "art": "boxes", "pick": [3, 5], "fastMs": 6500, "maxMs": 15000,
+          "options": [ { "id": "sambal", "name": "Sambal", "icon": "🌶️" }, { "id": "ikan_bilis", "name": "Ikan bilis", "icon": "🐟" }, { "id": "kacang", "name": "Kacang", "icon": "🥜" }, { "id": "timun", "name": "Timun", "icon": "🥒" }, { "id": "telur_rebus", "name": "Telur rebus", "icon": "🥚" } ] }
+      ],
+      "addons": [
+        { "id": "ayam_goreng", "name": "Ayam goreng", "icon": "🍗", "basePriceSen": 700, "ingredientCostSen": 230 },
+        { "id": "paru", "name": "Paru goreng", "icon": "🥩", "basePriceSen": 500, "ingredientCostSen": 160 },
+        { "id": "sambal_kerang", "name": "Sambal kerang", "icon": "🦪", "basePriceSen": 650, "ingredientCostSen": 210 },
+        { "id": "telur_mata", "name": "Telur mata", "icon": "🍳", "basePriceSen": 300, "ingredientCostSen": 90 },
+        { "id": "rendang", "name": "Rendang daging", "icon": "🥘", "basePriceSen": 800, "ingredientCostSen": 270 }
+      ],
+      "addonChance": 0.4, "maxAddons": 2
     },
     {
-      "id": "teh_tarik", "name": "Teh Tarik", "icon": "🧋", "basePriceSen": 800, "ingredientCostSen": 200,
+      "id": "teh_tarik", "name": "Teh Tarik", "icon": "🧋", "basePriceSen": 1000, "ingredientCostSen": 250,
       "unlock": { "recipe": "nasi_lemak", "mastery": 1 },
       "steps": [
         { "kind": "timing", "label": "Brew the tea", "hint": "Stop when it turns deep amber", "art": "tea", "targetMs": [1500, 3000], "maxMs": 6000 },
@@ -21,7 +26,7 @@
       ]
     },
     {
-      "id": "roti_canai", "name": "Roti Canai", "icon": "🫓", "basePriceSen": 1200, "ingredientCostSen": 300,
+      "id": "roti_canai", "name": "Roti Canai", "icon": "🫓", "basePriceSen": 1500, "ingredientCostSen": 375,
       "unlock": { "recipe": "teh_tarik", "mastery": 1 },
       "steps": [
         { "kind": "rhythm", "label": "Stretch the dough", "hint": "Slap it on every beat", "art": "dough", "beats": 5, "intervalMs": [520, 680], "leadMs": 900 },

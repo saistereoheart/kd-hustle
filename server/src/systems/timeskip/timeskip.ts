@@ -1,7 +1,7 @@
 // Skip the night: any player can start a vote while it's night; it passes as soon as more
 // than half of the players online vote yes (one player alone can skip). The in-game clock
 // then jumps to morning for everyone. Votes expire, and there's a cooldown between votes.
-import { dayPhase, gameTime, inHours, type SkipVoteState, type TimeConfig } from '@kh/shared';
+import { gameTime, isSkipNight, type SkipVoteState, type TimeConfig } from '@kh/shared';
 
 /** time.json → skipVote: allowed hours [from, to) (may wrap midnight), the hour the clock jumps
  *  to, vote length, cooldown, and the fraction of online players that must say yes (strictly more). */
@@ -22,8 +22,7 @@ export class SkipNightVote {
 
   /** Is it late enough to skip? */
   isNight(now: number): boolean {
-    const t = gameTime(this.time, now);
-    return inHours(t.hourF, ...this.cfg.allowedHours) && dayPhase(this.time, t.hourF) !== 'day';
+    return isSkipNight({ ...this.time, skipVote: this.cfg }, now);
   }
 
   get active() {

@@ -3,9 +3,9 @@
 // around the room; the shops/machines inside are used here. Your town position stays at the
 // door, which is what the server checks when you use something inside.
 import Phaser from 'phaser';
-import { formatMoney, randomAppearance, type BuiltBuilding, type BuiltMap, type Furniture, type RoomStyle } from '@kh/shared';
+import { formatMoney, randomAppearance, roomSize, type BuiltBuilding, type BuiltMap, type Furniture, type RoomStyle } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast, uiRoot } from '../ui/dom';
+import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { drawFurniture, drawRoom, drawStation, FURNITURE_SIZE, stationSize, T } from './interiorArt';
@@ -50,17 +50,18 @@ export class InteriorScene extends Phaser.Scene {
   private keeper: Avatar | null = null;
   private others = new Map<number, Avatar>();
   private othersAcc = 0;
-  private exitBtn: HTMLElement | null = null;
   private leaving = false;
 
   constructor() {
     super('interior');
   }
 
-  init(data: { app: App; building: BuiltBuilding; style: RoomStyle }) {
+  init(data: { app: App; building: BuiltBuilding; style: RoomStyle; door?: BuiltBuilding['doors'][number] | null }) {
     this.app = data.app;
     this.building = data.building;
-    this.style = data.style;
+    // The room follows the building's footprint (a long shoplot is a long room, a mall is huge).
+    const size = roomSize(data.app.cfg.interiors, data.style, data.building, data.door ?? data.building.door, data.app.map.metersPerTile);
+    this.style = { ...data.style, ...size };
     this.blockers = [];
     this.stations = [];
     this.near = undefined;
@@ -79,10 +80,12 @@ export class InteriorScene extends Phaser.Scene {
     // Room walls block movement: back wall (top 2 rows) + the room edges.
     this.blockers.push({ x0: -100, y0: -100, x1: W + 100, y1: 2 * T + 4 });
 
-    // Stations along the back wall (what this building is FOR).
+    // Stations along the back wall (what this building is FOR), grouped around the middle.
     const its = this.app.map.interactables.filter((i) => i.building === this.building.id);
+    const gap = Math.min(W / (its.length + 1), 6 * T);
+    const sx0 = W / 2 - (gap * (its.length - 1)) / 2;
     its.forEach((it, i) => {
-      const cx = ((i + 1) * W) / (its.length + 1);
+      const cx = sx0 + i * gap;
       const [sw, sh] = stationSize(it.type);
       const cy = 2 * T + (sh * T) / 2 + 6;
       const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + (sh * T) / 2);
@@ -98,24 +101,7 @@ export class InteriorScene extends Phaser.Scene {
       this.tweens.add({ targets: label, y: label.y - 4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.stations.push({ it, x: cx, y: cy + (sh * T) / 2 + T * 0.6 });
     });
-
-    // Furniture: big pieces in the middle (either side of the walkway), small ones along the walls.
-    const big: ReadonlySet<Furniture> = new Set(['shelf', 'fountain', 'table', 'slot', 'gate', 'kiosk', 'trolleys', 'bed', 'sofa', 'glasscase']);
-    const mid: Array<[number, number]> = [];
-    const rows = s.h >= 10 ? [0.5, 0.78] : [0.62];
-    for (const r of rows) for (const c of [0.24, 0.76]) mid.push([W * c, H * r]);
-    const side: Array<[number, number]> = [];
-    for (let y = 4.2; y < s.h - 1.4; y += 2) side.push([T * 1.1, y * T], [W - T * 1.1, y * T]);
-    for (const f of s.furniture) {
-      const slot = (big.has(f) ? mid.shift() ?? side.shift() : side.shift() ?? mid.shift());
-      if (!slot) break;
-      const [fw, fh] = FURNITURE_SIZE[f];
-      const [cx, cy] = slot;
-      const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + (fh * T) / 2);
-      drawFurniture(g, f, cx, cy, accent);
-      this.blockers.push({ x0: cx - (fw * T) / 2, y0: cy - (fh * T) / 2, x1: cx + (fw * T) / 2, y1: cy + (fh * T) / 2 });
-    }
-
+    this.layoutFurniture(its.length > 0);
     // Name sign over the back wall.
     this.add
       .text(W / 2, -16, this.building.name ?? s.label, { fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 })
@@ -125,7 +111,8 @@ export class InteriorScene extends Phaser.Scene {
     // The shopkeeper, by the right-hand end of the back wall.
     const cfg = this.app.cfg;
     if (s.keeper) {
-      const kx = its.length ? W - T * 1.6 : W / 2, ky = 2 * T + T * 0.9;
+      const lastX = this.stations.length ? this.stations[this.stations.length - 1].x : 0;
+      const kx = its.length ? Math.min(W - T * 1.6, lastX + T * 3.2) : W / 2, ky = 2 * T + T * 0.9;
       this.keeper = new Avatar(this, cfg.character, this.app.items, {
         name: s.keeper, level: 1, appearance: randomAppearance(cfg.character, seeded(this.building.id)), x: kx, y: ky, isSelf: false, npc: true,
       });
@@ -150,13 +137,12 @@ export class InteriorScene extends Phaser.Scene {
     this.fit();
     this.syncOthers();
 
-    // A big touch-friendly way out (Esc / walking onto the mat work too).
-    this.exitBtn = el('button', { class: 'interior-exit', 'data-testid': 'interior-exit' }, '🚪 Leave');
-    this.exitBtn.addEventListener('click', () => this.leave());
-    uiRoot().append(this.exitBtn);
+    // You leave by walking out through the doorway (Esc works too). A small sign shows the way.
+    this.add
+      .text(W / 2, H + 14, '▼ EXIT ▼', { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#c3fae8', stroke: '#11131f', strokeThickness: 4, resolution: 3 })
+      .setOrigin(0.5, 0)
+      .setDepth(999_000);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.exitBtn?.remove();
-      this.exitBtn = null;
       this.me?.destroy();
       this.keeper?.destroy();
       for (const a of this.others.values()) a.destroy();
@@ -164,14 +150,71 @@ export class InteriorScene extends Phaser.Scene {
     });
   }
 
-  /** Zoom so the room fills most of the screen; called on resize too. */
+  /**
+   * Furniture: big pieces in a grid of aisles (either side of the walkway from the door), small
+   * pieces along the side walls. A big room repeats the style's `fill` pieces so a hypermarket
+   * has rows of shelves and a mall has kiosks and benches all the way along.
+   */
+  private layoutFurniture(hasStations: boolean) {
+    const s = this.style;
+    const W = s.w * T, H = s.h * T;
+    const accent = parseInt(s.trim.slice(1), 16);
+    const big: ReadonlySet<Furniture> = new Set(['shelf', 'fountain', 'table', 'slot', 'gate', 'kiosk', 'trolleys', 'bed', 'sofa', 'glasscase', 'desk', 'bench']);
+    const bigList = s.furniture.filter((f) => big.has(f));
+    const smallList = s.furniture.filter((f) => !big.has(f));
+    const fill = s.fill?.length ? s.fill : bigList;
+    // Grid cells either side of a 3.4-tile walkway down the middle; the first rows stay clear
+    // in front of the stations along the back wall.
+    const walk0 = W / 2 - 1.7 * T, walk1 = W / 2 + 1.7 * T;
+    const y0 = (hasStations ? 6 : 3.4) * T, y1 = H - 1.8 * T;
+    const cells: Array<[number, number]> = [];
+    const cellW = 4.4 * T, cellH = 3 * T;
+    for (let y = y0 + cellH / 2; y + cellH / 2 <= y1 + 0.01; y += cellH) {
+      for (let x = walk0 - cellW / 2; x - cellW / 2 >= 1.9 * T - 0.01; x -= cellW) cells.push([x, y]);
+      for (let x = walk1 + cellW / 2; x + cellW / 2 <= W - 1.9 * T + 0.01; x += cellW) cells.push([x, y]);
+    }
+    // Middle-most cells first, so a small room gets the style's own pieces near the walkway.
+    cells.sort((a, b) => Math.abs(a[0] - W / 2) + Math.abs(a[1] - H * 0.6) * 0.6 - (Math.abs(b[0] - W / 2) + Math.abs(b[1] - H * 0.6) * 0.6));
+    const place = (f: Furniture, cx: number, cy: number) => {
+      const [fw, fh] = FURNITURE_SIZE[f];
+      const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + (fh * T) / 2);
+      drawFurniture(g, f, cx, cy, accent);
+      this.blockers.push({ x0: cx - (fw * T) / 2, y0: cy - (fh * T) / 2, x1: cx + (fw * T) / 2, y1: cy + (fh * T) / 2 });
+    };
+    const bigPieces = bigList.length || fill.length ? cells.map((_, i) => (i < bigList.length ? bigList[i] : fill[(i - bigList.length) % fill.length])) : [];
+    const cap = Math.min(cells.length, 90);
+    for (let i = 0; i < cap && bigPieces[i]; i++) {
+      // Fountains only in big open rooms, one per ~400 tiles.
+      if (bigPieces[i] === 'fountain' && i >= bigList.length && i % 7 !== 0) continue;
+      place(bigPieces[i], cells[i][0], cells[i][1]);
+    }
+    // Small pieces along both side walls, every ~3 tiles.
+    if (smallList.length) {
+      let k = 0;
+      for (let y = 4.4; y < s.h - 1.4; y += 3) for (const x of [T * 1.1, W - T * 1.1]) place(smallList[k++ % smallList.length], x, y * T);
+    }
+  }
+
+  /**
+   * Zoom so the room fills most of the screen; a room too big for that (malls, hypermarkets)
+   * keeps a comfortable zoom and the camera follows you around it. Called on resize too.
+   */
   fit() {
     const s = this.style;
     const cam = this.cameras.main;
     cam.setSize(this.scale.width, this.scale.height);
-    const zoom = Math.min((this.scale.width * 0.92) / (s.w * T + 40), (this.scale.height * 0.74) / (s.h * T + 80));
-    cam.setZoom(Math.min(zoom, 3 * this.app.dpr));
-    cam.centerOn((s.w * T) / 2, (s.h * T) / 2 - 10);
+    const fitZoom = Math.min((this.scale.width * 0.92) / (s.w * T + 40), (this.scale.height * 0.74) / (s.h * T + 80));
+    const minZoom = 0.85 * this.app.dpr;
+    const zoom = Math.min(Math.max(fitZoom, minZoom), 3 * this.app.dpr);
+    cam.setZoom(zoom);
+    if (zoom > fitZoom + 1e-6) {
+      cam.setBounds(-60, -80, s.w * T + 120, s.h * T + 80 + 200 * this.app.dpr); // room under the doorway for the hotbar
+      cam.startFollow(this.me.container, true, 0.2, 0.2);
+    } else {
+      cam.stopFollow();
+      cam.removeBounds();
+      cam.centerOn((s.w * T) / 2, (s.h * T) / 2 - 10);
+    }
   }
 
   private blocked(x: number, y: number) {
@@ -225,7 +268,8 @@ export class InteriorScene extends Phaser.Scene {
     if (best !== this.near) {
       this.near = best;
       const crate = best?.it.crate ? this.app.crates.get(best.it.crate) : undefined;
-      this.app.hud?.setPrompt(best ? (crate ? `${best.it.name} (${formatMoney(crate.priceSen)})` : best.it.name) : '🚪 Leave', this.app.touch);
+      if (best) this.app.hud?.setPrompt(crate ? `${best.it.name} (${formatMoney(crate.priceSen)})` : best.it.name, this.app.touch);
+      else this.app.hud?.setPrompt('🚪 Walk out through the doorway to leave', this.app.touch, { walk: true });
     }
     this.othersAcc += delta;
     if (this.othersAcc > 800) {
@@ -234,10 +278,9 @@ export class InteriorScene extends Phaser.Scene {
     }
   }
 
-  /** E / the interact button: use the station we're at, else leave. */
+  /** E / the interact button: use the station we're at. (You leave by walking out.) */
   interact() {
     if (this.near) this.app.openInteractable(this.near.it);
-    else this.leave();
   }
 
   /** Other players in this same building, standing around the room. */

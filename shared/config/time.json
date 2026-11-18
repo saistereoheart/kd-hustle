@@ -41,5 +41,14 @@
     "durationMs": 30000,
     "cooldownMs": 120000,
     "majority": 0.5
+  },
+  "lighting": {
+    "nightTint": "#949ed2",
+    "lampColor": "#ffd58a",
+    "stallColor": "#ffb45c",
+    "lampPoolTiles": 3.4,
+    "lampStrength": 0.75,
+    "stallStrength": 0.9,
+    "maxLamps": 110
   }
 }

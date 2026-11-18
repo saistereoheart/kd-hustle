@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { dishBaseSen, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { dishBaseSen, orderBaseSen, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -74,6 +74,7 @@ function perfectInputs(steps: StepParams[]): StepInput[] {
     else if (s.kind === 'rhythm') ev = [...s.beats];
     else if (s.kind === 'sequence') ev = s.order.flatMap((id, i) => [s.options.findIndex((o) => o.id === id), 300 * (i + 1)]);
     else if (s.kind === 'path') ev = s.points.flatMap(([x, y], i) => [x, y, 100 * (i + 1)]);
+    else if (s.kind === 'assemble') ev = s.want.flatMap((id, i) => [s.options.findIndex((o) => o.id === id), 300 * (i + 1)]);
     else if (s.kind === 'meter') {
       // Ramp up to the zone, then hold 40% of every 200 ms to stay level.
       const c = (s.zone[0] + s.zone[1]) / 2;
@@ -132,7 +133,10 @@ describe('customers and cooking', () => {
     s.setNow(s.now() + dish!.steps.reduce((a, st) => a + st.maxMs, 0)); // as long as the inputs claim
     const r = s.stalls.serve(s.p, dish!.dishId, perfectInputs(dish!.steps));
     expect(r.quality).toBe('perfect');
-    const base = dishBaseSen(cfg.stalls, cfg.recipeById.get('nasi_lemak')!, { tier: 1, mastery: {} }, false);
+    // The order's add-ons (if the customer asked for any) are part of the bill.
+    const box = dish!.steps.find((st) => st.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
+    const addons = box.want.filter((id) => box.options.find((o) => o.id === id)?.addon);
+    const base = orderBaseSen(cfg.stalls, cfg.recipeById.get('nasi_lemak')!, { tier: 1, mastery: {} }, false, addons);
     expect(r.paidSen).toBe(Math.round(base * 1.8));
     expect(s.p.walletSen).toBe(before + r.paidSen + r.tipSen);
     expect(r.combo).toBeCloseTo(cfg.stalls.combo.perPerfect);
@@ -202,7 +206,11 @@ describe('staff', () => {
     // Income from cooks (at ~50%, some at rush-hour prices) minus 5 hours of wages.
     const delta = s.p.walletSen - afterHire;
     expect(delta).toBeGreaterThanOrEqual(staffDishes * Math.round(base * cfg.stalls.staff.passiveRate) - wages);
-    expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(base * cfg.stalls.rush.price * cfg.stalls.staff.passiveRate) - wages);
+    // At most: every order in a rush with the dearest add-ons.
+    const nasi = cfg.recipeById.get('nasi_lemak')!;
+    const dearest = [...nasi.addons].sort((a, b) => b.basePriceSen - a.basePriceSen).slice(0, nasi.maxAddons).map((a) => a.id);
+    const top = orderBaseSen(cfg.stalls, nasi, { tier: 1, mastery: {} }, true, dearest);
+    expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(top * cfg.stalls.staff.passiveRate) - wages);
   });
 
   it('can only hire up to the tier limit', () => {

@@ -64,6 +64,17 @@ export const sfx = {
     tone(1568, 0.12, 'triangle', 0.06);
     tone(1175, 0.2, 'triangle', 0.05, 0.1);
   },
+  /** A locked door: two dull knocks and a rattle. */
+  locked: () => {
+    tone(140, 0.07, 'square', 0.1);
+    tone(130, 0.07, 'square', 0.1, 0.11);
+    tone(95, 0.14, 'sawtooth', 0.05, 0.2, 80);
+  },
+  /** Coins from a sale made by your staff (softer than your own). */
+  staffCoin: () => {
+    tone(1175, 0.06, 'triangle', 0.05);
+    tone(1568, 0.12, 'triangle', 0.05, 0.05);
+  },
   /** Potion gulp. */
   gulp: () => {
     tone(420, 0.1, 'sine', 0.12, 0, 260);

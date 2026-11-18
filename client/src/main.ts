@@ -50,5 +50,16 @@ window.__kh = {
     if (it) app.openInteractable(it);
   },
   // Dev only: move the CAMERA (not the player) to look around, for screenshots.
-  ...(import.meta.env.DEV ? { peek: (x: number, y: number) => app.town?.debugPeek(x, y) } : {}),
+  ...(import.meta.env.DEV
+    ? {
+        peek: (x: number, y: number) => app.town?.debugPeek(x, y),
+        /** Dev/tests: send any socket message (the server still checks everything). */
+        emit: (event: string, ...args: unknown[]) => (app.socket as unknown as { emit: (e: string, ...a: unknown[]) => void } | null)?.emit(event, ...args, () => {}),
+        /** Dev/tests: show an errand's beacon without walking to an NPC (client-side only). */
+        fakeErrand: (e: unknown) => {
+          app.store.errand = e as typeof app.store.errand;
+          app.store.emit();
+        },
+      }
+    : {}),
 };

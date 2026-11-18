@@ -77,17 +77,36 @@ function drawDecor(ctx: Ctx, id: number) {
       ctx.arc(16, 15, 7, 0, Math.PI * 2);
       ctx.fill();
       break;
-    case Decor.Lamp:
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fillRect(15, 27, 6, 2);
+    case Decor.Lamp: {
+      // Base plate, a shaded pole (lit left edge), the arm and a lamp head with a glass.
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(16.5, 28, 4, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#495057';
+      ctx.fillRect(13.5, 25, 6, 3);
       ctx.fillStyle = '#5f6672';
-      ctx.fillRect(15, 6, 3, 22);
-      ctx.fillRect(15, 6, 9, 2);
+      ctx.fillRect(15, 5, 3, 21);
+      ctx.fillStyle = '#868e96';
+      ctx.fillRect(15, 5, 1, 21);
+      ctx.fillStyle = '#5f6672';
+      ctx.beginPath();
+      ctx.moveTo(16, 5);
+      ctx.quadraticCurveTo(19, 2.5, 24, 5);
+      ctx.lineTo(24, 6.5);
+      ctx.quadraticCurveTo(19, 4.5, 17, 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#343a40';
+      ctx.fillRect(20.5, 5.5, 6, 2.2);
       ctx.fillStyle = '#ffe066';
       ctx.beginPath();
-      ctx.arc(23, 9, 3, 0, Math.PI * 2);
+      ctx.ellipse(23.5, 8.6, 3, 1.6, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#fff9db';
+      ctx.fillRect(22.3, 8, 1.6, 0.9);
       break;
+    }
     case Decor.Bench:
       ctx.fillStyle = '#8d5a33';
       ctx.fillRect(5, 12, 22, 4);

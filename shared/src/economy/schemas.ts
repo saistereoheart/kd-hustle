@@ -196,6 +196,9 @@ export const ridesConfigSchema = z.object({
   /** Route simplification tolerance (tiles). */
   simplifyTiles: z.number().nonnegative(),
   maxSearchNodes: z.number().int().positive(),
+  /** Rides follow the roads (keeping left, one-ways respected) unless that's longer than this
+   *  many times the direct route (+30 tiles); then they take the direct route. */
+  roadDetourMax: z.number().min(1).default(1.6),
 });
 export type RidesConfig = z.infer<typeof ridesConfigSchema>;
 

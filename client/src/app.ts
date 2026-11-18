@@ -23,7 +23,7 @@ import { openStallPanel } from './ui/stall/stallPanel';
 import { sfx } from './ui/sound';
 import { Joystick } from './input/joystick';
 import { Keyboard } from './input/keyboard';
-import { clearToken, fetchPublicConfig, loadToken } from './net/api';
+import { checkSession, clearToken, fetchPublicConfig, loadToken } from './net/api';
 import { connectSocket, type GameSocket } from './net/socket';
 import { showAuthScreen } from './ui/authScreen';
 import { Chat } from './ui/chat';
@@ -94,6 +94,7 @@ export class App {
   lastInit: InitPayload | null = null;
   lastSavedAt: number | null = null;
   private kicked = false;
+  private username = '';
   private reconnecting: HTMLElement | null = null;
   private settings: { close: () => void } | null = null;
   private creatorOpen = false;
@@ -166,22 +167,42 @@ export class App {
     this.bindKeys();
     loading.remove();
 
-    this.showTitle();
+    void this.showLoginThenTitle();
   }
 
-  /** The start screen (every page load, and after losing the connection for good). */
-  showTitle(notice?: string) {
+  /**
+   * Every page load: the login screen first (skipped when this device's saved session is still
+   * valid), then the START GAME screen.
+   */
+  async showLoginThenTitle(notice?: string) {
+    const token = loadToken();
+    if (token) {
+      const s = await checkSession(token);
+      if (s.ok) {
+        this.showTitle(s.username, notice);
+        return;
+      }
+      if (!s.offline) clearToken();
+    }
+    showAuthScreen(this.cfg, (_t, username) => this.showTitle(username, notice), { notice });
+  }
+
+  /** The START GAME screen (after login, and after losing the connection for good). */
+  showTitle(username: string, notice?: string) {
+    this.username = username;
     showTitleScreen(this.cfg, {
       notice,
-      loggedIn: !!loadToken(),
+      username,
       onStart: () => {
         const token = loadToken();
         if (token) this.connect(token);
-        else showAuthScreen(this.cfg, (t) => this.connect(t));
+        else void this.showLoginThenTitle();
       },
       onLogout: () => {
+        const token = loadToken();
+        if (token) void fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) }).catch(() => undefined);
         clearToken();
-        location.reload();
+        setTimeout(() => location.reload(), 150);
       },
     });
   }
@@ -197,7 +218,8 @@ export class App {
     this.socket = null;
     this.setReconnecting(false);
     this.leaveTown();
-    this.showTitle(notice);
+    if (this.username && loadToken()) this.showTitle(this.username, notice);
+    else void this.showLoginThenTitle(notice);
   }
 
   /** Our live bonuses (luck, XP, job pay, walk speed...), computed like the server does. */
@@ -415,7 +437,15 @@ export class App {
       this.store.stall = stall;
       this.store.emit();
     });
-    socket.on('stall:event', (ev) => toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' ? 'info' : 'bad', 4500));
+    socket.on('stall:event', (ev) => {
+      if (ev.kind === 'staffSale') {
+        // A cook sold something: "+RM" over the stall (and a quiet coin), not a toast.
+        sfx.staffCoin();
+        this.town?.stalls.popIncome(ev.sen ?? 0);
+        return;
+      }
+      toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' ? 'info' : 'bad', 4500);
+    });
     socket.on('progress', ({ progress, events }) => {
       this.store.setProgress(progress);
       if (events.length) celebrate(this, events);
@@ -602,9 +632,43 @@ export class App {
     }
     const style = roomStyleOf(this.cfg.interiors, b);
     const name = b.name ?? (style ? this.cfg.interiors.styles[style]?.label : null) ?? 'house';
-    if (!style) return `🔒 ${name}`;
+    if (!style) return `🔒 ${name} (locked)`;
     const inside = this.map.interactables.filter((i) => i.building === b.id && i.name !== b.name).map((i) => i.name);
-    return `🚪 Enter ${name}${inside.length ? ` · ${inside.join(', ')}` : ''}`;
+    return `🚪 Walk in: ${name}${inside.length ? ` · ${inside.join(', ')}` : ''}`;
+  }
+
+  /**
+   * Walked into a door (or pressed E at one). Returns false when the door is locked: the
+   * player bumps it and hears a knock.
+   */
+  walkIntoDoor(b: BuiltBuilding): boolean {
+    if (this.interior || this.home) return true;
+    const units = this.listings.filter((u) => u.building === b.id);
+    if (units.length) {
+      const me = this.lastInit?.you.id;
+      const mine = units.some((u) => this.store.props.get(u.id)?.owner === me);
+      const free = units.some((u) => !this.store.props.has(u.id));
+      if (!mine && !free) {
+        sfx.locked();
+        toast('🔒 Locked. Someone lives here.');
+        return false;
+      }
+      sfx.door();
+      openPropertyPanel(this, b);
+      return true;
+    }
+    if (!roomStyleOf(this.cfg.interiors, b)) {
+      sfx.locked();
+      toast(this.cfg.interiors.lockedMessage);
+      return false;
+    }
+    if (this.store.riding) {
+      sfx.locked();
+      toast('Hop off your ride first (press its hotbar key).');
+      return false;
+    }
+    this.enterBuilding(b);
+    return true;
   }
 
   // ------------------------------------------------------------------ NPCs and errands
@@ -669,7 +733,10 @@ export class App {
       if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       if (this.interior || !this.town) return;
       sfx.door();
-      this.game.scene.run('interior', { app: this, building: b, style });
+      // The door we came in by decides which way the room faces.
+      const T = this.map.tileSize, p = this.town.position;
+      const door = [...b.doors].sort((d1, d2) => Math.hypot(d1.frontX + 0.5 - p.x / T, d1.frontY + 0.5 - p.y / T) - Math.hypot(d2.frontX + 0.5 - p.x / T, d2.frontY + 0.5 - p.y / T))[0] ?? b.door;
+      this.game.scene.run('interior', { app: this, building: b, style, door });
       this.interior = this.game.scene.getScene('interior') as InteriorScene;
       document.body.dataset.inside = b.id;
       // Blur the town behind the room (WebGL only; the dark overlay alone works everywhere).

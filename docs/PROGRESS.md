@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (overnight run)_
+_Last updated: 2026-11-18 (second feedback round)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -10,26 +10,89 @@ _Last updated: 2026-11-18 (overnight run)_
 **Phase 4 (food stalls and cooking): done.** The acceptance check passes in `npm run sim:stall` (see below).
 **Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
+**Phase 5.1 (your second feedback round): done**, see below.
+**Phase 6 (shops, businesses, loans): started, parked.** The half-done code is in `git stash` ("WIP Phase 6"), not in
+the working tree, so it doesn't break the typecheck. `git stash pop` brings it back.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ all unit tests (see the count in the latest commit message) |
-| `npm run e2e` (Playwright: desktop + phone) | see "Browser tests" below |
-| `npm run sim:stall` | ✅ Perfect cooking 14× passive mode; sloppy cooking still beats passive; passive makes money |
+| `npm test` (Vitest) | ✅ 196 unit tests |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
+| `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | Real phone on the LAN | ⏳ needs you |
 
-### ☀️ Morning notes for you
-- **Nothing outside `kd-hustle` was touched.** No firewall, network, service, port or system settings were changed,
-  nothing was installed globally, and the PC was not restarted. The game still uses **port 3003** on this PC
-  (unchanged). The browser tests use their own throwaway server on port 3101 with a database under `test-results/`.
-- **Nothing needs your permission** to keep the PC reachable over WiFi/ZeroTier.
+### Notes for you
+- **The game you're playing isn't touched while I work.** It runs the built copy (`node server/dist/index.js`, port
+  3003). Changes reach it when you run `npm run build`, stop the server (Ctrl+C saves everyone) and `npm start`.
+  The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
-- **Rebuild before you play:** `npm run build` then `npm start` (or `npm run dev`).
-- **Database:** two new tables are added automatically on first start (migration 9 `properties`). Existing players
-  keep everything. Old saves that stood exactly where the car wash bay used to be are fine (it was just a picture).
-- **Your old Claude memory note** (outside the repo) still lists the feedback items as "to do"; they're done. I didn't
-  edit it because you asked me not to touch anything outside `kd-hustle`.
+- **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.1: your second feedback round
+
+### How to test it
+1. **Login first:** open the game. The login screen comes first (over the animated dusk scene), then START GAME
+   ("👤 you · Not you? Log out"). A device that's still logged in goes straight to START GAME.
+2. **Doors:** walk into a door. No button: pushing into it goes in. A locked door (houses, homes others own) knocks,
+   blocks you and shakes the screen a little. Inside, walk out through the doorway (▼ EXIT ▼) to leave (Esc works too).
+   The touch E button only shows when there's something to press.
+3. **Room sizes:** the Gergasi Hypermarket and the malls are big halls (the camera follows you), with rows of
+   shelves/kiosks; a shoplot (the pawn shop, Kilat Car Wash) is a long narrow room.
+4. **Who's inside:** when another player is in a building, "🚪 Ali is inside" floats over its door (and the minimap
+   shows 🚪 by their name).
+5. **Night:** `/time 21`. Nights are lighter. Street lamps glow with a warm pool on the ground; stalls have bulb
+   strings, a hanging lamp and a warm spill of light; the food truck's hatch and the kopitiam sign glow. In the
+   daytime, lamp poles and stall canopies cast shadows.
+6. **Skip the night:** 📱 → Clock between 8 PM and 5 AM: the vote button is enabled (it used to stay grey if you'd
+   joined in the daytime).
+7. **Nasi lemak:** cook one. Scoop the rice (same as before), then **tap the ingredient boxes** on the order ticket
+   (sambal, ikan bilis, kacang, timun, telur rebus) plus any **add-ons** the customer ordered (🍗 ayam goreng,
+   🥩 paru, 🦪 sambal kerang, 🍳 telur mata, 🥘 rendang), any order. All right and quick = Perfect. The order
+   bubbles and the queue show the add-ons. Add-ons have their own stock (📱 → Business → Stock, or Gergasi).
+8. **Stock is everywhere:** a big stock bar in the cooking screen and the stall panel (orange when low, red when
+   out), the stock list shows counts, and a "📦 🍛 23 🍗4 …" sign floats over your own stall (red when low).
+9. **Staff:** hire a cook. They stand at the stall; while cooking someone's order they move, show 🍳 and steam.
+   Each sale shows "+RM 21.60 🧑‍🍳" rising over the stall with a soft coin sound (no toast spam).
+10. **Ronda:** book rides: the rider follows the roads, keeps left on two-way roads, and goes the right way on
+    one-way roads (2+ lanes); single-lane roads are used both ways, down the middle. Fares are a little higher.
+11. **Errands:** accept an NPC errand. A green light beam, ring and big 🧺 "ERRAND · PLACE" mark the spot
+    (and 🧺 on the minimap); when it's time to hand it back, a yellow 🧺❗ "HAND IT TO …" follows the NPC.
+12. **Bag:** items are grouped by what they're for: 👕 Outfit (Head, Face, Back, Aura, Name colour), 🧪 Potions &
+    boosters, 💎 Collectibles, 🛋️ Furniture, side by side as columns on a wide screen. The pawn shop and the
+    shard shop use the same groups.
+
+### What changed
+| Your remark | What I did |
+|---|---|
+| Login screen before START GAME | Page load → login (skipped if this device's session is still valid: new `POST /api/session`) → START GAME. Log out from the start screen or Settings. |
+| Better cast shadows / lighting on stalls and light poles | New `client/src/world/lightLayer.ts`: lamps in view get an additive glow + ground pool at night (pooled sprites, ≤110 lights). Stalls: bulbs, hanging lamp, light spill, canopy/truck shading, daytime canopy shadow. Lamp sprite redrawn (base, lit pole edge, arm, glass) with a long cast shadow. |
+| Reduce night darkness | Night tint is config now: `time.json → lighting.nightTint` (#949ed2, was #505c96). Lamp/stall strength there too. |
+| Night skip greyed out | The server's `canStart` was only sent when a vote changed, so it went stale. The client now works it out from the live clock (`canStartSkipVote`), and the Clock app refreshes every second. |
+| Doors: walk in/out, block + sound if locked | Pushing into a door's front goes in (once per push, 0.9 s retry). Locked: knock sound, toast, small camera shake. Interior "Leave" button removed; walk out through the doorway. |
+| Ronda pathing + slight price bump + Malaysian road rules | New road-network router (`server/src/systems/rides/roadGraph.ts`), see Decisions. Fares RM 3 + 1.60/km (min 3.50) → RM 4 + 2.00/km (min 4.50). |
+| Interior size matches the building | `roomSize()` measures the footprint along the door you came in by (wall = room width, depth = height), 1.6 m per room tile, 8×6 to 46×32. Big rooms fill with each style's `fill` pieces in aisles. |
+| Staff visible when cooking | Cooks stand at the stall (spots per tier); the busy ones animate with 🍳 and steam. Everyone sees them. |
+| Stock very visible | Stock bar while cooking + in the stall panel, counts on the add-on boxes, the stock sign over your stall. |
+| Nasi lemak rework + add-ons + higher prices | New `assemble` step kind (tap boxes). Add-ons per recipe in `recipes.json` (own stock, price, chance). Prices: nasi lemak RM 15 → 18, teh tarik RM 8 → 10, roti canai RM 12 → 15 (ingredients scaled the same). |
+| Lower penalty for staff-served items; income popup | `staff.passiveRate` 0.6 → 0.8. A `staffSale` stall event → "+RM" popup over the stall. |
+| Errand pointer / static pointer on the POI | World beacon at the errand place (beam, ring, bouncing 🧺, label), then over the NPC; 🧺 on the minimap. |
+| Icon if a player is in a building | "🚪 name is inside" badge over the door; 🚪 before their name on the minimap. |
+| Bag/item lists in columns by function | `client/src/ui/itemGroups.ts`, used by the bag, pawn shop (sell/scrap) and shard shop. |
+| (found while testing) Ronda passenger frozen when riding north | A crash in the rider drawing ("Supplied index out of bounds" when the bike moved in front of the passenger) stopped the passenger following the ride. Fixed (clamped draw order). |
+
+### Stall sim after the rework (`npm run sim:stall`, 5 nights)
+| Mode | RM per real hour |
+|---|---|
+| Perfect cooking | ~RM 28.8K (57 dishes a night) |
+| Sloppy cooking | ~RM 6.1K |
+| Passive (hired cook) | ~RM 2.3K |
+| Jobs (for comparison) | ~RM 6.7K |
+
+Perfect cooking now earns ~4× jobs (was ~2×): the nasi lemak is quicker to make (2 steps) and dearer, and add-ons
+add to the bill. Tell me if stalls feel too strong and I'll trim prices in `recipes.json`.
 
 ---
 
@@ -504,6 +567,29 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 5.1**
+- **Road rules for Ronda:** roads with 2+ lanes (and highways) mapped one-way are never ridden backwards; on two-way
+  roads with room for two lanes the route runs down the middle of the LEFT half; multi-lane one-ways use the left
+  lane; single-lane roads are fine both ways, down the middle (against the mapped direction costs 2.5× so it's only
+  used when it saves a lot). A one-way road that leads nowhere (cut off by the map edge) can be ridden back out.
+  Loose road ends within ~2 tiles of another road are joined. Bigger roads are slightly preferred.
+- **When the road route is a silly detour** (one-way loops, roads that only connect outside the map), the ride takes
+  the direct route instead: road route ≤ 2.2 × direct + 30 tiles (`rides.json → roadDetourMax`). On random trips
+  across the whole map ~65% use the road route (more in town); routes are ~1.3× the direct length on average. The
+  direct route now avoids sidewalks/paths/plazas where it can. "Too close to ride" uses the straight-line distance.
+- **Doors:** E at a door still works on a keyboard (it does the same as walking in); the touch button is hidden at
+  doors. Riding into a door says "hop off first".
+- **Interior sizes:** 1.6 m of building per room tile, capped at 46 × 32 tiles; a style's own w × h is the minimum.
+  Furniture is laid out in aisles either side of a walkway from the door; fountains only in big rooms.
+- **Assemble step grading:** every wanted box and no wrong one = Perfect within `fastMs` (6.5 s, × equipment),
+  Great if slower; ≥ 60% right (wrong taps subtract) = Good; else Miss. Customers order each in-stock add-on with
+  `addonChance` (40%), up to `maxAddons` (2); add-ons promised to earlier customers in the queue are reserved.
+  If an add-on runs out before cooking starts, it's dropped from the order (and the bill).
+- **New stalls** start with 10 nasi lemak portions plus 4 ayam goreng and 4 paru, so add-ons show up right away.
+- **Night look** is client-only; the server never sees it.
+- **Bag groups:** there are no clothes/shoes items yet (outfits come from the character creator), so "Outfit" has
+  Head, Face, Back, Aura and Name colour.
+
 **Phase 5**
 - **Which homes are for sale:** every condo building (12 units: studio / 2-bedroom / studio / 3-bedroom),
   terrace and semi-D on the map. The OSM data has no flats or bungalows here, so those types exist in config but
@@ -664,6 +750,13 @@ Simple options picked where the spec was open, per CLAUDE.md:
 16. **`?profile=<name>` URL param** keeps a separate login per tab (testing convenience).
 
 ## Known issues / limitations
+
+- **Phase 5.1:** lamp shadows near a map chunk's edge are cut off at the edge (chunks are drawn separately).
+- **Phase 5.1:** about a third of Ronda trips (mostly at the map's edges, where roads only connect outside the
+  map) still use the direct route, which can cross car parks.
+- **Phase 5.1:** a big interior (mall, hypermarket) starts you at the door; the counters are at the far back wall,
+  so you walk up to them. Tell me if you'd rather the counters were near the door.
+- **Phase 5.1:** only the nasi lemak has add-ons so far; teh tarik and roti canai keep their old steps.
 
 - **Phase 5:** furniture art is simple top-down shapes; decorate mode uses taps/clicks (no drag). On a phone, the
   decorate panel covers the lower part of the room; scroll it or tap ✅ Done to see the whole room.

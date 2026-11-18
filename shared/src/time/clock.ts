@@ -22,6 +22,19 @@ export const timeConfigSchema = z.object({
       majority: z.number().min(0).max(1),
     })
     .default({ allowedHours: [20, 5], skipToHour: 7, durationMs: 30_000, cooldownMs: 120_000, majority: 0.5 }),
+  /** Night look (client only): the colour the town is multiplied by at full night (lighter =
+   *  brighter nights), street lamp and stall light colours, glow sizes (tiles) and strength. */
+  lighting: z
+    .object({
+      nightTint: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      lampColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      stallColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      lampPoolTiles: z.number().positive(),
+      lampStrength: z.number().min(0).max(2),
+      stallStrength: z.number().min(0).max(2),
+      maxLamps: z.number().int().positive(),
+    })
+    .optional(),
 });
 export type TimeConfig = z.infer<typeof timeConfigSchema>;
 
@@ -62,6 +75,18 @@ export function darkness(cfg: TimeConfig, hourF: number): number {
   if (inHours(hourF, d0, d1)) return 1 - (hourF - d0) / (d1 - d0);
   if (inHours(hourF, k0, k1)) return (hourF - k0) / (k1 - k0);
   return dayPhase(cfg, hourF) === 'day' ? 0 : 1;
+}
+
+/** Is it late enough to vote to skip the night? (time.json → skipVote.allowedHours, never in daytime) */
+export function isSkipNight(cfg: TimeConfig, nowMs: number): boolean {
+  const t = gameTime(cfg, nowMs);
+  return inHours(t.hourF, ...cfg.skipVote.allowedHours) && dayPhase(cfg, t.hourF) !== 'day';
+}
+
+/** Can a skip vote be started right now? Worked out from the live clock, because the
+ *  vote state the server last sent goes stale as the in-game hours pass. */
+export function canStartSkipVote(cfg: TimeConfig, nowMs: number, v: { active: boolean; cooldownUntil: number } | null): boolean {
+  return !!v && !v.active && nowMs >= v.cooldownUntil && isSkipNight(cfg, nowMs);
 }
 
 export function rushHour(cfg: TimeConfig, hourF: number): string | null {

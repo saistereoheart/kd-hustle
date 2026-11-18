@@ -32,13 +32,13 @@ async function newPlayer(browser: Browser, mobile: boolean, label: string, error
 
 async function register(page: Page, name: string, shotPrefix: string) {
   await page.goto('/');
-  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.screenshot({ path: `${SHOTS}/${shotPrefix}-1-auth.png` });
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
   await page.fill('input[name=confirm]', 'secret123');
   await page.click('#auth button[type=submit]');
+  await page.click('[data-testid=title-start]'); // then the start screen
   await page.waitForSelector('#creator', { timeout: 30_000 });
   await page.click('[data-action=randomize]');
   await page.click('[data-tab=hair]');
@@ -49,6 +49,7 @@ async function register(page: Page, name: string, shotPrefix: string) {
 }
 
 test('two players can meet, chat, emote and keep their progress', async ({ browser }) => {
+  test.setTimeout(240_000); // two browsers + a third login; slow on a busy PC
   const errors: string[] = [];
   const tag = Date.now().toString(36).slice(-6);
   const nameA = `alpha_${tag}`;
@@ -132,13 +133,12 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   await B.page.click('[data-action=settings]');
   await B.page.screenshot({ path: `${SHOTS}/phone-5-settings.png` });
   await B.page.click('[data-action=logout]');
-  await B.page.waitForSelector('[data-testid=title-start]', { timeout: 15_000 }); // back to the start screen
-  await B.page.click('[data-testid=title-start]');
-  await B.page.waitForSelector('#auth', { timeout: 15_000 });
+  await B.page.waitForSelector('#auth', { timeout: 15_000 }); // back to the login screen
   await B.page.click('[data-tab=login]');
   await B.page.fill('input[name=username]', nameB);
   await B.page.fill('input[name=password]', 'secret123');
   await B.page.click('#auth button[type=submit]');
+  await B.page.click('[data-testid=title-start]'); // then the start screen
   await waitTown(B.page);
   const bAfter = (await self(B.page))!;
   expect(Math.abs(bAfter.x - bBefore.x)).toBeLessThan(2);
@@ -147,12 +147,12 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   // Logging in as A on another device kicks the first one.
   const A2 = await newPlayer(browser, false, 'desktop2', errors);
   await A2.page.goto('/');
-  await A2.page.click('[data-testid=title-start]'); // the start screen
   await A2.page.waitForSelector('#auth');
   await A2.page.click('[data-tab=login]');
   await A2.page.fill('input[name=username]', nameA);
   await A2.page.fill('input[name=password]', 'secret123');
   await A2.page.click('#auth button[type=submit]');
+  await A2.page.click('[data-testid=title-start]'); // then the start screen
   await waitTown(A2.page);
   await expect(A.page.getByText('You logged in on another device.')).toBeVisible({ timeout: 10_000 });
   const a2 = (await self(A2.page))!;

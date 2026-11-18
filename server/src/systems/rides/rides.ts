@@ -3,9 +3,10 @@
 //  2. book: you pay the quoted fare (only if you're still roughly where you asked);
 //  3. ride: after a short pickup wait the server moves you along the route at a fixed speed
 //     (your own move reports are ignored), and drops you off at the end, or where you get off.
-import { districtAt, rideFareSen, vehicleSpeedGrid, type BuiltMap, type Direction, type RideQuote, type RidesConfig, type TerrainConfig } from '@kh/shared';
+import { districtAt, rideFareSen, TERRAIN_NAMES, vehicleSpeedGrid, type BuiltMap, type Direction, type RideQuote, type RidesConfig, type TerrainConfig } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
 import { GameError } from '../economy/economy';
+import { RoadGraph, planRoadRoute } from './roadGraph';
 import { planRoute, polylineLength, type RouteGrid } from './route';
 
 export interface PendingQuote extends RideQuote {
@@ -37,8 +38,18 @@ export interface RidePlayer {
   ride: ActiveRide | null;
 }
 
+/** Speeds for planning rides: like driving, but a Ronda rider keeps off the sidewalks and
+ *  footpaths unless there's no other way (they still count as passable). */
+function rideSpeedGrid(map: BuiltMap, terrain: TerrainConfig): Float32Array {
+  const speed = vehicleSpeedGrid(map, terrain);
+  const walkOnly = new Set(['sidewalk', 'path', 'plaza'].map((n) => TERRAIN_NAMES.indexOf(n as (typeof TERRAIN_NAMES)[number])).filter((i) => i >= 0));
+  for (let i = 0; i < speed.length; i++) if (!map.deck[i] && walkOnly.has(map.terrain[i])) speed[i] = Math.min(speed[i], 0.45);
+  return speed;
+}
+
 export class RideSystem {
   private grid: RouteGrid;
+  private roads: RoadGraph;
   private T: number;
 
   constructor(private cfg: RidesConfig, private map: BuiltMap, terrain: TerrainConfig) {
@@ -49,8 +60,9 @@ export class RideSystem {
       originTx: map.originTx,
       originTy: map.originTy,
       blocked: map.driveSolid,
-      speed: vehicleSpeedGrid(map, terrain),
+      speed: rideSpeedGrid(map, terrain),
     };
+    this.roads = new RoadGraph(map.roads);
   }
 
   /** A name for the drop-off: the nearest named building or street, else the district. */
@@ -80,7 +92,14 @@ export class RideSystem {
     if (p.ride) throw new GameError("You're already on a ride.");
     const m = this.map;
     if (tx < m.originTx || ty < m.originTy || tx >= m.originTx + m.width || ty >= m.originTy + m.height) throw new GameError("That's off the map.");
-    const route = planRoute(this.grid, [p.x / this.T, p.y / this.T], [tx, ty], this.cfg);
+    // Along the roads (keeping left, one-ways respected); the plain grid route if that fails.
+    const from: [number, number] = [p.x / this.T, p.y / this.T];
+    // Close enough to walk (as the crow flies; the road way round may be longer).
+    if (Math.hypot(tx - from[0], ty - from[1]) * m.metersPerTile < this.cfg.minTripMeters) throw new GameError("That's just around the corner. Walk there!");
+    // A legal road route that's a silly detour (one-way loops) loses to the direct grid route.
+    const direct = planRoute(this.grid, from, [tx, ty], this.cfg);
+    const cap = direct ? polylineLength(direct) * this.cfg.roadDetourMax + 30 : Infinity;
+    const route = planRoadRoute(this.roads, this.grid, from, [tx, ty], this.cfg, cap) ?? direct;
     if (!route) throw new GameError(`${this.cfg.appName} can't get there. Pick a spot near a road.`);
     const meters = polylineLength(route) * m.metersPerTile;
     if (meters < this.cfg.minTripMeters) throw new GameError("That's just around the corner. Walk there!");

@@ -1,5 +1,5 @@
 // Buying ingredients: the same list in the hypermarket (in person) and the phone (delivered, +fee).
-import { formatMoney, menuRecipes, stockCount, stockPriceSen } from '@kh/shared';
+import { formatMoney, stockCount, stockItems, stockPriceSen } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
 import { sfx } from '../sound';
@@ -8,7 +8,7 @@ export function stockList(app: App, delivery: boolean): HTMLElement {
   const st = app.store.stall;
   const cfg = app.cfg.stalls;
   if (!st) return el('p', { class: 'empty' }, "You don't have a stall yet. 📱 → Business to buy one.");
-  const rows = menuRecipes(cfg, app.cfg.recipes.recipes, st).map((r) => {
+  const rows = stockItems(cfg, app.cfg.recipes.recipes, st).map((r) => {
     const have = stockCount(st, r.id);
     const btns = el('div', { class: 'stock-btns' });
     for (const pack of cfg.stock.packs) {
@@ -33,7 +33,13 @@ export function stockList(app: App, delivery: boolean): HTMLElement {
       });
       btns.append(b);
     }
-    return el('div', { class: 'stock-row', 'data-recipe': r.id }, el('div', { class: 'stock-name' }, `${r.icon} ${r.name}`, el('div', { class: 'muted small' }, `${have} portions · ${formatMoney(r.ingredientCostSen)} each`)), btns);
+    const qty = el('b', { class: `stock-qty${have <= 0 ? ' out' : have <= 5 ? ' low' : ''}` }, String(have));
+    return el(
+      'div',
+      { class: `stock-row${r.parent ? ' addon' : ''}`, 'data-recipe': r.id },
+      el('div', { class: 'stock-name' }, `${r.parent ? '➕ ' : ''}${r.icon} ${r.name}`, el('div', { class: 'muted small' }, qty, ` ${r.parent ? 'in stock (add-on)' : 'portions'} · ${formatMoney(r.ingredientCostSen)} each`)),
+      btns,
+    );
   });
   const shelf = cfg.stock.shelfLifeGameHours / 24;
   return el(

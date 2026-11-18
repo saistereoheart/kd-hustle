@@ -13,6 +13,7 @@ import { Avatar } from './avatar';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
+import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 
 interface Sample {
   t: number;
@@ -58,13 +59,20 @@ export class TownScene extends Phaser.Scene {
   private manifestAcc = 0;
   private districtId = '';
   private doorIndex = new Map<number, BuiltBuilding>();
+  /** Doors by the grid cells around their front tile (for walking into them). */
+  private doorFronts = new Map<number, Array<{ b: BuiltBuilding; d: BuiltBuilding['doors'][number] }>>();
+  /** Walking into a door works once per push (you have to stop pushing to try again). */
+  private doorArmed = true;
+  private doorRetryAt = 0;
   private nearBuilding: BuiltBuilding | null = null;
   private nearInteract: BuiltMap['interactables'][number] | null = null;
   private nearPlot: BuiltMap['stallPlots'][number] | null = null;
-  private stalls!: StallLayer;
+  stalls!: StallLayer;
   npcs!: NpcLayer;
   private nearNpc: number | null = null;
   private marker: Phaser.GameObjects.Container | null = null;
+  /** The errand's beacon: a light beam + big icon on the spot (or over the NPC to hand it to). */
+  private beacon: { root: Phaser.GameObjects.Container; label: Phaser.GameObjects.Text; key: string } | null = null;
   private vehicleSpeed: Float32Array = new Float32Array(0);
   private offs: Array<() => void> = [];
 
@@ -76,6 +84,9 @@ export class TownScene extends Phaser.Scene {
     this.app = data.app;
     this.initData = data.init;
     this.remotes = new Map();
+    this.insideMarks = new Map();
+    this.beacon = null;
+    this.doorFronts = new Map();
     this.offs = [];
     this.districtId = '';
     this.lastSent = { x: NaN, y: NaN, dir: 'down', moving: false };
@@ -156,6 +167,9 @@ export class TownScene extends Phaser.Scene {
             if (i < 0) continue;
             const existing = this.doorIndex.get(i);
             if (!existing || (dx === 0 && dy === 0) || (!existing.name && b.name)) this.doorIndex.set(i, b);
+            const list = this.doorFronts.get(i) ?? [];
+            list.push({ b, d });
+            this.doorFronts.set(i, list);
           }
     }
 
@@ -297,7 +311,7 @@ export class TownScene extends Phaser.Scene {
       toast('Nothing to interact with here.');
       return;
     }
-    this.app.enterBuilding(b);
+    this.app.walkIntoDoor(b); // E still works at a door (keyboard players), but walking in is the way
   }
 
   /** Reconnected after a short drop-out: catch up with who's around without restarting. */
@@ -338,6 +352,11 @@ export class TownScene extends Phaser.Scene {
   /** Other players inside a building (shown in its interior). */
   playersInside(building: string): PlayerPublic[] {
     return [...this.remotes.values()].filter((r) => r.pub.interior === building).map((r) => r.pub);
+  }
+
+  /** Where we stand (px). */
+  get position(): { x: number; y: number } {
+    return this.pos;
   }
 
   get selfCosmetics() {
@@ -393,6 +412,7 @@ export class TownScene extends Phaser.Scene {
       }
       this.me.setPosition(this.pos.x, this.pos.y);
     }
+    this.walkIntoDoors(moving ? vx : 0, moving ? vy : 0);
     if (moving && !this.moving && this.me.currentEmote) this.app.onOwnEmote(null); // walking ends our emote
     this.moving = moving;
     this.me.setState(this.dir, moving);
@@ -422,10 +442,115 @@ export class TownScene extends Phaser.Scene {
     this.updateRemotes(now);
     this.stalls.update(delta);
     this.npcs.update(delta);
+    this.followBeacon();
     this.mapView.update(this.cameras.main.worldView);
     this.updateDecks(delta);
 
     this.slowChecks(delta);
+  }
+
+  /** Errand beacon: where to go ("🧺 PICK UP / DROP OFF"), then over the NPC who's waiting. */
+  private updateBeacon() {
+    const e = this.app.store.errand;
+    const key = e ? `${e.npc}|${e.stage}|${e.place.x},${e.place.y}` : '';
+    if (this.beacon && this.beacon.key !== key) {
+      this.tweens.killTweensOf(this.beacon.root.list);
+      this.beacon.root.destroy(true);
+      this.beacon = null;
+    }
+    if (!e || this.beacon) return;
+    ensureGlowTexture(this);
+    const going = e.stage === 'go';
+    const col = going ? 0x69db7c : 0xffd43b;
+    const beam = this.add.image(0, 6, GLOW_TEXTURE).setOrigin(0.5, 1).setDisplaySize(46, 360).setTint(col).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD);
+    const ring = this.add.ellipse(0, 0, 70, 30, col, 0.22).setStrokeStyle(3, col, 0.95);
+    const icon = this.add.text(0, -58, going ? '🧺' : '🧺❗', { fontSize: '34px', stroke: '#11131f', strokeThickness: 5, resolution: 2 }).setOrigin(0.5, 1);
+    const label = this.add
+      .text(0, -96, going ? `ERRAND · ${e.place.name.toUpperCase()}` : `HAND IT TO ${e.npcName.toUpperCase()}`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#11131f', backgroundColor: going ? '#b2f2bb' : '#ffe066', padding: { x: 7, y: 3 }, resolution: 3,
+      })
+      .setOrigin(0.5, 1);
+    const root = this.add.container(0, 0, going ? [beam, ring, icon, label] : [ring, icon, label]).setDepth(999_400);
+    this.tweens.add({ targets: icon, y: -70, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: ring, scaleX: 1.3, scaleY: 1.3, alpha: 0.4, duration: 800, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: beam, alpha: 0.3, duration: 900, yoyo: true, repeat: -1 });
+    this.beacon = { root, label, key };
+    this.followBeacon();
+  }
+
+  private followBeacon() {
+    const b = this.beacon;
+    const e = this.app.store.errand;
+    if (!b || !e) return;
+    const T = this.app.map.tileSize;
+    if (e.stage === 'go') b.root.setPosition(e.place.x * T, e.place.y * T);
+    else {
+      const at = this.npcs.posOf(e.npc);
+      if (at) b.root.setPosition(at.x, at.y - 52);
+    }
+  }
+
+  /**
+   * Doors work by walking into them: standing at a door's front and pushing towards the wall
+   * goes in (or bumps a locked one, with a knock). No button needed.
+   */
+  private walkIntoDoors(vx: number, vy: number) {
+    if (this.app.interior || this.app.home) return;
+    const { map } = this.app;
+    const T = map.tileSize;
+    const cands = vx || vy ? this.doorFronts.get(gridIndexAt(map, this.pos.x, this.pos.y - 4)) : undefined;
+    let hit: BuiltBuilding | null = null;
+    if (cands) {
+      const px = this.pos.x / T, py = (this.pos.y - 4) / T;
+      for (const { b, d } of cands) {
+        const into = -(vx * d.nx + vy * d.ny) / (Math.hypot(d.nx, d.ny) || 1);
+        if (into > 0.55 && Math.hypot(px - (d.frontX + 0.5), py - (d.frontY + 0.5)) < 1.35) {
+          hit = b;
+          break;
+        }
+      }
+    }
+    if (!hit) {
+      this.doorArmed = true;
+      return;
+    }
+    const now = performance.now();
+    if (!this.doorArmed || now < this.doorRetryAt || document.querySelector('.panel, .modal-backdrop')) return;
+    this.doorArmed = false;
+    this.doorRetryAt = now + 900;
+    if (!this.app.walkIntoDoor(hit)) this.cameras.main.shake(140, 0.0025); // bumped a locked door
+  }
+
+  /** "🚪 Ali is inside" badges over the doors of buildings other players are in. */
+  private insideMarks = new Map<string, Phaser.GameObjects.Text>();
+  private updateInsideMarkers() {
+    const groups = new Map<string, Remote[]>();
+    for (const r of this.remotes.values()) {
+      const b = r.pub.interior;
+      if (!b) continue;
+      const g = groups.get(b) ?? [];
+      g.push(r);
+      groups.set(b, g);
+    }
+    for (const [b, t] of this.insideMarks)
+      if (!groups.has(b)) {
+        this.tweens.killTweensOf(t);
+        t.destroy();
+        this.insideMarks.delete(b);
+      }
+    for (const [b, rs] of groups) {
+      const label = rs.length === 1 ? `🚪 ${rs[0].name} is inside` : `🚪 ${rs.length} inside: ${rs.map((r) => r.name).join(', ')}`;
+      let t = this.insideMarks.get(b);
+      const x = rs[0].avatar.x, y = rs[0].avatar.y - 34;
+      if (!t) {
+        t = this.add
+          .text(x, y, label, { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#ffffff', backgroundColor: 'rgba(25, 113, 194, 0.85)', padding: { x: 5, y: 2 }, resolution: 3 })
+          .setOrigin(0.5, 1)
+          .setDepth(900_000);
+        this.tweens.add({ targets: t, y: y - 3, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.insideMarks.set(b, t);
+      } else if (t.text !== label) t.setText(label);
+    }
   }
 
   /** Under a flyover the deck turns see-through; riding on it you're drawn on top. */
@@ -480,8 +605,10 @@ export class TownScene extends Phaser.Scene {
         } else if (it) {
           const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
           prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
-        } else if (b) prompt = this.app.doorPrompt(b);
-        this.app.hud?.setPrompt(prompt, this.app.touch);
+        }
+        const walk = !prompt && !!b;
+        if (walk && b) prompt = this.app.doorPrompt(b);
+        this.app.hud?.setPrompt(prompt, this.app.touch, { walk });
       }
       // Delivery target marker + objective HUD.
       const job = this.app.store.job;
@@ -490,13 +617,16 @@ export class TownScene extends Phaser.Scene {
       const cam = this.cameras.main;
       const dpr = this.app.dpr; // camera numbers are in device pixels; the DOM HUD uses CSS pixels
       const screen = { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom / dpr, cx: cam.width / 2 / dpr, cy: cam.height / 2 / dpr };
+      this.updateInsideMarkers();
+      this.updateBeacon();
       this.app.jobHud?.update(this.pos.x, this.pos.y, screen);
       this.app.guide?.update(this.pos.x, this.pos.y, screen);
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
+        ...(this.beacon ? [{ x: this.beacon.root.x, y: this.beacon.root.y, name: '🧺', target: true }] : []),
         ...(mine ? [{ x: mine.x * map.tileSize, y: mine.y * map.tileSize, name: 'Your stall', stall: true }] : []),
-        ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.name })),
+        ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.pub.interior ? `🚪 ${r.name}` : r.name })),
       ]);
       this.districtAcc += 150;
       if (this.districtAcc >= 600) {

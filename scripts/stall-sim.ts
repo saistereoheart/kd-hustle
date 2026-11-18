@@ -55,6 +55,11 @@ function inputs(steps: StepParams[], jitter: number, rand: RandInt): StepInput[]
     } else if (s.kind === 'path') {
       const skip = jitter > 100 && rand(4) === 0 ? 1 : -1;
       ev = s.points.flatMap(([x, y], i) => (i === skip ? [] : [x + j() / 4000, y + j() / 4000, 100 * (i + 1)]));
+    } else if (s.kind === 'assemble') {
+      // Tap the boxes the order needs, ~0.7 s each; a sloppy cook sometimes grabs a wrong box.
+      const picks = s.want.map((id) => s.options.findIndex((o) => o.id === id));
+      if (jitter > 100 && rand(3) === 0) picks.splice(1, 0, (picks[0] + 1) % s.options.length);
+      ev = picks.flatMap((o, i) => [o, 700 * (i + 1) + Math.abs(j())]);
     } else if (s.kind === 'meter') {
       const c = (s.zone[0] + s.zone[1]) / 2 + j() / 2000;
       const up = ((c - 0.15) / s.rise) * 1000;
@@ -64,7 +69,7 @@ function inputs(steps: StepParams[], jitter: number, rand: RandInt): StepInput[]
     }
     const inp = { startMs: start, ev };
     // How long the step really took: its last input + a beat to read the next one.
-    const times = s.kind === 'sequence' ? ev.filter((_, i) => i % 2 === 1) : s.kind === 'path' ? ev.filter((_, i) => i % 3 === 2) : s.kind === 'meter' ? [s.durationMs] : ev;
+    const times = s.kind === 'sequence' || s.kind === 'assemble' ? ev.filter((_, i) => i % 2 === 1) : s.kind === 'path' ? ev.filter((_, i) => i % 3 === 2) : s.kind === 'meter' ? [s.durationMs] : ev;
     start += Math.min(s.maxMs, Math.max(...times, 0) + 500);
     return inp;
   });

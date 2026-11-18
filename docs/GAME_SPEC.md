@@ -28,7 +28,7 @@ Every screen should show the player's **next goal** (e.g. "RM 3,420 / RM 25,000 
 - **Server (Node + Express + Socket.IO + SQLite)** owns the world state, the economy, RNG and saving.
 - **Client (Phaser 3 + Vite)** renders the town, characters, UI and mini-games, and sends intents.
 - **Tick rate:** server broadcasts player positions at 15–20 Hz; clients interpolate. Movement is client-predicted, server-validated (max speed, collision with walls).
-- **Rooms/scenes:** the outdoor town is one shared scene. **Every enterable building has an interior** (Pokémon style): walk up to the door, press E, and the town blurs and darkens behind a small room view. Shops, machines and counters are used *from inside* (nothing is used through a wall from the street). Homes are locked until they can be bought. Players in the same interior see each other. *(Changed 2026-11-18 at the owner's request; see docs/PROGRESS.md.)*
+- **Rooms/scenes:** the outdoor town is one shared scene. **Every enterable building has an interior** (Pokémon style): walk into the door (no button: pushing into a door goes in; a locked door knocks and blocks you), and the town blurs and darkens behind a room view. The room's size follows the building's real footprint: a deep shoplot is a long room, malls and hypermarkets are big halls the camera follows you around. You leave by walking out through the doorway. Other players' badges ("🚪 Ali is inside") show over the doors of the buildings they're in. Shops, machines and counters are used *from inside* (nothing is used through a wall from the street). Homes are locked until they can be bought. Players in the same interior see each other. *(Changed 2026-11-18 at the owner's request; see docs/PROGRESS.md.)*
 - **Economy tick:** the server runs a 1-second economy tick for passive income, timers, rent and loans.
 - **In-game time:** 1 in-game hour = 1 real minute (1 in-game day = 24 real minutes). Day/night lighting cycle on the client. Some things depend on time (the pasar malam only opens at night, Airbnb check-ins happen at 3 PM, rent is paid daily).
 - **Folder layout:**
@@ -107,7 +107,7 @@ Road shapes, building footprints, parks and water come from **OpenStreetMap** (O
 7. **Roads** named after real ones where it's fun (Persiaran Surian, Jalan PJU 5/1, Persiaran Kenanga), with sidewalks, zebra crossings, lamp posts, trees, parked cars (decor) and ambient NPC pedestrians.
 
 ### World interaction
-- Buildings have doors (interact with E / tap, from right at the door) leading to interiors. Big buildings (malls, the hypermarket, the station) have a door on each side that faces a road.
+- Buildings have doors (walk into them, right at the door) leading to interiors. Big buildings (malls, the hypermarket, the station) have a door on each side that faces a road.
 - Every building can carry a name label; places you can use are labelled in gold with a door icon, plain landmarks in white, areas in italics.
 - Big signposts mark the key places (JOBS BOARD, BUY STOCK, PASAR MALAM STALLS…) in the world and on the map; a guide arrow points at where your current goal or quest happens.
 - Wandering NPCs chat, and some ask for small errands (go somewhere, come back) for money and XP.
@@ -223,7 +223,7 @@ Each job has a level; higher levels pay more. Jobs stay useful early and become 
 Upgrade path: **Pasar malam stall → Food truck → Kopitiam shoplot → Mall kiosk → Mamak 24h → Restaurant chain.**
 
 **Active mode: step-by-step cooking.** Each recipe is a short sequence of timing/precision steps. Example recipes:
-- **Nasi Lemak:** scoop rice (hold to fill the meter, release in the green zone) → add sambal (drag a spiral) → fry egg (flip when the edges brown) → add ikan bilis/peanuts/timun in the order the customer asked → wrap in banana leaf (swipe pattern)
+- **Nasi Lemak:** scoop rice (hold to fill the meter, release in the green zone) → pack the order: tap the ingredient boxes the customer asked for (sambal, ikan bilis, kacang, timun, telur rebus) plus any paid **add-ons** they ordered (ayam goreng, paru, sambal kerang, telur mata, rendang). Add-ons have their own stock and price; all right and quick = Perfect. *(Changed 2026-11-18 at the owner's request.)*
 - **Roti Canai:** stretch the dough (rhythm taps) → flip it (timing) → fold it → serve with dhal or curry as ordered
 - **Teh Tarik:** pour from high to low with a rhythm meter, foam level = quality
 - **Satay:** turn skewers when each one changes colour; don't burn them

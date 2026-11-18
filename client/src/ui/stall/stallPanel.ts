@@ -1,11 +1,11 @@
 // At a stall plot (E): your own stall's counter (queue, cook, open/close), someone else's stall,
 // or a free spot. Cooking itself is ./cook.ts; the result card is here.
-import { formatMoney, formatMoneyExact, gameTime, rushHour, stallOpenNow, tierDef, type DishState, type ServeResult } from '@kh/shared';
+import { formatMoney, formatMoneyExact, gameTime, menuRecipes, rushHour, stallOpenNow, stockCount, tierDef, type DishState, type ServeResult } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast, uiRoot } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
-import { playDish } from './cook';
+import { playDish, type CookStock } from './cook';
 
 const QUALITY: Record<string, { text: string; color: string }> = {
   perfect: { text: 'PERFECT!', color: '#ffd43b' },
@@ -49,7 +49,7 @@ export function openStallPanel(app: App, plotId: string) {
     const me0 = app.store.stall;
     const t0 = gameTime(app.cfg.time, app.store.serverNow());
     // Only rebuild when something you can see changed.
-    const sig = JSON.stringify([s?.open, s?.queue.map((c) => [c.id, c.serving]), s?.ownerName, me0 && [me0.open, me0.perfectTokens, Math.round(me0.combo * 100), Math.round(me0.rep), me0.earnedToday, me0.staff], busy, t0.hour]);
+    const sig = JSON.stringify([s?.open, s?.queue.map((c) => [c.id, c.serving, c.addons]), s?.ownerName, me0 && [me0.open, me0.perfectTokens, Math.round(me0.combo * 100), Math.round(me0.rep), me0.earnedToday, me0.staff, me0.stock], busy, t0.hour]);
     if (!force && sig === lastSig) return;
     lastSig = sig;
     bars = [];
@@ -89,6 +89,7 @@ export function openStallPanel(app: App, plotId: string) {
     if (!s.queue.length) queue.append(el('p', { class: 'muted' }, s.open ? 'Waiting for customers…' : 'No customers while closed.'));
     for (const c of s.queue) {
       const r = app.cfg.recipes.recipes.find((x) => x.id === c.recipe);
+      const extras = (c.addons ?? []).map((id) => r?.addons.find((a) => a.id === id)).filter((a) => !!a);
       const left = Math.max(0, 1 - (now - c.arrivedAt) / c.patienceMs);
       const bar = el('div', { class: 'progress patience' }, el('i', {}));
       const fill = bar.firstChild as HTMLElement;
@@ -97,8 +98,8 @@ export function openStallPanel(app: App, plotId: string) {
       const row = el(
         'button',
         { class: `queue-row${c.serving ? ' serving' : ''}${c.blogger ? ' blogger' : ''}`, type: 'button', 'data-customer': String(c.id), disabled: !!c.serving || busy || !s.open },
-        el('span', { class: 'queue-icon' }, r?.icon ?? '🍽️'),
-        el('span', { class: 'queue-info' }, el('b', {}, r?.name ?? c.recipe), c.blogger ? el('span', { class: 'lv-badge blogger' }, '📸 blogger') : null, c.serving ? el('span', { class: 'muted small' }, c.serving === 'staff' ? ' · a cook is on it' : ' · you') : null, bar),
+        el('span', { class: 'queue-icon' }, `${r?.icon ?? '🍽️'}${extras.map((a) => a.icon).join('')}`),
+        el('span', { class: 'queue-info' }, el('b', {}, r?.name ?? c.recipe), extras.length ? el('span', { class: 'queue-addons' }, ` + ${extras.map((a) => a.name).join(', ')}`) : null, c.blogger ? el('span', { class: 'lv-badge blogger' }, '📸 blogger') : null, c.serving ? el('span', { class: 'muted small' }, c.serving === 'staff' ? ' · a cook is on it' : ' · you') : null, bar),
       );
       row.addEventListener('click', () => cook(c.id));
       queue.append(row);
@@ -116,6 +117,7 @@ export function openStallPanel(app: App, plotId: string) {
     const manage = el('button', { class: 'btn small', type: 'button', 'data-action': 'stall-manage' }, '📱 Stock, staff, upgrades');
     manage.addEventListener('click', () => app.openPhone('business'));
     panel.body.replaceChildren(
+      stallStockStrip(app),
       el('div', { class: 'stall-status' }, el('b', {}, status), el('span', { class: 'muted small' }, ` ${stars(me.rep, app.cfg.stalls.reputation.max)} · combo +${Math.round(me.combo * 100)}% · today ${formatMoney(me.earnedToday)}`)),
       queue,
       el('div', { class: 'stall-actions' }, cookBtn, tokenBtn),
@@ -164,7 +166,7 @@ export function cookOrder(app: App, customerId: number | undefined, token: boole
     app.cookingDish = dish;
     closePanel();
     const recipe = app.cfg.recipes.recipes.find((r) => r.id === dish.recipe);
-    void playDish(app.cfg.recipes, dish, `${recipe?.icon ?? '🍳'} ${recipe?.name ?? 'Dish'}`, () => app.socket?.emit('stall:cancel', () => {})).then((inputs) => {
+    void playDish(app.cfg.recipes, dish, `${recipe?.icon ?? '🍳'} ${recipe?.name ?? 'Dish'}`, () => app.socket?.emit('stall:cancel', () => {}), () => cookStock(app, dish.recipe)).then((inputs) => {
       app.cookingDish = null;
       if (!inputs) return after();
       app.socket?.timeout(8000).emit('stall:serve', { dishId: dish.dishId, inputs }, (e2, r2) => {
@@ -178,6 +180,31 @@ export function cookOrder(app: App, customerId: number | undefined, token: boole
       });
     });
   });
+}
+
+/** What's left of this dish and its add-ons (shown big while cooking). */
+export function cookStock(app: App, recipeId: string): CookStock | null {
+  const st = app.store.stall;
+  const r = app.cfg.recipes.recipes.find((x) => x.id === recipeId);
+  if (!st || !r) return null;
+  return {
+    dish: { icon: r.icon, name: r.name, qty: stockCount(st, r.id) },
+    addons: r.addons.map((a) => ({ id: a.id, icon: a.icon, name: a.name, qty: stockCount(st, a.id) })),
+  };
+}
+
+/** A strip of every stock count (dishes and add-ons), red when out, orange when low. */
+function stallStockStrip(app: App): HTMLElement {
+  const st = app.store.stall;
+  const strip = el('div', { class: 'cook-stock stall-stock', 'data-testid': 'stall-stock' }, el('span', { class: 'cook-stock-label' }, '📦'));
+  if (!st) return strip;
+  for (const r of menuRecipes(app.cfg.stalls, app.cfg.recipes.recipes, st)) {
+    for (const it of [r, ...r.addons]) {
+      const qty = stockCount(st, it.id);
+      strip.append(el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${it === r ? ' main' : ''}`, title: it.name }, `${it.icon} `, el('b', {}, String(qty)), it === r ? ` ${it.name}` : ''));
+    }
+  }
+  return strip;
 }
 
 function showResult(app: App, r: ServeResult, dish: DishState | null) {

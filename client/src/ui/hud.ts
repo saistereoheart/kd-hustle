@@ -27,6 +27,7 @@ export class Hud {
   private walletSen = 0;
   private banner: HTMLElement;
   private prompt: HTMLElement;
+  private interactBtn: HTMLElement | null = null;
   private saved: HTMLElement;
   private bannerTimer = 0;
   private savedTimer = 0;
@@ -91,7 +92,8 @@ export class Hud {
 
     this.root = el('div', { class: 'hud' }, top, this.banner, this.prompt, this.saved, el('div', { class: 'osm-credit' }, opts.attribution));
     if (opts.joystick) {
-      const interact = el('button', { class: 'interact-btn', type: 'button', 'aria-label': 'Interact' }, 'E');
+      const interact = el('button', { class: 'interact-btn hidden', type: 'button', 'aria-label': 'Interact' }, 'E');
+      this.interactBtn = interact;
       interact.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         opts.onInteract();
@@ -163,12 +165,18 @@ export class Hud {
     }, 2200);
   }
 
-  setPrompt(text: string | null, touch: boolean) {
+  /**
+   * The line above the hotbar. `walk`: a hint you act on by walking (doors), so there's no E
+   * key in it and the touch interact button stays hidden.
+   */
+  setPrompt(text: string | null, touch: boolean, opts: { walk?: boolean } = {}) {
+    this.interactBtn?.classList.toggle('hidden', !text || !!opts.walk);
     if (!text) {
       this.prompt.classList.add('hidden');
       return;
     }
-    this.prompt.replaceChildren(touch ? '' : el('kbd', {}, 'E'), text);
+    this.prompt.replaceChildren(touch || opts.walk ? '' : el('kbd', {}, 'E'), text);
+    this.prompt.classList.toggle('walk', !!opts.walk);
     this.prompt.classList.remove('hidden');
   }
 

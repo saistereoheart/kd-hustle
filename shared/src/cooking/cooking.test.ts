@@ -5,8 +5,8 @@ import timeJson from '../../config/time.json';
 import { darkness, dayPhase, gameTime, inHours, rushHour, timeConfigSchema } from '../time/clock';
 import { dishQuality, gradeStep, makeDish, recipesConfigSchema, validateDishInputs, type StepParams } from './cooking';
 import {
-  ageStock, customerRate, dishBaseSen, dishPay, masteryLevel, menuRecipes, NO_BONUS, queueCapacity, stallOpenNow, stallsConfigSchema,
-  stockPriceSen, takeStock, upgradeCostSen, wagePerHourSen, type StallState,
+  ageStock, customerRate, dishBaseSen, dishPay, masteryLevel, menuRecipes, NO_BONUS, orderBaseSen, queueCapacity, stallOpenNow, stallsConfigSchema,
+  stockItems, stockPriceSen, takeStock, upgradeCostSen, wagePerHourSen, type StallState,
 } from './stall';
 
 const recipes = recipesConfigSchema.parse(recipesJson);
@@ -47,12 +47,60 @@ describe('building a dish', () => {
     for (let i = 0; i < 20; i++) {
       const steps = makeDish(nasi, rand);
       expect(steps.map((s) => s.kind)).toEqual(nasi.steps.map((s) => s.kind));
-      const seq = steps.find((s) => s.kind === 'sequence') as Extract<StepParams, { kind: 'sequence' }>;
-      expect(new Set(seq.order).size).toBe(3);
-      for (const id of seq.order) expect(seq.options.some((o) => o.id === id)).toBe(true);
+      const box = steps.find((s) => s.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
+      expect(box.want.length).toBeGreaterThanOrEqual(3);
+      expect(new Set(box.want).size).toBe(box.want.length);
+      for (const id of box.want) expect(box.options.some((o) => o.id === id && !o.addon)).toBe(true);
+      // Every add-on is a box too (so you have to pick the right ones).
+      for (const a of nasi.addons) expect(box.options.some((o) => o.id === a.id && o.addon)).toBe(true);
       const hold = steps[0] as Extract<StepParams, { kind: 'hold' }>;
       expect(hold.zone[1] - hold.zone[0]).toBeCloseTo(0.16);
     }
+  });
+
+  it("puts the customer's add-ons into the order", () => {
+    const steps = makeDish(nasi, rand, ['ayam_goreng', 'telur_mata', 'not_a_thing']);
+    const box = steps.find((s) => s.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
+    expect(box.want).toContain('ayam_goreng');
+    expect(box.want).toContain('telur_mata');
+    expect(box.want).not.toContain('not_a_thing');
+  });
+});
+
+describe('add-ons', () => {
+  it('cost extra on top of the dish, at the stall tier price', () => {
+    const s = stall({ tier: 2 });
+    const plain = orderBaseSen(stalls, nasi, s, false);
+    const ayam = nasi.addons.find((a) => a.id === 'ayam_goreng')!;
+    expect(plain).toBe(dishBaseSen(stalls, nasi, s, false));
+    expect(orderBaseSen(stalls, nasi, s, false, ['ayam_goreng'])).toBe(plain + Math.round(ayam.basePriceSen * stalls.tiers[1].priceMult));
+  });
+
+  it('are stocked separately, listed after their dish', () => {
+    const items = stockItems(stalls, recipes.recipes, stall()).map((i) => i.id);
+    expect(items[0]).toBe('nasi_lemak');
+    for (const a of nasi.addons) expect(items).toContain(a.id);
+    expect(items).not.toContain('teh_tarik'); // not unlocked yet
+  });
+});
+
+describe('assembling an order', () => {
+  const box: StepParams = {
+    kind: 'assemble', label: '', hint: '', art: '', maxMs: 15000, fastMs: 6000,
+    options: [{ id: 'a', name: 'A', icon: '' }, { id: 'b', name: 'B', icon: '' }, { id: 'c', name: 'C', icon: '' }, { id: 'x', name: 'X', icon: '', addon: true }],
+    want: ['a', 'c', 'x'],
+  };
+  it('all the right boxes quickly = Perfect, slowly = Great, any order', () => {
+    expect(gradeStep(recipes, box, [2, 500, 3, 900, 0, 1400]).grade).toBe('perfect');
+    expect(gradeStep(recipes, box, [0, 500, 2, 900, 3, 9000]).grade).toBe('great');
+  });
+  it('a wrong box or a missing add-on costs you', () => {
+    expect(gradeStep(recipes, box, [0, 500, 2, 900, 1, 1000, 3, 1200]).grade).toBe('good');
+    expect(gradeStep(recipes, box, [0, 500, 2, 900]).grade).toBe('good');
+    expect(gradeStep(recipes, box, [1, 500]).grade).toBe('miss');
+  });
+  it('rejects taps on boxes that do not exist', () => {
+    expect(validateDishInputs([box], [{ startMs: 0, ev: [7, 100] }], 5000)).toMatch(/box/);
   });
 });
 

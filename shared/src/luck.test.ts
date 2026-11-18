@@ -92,7 +92,7 @@ describe('rollCrate', () => {
       const sd = Math.sqrt((o.p * (1 - o.p)) / N);
       expect(Math.abs(observed - o.p)).toBeLessThan(5 * sd);
     }
-  });
+  }, 30_000); // 300k rolls: slow when the PC is busy (e.g. browser tests running)
 
   it('pity guarantees Legendary+ and Epic+ on schedule', () => {
     const rand = seeded(7);

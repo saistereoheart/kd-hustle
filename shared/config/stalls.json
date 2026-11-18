@@ -29,7 +29,7 @@
     "supplier": { "name": "Supplier contract", "icon": "📦", "desc": "−5% ingredient prices per level.", "maxLevel": 8, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.05 },
     "training": { "name": "Staff training", "icon": "🎓", "desc": "Your cooks work 10% faster per level.", "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.6, "perLevel": 0.1 }
   },
-  "staff": { "cookSec": 14, "passiveRate": 0.6 },
+  "staff": { "cookSec": 14, "passiveRate": 0.8 },
   "reputation": {
     "start": 50, "max": 100,
     "perQuality": { "perfect": 2, "great": 1, "good": 0, "ok": -1, "burnt": -4 },

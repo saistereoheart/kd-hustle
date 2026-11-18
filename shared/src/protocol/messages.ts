@@ -196,6 +196,8 @@ export interface StallCustomer {
   /** Seeds the customer's look (same on every screen). */
   seed: number;
   recipe: string;
+  /** Paid extras they asked for (ayam goreng, telur mata...). */
+  addons?: string[];
   /** Server ms they arrived, and how long they'll wait. */
   arrivedAt: number;
   patienceMs: number;
@@ -478,7 +480,7 @@ export interface ServerToClientEvents {
   /** Your stall's private state changed. */
   'stall:self': (p: { stall: StallSelf | null }) => void;
   /** Something happened at your stall that's worth a toast (a cook served a dish, a customer left...). */
-  'stall:event': (p: { kind: 'staffServed' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  'stall:event': (p: { kind: 'staffServed' | 'staffSale' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   snapshot: (p: SnapshotPayload) => void;
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;

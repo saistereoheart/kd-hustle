@@ -31,12 +31,12 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`));
   await page.goto('/');
-  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
   await page.fill('input[name=confirm]', 'secret123');
   await page.click('#auth button[type=submit]');
+  await page.click('[data-testid=title-start]'); // then the start screen
   await page.waitForSelector('#creator');
   await page.click('[data-action=save]');
   await page.waitForFunction(() => document.body.dataset.state === 'town');
@@ -54,7 +54,7 @@ async function chat(p: Page, text: string) {
 async function playDish(p: Page) {
   await p.waitForSelector('[data-testid=cook-canvas]');
   await p.evaluate(async () => {
-    type Step = { kind: string; zone?: [number, number]; fillMs?: number; targetMs?: number; beats?: number[]; order?: string[]; points?: Array<[number, number]>; durationMs?: number; rise?: number; fall?: number };
+    type Step = { kind: string; zone?: [number, number]; fillMs?: number; targetMs?: number; beats?: number[]; order?: string[]; want?: string[]; points?: Array<[number, number]>; durationMs?: number; rise?: number; fall?: number };
     const dish = (window as unknown as { __kh: { dish: () => { steps: Step[] } } }).__kh.dish();
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const key = (type: 'keydown' | 'keyup') => window.dispatchEvent(new KeyboardEvent(type, { code: 'Space', key: ' ' }));
@@ -81,6 +81,12 @@ async function playDish(p: Page) {
         for (const id of s.order!) {
           (document.querySelector(`[data-opt="${id}"]`) as HTMLButtonElement).click();
           await sleep(120);
+        }
+      } else if (s.kind === 'assemble') {
+        // Tap each ingredient box the order asks for (any order); the last one serves it.
+        for (const id of s.want!) {
+          (document.querySelector(`.cook-boxes [data-opt="${id}"]`) as HTMLButtonElement).click();
+          await sleep(150);
         }
       } else if (s.kind === 'path') {
         const r = canvas.getBoundingClientRect();
@@ -161,6 +167,7 @@ test('phase 4: a pasar malam stall, customers, cooking and stock', async ({ brow
   await A.page.waitForSelector('[data-testid=cook]');
   await A.page.waitForTimeout(300);
   await A.page.screenshot({ path: `${SHOTS}/p4-5-cooking.png` });
+  await expect(A.page.locator('[data-testid=cook-stock]')).toBeVisible(); // stock shown while cooking
   await playDish(A.page);
   await A.page.waitForSelector('[data-testid=dish-result]', { timeout: 30_000 });
   await A.page.screenshot({ path: `${SHOTS}/p4-6-dish-result.png` });

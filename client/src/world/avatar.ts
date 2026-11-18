@@ -295,6 +295,13 @@ export class Avatar {
     }
   }
 
+  /** Move a child to a draw position in the container, clamped (Phaser throws past the end:
+   *  "Supplied index out of bounds", e.g. putting the bike just above a sprite that's last). */
+  private layer(child: Phaser.GameObjects.GameObject, index: number) {
+    const max = this.container.length - 1;
+    this.container.moveTo(child, Math.max(0, Math.min(max, index)));
+  }
+
   private applyAnim(force = false) {
     let key: string;
     if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
@@ -306,7 +313,7 @@ export class Avatar {
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       this.bike.setFlipX(this.dir === 'right');
       // Seen from behind, the bike is in front of the rider.
-      this.container.moveTo(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);
+      this.layer(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);
     }
     if (this.driver) {
       // Passenger on the back: behind the rider (side view), peeking over them (front view),
@@ -328,8 +335,8 @@ export class Avatar {
       // Draw order: the one nearer the camera goes on top.
       const front = view === 'back' ? this.sprite : this.driver;
       const behind = front === this.sprite ? this.driver : this.sprite;
-      this.container.moveTo(behind, this.container.getIndex(front));
-      if (view === 'back' && this.bike) this.container.moveTo(this.bike, this.container.getIndex(this.sprite) + 1);
+      this.layer(behind, this.container.getIndex(front));
+      if (view === 'back' && this.bike) this.layer(this.bike, this.container.getIndex(this.sprite) + 1);
     }
     if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
   }

@@ -1,9 +1,11 @@
 import type { PublicConfig } from '@kh/shared';
 import { postAuth, saveToken } from '../net/api';
 import { el, uiRoot } from './dom';
+import { titleBackdrop } from './titleScreen';
 
-/** Login / register screen. Calls onAuthed with the new session token. */
-export function showAuthScreen(cfg: PublicConfig, onAuthed: (token: string) => void) {
+/** Login / register screen (shown before the START GAME screen). Calls onAuthed with the new
+ *  session token. Opens on Log in when this device has logged in before. */
+export function showAuthScreen(cfg: PublicConfig, onAuthed: (token: string, username: string) => void, opts: { notice?: string } = {}) {
   let mode: 'login' | 'register' = 'register';
   const u = cfg.auth.username;
 
@@ -61,16 +63,20 @@ export function showAuthScreen(cfg: PublicConfig, onAuthed: (token: string) => v
       return;
     }
     saveToken(res.token);
+    backdrop.stop();
     screen.remove();
-    onAuthed(res.token);
+    onAuthed(res.token, res.username);
   });
 
+  const backdrop = titleBackdrop(cfg);
   const screen = el(
     'div',
-    { class: 'screen', id: 'auth' },
+    { class: 'screen auth-screen', id: 'auth' },
+    backdrop.canvas,
     el(
       'div',
       { class: 'card' },
+      ...(opts.notice ? [el('div', { class: 'title-notice auth-notice' }, opts.notice)] : []),
       el('h1', { class: 'logo' }, 'Kota ', el('span', {}, 'Hustle')),
       el('p', { class: 'tagline' }, 'From RM 300 to Tan Sri. Bring your geng.'),
       el('div', { class: 'tabs' }, tabRegister, tabLogin),
@@ -80,5 +86,10 @@ export function showAuthScreen(cfg: PublicConfig, onAuthed: (token: string) => v
   );
   uiRoot().append(screen);
   document.body.dataset.state = 'auth';
+  try {
+    if (localStorage.getItem('kh_last_look')) setMode('login');
+  } catch {
+    /* private mode */
+  }
   username.focus();
 }

@@ -53,6 +53,13 @@ export function createHttpApp(deps: { auth: AuthService; cfg: ServerConfig; publ
     }
   });
 
+  /** Is this saved session token still valid? (the login screen is skipped when it is) */
+  app.post('/api/session', (req, res) => {
+    const acc = auth.resolveToken(req.body?.token);
+    if (acc) res.json({ ok: true, username: acc.username });
+    else res.status(401).json({ ok: false, error: 'Session expired' });
+  });
+
   app.post('/api/logout', (req, res) => {
     const token = typeof req.body?.token === 'string' ? req.body.token : '';
     if (token) auth.logout(token);
