@@ -108,7 +108,7 @@ export interface BuiltMap {
   attribution: string;
   /** Resolved interactables: where players stand to use them (tile coords of the spot). */
   interactables: Array<{
-    id: string; type: InteractType; name: string; crate?: string; x: number; y: number;
+    id: string; type: InteractType; name: string; crate?: string; game?: string; x: number; y: number;
     /** Inside this building (used from its interior); else it stands outdoors at (x, y). */
     building?: string;
     /** Where a player can stand to use it: (x, y), or every door front of its building. */
@@ -504,7 +504,7 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     }
     if (x === undefined || y === undefined) continue;
     if (!spots.length) spots = [[x, y]];
-    interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, x, y, building: it.building, spots });
+    interactables.push({ id: it.id, type: it.type, name: it.name, crate: it.crate, game: it.game, x, y, building: it.building, spots });
   }
 
   // Stall plots: a point, or a shoplot's door (the queue forms outside, along the shopfront).

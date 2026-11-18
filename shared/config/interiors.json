@@ -90,7 +90,7 @@
       "furniture": ["slot", "slot", "slot", "slot", "table", "table"],
       "fill": ["slot", "slot", "table"],
       "keeper": "Croupier",
-      "greeting": "Tables open in a later update. Come back with big money."
+      "greeting": "Welcome to the Lucky Strand! Bets are limited by your wealth stage. Play responsibly lah."
     },
     "office": {
       "label": "Lobby",

@@ -40,7 +40,8 @@ function seeded(seed: string) {
   };
 }
 
-const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒' };
+const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒', casino: '🎲' };
+const GAME_ICON: Record<string, string> = { slots: '🎰', roulette: '🎡', blackjack: '🃏', crash: '📈', wheel: '🎯', highlow: '🔼' };
 
 export class InteriorScene extends Phaser.Scene {
   private app!: App;
@@ -121,11 +122,11 @@ export class InteriorScene extends Phaser.Scene {
       const glow = this.add.image(cx, cy, GLOW_TEXTURE).setDisplaySize(w + 4 * T, h + 3.2 * T).setTint(glowCol).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-3);
       this.tweens.add({ targets: glow, alpha: 0.15, duration: 1100, yoyo: true, repeat: -1 });
       const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + h / 2);
-      drawStation(g, it.type, it.crate, cx, cy, it.type === 'carwash' ? 0x1971c2 : accent);
+      drawStation(g, it.type, it.crate ?? it.game, cx, cy, it.type === 'carwash' ? 0x1971c2 : accent);
       this.blockers.push({ x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 });
       const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
       const label = this.add
-        .text(cx, cy - h / 2 - 22, `${it.crate === 'luckybag' ? '🧧' : it.crate === 'mallbox' ? '🎁' : ICON[it.type] ?? '⭐'} ${it.name}${crate ? ` · ${formatMoney(crate.priceSen)}` : ''}`, {
+        .text(cx, cy - h / 2 - 22, `${it.crate === 'luckybag' ? '🧧' : it.crate === 'mallbox' ? '🎁' : (it.game && GAME_ICON[it.game]) || ICON[it.type] || '⭐'} ${it.name}${crate ? ` · ${formatMoney(crate.priceSen)}` : ''}`, {
           fontFamily: 'system-ui, sans-serif', fontSize: '14px', fontStyle: 'bold', color: '#11131f', backgroundColor: '#ffd43b', padding: { x: 8, y: 4 }, align: 'center', resolution: 3,
         })
         .setOrigin(0.5, 1)

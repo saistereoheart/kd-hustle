@@ -305,3 +305,15 @@ export function ageStock(cfg: StallsConfig, s: Pick<StallState, 'stock'>, gameMi
   }
   return spoiled;
 }
+
+/**
+ * The solid part of a stall on its plot (world px boxes): the pasar malam table, the food
+ * truck's body, the kopitiam's outdoor tables. You walk around these (the canopy you walk under).
+ * Matches what the client draws (world/stallLayer.ts).
+ */
+export function stallFootprint(plot: { x: number; y: number; tier: number }, tileSize: number): Array<{ x0: number; y0: number; x1: number; y1: number }> {
+  const x = plot.x * tileSize, y = plot.y * tileSize;
+  if (plot.tier === 1) return [{ x0: x - 52, y0: y - 20, x1: x + 52, y1: y + 8 }];
+  if (plot.tier === 2) return [{ x0: x - 62, y0: y - 36, x1: x + 58, y1: y + 24 }];
+  return [-40, 40].map((dx) => ({ x0: x + dx - 19, y0: y + 22, x1: x + dx + 19, y1: y + 38 }));
+}

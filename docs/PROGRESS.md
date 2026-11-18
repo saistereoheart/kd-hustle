@@ -12,7 +12,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
-income for stalls). Next: Phase 7 (casino and social economy).
+income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (the Lucky Strand Casino + the daily free spin) is done; next
+7b (trading, gifting, PvP coinflip, the Pasar Online marketplace, leaderboards, server events).
 
 | Check | Result |
 |---|---|
@@ -30,6 +31,32 @@ income for stalls). Next: Phase 7 (casino and social economy).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 7a: the Lucky Strand Casino (and solid stalls)
+
+### How to test it
+- **Go inside the Lucky Strand Casino** (The Strand). Six stations: 🎰 Slot Machines, 🎡 Roulette, 🃏 Blackjack, 📈 Crash,
+  🎯 Wheel of Fortune, 🔼 High-Low. Walk up and press E.
+  - **Bet limits by wealth stage**: stage 1 RM 1–50 … stage 6 RM 10,000–10M. Pick a chip; today's session (bet /
+    won back) shows under every game.
+  - **Slots:** 3 reels (cherry, teh tarik, ketupat, durian, money bag, 7). Three of a kind pays ×5 to ×1,000; two
+    cherries pay back 0.7×. Returns 95.6% on average (shown on the machine).
+  - **Roulette** (European, one zero), **shared**: everyone bets on the same spin (20 s to bet), bets show with
+    names.
+  - **Blackjack**: up to **5 players at one table**. Sit, bet, then act in turn (hit, stand, double, split; 20 s per
+    turn, then you stand). Blackjack pays 3:2; the dealer stands on 17. Keep your seat between hands.
+  - **Crash**, shared: bet in the 8 s before take-off, then cash out before it crashes (or set auto cash-out).
+    Everyone's cash-outs show live.
+  - **Wheel of Fortune**, shared: a spin every 2 minutes; bet on ×2 … ×48.
+  - **High-Low**: guess higher or lower; each right guess multiplies your pot; cash out any time.
+  - Every game keeps 2–5% (configurable in `shared/config/casino.json`; the odds are on screen). Big wins (50× or
+    RM 100K+) are announced to everyone.
+- **📱 → 🎡 Lucky Spin:** a free spin every day, anywhere (RM, shards or a potion; money grows with your stage).
+- **Fair play:** results are decided and paid on the server the moment they're known, so leaving can't dodge a
+  loss. Winnings for someone who left are paid at their next login. A server restart refunds undecided bets.
+- **Stalls and food trucks are solid** (your request): the pasar malam table, the food truck's body and the kopitiam's
+  outdoor tables block walking and riding, so people walk around them (you still walk under a canopy). Only taken
+  plots; anyone standing where a new stall appears is nudged out.
 
 ## Phase 6c: the player-item boutique (Butik)
 
@@ -893,6 +920,11 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 7a (casino)**
+- **One slot machine type** (3 reels, bets scale with your stage) instead of separate 3-reel and 5-reel machines.
+- **Shared rounds run all the time** (roulette every ~31 s, crash every ~15–60 s, the wheel every 2 minutes), even
+  when nobody is watching; they're cheap.
 
 **Phase 6b (loans)**
 - **A loan day is an in-game day of play** (24 real minutes online). Nothing is charged while you're offline, so

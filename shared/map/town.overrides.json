@@ -346,6 +346,12 @@
     }
   ],
   "interactables": [
+    { "id": "casino_slots", "type": "casino", "game": "slots", "name": "Slot Machines", "building": "w467995024" },
+    { "id": "casino_roulette", "type": "casino", "game": "roulette", "name": "Roulette", "building": "w467995024" },
+    { "id": "casino_blackjack", "type": "casino", "game": "blackjack", "name": "Blackjack", "building": "w467995024" },
+    { "id": "casino_crash", "type": "casino", "game": "crash", "name": "Crash", "building": "w467995024" },
+    { "id": "casino_wheel", "type": "casino", "game": "wheel", "name": "Wheel of Fortune", "building": "w467995024" },
+    { "id": "casino_highlow", "type": "casino", "game": "highlow", "name": "High-Low", "building": "w467995024" },
     {
       "id": "jobsboard",
       "type": "jobs",

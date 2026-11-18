@@ -9,9 +9,36 @@ export interface CollisionGrid {
   originTx: number;
   originTy: number;
   solid: Uint8Array;
+  /** Things that come and go (food stalls, food trucks): exact boxes in world px (same
+   *  origin-relative coords as positions), keyed by what put them there. */
+  boxes?: Map<string, PxBox[]>;
   /** Optional exact polygons (building outlines, tile coords). Angled walls collide smoothly
    *  instead of in tile-sized steps. Tiles under these polygons are NOT marked in `solid`. */
   polys?: PolyIndex;
+}
+
+/** A box in world px (origin-relative, like player positions). */
+export interface PxBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Set (or clear, with an empty list) the boxes for `key` on these grids. Returns true if anything changed. */
+export function setBoxes(grids: CollisionGrid[], key: string, boxes: PxBox[]): boolean {
+  let changed = false;
+  for (const g of grids) {
+    g.boxes ??= new Map();
+    const cur = g.boxes.get(key);
+    if (!boxes.length) {
+      if (cur) (g.boxes.delete(key), (changed = true));
+    } else if (!cur || JSON.stringify(cur) !== JSON.stringify(boxes)) {
+      g.boxes.set(key, boxes);
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 export interface PolyIndex {
@@ -116,6 +143,10 @@ export function collides(grid: CollisionGrid, x: number, y: number, hb: Hitbox):
     for (let tx = tx0; tx <= tx1; tx++) {
       if (grid.solid[ty * grid.width + tx]) return true;
     }
+  }
+  if (grid.boxes?.size) {
+    const l = x - hb.w / 2, r = x + hb.w / 2, t = y - hb.h;
+    for (const list of grid.boxes.values()) for (const b of list) if (l < b.x1 && r > b.x0 && t < b.y1 && y > b.y0) return true;
   }
   if (grid.polys) return rectHitsPolys(grid.polys, (x - hb.w / 2) / T, (y - hb.h) / T, (x + hb.w / 2) / T, y / T);
   return false;

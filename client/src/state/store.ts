@@ -44,6 +44,8 @@ export class Store {
   /** Everything on display in player boutiques, and your own butik. */
   listings: Listing[] = [];
   boutique: BoutiqueSelf | null = null;
+  /** Today's free Lucky Spin is still there (null until we ask). */
+  canSpin: boolean | null = null;
   /** Every stall on the map, by plot id. */
   stalls = new Map<string, StallPublic>();
   /** Server clock − local clock (ms), so the game clock matches the server's. */

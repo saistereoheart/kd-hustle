@@ -1,0 +1,53 @@
+{
+  "betLimits": [
+    [100, 5000],
+    [500, 50000],
+    [1000, 500000],
+    [10000, 5000000],
+    [100000, 50000000],
+    [1000000, 1000000000]
+  ],
+  "announceMult": 50,
+  "announceSen": 10000000,
+  "slots": {
+    "symbols": [
+      { "id": "cherry",  "icon": "🍒", "name": "Cherry",    "weight": 10, "three": 5 },
+      { "id": "tehtarik", "icon": "☕", "name": "Teh Tarik", "weight": 8,  "three": 10 },
+      { "id": "ketupat", "icon": "🍙", "name": "Ketupat",   "weight": 6,  "three": 25 },
+      { "id": "durian",  "icon": "🌰", "name": "Durian",    "weight": 4,  "three": 75 },
+      { "id": "moneybag", "icon": "💰", "name": "Money Bag", "weight": 3,  "three": 200 },
+      { "id": "seven",   "icon": "7️⃣", "name": "Lucky 7",   "weight": 1,  "three": 1000 }
+    ],
+    "twoOfFirst": 0.7,
+    "bets": [1, 2, 5, 10, 25, 100]
+  },
+  "roulette": { "bettingMs": 20000, "spinMs": 6000, "resultMs": 5000 },
+  "blackjack": { "seats": 5, "decks": 6, "blackjackPays": 1.5, "bettingMs": 12000, "turnMs": 20000, "resultMs": 6000 },
+  "crash": { "houseEdge": 0.03, "growthPerSec": 0.07, "maxMult": 1000, "bettingMs": 8000, "crashedMs": 4000 },
+  "wheel": {
+    "everyMs": 120000,
+    "spinMs": 8000,
+    "segments": [
+      { "id": "x2",  "label": "×2",  "color": "#4dabf7", "count": 24, "returns": 2 },
+      { "id": "x4",  "label": "×4",  "color": "#69db7c", "count": 12, "returns": 4 },
+      { "id": "x7",  "label": "×7",  "color": "#ffd43b", "count": 7,  "returns": 7 },
+      { "id": "x12", "label": "×12", "color": "#ff922b", "count": 4,  "returns": 12 },
+      { "id": "x24", "label": "×24", "color": "#f06595", "count": 2,  "returns": 24 },
+      { "id": "x48", "label": "×48", "color": "#9775fa", "count": 1,  "returns": 48 }
+    ]
+  },
+  "highlow": { "houseEdge": 0.03, "maxStreak": 10 },
+  "dailySpin": {
+    "prizes": [
+      { "id": "rm50",   "label": "RM 50",          "weight": 30, "sen": 5000 },
+      { "id": "rm100",  "label": "RM 100",         "weight": 25, "sen": 10000 },
+      { "id": "rm250",  "label": "RM 250",         "weight": 12, "sen": 25000 },
+      { "id": "rm1000", "label": "RM 1,000",       "weight": 4,  "sen": 100000 },
+      { "id": "shard10", "label": "10 💎",         "weight": 15, "shards": 10 },
+      { "id": "shard50", "label": "50 💎",         "weight": 4,  "shards": 50 },
+      { "id": "luck",   "label": "🍀 Luck Potion", "weight": 8,  "item": "luck_potion" },
+      { "id": "income", "label": "📈 Income Booster", "weight": 2, "item": "income_booster" }
+    ],
+    "stageMult": [1, 3, 10, 50, 250, 1000]
+  }
+}

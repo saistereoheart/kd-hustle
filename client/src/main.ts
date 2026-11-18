@@ -30,6 +30,13 @@ window.__kh = {
   luck: () => app.mods().luck,
   /** Inside a building? (its id, our room position, the stations) */
   interior: () => app.interior?.debugInfo() ?? null,
+  /** Tests: open a casino game panel. */
+  openCasino: (game: string) => app.openInteractable({ type: 'casino', game }),
+  /** Tests: go into a building through its door (stand at the door first: /tp to doorOf). */
+  enter: (id: string) => {
+    const b = app.map?.buildings.find((x) => x.id === id);
+    if (b) app.enterBuilding(b);
+  },
   inv: () => app.store.inventory.map((i) => ({ iid: i.iid, itemId: i.itemId })),
   myProps: () => app.store.myProps,
   home: () => app.home?.debugInfo() ?? null,

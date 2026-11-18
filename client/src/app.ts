@@ -20,6 +20,8 @@ import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
 import { openMarketPanel } from './ui/stall/market';
 import { openStallPanel } from './ui/stall/stallPanel';
+import { openCasinoGame } from './ui/casino';
+import { refreshSpin } from './ui/phone/spin';
 import { sfx } from './ui/sound';
 import { Joystick } from './input/joystick';
 import { Keyboard } from './input/keyboard';
@@ -515,6 +517,7 @@ export class App {
   }
 
   private onInit(p: InitPayload) {
+    window.setTimeout(() => refreshSpin(this), 1500); // the daily free spin badge
     const resume = !!this.town && !p.needsCharacter && this.lastInit?.you.id === p.you.id && document.body.dataset.state === 'town';
     this.lastInit = p;
     if (p.you.appearance) rememberLook(p.you.appearance);
@@ -809,13 +812,14 @@ export class App {
   }
 
   /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
-  openInteractable(it: { type: import('@kh/shared').InteractType; crate?: string }) {
+  openInteractable(it: { type: import('@kh/shared').InteractType; crate?: string; game?: string }) {
     if (it.type === 'market') openMarketPanel(this);
     else if (it.type === 'furniture') openFurnitureStore(this);
     else if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
     else if (it.type === 'jobs') openJobsPanel(this);
     else if (it.type === 'pawn') openPawnPanel(this);
     else if (it.type === 'carwash') openCarwashPanel(this);
+    else if (it.type === 'casino' && it.game) openCasinoGame(this, it.game);
   }
 
   /** At a stall plot: ours opens the stall (cook / manage), anyone else's shows what it sells. */

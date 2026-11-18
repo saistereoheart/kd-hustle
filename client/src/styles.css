@@ -928,3 +928,53 @@ body.touch .phone-btn-label kbd { display: none; }
 .welcome-line b.neg { color: #ff8787; }
 .welcome-lines { max-height: 40vh; overflow-y: auto; }
 .bq-card .item-card { flex: 0 0 86px; }
+
+/* ---- Lucky Strand Casino (Phase 7) ---- */
+.casino-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.casino-chip { border-radius: 999px; border: 2px dashed #ffd43b; background: rgba(255, 212, 59, 0.08); color: #ffe066; font-weight: 800; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+.casino-chip.on { background: #ffd43b; color: #1b1300; border-style: solid; }
+.casino-status { font-weight: 800; font-size: 16px; margin: 6px 0; text-align: center; }
+.casino-session b.pos { color: #69db7c; } .casino-session b.neg { color: #ff8787; }
+.casino-pays { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0; }
+.casino-bets { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; font-size: 13px; max-height: 140px; overflow-y: auto; }
+.casino-bet.mine { color: #ffe066; font-weight: 700; } .casino-bet.won { color: #69db7c; } .casino-bet.lost { color: #ff8787; text-decoration: line-through; }
+.slot-machine { display: flex; justify-content: center; gap: 10px; padding: 14px; border-radius: 18px; background: linear-gradient(180deg, #c92a2a, #7a1515); border: 4px solid #ffd43b; box-shadow: 0 0 24px rgba(255, 212, 59, 0.4); }
+.slot-reel { width: 82px; height: 92px; display: grid; place-items: center; font-size: 52px; background: #fff9db; border-radius: 10px; box-shadow: inset 0 6px 10px rgba(0,0,0,0.3); }
+.slot-reel.stop { animation: rush-pop 0.25s ease-out; }
+.slot-result { text-align: center; font-size: 20px; font-weight: 900; margin: 10px 0; min-height: 28px; }
+.slot-result.win { color: #ffd43b; text-shadow: 0 0 12px rgba(255, 212, 59, 0.7); }
+.pcard { display: inline-grid; place-items: center; min-width: 38px; height: 54px; padding: 0 4px; margin: 2px; border-radius: 6px; background: #fff; color: #11131f; font: 900 17px system-ui, sans-serif; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+.pcard.red { color: #c92a2a; } .pcard.back { background: repeating-linear-gradient(45deg, #1864ab, #1864ab 4px, #1c7ed6 4px, #1c7ed6 8px); color: transparent; }
+.pcard.big { min-width: 76px; height: 108px; font-size: 32px; border-radius: 10px; } .pcard.small { opacity: 0.6; }
+.hl-cards { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 10px 0; }
+.hl-pot { text-align: center; font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+.roulette-top { display: flex; align-items: center; gap: 14px; }
+.roulette-ball { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font: 900 32px system-ui, sans-serif; background: #343a40; color: #fff; border: 4px solid #ffd43b; flex: 0 0 auto; }
+.roulette-ball.red { background: #c92a2a; } .roulette-ball.black { background: #11131f; } .roulette-ball.green { background: #2b8a3e; } .roulette-ball.spinning { animation: rush-pop 0.12s infinite; }
+.roulette-history { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.roulette-outside { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 6px 0; }
+.roulette-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+.roulette-grid .zero { grid-row: span 3; }
+.rbet, .rnum { border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: #fff; font-weight: 800; padding: 6px 2px; cursor: pointer; background: #2b8a3e; font-size: 12px; touch-action: manipulation; }
+.rbet small { display: block; font-size: 10px; opacity: 0.8; }
+.rbet.red, .rnum.red { background: #c92a2a; } .rbet.black, .rnum.black { background: #11131f; } .rnum.green { background: #2b8a3e; }
+.rnum.small { padding: 2px 6px; font-size: 11px; cursor: default; }
+.roulette-outside.closed, .roulette-grid.closed, .wof-bets.closed { opacity: 0.4; pointer-events: none; }
+.wof { position: relative; width: 230px; height: 230px; margin: 6px auto; }
+.wof-disc { width: 100%; height: 100%; border-radius: 50%; border: 6px solid #ffd43b; box-shadow: 0 0 20px rgba(255, 212, 59, 0.4); position: relative; }
+.wof-pointer { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 26px; color: #fff; text-shadow: 0 2px 4px #000; }
+.wof-bets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.spin-label { position: absolute; left: 50%; top: 50%; width: 0; height: 50%; transform-origin: 0 0; font: 900 10px system-ui, sans-serif; color: #11131f; white-space: nowrap; display: flex; justify-content: center; translate: 0 -100%; }
+.crash-mult { font: 900 56px system-ui, sans-serif; text-align: center; color: #fff; margin: 10px 0; }
+.crash-mult.running { color: #69db7c; text-shadow: 0 0 16px rgba(105, 219, 124, 0.6); } .crash-mult.crashed { color: #ff6b6b; }
+.crash-cash { animation: phone-glow 1s infinite; }
+.bj-table { background: radial-gradient(ellipse at top, #2f9e44, #1b5e20); border: 6px solid #5c3a1e; border-radius: 0 0 200px 200px / 0 0 80px 80px; padding: 10px; }
+.bj-dealer { text-align: center; color: #fff; }
+.bj-seats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+.bj-seat { background: rgba(0,0,0,0.25); border-radius: 10px; padding: 6px 4px; text-align: center; color: #fff; min-height: 90px; font-size: 12px; }
+.bj-seat.mine { outline: 2px solid #ffe066; } .bj-seat.turn { box-shadow: 0 0 0 3px #69db7c; }
+.bj-seat .pcard { min-width: 26px; height: 38px; font-size: 12px; margin: 1px; }
+.bj-name { font-weight: 800; margin-bottom: 4px; } .bj-hand.active { background: rgba(105, 219, 124, 0.2); border-radius: 6px; }
+.bj-result { font-weight: 900; } .bj-hand.r-win .bj-result, .bj-hand.r-blackjack .bj-result { color: #b2f2bb; } .bj-hand.r-lose .bj-result, .bj-hand.r-bust .bj-result { color: #ffc9c9; }
+.bj-controls { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+@media (max-width: 640px) { .bj-seats { grid-template-columns: repeat(3, 1fr); } .roulette-grid { grid-template-columns: repeat(7, 1fr); } .roulette-grid .zero { grid-row: auto; grid-column: span 7; } .roulette-outside { grid-template-columns: repeat(4, 1fr); } }

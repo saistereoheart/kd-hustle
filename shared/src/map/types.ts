@@ -33,7 +33,7 @@ export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop', 'stall'] as const;
 
-export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash', 'market', 'furniture'] as const;
+export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash', 'market', 'furniture', 'casino'] as const;
 export type InteractType = (typeof INTERACT_TYPES)[number];
 
 // ------------------------------------------------------------- generated OSM data
@@ -119,6 +119,8 @@ export const overridesSchema = z.object({
         type: z.enum(INTERACT_TYPES),
         name: z.string(),
         crate: z.string().optional(),
+        /** Casino stations: which game (slots, roulette, blackjack, crash, wheel, highlow). */
+        game: z.string().optional(),
         building: z.string().optional(),
         x: z.number().optional(),
         y: z.number().optional(),

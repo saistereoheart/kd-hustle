@@ -2,7 +2,7 @@
 // their plots, NPC customers queueing with order bubbles and patience bars, warm lights at
 // night, and the day/night tint over the whole town.
 import Phaser from 'phaser';
-import { darkness, formatMoneyExact, gameTime, randomAppearance, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
+import { darkness, formatMoneyExact, gameTime, randomAppearance, setBoxes, stallFootprint, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
 import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
@@ -89,6 +89,8 @@ export class StallLayer {
   sync() {
     for (const plot of this.plots) {
       const s = this.app.store.stalls.get(plot.id);
+      // Solid while there's a stall on the plot (the server uses the same boxes).
+      setBoxes([this.app.map.collision, this.app.map.driveCollision], `stall:${plot.id}`, s ? stallFootprint(plot, this.T) : []);
       const key = s ? `${s.owner}|${s.tier}|${s.open}|${s.ownerName}` : 'free';
       const v = this.views.get(plot.id);
       if (v?.key === key) continue;

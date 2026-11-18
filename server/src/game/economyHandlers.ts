@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
 import {
-  C2S, collides, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
+  C2S, collides, setBoxes, stallFootprint, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
   type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid,
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
@@ -26,6 +26,7 @@ import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import { createVentures } from './ventureHandlers';
 import { createLoans } from './loanHandlers';
+import { createCasino } from './casinoHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -170,12 +171,38 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
-    publicChanged: (list) => io.emit('stalls', { stalls: list }),
+    publicChanged: (list) => {
+      io.emit('stalls', { stalls: list });
+      syncStallBoxes();
+    },
     selfChanged: (p, stall) => socketOf(p)?.emit('stall:self', { stall }),
     event: (p, ev) => socketOf(p)?.emit('stall:event', ev),
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
   });
   world.stallOf = (p) => stalls.selfOf(p);
+  /**
+   * Stalls and food trucks are solid: their footprints go into the collision grids (walking and
+   * driving) while a plot is taken. Anyone standing where one just appeared is nudged out.
+   */
+  function syncStallBoxes() {
+    const taken = new Set(stalls.all().map((s) => s.plot));
+    let changed = false;
+    for (const plot of cfg.map.stallPlots) {
+      if (setBoxes([cfg.map.collision, cfg.map.driveCollision], `stall:${plot.id}`, taken.has(plot.id) ? stallFootprint(plot, T) : [])) changed = true;
+    }
+    if (!changed) return;
+    for (const p of world.players.values()) {
+      const rules = moveRules(p);
+      if (p.interior || !collides(rules.grid, p.x, p.y, rules.movement.hitbox)) continue;
+      const spot = placePlayer(rules.grid, rules.movement.hitbox, { x: p.x, y: p.y, mapVersion: p.mapVersion }, { mapVersion: p.mapVersion, spawn: cfg.map.spawnPx });
+      p.x = spot.x;
+      p.y = spot.y;
+      p.dirty = true;
+      p.move = newMoveState(p.x, p.y, Date.now(), rules.movement);
+      socketOf(p)?.emit('move:correct', { x: p.x, y: p.y, seq: 0 });
+    }
+  }
+  syncStallBoxes();
   const stallTimer = setInterval(() => {
     try {
       stalls.tick();
@@ -220,6 +247,16 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     netWorth: (p) => netWorthSen(cfg.prog, p.walletSen, p.inventory, assetsOf(p)),
     props: () => propSys,
     biz: () => ventures.biz,
+    check: (p) => prog.check(p),
+  });
+  // --- the Lucky Strand Casino (Phase 7) --------------------------------------------------------
+  const casino = createCasino({
+    cfg, repos, econ, world, io, socketOf, pushWallet,
+    announce: (text) => {
+      repos.announcements.add(text, 'legendary');
+      io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+      io.emit('announce', { text, tier: 'legendary', takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
+    },
     check: (p) => prog.check(p),
   });
   inv.lockedIids = (p) => propSys.lockedIids(p);
@@ -333,6 +370,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));
     ventures.register(socket, me, handle);
     finance.register(socket, me, handle);
+    casino.register(socket, me, handle);
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -709,6 +747,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
       ventures.sendSelf(p);
       finance.sendSelf(p);
+      const won = casino.collect(p);
+      if (won) socketOf(p)?.emit('loan:event', { text: `🎰 Winnings from the casino while you were away: +${formatMoney(won)}`, kind: 'good' });
       if (away) {
         socketOf(p)?.emit('welcome', away);
         pushWallet(p);
@@ -730,6 +770,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       stalls.leave(p);
       ventures.unload(p); // saved, then dropped from memory until they log in again
       finance.unload(p);
+      casino.leave(p);
     },
     chatCommand,
     moveRules,
@@ -759,6 +800,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       clearInterval(propTimer);
       ventures.stop();
       finance.stop();
+      casino.stop(); // hands back undecided bets (before everyone is saved)
       stalls.saveDirty(true);
     },
   };

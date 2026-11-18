@@ -11,6 +11,7 @@ import type { Placed, PropertyMode } from '../property/schemas';
 import type { Rating, Suggestion } from '../property/rating';
 import type { BoutiqueSelf, Checkout, Listing, Ventures } from '../business/business';
 import type { BankView, Loan } from '../business/loans';
+import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -32,6 +33,15 @@ export const C2S = {
   shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
   shopCashier: z.object({ on: z.boolean() }),
   checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
+  // --- casino (Phase 7) ---
+  casinoGame: z.object({ game: z.enum(['roulette', 'blackjack', 'crash', 'wheel']) }),
+  casinoSen: z.object({ sen: z.number().int().positive().max(1e13) }),
+  hlGuess: z.object({ guess: z.enum(['higher', 'lower']) }),
+  rouletteBet: z.object({ bet: rouletteBetSchema, sen: z.number().int().positive().max(1e13) }),
+  wheelBet: z.object({ segment: z.string().min(1).max(16), sen: z.number().int().positive().max(1e13) }),
+  crashBet: z.object({ sen: z.number().int().positive().max(1e13), auto: z.number().min(1.01).max(1000).nullable() }),
+  bjSeat: z.object({ seat: z.number().int().min(0).max(6) }),
+  bjAction: z.object({ action: z.enum(['hit', 'stand', 'double', 'split']) }),
   boutiqueList: z.object({ iid: z.number().int().positive(), priceSen: z.number().int().positive().max(1e15) }),
   boutiqueId: z.object({ id: z.number().int().positive() }),
   loanTake: z.object({ kind: z.enum(['personal', 'business', 'property', 'ahlong']), amountSen: z.number().int().positive().max(1e15), collateral: z.string().min(1).max(60).optional() }),
@@ -506,6 +516,25 @@ export interface ClientToServerEvents {
   /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
   'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
   'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
+  // --- casino (Phase 7) ---
+  /** Open a shared table: you get its state now and every change while watching. */
+  'casino:watch': (msg: { game: 'roulette' | 'blackjack' | 'crash' | 'wheel' }, ack: Ack<Result<{ view: unknown; session: CasinoSession }>>) => void;
+  'casino:unwatch': (msg: { game: 'roulette' | 'blackjack' | 'crash' | 'wheel' }, ack: Ack<SimpleResult>) => void;
+  'casino:session': (ack: Ack<Result<{ session: CasinoSession; canSpin: boolean; highlow: { card: Card; pot: number; bet: number; streak: number } | null }>>) => void;
+  'casino:slots': (msg: { sen: number }, ack: Ack<Result<{ reels: string[]; mult: number; paidSen: number; walletSen: number }>>) => void;
+  'casino:hl:start': (msg: { sen: number }, ack: Ack<Result<{ state: { card: Card; pot: number; bet: number; streak: number } }>>) => void;
+  'casino:hl:guess': (msg: { guess: 'higher' | 'lower' }, ack: Ack<Result<{ card: Card; correct: boolean; state: { card: Card; pot: number; bet: number; streak: number } | null; paidSen: number }>>) => void;
+  'casino:hl:cashout': (ack: Ack<Result<{ paidSen: number }>>) => void;
+  'casino:roulette:bet': (msg: { bet: string; sen: number }, ack: Ack<SimpleResult>) => void;
+  'casino:wheel:bet': (msg: { segment: string; sen: number }, ack: Ack<SimpleResult>) => void;
+  'casino:crash:bet': (msg: { sen: number; auto: number | null }, ack: Ack<SimpleResult>) => void;
+  'casino:crash:cashout': (ack: Ack<Result<{ mult: number; paidSen: number }>>) => void;
+  'casino:bj:sit': (msg: { seat: number }, ack: Ack<SimpleResult>) => void;
+  'casino:bj:leave': (ack: Ack<SimpleResult>) => void;
+  'casino:bj:bet': (msg: { sen: number }, ack: Ack<SimpleResult>) => void;
+  'casino:bj:act': (msg: { action: 'hit' | 'stand' | 'double' | 'split' }, ack: Ack<SimpleResult>) => void;
+  /** The daily free spin (anywhere). */
+  'casino:spin': (ack: Ack<Result<{ index: number; sen: number; shards: number; item: string | null }>>) => void;
   // --- the boutique (Phase 6) ---
   'boutique:open': (ack: Ack<SimpleResult>) => void;
   'boutique:list': (msg: { iid: number; priceSen: number }, ack: Ack<Result<{ listing: Listing }>>) => void;
@@ -545,6 +574,10 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** A shared casino table changed (only while you watch it). */
+  'casino:table': (p: { game: 'roulette'; view: RouletteView } | { game: 'blackjack'; view: BlackjackView } | { game: 'crash'; view: CrashView } | { game: 'wheel'; view: WheelView & { layout: string[] } }) => void;
+  /** Today's casino session (bet / won). */
+  'casino:session': (p: { session: CasinoSession }) => void;
   /** Everything on display in player boutiques. */
   boutique: (p: { listings: Listing[] }) => void;
   /** Your own boutique (open, sales waiting to be paid). */

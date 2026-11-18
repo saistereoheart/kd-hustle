@@ -22,7 +22,7 @@ export const FURNITURE_SIZE: Record<Furniture, [number, number]> = {
 
 /** Station footprints (tiles), by interactable type. */
 export function stationSize(type: string): [number, number] {
-  return type === 'carwash' ? [5, 2.6] : type === 'market' ? [3.4, 1.4] : type === 'crate' ? [1.8, 1.4] : [2.8, 1.3];
+  return type === 'casino' ? [2.6, 1.7] : type === 'carwash' ? [5, 2.6] : type === 'market' ? [3.4, 1.4] : type === 'crate' ? [1.8, 1.4] : [2.8, 1.3];
 }
 
 /** Where the doorway is: which wall, and its centre along that wall (px). */
@@ -255,7 +255,47 @@ export function drawStation(g: Phaser.GameObjects.Graphics, type: string, crate:
     g.fillStyle(0xa5d8ff, 1).fillRoundedRect(cx - 30, cy - 18, 22, 36, 4).fillRoundedRect(cx + 16, cy - 18, 16, 36, 4);
     g.fillStyle(0xffffff, 0.85);
     for (const [dx, dy, r] of [[-40, -14, 7], [-30, 12, 6], [6, -16, 8], [34, 14, 6], [46, -8, 5]]) g.fillCircle(cx + dx, cy + dy, r);
+  } else if (type === 'casino') {
+    drawCasinoStation(g, crate ?? '', x, y, w, h, cx, cy);
   } else {
     g.fillStyle(accent, 1).fillRoundedRect(x, y, w, h, 6);
+  }
+}
+
+/** Casino stations (the `crate` slot carries the game id). */
+function drawCasinoStation(g: Phaser.GameObjects.Graphics, game: string, x: number, y: number, w: number, h: number, cx: number, cy: number) {
+  const felt = 0x2b8a3e, gold = 0xffd43b, wood = 0x5c3a1e;
+  if (game === 'slots') {
+    // three cabinets with lit reel windows
+    for (let i = 0; i < 3; i++) {
+      const bx = x + i * (w / 3) + 3, bw = w / 3 - 6;
+      g.fillStyle([0xc92a2a, 0x7048e8, 0x1c7ed6][i], 1).fillRoundedRect(bx, y - 10, bw, h + 10, 6);
+      g.fillStyle(0xfff9db, 1).fillRect(bx + 4, y + 2, bw - 8, h * 0.32);
+      g.fillStyle(0x212529, 1).fillRect(bx + bw / 2 - 1, y + 2, 2, h * 0.32);
+      g.fillStyle(gold, 1).fillCircle(bx + bw - 4, y + h * 0.5, 3);
+    }
+  } else if (game === 'roulette' || game === 'wheel') {
+    g.fillStyle(game === 'roulette' ? felt : wood, 1).fillRoundedRect(x, y, w, h, 12);
+    const r = Math.min(w, h) * 0.42;
+    const cols = game === 'roulette' ? [0xc92a2a, 0x212529] : [0x4dabf7, 0x69db7c, 0xffd43b, 0xff922b, 0xf06595, 0x9775fa];
+    for (let i = 0; i < 12; i++) g.fillStyle(cols[i % cols.length], 1).slice(cx, cy, r, (i / 12) * Math.PI * 2, ((i + 1) / 12) * Math.PI * 2, false).fillPath();
+    g.fillStyle(gold, 1).fillCircle(cx, cy, r * 0.25);
+  } else if (game === 'blackjack' || game === 'highlow') {
+    g.fillStyle(wood, 1).fillRoundedRect(x - 2, y - 2, w + 4, h + 4, h / 2);
+    g.fillStyle(felt, 1).fillRoundedRect(x, y, w, h, h / 2);
+    for (let i = 0; i < (game === 'blackjack' ? 5 : 2); i++) {
+      const px = game === 'blackjack' ? x + 12 + i * ((w - 24) / 4) : cx - 10 + i * 14;
+      g.fillStyle(0xffffff, 1).fillRoundedRect(px - 5, cy + (game === 'blackjack' ? 4 : -6), 10, 14, 2);
+    }
+    g.lineStyle(1, gold, 0.8).strokeRoundedRect(x + 6, y + 6, w - 12, h - 12, h / 2 - 6);
+  } else if (game === 'crash') {
+    g.fillStyle(0x11131f, 1).fillRoundedRect(x, y - 8, w, h + 8, 6);
+    g.lineStyle(3, 0x40c057, 1).beginPath();
+    g.moveTo(x + 8, y + h - 6);
+    for (let i = 1; i <= 10; i++) g.lineTo(x + 8 + ((w - 16) * i) / 10, y + h - 6 - (h - 4) * Math.pow(i / 10, 2.2));
+    g.strokePath();
+    g.fillStyle(0xff6b6b, 1).fillCircle(x + w - 8, y + 2, 4);
+  } else {
+    g.fillStyle(felt, 1).fillRoundedRect(x, y, w, h, 6);
   }
 }
