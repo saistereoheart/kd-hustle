@@ -53,6 +53,14 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   - In a rush (breakfast, lunch, dinner) every open stall gets at least 2.4× base (`rush.floorMult`), the rush
     multiplier is 2.2× (was 1.8×), and queues hold 2 more (`rush.extraQueue`).
   - Signage, Kaki Promo, Customer Rush and bloggers still add on top.
+  - **Reputation recovers with your cooks:** every dish a cook serves adds +0.25 reputation, up to 60 (3★).
+    Above that you still need your own Great/Perfect dishes (and bloggers). Before, a stall run by its cooks could
+    only lose reputation, so one bad stretch left it at 0★ for good.
+  - **Moving up a tier:** for 2 minutes after the move, customers who give up don't cost reputation (your cooks
+    need re-hiring and the crowd is bigger).
+  - Why Wendygosh's truck was at 0★: they moved up, cooked alone for ~10 minutes with signage 10 and a big queue,
+    and lost dozens of customers (−3 each). Their actual sales were higher than nytra's at the time: two fast
+    cooks kept the queue empty, so it only *looked* quiet.
 - **Bag:** the selected item's details stay pinned at the top while you scroll the items. Picking an item doesn't
   make the grid jump, and ✕ closes the details.
 - **Stall stock:** separate small boxes outside the stall window, not a panel inside it.

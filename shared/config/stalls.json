@@ -153,7 +153,10 @@
     },
     "lostCustomer": -3,
     "multAtZero": 0.8,
-    "multAtMax": 1.3
+    "multAtMax": 1.3,
+    "perStaffDish": 0.25,
+    "staffRepCap": 60,
+    "moveGraceSec": 120
   },
   "combo": {
     "perPerfect": 0.05,

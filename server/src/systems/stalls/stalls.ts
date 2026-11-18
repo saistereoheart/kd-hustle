@@ -51,6 +51,8 @@ interface Live {
   lowWarned: Set<string>;
   /** Server ms the closing-up grace ends (0 = not closing). */
   closingUntil: number;
+  /** Just moved to a bigger stall: until this server ms, lost customers don't cost reputation. */
+  repGraceUntil: number;
 }
 
 export interface StallHooks {
@@ -102,7 +104,7 @@ export class StallSystem {
   private wrap(owner: number, ownerName: string, s: StallState): Live {
     return {
       owner, ownerName, s, queue: [], cooks: [], dish: null, live: false, unpaid: false, lastTick: this.clock(), wageAcc: 0,
-      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false, lowWarned: new Set(), closingUntil: 0,
+      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false, lowWarned: new Set(), closingUntil: 0, repGraceUntil: 0,
     };
   }
 
@@ -202,9 +204,11 @@ export class StallSystem {
       this.save(l);
     });
     if (cur) {
-      // Moving: the old queue stays behind.
+      // Moving: the old queue stays behind, and a short grace while you settle in (cooks to
+      // re-hire, a bigger crowd) so lost customers don't wreck your reputation.
       cur.queue = [];
       cur.cooks = [];
+      cur.repGraceUntil = this.clock() + this.cfg.stalls.reputation.moveGraceSec * 1000;
     }
     this.stalls.set(p.id, l);
     this.hooks.wallet(p, -def.priceSen, 'stall');
@@ -524,7 +528,7 @@ export class StallSystem {
         l.dish = null;
         l.s.combo = 0;
         l.queue = l.queue.filter((x) => x.id !== c.id);
-        l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer);
+        if (now >= l.repGraceUntil) l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer);
         this.touch(l);
       }
 
@@ -533,7 +537,7 @@ export class StallSystem {
       const lost = l.queue.filter((c) => !c.serving && now > c.arrivedAt + c.patienceMs);
       if (lost.length) {
         l.queue = l.queue.filter((c) => !lost.includes(c));
-        l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer * lost.length);
+        if (now >= l.repGraceUntil) l.s.rep = Math.max(0, l.s.rep + st.reputation.lostCustomer * lost.length);
         this.prog.bump(owner, 'customersLost', lost.length);
         this.hooks.event(owner, { kind: 'lost', text: `😤 ${lost.length === 1 ? 'A customer' : `${lost.length} customers`} gave up waiting.` });
       }
@@ -600,6 +604,10 @@ export class StallSystem {
         try {
           this.econ.run(owner, () => this.econ.change(owner, staffSen, 0, 'stall-staff', `${staffDishes}`));
           this.earn(l, staffSen);
+          // Your cooks' steady service slowly rebuilds reputation, but only up to a point:
+          // the top stars need the boss's own Great and Perfect dishes.
+          const r = st.reputation;
+          if (l.s.rep < r.staffRepCap) l.s.rep = Math.min(r.staffRepCap, l.s.rep + r.perStaffDish * staffDishes);
           this.hooks.wallet(owner, staffSen, 'stall-staff');
           this.hooks.event(owner, { kind: 'staffSale', text: `🧑‍🍳 Your cook sold ${staffDishes === 1 ? 'a dish' : `${staffDishes} dishes`}`, sen: staffSen });
           this.prog.bump(owner, 'staffDishes', staffDishes);

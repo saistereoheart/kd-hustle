@@ -56,6 +56,12 @@ export const stallsConfigSchema = z.object({
     lostCustomer: z.number(),
     /** Customer-rate multiplier at reputation 0 and at max. */
     multAtZero: z.number(), multAtMax: z.number(),
+    /** Each dish your cooks serve adds this much reputation, up to `staffRepCap` (higher needs
+     *  your own cooking). */
+    perStaffDish: z.number().nonnegative().default(0),
+    staffRepCap: z.number().nonnegative().default(0),
+    /** After moving up to a bigger stall: seconds when lost customers cost no reputation. */
+    moveGraceSec: z.number().nonnegative().default(0),
   }),
   combo: z.object({ perPerfect: z.number(), max: z.number() }),
   tips: z.object({ max: z.number(), minQuality: z.enum(['perfect', 'great', 'good']) }),

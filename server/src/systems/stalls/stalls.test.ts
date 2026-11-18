@@ -220,6 +220,39 @@ describe('customers and cooking', () => {
     expect(s.stalls.all()[0].rep).toBeLessThan(cfg.stalls.reputation.start);
   });
 
+  it('cooks slowly rebuild reputation, but only up to the cap', () => {
+    const s = setup(5_000_000);
+    s.stalls.buy(s.p, 1);
+    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
+    s.stalls.hire(s.p);
+    const live = (s.stalls as unknown as { stalls: Map<number, { s: { rep: number; upgrades: Record<string, number> } }> }).stalls.get(s.p.id)!;
+    live.s.rep = 0;
+    live.s.upgrades = { training: 10, queue: 3 }; // a fast cook: nobody waits too long
+    s.run(10 * 60_000);
+    expect(s.p.prog.stats.staffDishes ?? 0).toBeGreaterThan(20);
+    const rep = s.stalls.all()[0].rep;
+    expect(rep).toBeGreaterThan(0);
+    expect(rep).toBeLessThanOrEqual(cfg.stalls.reputation.staffRepCap);
+    live.s.rep = 90; // above the cap: cooks don't push it further
+    s.run(60_000);
+    expect(s.stalls.all()[0].rep).toBeLessThanOrEqual(90);
+  });
+
+  it('moving up a tier: lost customers cost no reputation for a short while', () => {
+    const s = setup(50_000_000);
+    s.p.prog.stage = 5;
+    s.p.prog.level = 50;
+    s.stalls.buy(s.p, 1);
+    s.stalls.buy(s.p, 2);
+    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
+    const rep0 = s.stalls.all()[0].rep;
+    s.run(Math.min(110_000, cfg.stalls.reputation.moveGraceSec * 1000 - 1000)); // nobody cooks: people give up
+    expect(s.p.prog.stats.customersLost ?? 0).toBeGreaterThan(0);
+    expect(s.stalls.all()[0].rep).toBe(rep0);
+    s.run(150_000); // after the grace, losses count again
+    expect(s.stalls.all()[0].rep).toBeLessThan(rep0);
+  });
+
   it('closes and clears the queue when the owner logs off', () => {
     const s = setup();
     s.stalls.buy(s.p, 1);
