@@ -130,6 +130,17 @@
       "effect": { "kind": "wages", "perLevel": 0.05 },
       "requires": { "stage": 2 }
     },
+    "chef_academy": {
+      "branch": "business",
+      "name": "Chef Academy",
+      "icon": "👨‍🍳",
+      "desc": "Send your head chef to classes: all their stats (speed, flavour, charm) go up.",
+      "maxLevel": 10,
+      "baseCostSen": 150000,
+      "costGrowth": 1.55,
+      "requires": { "stage": 2 },
+      "effect": { "kind": "chefBoost", "perLevel": 0.1 }
+    },
     "kaki_lari": {
       "branch": "movement", "name": "Kaki Lari", "icon": "👟",
       "desc": "Walk 4% faster per level.",

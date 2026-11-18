@@ -1012,3 +1012,7 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 @keyframes coin-tails { from { transform: rotateY(0); } to { transform: rotateY(1980deg); } }
 .debug-overlay { position: absolute; top: calc(200px + var(--safe-t, 0px)); right: 10px; z-index: 50; margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.75); color: #8ce99a; font: 12px/1.4 ui-monospace, Consolas, monospace; pointer-events: none; white-space: pre; }
 .debug-overlay.hidden { display: none; }
+
+/* Head chef stats (📱 Business → Head chef) */
+.chef-stats { display: grid; gap: 2px; margin-top: 4px; font-size: 0.85em; }
+.chef-card.on { outline: 2px solid #f59f00; }

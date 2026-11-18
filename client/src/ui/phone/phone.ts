@@ -4,7 +4,7 @@
 import { menuRecipes, questProgress, stockCount } from '@kh/shared';
 import type { App } from '../../app';
 import { openInventoryPanel } from '../inventoryPanel';
-import { el } from '../dom';
+import { el, keepUiState } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 import { renderBusiness } from './business';
@@ -133,7 +133,7 @@ export function openPhone(app: App, startApp?: string) {
   tick();
   const clockTimer = window.setInterval(tick, 10_000);
 
-  const ctx: PhoneCtx = { app, rerender: () => render(), go: (id) => go(id) };
+  const ctx: PhoneCtx = { app, rerender: () => keepUiState(screen, render), go: (id) => go(id) };
 
   function go(id: string | null) {
     const def = id ? APPS.find((a) => a.id === id) : null;
@@ -175,10 +175,10 @@ export function openPhone(app: App, startApp?: string) {
   }
 
   homeBar.addEventListener('click', () => go(null));
-  const off = app.store.on(() => render());
+  const off = app.store.on(() => keepUiState(screen, render));
   // Timers in apps (buffs, quest progress) refresh every second while the phone is open.
   const refresh = window.setInterval(() => {
-    if (current === 'profile' || current === 'clock' || current === 'ventures' || current === 'radio') render();
+    if (current === 'profile' || current === 'clock' || current === 'ventures' || current === 'radio') keepUiState(screen, render);
   }, 1000);
   panel.onClose = () => {
     off();

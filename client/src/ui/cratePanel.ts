@@ -1,7 +1,7 @@
 // Crate machine UI: odds (always visible), pity, the pool, and ×1/×5/×10 rolls.
 import { crateOdds, effectivePity, formatMoney, formatOneIn, stageDef, type InventoryItem } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast } from './dom';
+import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel } from './panel';
 import { playReveal } from './reel';
 import { sfx } from './sound';
@@ -129,7 +129,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
     });
   };
 
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }

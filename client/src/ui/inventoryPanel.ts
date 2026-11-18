@@ -1,9 +1,9 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
-import { EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
+import { CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
 
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
-import { el, toast } from './dom';
+import { el, toast, keepUiState } from './dom';
 import { iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
 import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
@@ -176,7 +176,9 @@ export function openInventoryPanel(app: App, startTab = 0) {
             nameEl,
             el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${s.variant}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
             def.desc ? el('p', {}, def.desc) : null,
-            buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
+            def.type === 'chef'
+              ? el('div', { class: 'item-buff' }, `As head chef: ${CHEF_STATS.map((k) => { const v = chefStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().chef?.boost ?? 0)[k]; return `${CHEF_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CHEF_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
+              : buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
             el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant, gradeMult(gcfg, s.grade)))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gradeMult(gcfg, s.grade)))}`),
             el('div', { class: 'muted' }, 'Sell or scrap at Kedai Pajak Untung (next to Kedai Runcit).'),
             actions,
@@ -214,7 +216,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
   };
 
   const render = () => (tab === 0 ? renderItems() : renderIndex());
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }

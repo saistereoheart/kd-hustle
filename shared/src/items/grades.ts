@@ -19,6 +19,8 @@ export const gradesConfigSchema = z.object({
     /** Chefs are stronger: their base buff by rarity (stall prices AND how fast your cooks work). */
     chefByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
     variantMult: z.record(z.string(), z.number().positive()),
+    /** Each chef's strengths: how much of their buff goes to each stall stat (missing = even). */
+    chefProfiles: z.record(z.string(), z.object({ speed: z.number().nonnegative(), flavour: z.number().nonnegative(), charm: z.number().nonnegative() })).default({}),
   }),
   shards: z.object({ rerollGrade: z.record(z.string(), z.number().int().positive()), rerollVariant: z.record(z.string(), z.number().int().positive()) }),
 });
@@ -67,10 +69,31 @@ export function gearBuff(cfg: GradesConfig, item: { type: string; rarity: string
   return { stat, value: base * gradeMult(cfg, item.grade) * (cfg.buffs.variantMult[item.variant] ?? 1) };
 }
 
-/** All equipped items' buffs added up per stat. */
+export const CHEF_STATS = ['speed', 'flavour', 'charm'] as const;
+export type ChefStat = (typeof CHEF_STATS)[number];
+export type ChefStats = Record<ChefStat, number>;
+export const CHEF_STAT_INFO: Record<ChefStat, { icon: string; name: string; does: string }> = {
+  speed: { icon: '🔥', name: 'Speed', does: 'cooks work faster' },
+  flavour: { icon: '😋', name: 'Flavour', does: 'higher dish prices' },
+  charm: { icon: '😊', name: 'Charm', does: 'more customers' },
+};
+const EVEN_PROFILE: ChefStats = { speed: 0.8, flavour: 0.8, charm: 0.4 };
+
+/**
+ * A head chef's stats (0.12 = +12%): their rarity's base buff × tier × variant, split by their
+ * profile (what they're good at), then × (1 + Chef Academy skill).
+ */
+export function chefStats(cfg: GradesConfig, chef: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): ChefStats {
+  const base = (cfg.buffs.chefByRarity[chef.rarity] ?? 0) * gradeMult(cfg, chef.grade) * (cfg.buffs.variantMult[chef.variant] ?? 1) * (1 + boost);
+  const prof = cfg.buffs.chefProfiles[chef.id] ?? EVEN_PROFILE;
+  return { speed: base * prof.speed, flavour: base * prof.flavour, charm: base * prof.charm };
+}
+
+/** All equipped items' buffs added up per stat (the head chef is handled by chefStats). */
 export function gearBonuses(cfg: GradesConfig, items: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }>): Partial<Record<GearStat, number>> {
   const out: Partial<Record<GearStat, number>> = {};
   for (const it of items) {
+    if (it.type === 'chef') continue;
     const b = gearBuff(cfg, it);
     if (b) out[b.stat] = (out[b.stat] ?? 0) + b.value;
   }

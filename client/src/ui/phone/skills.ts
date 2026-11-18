@@ -31,6 +31,7 @@ export function effectText(def: SkillDef, level: number): string {
     case 'airbnbIncome': return `+${pct} Airbnb pay`;
     case 'cleanLoss': return `−${pct} mess per guest`;
     case 'tenantAppeal': return `+${pct} fair rent & nightly rate`;
+    case 'chefBoost': return `+${pct} head chef stats`;
   }
 }
 

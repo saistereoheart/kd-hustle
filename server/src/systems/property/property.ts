@@ -289,8 +289,16 @@ export class PropertySystem {
   setPrices(p: OnlinePlayer, unitId: string, rentSen?: number, nightSen?: number) {
     const s = this.mine(p, unitId);
     const t = this.cfg.properties.types[s.type];
-    if (rentSen !== undefined) s.rentSen = Math.max(100, Math.min(rentSen, t.rentPerDaySen * 5));
-    if (nightSen !== undefined) s.nightSen = Math.max(100, Math.min(nightSen, t.nightBaseSen * 5));
+    // Up to 3× the fair price (never below 5× the type's base): a typo can't scare every tenant
+    // away for good, and anything out of range is refused (not quietly changed).
+    const stars = this.ratingOf(s).stars;
+    const check = (v: number, fair: number, base: number, what: string) => {
+      const max = Math.max(base * 5, fair * 3);
+      if (!Number.isFinite(v) || v < 100 || v > max) throw new GameError(`${what} has to be between ${formatMoney(100)} and ${formatMoney(max)}.`);
+      return Math.round(v);
+    };
+    if (rentSen !== undefined) s.rentSen = check(rentSen, this.fairRent(p, s, stars), t.rentPerDaySen, 'Rent');
+    if (nightSen !== undefined) s.nightSen = check(nightSen, this.fairNight(p, s, stars), t.nightBaseSen, 'The nightly price');
     this.save(s);
     this.hooks.selfChanged(p);
   }

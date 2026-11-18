@@ -119,7 +119,7 @@ export const SKILL_EFFECTS = [
   'luck', 'variantChance', 'pity', 'potionDuration', 'unlock', 'rollSpeed',
   'manifestRate', 'passiveIncome', 'jobPay', 'carwashSeconds', 'xp', 'walkSpeed',
   'dishPrice', 'customers', 'wages',
-  'rentIncome', 'airbnbIncome', 'cleanLoss', 'tenantAppeal',
+  'rentIncome', 'airbnbIncome', 'cleanLoss', 'tenantAppeal', 'chefBoost',
 ] as const;
 export type SkillEffect = (typeof SKILL_EFFECTS)[number];
 

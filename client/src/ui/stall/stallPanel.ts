@@ -2,7 +2,7 @@
 // or a free spot. Cooking itself is ./cook.ts; the result card is here.
 import { formatMoney, formatMoneyExact, gameTime, menuRecipes, rushHour, stallOpenNow, stockCount, tierDef, type DishState, type ServeResult } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast, uiRoot } from '../dom';
+import { el, toast, uiRoot, keepUiState } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 import { playDish, type CookStock } from './cook';
@@ -149,7 +149,7 @@ export function openStallPanel(app: App, plotId: string) {
     for (const b of bars) paintBar(b.fill, b.serving ? 1 : Math.max(0, 1 - (now - b.arrivedAt) / b.patienceMs));
     render(); // cheap: returns early unless something changed
   };
-  const off = app.store.on(() => render());
+  const off = app.store.on(() => keepUiState(panel.body, () => render()));
   const timer = window.setInterval(tickBars, 500);
   panel.onClose = () => {
     off();

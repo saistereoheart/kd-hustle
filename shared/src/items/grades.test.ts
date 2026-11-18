@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import gradesJson from '../../config/grades.json';
-import { bestVariant, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
+import { bestVariant, chefStats, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
 
 const cfg = gradesConfigSchema.parse(gradesJson);
 let seed = 11;
@@ -58,5 +58,20 @@ describe('gear buffs', () => {
   it('a merged item keeps the best variant of its inputs', () => {
     const order = ['normal', 'shiny', 'golden', 'rainbow'];
     expect(bestVariant(order, ['normal', 'normal', 'golden', 'shiny', 'normal'])).toBe('golden');
+  });
+});
+
+describe('head chef stats', () => {
+  it('split the rarity buff by the chef profile, × tier × variant × (1 + Chef Academy)', () => {
+    const base = cfg.buffs.chefByRarity.common;
+    const p = cfg.buffs.chefProfiles.chef_mak_senah;
+    const s = chefStats(cfg, { id: 'chef_mak_senah', rarity: 'common', grade: 'D', variant: 'normal' });
+    expect(s.speed).toBeCloseTo(base * p.speed);
+    expect(s.flavour).toBeCloseTo(base * p.flavour);
+    const boosted = chefStats(cfg, { id: 'chef_mak_senah', rarity: 'common', grade: 'S', variant: 'golden' }, 0.5);
+    expect(boosted.charm).toBeCloseTo(base * p.charm * gradeMult(cfg, 'S') * cfg.buffs.variantMult.golden * 1.5);
+  });
+  it('chefs are not counted twice as plain gear', () => {
+    expect(gearBonuses(cfg, [{ type: 'chef', rarity: 'epic', variant: 'normal' }])).toEqual({});
   });
 });

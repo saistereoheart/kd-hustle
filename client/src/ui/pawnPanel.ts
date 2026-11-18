@@ -1,7 +1,7 @@
 // Kedai Pajak Untung: sell items for RM, scrap them into shards, or buy specific items with shards.
 import { formatMoney, isCollectible, pawnPriceSen, scrapShards, gradeDef, gradeMult } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast } from './dom';
+import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
 import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
@@ -104,7 +104,7 @@ export function openPawnPanel(app: App) {
   };
 
   const render = () => (tab === 0 ? renderStacks('sell') : tab === 1 ? renderStacks('scrap') : renderShop());
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }

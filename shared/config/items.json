@@ -896,7 +896,7 @@
       "shape": "bun",
       "color": "#e64980",
       "color2": "#c68642",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_pak_hamid",
@@ -906,7 +906,7 @@
       "shape": "moustache",
       "color": "#1c7ed6",
       "color2": "#8d5524",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_abang_jaya",
@@ -916,7 +916,7 @@
       "shape": "plain",
       "color": "#2f9e44",
       "color2": "#a0522d",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_kak_ros",
@@ -926,7 +926,7 @@
       "shape": "glasses",
       "color": "#ae3ec9",
       "color2": "#e0ac69",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_ah_lim",
@@ -936,7 +936,7 @@
       "shape": "glasses",
       "color": "#f59f00",
       "color2": "#f1c27d",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_auntie_wong",
@@ -946,7 +946,7 @@
       "shape": "bun",
       "color": "#e03131",
       "color2": "#ffdbac",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_tuan_rashid",
@@ -956,7 +956,7 @@
       "shape": "beard",
       "color": "#0b7285",
       "color2": "#8d5524",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_master_raju",
@@ -966,7 +966,7 @@
       "shape": "moustache",
       "color": "#d9480f",
       "color2": "#6b4226",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_sambal_sultan",
@@ -976,7 +976,7 @@
       "shape": "beard",
       "color": "#c92a2a",
       "color2": "#a0522d",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "chef_grandmaster_teh",
@@ -986,7 +986,7 @@
       "shape": "glasses",
       "color": "#ffd43b",
       "color2": "#ffdbac",
-      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+      "desc": "Your stall's head chef (Bag → Chefs, or 📱 Business → Head chef). Each chef has Speed, Flavour and Charm; Chef Academy boosts them."
     },
     {
       "id": "strand_token",

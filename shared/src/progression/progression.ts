@@ -1,4 +1,4 @@
-import { gearBonuses, gradeMult, type GradesConfig } from '../items/grades';
+import { chefStats, gearBonuses, gradeMult, type ChefStats, type GradesConfig } from '../items/grades';
 // Progression maths (Phase 3), shared by the server (which owns the real numbers) and the client
 // (which shows progress bars, live odds and the next goal). Pure functions only.
 //
@@ -101,12 +101,12 @@ export function gearOf(
   cfg: Pick<ProgCfg, 'itemById'>,
   equipped: Partial<Record<string, number>>,
   inventory: ReadonlyArray<{ iid: number; itemId: string; variant: string; grade?: string }>,
-): Array<{ type: string; rarity: string; grade?: string; variant: string }> {
-  const out: Array<{ type: string; rarity: string; grade?: string; variant: string }> = [];
+): Array<{ id: string; type: string; rarity: string; grade?: string; variant: string }> {
+  const out: Array<{ id: string; type: string; rarity: string; grade?: string; variant: string }> = [];
   for (const iid of Object.values(equipped)) {
     const inst = inventory.find((i) => i.iid === iid);
     const def = inst && cfg.itemById.get(inst.itemId);
-    if (inst && def) out.push({ type: def.type, rarity: def.rarity, grade: inst.grade, variant: inst.variant });
+    if (inst && def) out.push({ id: def.id, type: def.type, rarity: def.rarity, grade: inst.grade, variant: inst.variant });
   }
   return out;
 }
@@ -189,6 +189,8 @@ export interface Mods {
   autoRoll: boolean;
   /** Stall bonuses (Business skills + Customer Rush / Speed Tonic). */
   stall: { dishPrice: number; customers: number; wages: number; customerBuff: number; staffSpeedBuff: number };
+  /** Your head chef and their stats (after Chef Academy), or null. */
+  chef: { id: string; stats: ChefStats; boost: number } | null;
   /** Property skills (Passive Income counts for rent and Airbnb too). All multipliers. */
   property: { rent: number; airbnb: number; cleanLoss: number; appeal: number };
 }
@@ -200,7 +202,7 @@ export function combineMults(sources: Array<{ type: string; mult: number }>): nu
 
 export function computeMods(
   cfg: Pick<ProgCfg, 'upgrades' | 'titles' | 'rarities'> & Partial<Pick<ProgCfg, 'grades'>>,
-  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff>; gear?: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }>; rebirth?: { luck: number; income: number } },
+  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff>; gear?: ReadonlyArray<{ id?: string; type: string; rarity: string; grade?: string; variant: string }>; rebirth?: { luck: number; income: number } },
 ): Mods {
   // Equipped items: each slot boosts one stat (rarity × tier × variant).
   const gear = cfg.grades && state.gear ? gearBonuses(cfg.grades, state.gear) : {};
@@ -225,6 +227,9 @@ export function computeMods(
   if (rb.luck > 1) luckSources.push({ type: 'rebirth', mult: rb.luck, label: 'Rebirth: Born Lucky' });
 
   const passive = mult('passiveIncome', 'passive', undefined, gear.passive) * rb.income;
+  const chefItem = cfg.grades && state.gear?.find((g) => g.type === 'chef' && g.id);
+  const chefBoost = sv('chefBoost');
+  const chef = chefItem && cfg.grades ? { id: chefItem.id!, stats: chefStats(cfg.grades, { id: chefItem.id!, rarity: chefItem.rarity, grade: chefItem.grade, variant: chefItem.variant }, chefBoost), boost: chefBoost } : null;
   return {
     luck: totalLuck(luckSources, cfg.rarities.maxLuck),
     luckSources,
@@ -240,12 +245,13 @@ export function computeMods(
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
     stall: {
       // Your chef: + stall prices and faster cooks.
-      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (gear.chef ?? 0) + (rb.income - 1),
-      customers: sv('customers'),
+      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0) + (rb.income - 1),
+      customers: sv('customers') + (chef?.stats.charm ?? 0),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
-      staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1) * (1 + (gear.chef ?? 0)),
+      staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1) * (1 + (chef?.stats.speed ?? 0)),
     },
+    chef,
     property: {
       rent: (1 + sv('rentIncome')) * passive,
       airbnb: (1 + sv('airbnbIncome')) * passive,

@@ -1,7 +1,7 @@
 // Jobs Board, the delivery objective HUD and the car wash mini-game.
 import { formatMoney, type JobState } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast, uiRoot } from './dom';
+import { el, toast, uiRoot, keepUiState } from './dom';
 import { closePanel, openPanel } from './panel';
 import { sfx } from './sound';
 
@@ -58,7 +58,7 @@ export function openJobsPanel(app: App, opts: { remote?: boolean } = {}) {
       ...(cancel ? [cancel] : []),
     );
   };
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }
@@ -72,7 +72,7 @@ export function openCarwashPanel(app: App) {
       el('p', { class: 'hint' }, 'Spotless and fast pays best. Under 30% clean pays nothing.'),
     );
   };
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }

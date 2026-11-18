@@ -71,6 +71,18 @@
       "mythic": 0.4,
       "divine": 0.55,
       "secret": 0.75
+    },
+    "chefProfiles": {
+      "chef_mak_senah": { "speed": 1.2, "flavour": 0.6, "charm": 0.4 },
+      "chef_pak_hamid": { "speed": 0.5, "flavour": 1.2, "charm": 0.5 },
+      "chef_abang_jaya": { "speed": 0.7, "flavour": 0.3, "charm": 1.2 },
+      "chef_kak_ros": { "speed": 0.4, "flavour": 1.0, "charm": 0.8 },
+      "chef_ah_lim": { "speed": 1.4, "flavour": 0.6, "charm": 0.2 },
+      "chef_auntie_wong": { "speed": 0.4, "flavour": 1.3, "charm": 0.5 },
+      "chef_tuan_rashid": { "speed": 0.5, "flavour": 0.9, "charm": 1.0 },
+      "chef_master_raju": { "speed": 1.0, "flavour": 1.0, "charm": 0.4 },
+      "chef_sambal_sultan": { "speed": 0.5, "flavour": 1.5, "charm": 0.6 },
+      "chef_grandmaster_teh": { "speed": 1.0, "flavour": 1.0, "charm": 0.8 }
     }
   },
   "shards": {

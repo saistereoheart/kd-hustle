@@ -1,7 +1,7 @@
 // At a home's door: the units in this building, who owns them, prices, and Buy / Go in.
 import { formatMoney, type BuiltBuilding } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast } from '../dom';
+import { el, toast, keepUiState } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 
@@ -55,7 +55,7 @@ export function openPropertyPanel(app: App, b: BuiltBuilding) {
       el('div', { class: 'prop-units' }, ...rows),
     );
   };
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }

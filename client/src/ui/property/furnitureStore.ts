@@ -2,7 +2,7 @@
 // each shows its stats (comfort, style, theme, essential/amenity) so you can plan a room.
 import { formatMoney } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast } from '../dom';
+import { el, toast, keepUiState } from '../dom';
 import { itemCard, openPanel, tabs } from '../panel';
 import { sfx } from '../sound';
 
@@ -50,7 +50,7 @@ export function openFurnitureStore(app: App) {
     render();
   });
   panel.body.replaceChildren(el('p', { class: 'muted' }, 'Essentials (bed, toilet, shower, kitchen, aircond, wifi) unlock good ratings. Matching themes and rare pieces from the Mall Mystery Box push you towards 5★.'), t, grid);
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
 }
