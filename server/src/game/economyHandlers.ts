@@ -739,7 +739,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         const st = stalls.offline(p, awayMs, o.capHours, o.efficiency);
         const tier = st && stalls.get(p.id) ? cfg.stalls.tiers.find((t) => t.tier === stalls.get(p.id)!.s.tier) : undefined;
         if (st && (st.sen || st.dishes)) {
-          extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.spoiled ? ` · ${st.spoiled} portions went off` : ''}` });
+          extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.soldOut ? ' · ⚠️ SOLD OUT: restock in 📱 → Business, or no customers will come' : ''}` });
         }
         extra.push(...ventures.offline(p, awayMs));
       }

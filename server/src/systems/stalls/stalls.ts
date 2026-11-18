@@ -141,9 +141,10 @@ export class StallSystem {
    * the server was down). If they left the stall open with cooks, replay that time an in-game
    * hour at a time: customers come at the usual rate for that hour (rush, quiet hours…), the
    * cooks serve as many as they can and stock allows, at the offline rate, minus their wages.
+   * Stock is used up but doesn't go off (it only ages during play time).
    * Capped at `capHours`. Returns null if the stall was closed or had no cooks.
    */
-  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): { sen: number; dishes: number; wagesSen: number; spoiled: number } | null {
+  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): { sen: number; dishes: number; wagesSen: number; soldOut: boolean } | null {
     const l = this.stalls.get(p.id);
     if (!l || !l.s.open || l.s.staff <= 0 || awayMs < 60_000) return null;
     const st = this.cfg.stalls;
@@ -152,7 +153,7 @@ export class StallSystem {
     const span = Math.min(awayMs, capHours * 3_600_000);
     const stepMs = 60 * this.cfg.time.realMsPerGameMinute; // one in-game hour
     const cookMs = staffCookMs(st, l.s, b);
-    let pay = 0, wages = 0, dishes = 0, spoiled = 0, carry = 0, rr = 0;
+    let pay = 0, wages = 0, dishes = 0, carry = 0, rr = 0;
     for (let t = now - span; t < now; t += stepMs) {
       const len = Math.min(stepMs, now - t);
       const menu = menuRecipes(st, this.cfg.recipes.recipes, l.s).filter((r) => stockCount(l.s, r.id) > 0);
@@ -176,7 +177,7 @@ export class StallSystem {
       dishes += served;
       if (l.s.rep < st.reputation.staffRepCap) l.s.rep = Math.min(st.reputation.staffRepCap, l.s.rep + st.reputation.perStaffDish * served);
       wages += (wagePerHourSen(st, l.s.tier, b) * l.s.staff * len) / stepMs;
-      spoiled += ageStock(st, l.s, len / this.cfg.time.realMsPerGameMinute);
+      // Stock doesn't age while you're away (like online, it only ages during play time).
     }
     const income = Math.round(pay * efficiency);
     const wagesSen = Math.round(wages * efficiency);
@@ -190,7 +191,8 @@ export class StallSystem {
     if (income > 0) this.prog.bump(p, 'stallEarnSen', income);
     this.save(l);
     this.touch(l);
-    return { sen: net, dishes, wagesSen, spoiled };
+    const soldOut = !menuRecipes(st, this.cfg.recipes.recipes, l.s).some((r) => stockCount(l.s, r.id) > 0);
+    return { sen: net, dishes, wagesSen, soldOut };
   }
 
   all(): StallPublic[] {

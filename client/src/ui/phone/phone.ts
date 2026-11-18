@@ -1,7 +1,7 @@
 // 📱 The HustlePhone (spec §16): a smartphone UI with apps. P or Tab opens it. On a phone it
 // fills the screen; on a PC it's a phone-shaped window. Apps render inside the phone screen; the
 // Bag, Index, Map and Settings open their own (bigger) windows.
-import { questProgress } from '@kh/shared';
+import { menuRecipes, questProgress, stockCount } from '@kh/shared';
 import type { App } from '../../app';
 import { openInventoryPanel } from '../inventoryPanel';
 import { el } from '../dom';
@@ -83,7 +83,11 @@ const APPS: PhoneApp[] = [
   },
   {
     id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
-    badge: (app) => (app.store.stall && Object.values(app.store.stall.stock).every((b) => !b.reduce((a, x) => a + x.qty, 0)) ? '!' : null),
+    // Nothing on the menu in stock = no customers.
+    badge: (app) => {
+      const st = app.store.stall;
+      return st && !menuRecipes(app.cfg.stalls, app.cfg.recipes.recipes, st).some((r) => stockCount(st, r.id) > 0) ? '!' : null;
+    },
   },
   {
     id: 'ventures', name: 'Ventures', icon: '🏢', color: '#5c940d', render: renderVentures,

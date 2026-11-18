@@ -298,13 +298,19 @@ describe('staff', () => {
     s.setNow(s.now() + 2 * 3_600_000);
     s.world.add(s.p);
     const stock0 = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak');
+    const addons0 = cfg.recipeById.get('nasi_lemak')!.addons.map((a) => ({ id: a.id, n: stockCount(s.stalls.selfOf(s.p)!, a.id) })).filter((a) => a.n > 0);
+    expect(addons0.length).toBeGreaterThan(0);
     const w = s.p.walletSen;
     const r = s.stalls.offline(s.p, 2 * 3_600_000, cfg.economy.offline.capHours, cfg.economy.offline.efficiency)!;
     expect(r.dishes).toBeGreaterThan(20);
     expect(r.sen).toBeGreaterThan(0);
     expect(r.wagesSen).toBeGreaterThan(0);
     expect(s.p.walletSen - w).toBe(r.sen);
-    expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBe(stock0 - r.dishes);
+    const left = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak');
+    expect(left).toBe(stock0 - r.dishes); // only what was sold
+    expect(r.soldOut).toBe(left === 0);
+    // Add-ons nobody ordered offline are untouched: nothing goes off while you're away.
+    for (const a of addons0) expect(stockCount(s.stalls.selfOf(s.p)!, a.id)).toBe(a.n);
     // Closed (switched off): stays closed, nothing earned.
     s.stalls.setOpen(s.p, false);
     expect(s.stalls.offline(s.p, 3_600_000, 8, 0.5)).toBeNull();
