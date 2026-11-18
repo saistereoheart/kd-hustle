@@ -31,6 +31,24 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 
 ---
 
+## Your next list (noted 2026-11-18, not started)
+1. **Teh tarik custom orders:**
+   - Pick the cup type first (hot or iced).
+   - The order includes the ice level (less / regular / more), spoons of condensed milk, and the milk type (an
+     add-on with its own stock).
+   - Then brewed tea, then condensed or regular milk. Teh O (no milk) is an option.
+   - Hot drinks get a **tarik** step: pull the kole up and down, following a moving green indicator, for Perfect.
+2. **Stall level** (raises prices); **open the stall manually any time**; **staff level** (tips/bonus % and speed);
+   cheaper upgrades, with each step worth buying.
+3. **Phone button:** a big highlighted image at the bottom left, labelled "Phone (P)"; simpler icons inside; quick
+   rolls inside.
+4. **Chef gacha:** roll your chef, with a tier and a variation buff (like shiny items).
+5. **Items get tiny buffs by tier**, with a multiplier for their variation.
+6. **Stall stock display:** no stock sign over stalls outside the stall view. Instead, big logos down the side of
+   the screen with "x 200" counts and no label; hovering one stretches it to show the full name.
+
+---
+
 ## Phase 5.3: teh tarik & roti canai redrawn, orders in tray order
 
 ### How to test it
