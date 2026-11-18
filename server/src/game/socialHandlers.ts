@@ -7,6 +7,8 @@ import type { ServerConfig } from '../config/loadConfig';
 import type { Repos } from '../db/repos';
 import type { Economy } from '../systems/economy/economy';
 import { TradeSystem } from '../systems/trade/trade';
+import { CoinflipSystem } from '../systems/coinflip/coinflip';
+import { cryptoRand } from '../systems/gacha/gacha';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
 
@@ -27,6 +29,7 @@ export interface SocialDeps {
   bestAirbnb: (p: OnlinePlayer) => number;
   cosmeticsChanged: (p: OnlinePlayer) => void;
   check: (p: OnlinePlayer) => void;
+  announce: (text: string) => void;
 }
 
 interface Stored {
@@ -45,6 +48,15 @@ export function createSocial(d: SocialDeps) {
     removed: (p, iids) => iids.length && d.socketOf(p)?.emit('inv:removed', { iids }),
     lockedIids: (p) => d.lockedIids(p),
     cosmeticsChanged: (p) => d.cosmeticsChanged(p),
+    check: (p) => d.check(p),
+  });
+
+  const coinflip = new CoinflipSystem(d.cfg.casino, d.econ, d.world, cryptoRand, {
+    challenge: (to, from, sen) => d.socketOf(to)?.emit('coinflip:challenge', { from: from.id, name: from.name, sen }),
+    result: (p, r) => d.socketOf(p)?.emit('coinflip:result', r),
+    notice: (p, text, kind) => d.socketOf(p)?.emit('notice', { text, kind }),
+    wallet: (p, delta, reason) => d.pushWallet(p, delta, reason),
+    announce: (t) => d.announce(t),
     check: (p) => d.check(p),
   });
 
@@ -105,6 +117,8 @@ export function createSocial(d: SocialDeps) {
     handle(socket, 'trade:cancel', null, () => (trade.cancel(me), {}));
     handle(socket, 'gift:send', C2S.gift, ({ to, sen, items }) => (trade.gift(me, to, sen, items), {}));
     handle(socket, 'board:view', null, () => ({ entries: boards() }));
+    handle(socket, 'coinflip:challenge', C2S.coinflip, ({ to, sen }) => (coinflip.challenge(me, to, sen), {}));
+    handle(socket, 'coinflip:respond', C2S.tradeRespond, ({ from, accept }) => (coinflip.respond(me, from, accept), {}));
   }
 
   return {
@@ -113,6 +127,7 @@ export function createSocial(d: SocialDeps) {
     snapshot,
     leave: (p: OnlinePlayer) => {
       trade.leave(p);
+      coinflip.leave(p);
       snapshot(p);
     },
     stop: () => clearInterval(timer),

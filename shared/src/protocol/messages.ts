@@ -40,6 +40,7 @@ export const C2S = {
   playerId: z.object({ to: z.number().int().positive() }),
   tradeRespond: z.object({ from: z.number().int().positive(), accept: z.boolean() }),
   tradeOffer: z.object({ items: z.array(z.number().int().positive()).max(30), sen: z.number().int().min(0).max(1e15) }),
+  coinflip: z.object({ to: z.number().int().positive(), sen: z.number().int().positive().max(1e15) }),
   gift: z.object({ to: z.number().int().positive(), sen: z.number().int().min(0).max(1e15), items: z.array(z.number().int().positive()).max(30) }),
   // --- the shared radio ---
   musicGenre: z.object({ genre: z.string().min(1).max(64) }),
@@ -537,6 +538,8 @@ export interface ClientToServerEvents {
   'trade:confirm': (ack: Ack<SimpleResult>) => void;
   'trade:cancel': (ack: Ack<SimpleResult>) => void;
   'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
+  'coinflip:challenge': (msg: { to: number; sen: number }, ack: Ack<SimpleResult>) => void;
+  'coinflip:respond': (msg: { from: number; accept: boolean }, ack: Ack<SimpleResult>) => void;
   'board:view': (ack: Ack<Result<{ entries: BoardEntry[] }>>) => void;
   'event:view': (ack: Ack<Result<{ event: ActiveEvent | null }>>) => void;
   // --- the shared radio ---
@@ -607,6 +610,10 @@ export interface ServerToClientEvents {
   'ventures:self': (p: { ventures: Ventures }) => void;
   /** A server event started or ended (null = none running). */
   event: (p: { event: ActiveEvent | null }) => void;
+  /** Someone challenged you to a coinflip. */
+  'coinflip:challenge': (p: { from: number; name: string; sen: number }) => void;
+  /** A coinflip you were in: who won. */
+  'coinflip:result': (p: { a: string; b: string; winner: string; side: 'heads' | 'tails'; sen: number; wonSen: number }) => void;
   /** Someone wants to trade with you. */
   'trade:request': (p: { from: number; name: string }) => void;
   /** Your trade window (null = closed). `done` when the swap went through. */

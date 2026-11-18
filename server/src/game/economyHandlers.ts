@@ -272,6 +272,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (econ.refreshCosmetics(p)) broadcastCosmetics(p);
     },
     check: (p) => prog.check(p),
+    announce: (text) => {
+      repos.announcements.add(text, 'legendary');
+      io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+    },
   });
   // --- the shared radio ---------------------------------------------------------------------
   const radio = createMusic({ cfg, io, world });

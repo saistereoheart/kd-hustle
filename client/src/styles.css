@@ -1003,3 +1003,10 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 .board-online { color: #69db7c; }
 .event-banner { position: absolute; top: calc(48px + var(--safe-t, 0px)); left: 50%; transform: translateX(-50%); z-index: 6; border: 2px solid #ffd43b; border-radius: 999px; padding: 5px 14px; background: linear-gradient(90deg, #e8590c, #f08c00); color: #fff; font: 900 13px system-ui, sans-serif; box-shadow: 0 0 16px rgba(255, 212, 59, 0.6); cursor: pointer; animation: phone-glow 2s infinite; }
 .event-banner.hidden { display: none; }
+.coin { position: relative; width: 110px; height: 110px; margin: 14px auto; transform-style: preserve-3d; }
+.coin-face { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; font: 900 44px system-ui, sans-serif; color: #5c3a00; background: radial-gradient(circle at 35% 30%, #fff3bf, #fab005 60%, #e67700); border: 5px solid #f08c00; backface-visibility: hidden; }
+.coin-face.tails { transform: rotateY(180deg); }
+.coin.spin-heads { animation: coin-heads 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+.coin.spin-tails { animation: coin-tails 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+@keyframes coin-heads { from { transform: rotateY(0); } to { transform: rotateY(1800deg); } }
+@keyframes coin-tails { from { transform: rotateY(0); } to { transform: rotateY(1980deg); } }

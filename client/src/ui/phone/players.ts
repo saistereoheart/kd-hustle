@@ -61,6 +61,11 @@ export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
       if (!confirm(`Give ${formatMoney(sen)} to ${p.name}? You can't undo this.`)) return;
       app.socket?.timeout(5000).emit('gift:send', { to: p.id, sen, items: [] }, ack());
     });
+    const flip = el('button', { class: 'btn small', type: 'button', 'data-action': `coinflip-${p.id}` }, '🪙 Coinflip');
+    flip.addEventListener('click', () => {
+      const v = Number(prompt(`Coinflip ${p.name}: how much RM each? Winner takes the pot (minus 2%).`, '10'));
+      if (v > 0) app.socket?.timeout(5000).emit('coinflip:challenge', { to: p.id, sen: Math.round(v * 100) }, ack());
+    });
     const item = el('button', { class: 'btn small', type: 'button', 'data-action': `giftitem-${p.id}` }, '🎁 Item');
     item.addEventListener('click', () => {
       giftTo = { id: p.id, name: p.name };
@@ -70,7 +75,7 @@ export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
       'div',
       { class: 'job-card', 'data-player': String(p.id) },
       el('div', { class: 'job-icon' }, '👤'),
-      el('div', { class: 'job-info' }, el('h4', {}, p.name, el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, money, item)),
+      el('div', { class: 'job-info' }, el('h4', {}, p.name, el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, flip, money, item)),
     );
   });
 }

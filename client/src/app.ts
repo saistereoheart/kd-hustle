@@ -51,6 +51,7 @@ import { PhoneButton } from './ui/phoneButton';
 import { Radio } from './ui/radio';
 import { EventBanner } from './ui/eventBanner';
 import { showTrade, showTradeRequest } from './ui/trade';
+import { showCoinflipChallenge, showCoinflipResult } from './ui/coinflip';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
 import { HomeScene } from './world/homeScene';
@@ -447,6 +448,8 @@ export class App {
     });
     socket.on('inv:removed', ({ iids }) => this.store.removeItems(iids));
     socket.on('trade:request', ({ from, name }) => showTradeRequest(this, from, name));
+    socket.on('coinflip:challenge', ({ from, name, sen }) => showCoinflipChallenge(this, from, name, sen));
+    socket.on('coinflip:result', (r) => showCoinflipResult(this, r));
     socket.on('trade', ({ trade, done, reason }) => {
       this.store.trade = trade;
       showTrade(this, trade);
