@@ -14,8 +14,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
 income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
 Online). Plus the shared radio.
-**Phase 8 (end game and polish): in progress.** 8a (the higher crates, rebirth + the Rebirth Shop) and 8b (admin
-commands, the debug overlay) are done.
+**Phase 8 (end game and polish): in progress.** Done: 8a (the higher crates, rebirth + the Rebirth Shop), 8b (admin
+commands, the debug overlay), part of 8c (titles, businesses, property types). Still open: see "Phase 8: what's left".
 
 | Check | Result |
 |---|---|
@@ -33,6 +33,27 @@ commands, the debug overlay) are done.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 8: what's left
+
+Compared with the spec's content checklist (§19):
+
+| | Now | Spec |
+|---|---|---|
+| Gacha items | 158 (6 Divine, 2 Secret) | 150+ ✅ |
+| Titles | 43 | 40+ ✅ |
+| Casino games | 7 | 7 ✅ |
+| Business types | 10 idle + shop + Butik + 3 stall tiers | 14 ✅ |
+| Property types | 11 | 12 |
+| Recipes | 3 | 6 |
+| Starter jobs | 2 | 4 |
+| Furniture | 42 | 80+ |
+
+- **Recipes, jobs and furniture** need new cooking steps / mini-games / drawings each, so they're worth designing
+  together: which dishes (mee goreng mamak? satay? cendol?), which jobs (flyers? mamak part-timer?).
+- **The balance simulator** still models the jobs-only path (stage 3 in ~9.5 h with jobs alone, target ~2 h; stalls,
+  homes and businesses get players there faster but aren't simulated yet).
+- **Polish passes** from the spec: sound, juice, mobile performance (texture atlases), a final bug sweep.
 
 ## Phase 8b: admin tools
 
