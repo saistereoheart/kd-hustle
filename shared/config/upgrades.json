@@ -80,7 +80,7 @@
     },
     "passive_income": {
       "branch": "fortune", "name": "Passive Income", "icon": "📈",
-      "desc": "+5% passive income per level: Manifesting, rent and Airbnb (businesses later).",
+      "desc": "+5% passive income per level: Manifesting, rent, Airbnb and businesses.",
       "maxLevel": 20, "baseCostSen": 40000, "costGrowth": 1.5,
       "effect": { "kind": "passiveIncome", "perLevel": 0.05 },
       "requires": { "level": 2 }

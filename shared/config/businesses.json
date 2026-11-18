@@ -1,0 +1,41 @@
+{
+  "costGrowth": 1.13,
+  "milestones": [10, 25, 50, 100, 200],
+  "milestoneSpeedMult": 2,
+  "managerCostMult": 4,
+  "storedCyclesWithoutManager": 1,
+  "taxRate": 0.05,
+  "rush": { "mult": 3, "durationMs": 20000, "cooldownMs": 180000, "taps": 12, "windowMs": 6000 },
+  "types": [
+    { "id": "carwash", "name": "Buih Car Wash", "icon": "🚿", "requires": { "stage": 3 }, "baseCostSen": 1500000, "cycleSec": 3, "revenueSen": 200, "rushName": "Scrub!" },
+    { "id": "dobi", "name": "Dobi Wangi", "icon": "🧺", "requires": { "stage": 3 }, "baseCostSen": 6000000, "cycleSec": 6, "revenueSen": 1200, "rushName": "Fold fast!" },
+    { "id": "bubbletea", "name": "Boba Bunga", "icon": "🧋", "requires": { "stage": 4 }, "baseCostSen": 25000000, "cycleSec": 10, "revenueSen": 6000, "rushName": "Shake to order!" },
+    { "id": "tuition", "name": "Pusat Tuisyen Cemerlang", "icon": "📚", "requires": { "stage": 4 }, "baseCostSen": 100000000, "cycleSec": 20, "revenueSen": 30000, "rushName": "Exam season!" },
+    { "id": "gym", "name": "Otot Gym", "icon": "🏋️", "requires": { "stage": 5 }, "baseCostSen": 500000000, "cycleSec": 40, "revenueSen": 200000, "rushName": "New year resolutions!" },
+    { "id": "hotel", "name": "Hotel Damansara Inn", "icon": "🏨", "requires": { "stage": 5 }, "baseCostSen": 2500000000, "cycleSec": 80, "revenueSen": 1200000, "rushName": "Assign rooms!" },
+    { "id": "supermarket", "name": "Pasaraya Rakyat", "icon": "🛒", "requires": { "stage": 6 }, "baseCostSen": 12000000000, "cycleSec": 160, "revenueSen": 7000000, "rushName": "Mega sale!" },
+    { "id": "mall", "name": "KD Mega Mall", "icon": "🏬", "requires": { "stage": 6 }, "baseCostSen": 60000000000, "cycleSec": 320, "revenueSen": 40000000, "rushName": "Grand opening!" }
+  ],
+  "retail": {
+    "name": "Kedai Runcit",
+    "icon": "🏪",
+    "requires": { "stage": 3 },
+    "openSen": 3000000,
+    "products": [
+      { "id": "maggi", "name": "Instant noodles", "icon": "🍜", "costSen": 120, "marketSen": 200 },
+      { "id": "milo", "name": "Chocolate malt tin", "icon": "🥫", "costSen": 900, "marketSen": 1500 },
+      { "id": "rice", "name": "Rice 5 kg", "icon": "🍚", "costSen": 1300, "marketSen": 2000 },
+      { "id": "eggs", "name": "Eggs (30)", "icon": "🥚", "costSen": 1000, "marketSen": 1500 },
+      { "id": "sardine", "name": "Sardine can", "icon": "🐟", "costSen": 350, "marketSen": 600 },
+      { "id": "kuih", "name": "Kuih box", "icon": "🍡", "costSen": 400, "marketSen": 800 }
+    ],
+    "customersPerMin": 6,
+    "elasticity": 2.2,
+    "itemsPerCustomer": [1, 4],
+    "cashierBonus": 0.5,
+    "cashierMinMs": 2500,
+    "cashierMaxMs": 15000,
+    "maxStockPerProduct": 300,
+    "cashierWagePerDaySen": 50000
+  }
+}

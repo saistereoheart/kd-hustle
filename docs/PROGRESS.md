@@ -11,8 +11,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
-**Phase 6 (shops, businesses, loans): started, parked.** The half-done code is in `git stash` ("WIP Phase 6"), not in
-the working tree, so it doesn't break the typecheck. `git stash pop` brings it back.
+**Phase 6 (shops, businesses, loans): in progress.** 6a (idle businesses + the retail shop) is done; next 6b (Bank
+Kota + Ah Long loans), then 6c (the player-item boutique).
 
 | Check | Result |
 |---|---|
@@ -30,6 +30,30 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 6a: idle businesses and the retail shop
+
+### How to test it
+- **📱 → 🏢 Ventures → Businesses** (from wealth stage 3): Buih Car Wash, Dobi Wangi (stage 3), Boba Bunga, tuition centre
+  (stage 4), gym, hotel (stage 5), supermarket and KD Mega Mall (stage 6).
+  - **Open it, then buy levels** (+1, +10, or as many as you can afford). Each level adds its revenue per cycle; the
+    cost grows 13% a level.
+  - **Milestones** at levels 10, 25, 50, 100 and 200 each double the speed.
+  - **Without a manager**, a finished cycle waits for you: tap 💰 Collect (or Collect all). The Ventures icon shows 💰
+    when something is waiting.
+  - **👔 Hire a manager** (4× the opening price) and it pays every cycle by itself, also while you're offline (at the
+    offline rate, up to 8 h, on the welcome-back screen and in its Lucky Spin).
+  - **🔥 Rush** (Scrub!, Fold fast!, Shake to order!…): tap the big button 12 times in 6 s and the business earns ×3
+    for 20 s (3-minute cooldown).
+  - 5% business tax on every payout. **Passive Income** (skill and gear) boosts businesses too.
+  - Half of what you spent counts towards net worth.
+- **📱 → 🏢 Ventures → Shop** (stage 3, RM 30,000): your own kedai runcit.
+  - Buy stock wholesale (+10 / +50), and set each price with −/+. Customers buy more below the market price and
+    fewer above it; the card says how your price looks (🔥 / 🙂 / 🤨 / 😬) and the profit each.
+  - **Hire a cashier** (RM 500 a game day) and it sells by itself while you're online.
+  - **🧾 Be the cashier:** tap every item in the basket to scan it, then pick the right change from what the
+    customer hands you. Right and within 15 s = +50% on the basket; wrong change costs you the difference.
+- Database: migration 11 adds a `player_data` table (businesses + shop now, loans next).
 
 ## Phase 5.8: feedback fixes (lag, stall traffic, bag details, stock boxes, Property skills)
 
@@ -821,6 +845,13 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 6a (businesses and the shop)**
+- **No map locations yet:** businesses and the shop are run from the phone (📱 → Ventures). Placing them as
+  buildings on the map can come with the boutique / mall work.
+- **Unmanaged businesses hold one finished cycle** (AdVenture Capitalist style): you collect it and the next one
+  starts. Managers pay continuously.
+- **The shop sells only while you're online** (with a hired cashier); managed businesses also earn offline.
 
 **Phase 5.8 (feedback fixes)**
 - **Fair foot traffic** is a floor, not a cap: struggling and new stalls get lifted (0.9× base always, 2.4× base in

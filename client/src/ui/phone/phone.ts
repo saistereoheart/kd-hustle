@@ -8,6 +8,7 @@ import { el } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 import { renderBusiness } from './business';
+import { renderVentures } from './ventures';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -81,6 +82,10 @@ const APPS: PhoneApp[] = [
     id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
     badge: (app) => (app.store.stall && Object.values(app.store.stall.stock).every((b) => !b.reduce((a, x) => a + x.qty, 0)) ? '!' : null),
   },
+  {
+    id: 'ventures', name: 'Ventures', icon: '🏢', color: '#5c940d', render: renderVentures,
+    badge: (app) => (Object.values(app.store.ventures.businesses).some((b) => b.level && !b.manager && b.stored) ? '💰' : null),
+  },
   { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings() },
 ];
 
@@ -150,7 +155,7 @@ export function openPhone(app: App, startApp?: string) {
   const off = app.store.on(() => render());
   // Timers in apps (buffs, quest progress) refresh every second while the phone is open.
   const refresh = window.setInterval(() => {
-    if (current === 'profile' || current === 'clock') render();
+    if (current === 'profile' || current === 'clock' || current === 'ventures') render();
   }, 1000);
   panel.onClose = () => {
     off();

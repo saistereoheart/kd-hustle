@@ -118,6 +118,11 @@ export function createRepos(db: DB) {
        ON CONFLICT(unit_id) DO UPDATE SET account_id = excluded.account_id, type = excluded.type, data_json = excluded.data_json, updated_at = excluded.updated_at`,
     ),
     propDelete: db.prepare('DELETE FROM properties WHERE unit_id = ?'),
+    pdGet: db.prepare('SELECT data_json FROM player_data WHERE account_id = ? AND kind = ?'),
+    pdUpsert: db.prepare(
+      `INSERT INTO player_data (account_id, kind, data_json, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(account_id, kind) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at`,
+    ),
     progressById: db.prepare('SELECT xp, level, stage, title, progress_json FROM players WHERE account_id = ?'),
     setProgress: db.prepare('UPDATE players SET xp = ?, level = ?, stage = ?, title = ?, progress_json = ? WHERE account_id = ?'),
   };
@@ -170,6 +175,14 @@ export function createRepos(db: DB) {
         })),
       save: (unit: string, owner: number, type: string, data: unknown) => s.propUpsert.run(unit, owner, type, JSON.stringify(data), Date.now()),
       delete: (unit: string) => s.propDelete.run(unit),
+    },
+    /** Per-player JSON blobs by kind ('ventures', 'finance'). */
+    playerData: {
+      load: <T>(accountId: number, kind: string): T | null => {
+        const r = s.pdGet.get(accountId, kind) as { data_json: string } | undefined;
+        return r ? parseJson<T | null>(r.data_json, null) : null;
+      },
+      save: (accountId: number, kind: string, data: unknown) => s.pdUpsert.run(accountId, kind, JSON.stringify(data), Date.now()),
     },
     progress: {
       load: (accountId: number): ProgressRecord => {

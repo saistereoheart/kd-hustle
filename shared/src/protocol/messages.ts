@@ -9,6 +9,7 @@ import { STALL_UPGRADES, type StallState } from '../cooking/stall';
 import type { StepParams } from '../cooking/cooking';
 import type { Placed, PropertyMode } from '../property/schemas';
 import type { Rating, Suggestion } from '../property/rating';
+import type { Checkout, Ventures } from '../business/business';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -21,6 +22,15 @@ export const C2S = {
   }),
   chatSend: z.object({ text: z.string().min(1).max(500) }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
+  // --- businesses and the shop (Phase 6) ---
+  bizBuy: z.object({ type: z.string().min(1).max(32), n: z.number().int().min(1).max(1000) }),
+  bizType: z.object({ type: z.string().min(1).max(32) }),
+  bizCollect: z.object({ type: z.string().min(1).max(32).optional() }),
+  bizRush: z.object({ type: z.string().min(1).max(32), taps: z.array(z.number().finite()).max(60) }),
+  shopStock: z.object({ product: z.string().min(1).max(32), qty: z.number().int().min(1).max(1000) }),
+  shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
+  shopCashier: z.object({ on: z.boolean() }),
+  checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
   // --- property (Phase 5) ---
   propUnit: z.object({ unit: z.string().min(3).max(40) }),
   propMode: z.object({ unit: z.string().min(3).max(40), mode: z.enum(['none', 'rent', 'airbnb', 'home']) }),
@@ -476,6 +486,19 @@ export interface ClientToServerEvents {
   'ride:book': (msg: { quoteId: string }, ack: Ack<Result<{ walletSen: number; route: number[]; pickupMs: number; durationMs: number; destName: string | null }>>) => void;
   /** Get off the Ronda right here. */
   'ride:stop': (ack: Ack<SimpleResult>) => void;
+  // --- businesses and the shop (Phase 6) ---
+  'biz:buy': (msg: { type: string; n: number }, ack: Ack<Result<{ level: number; costSen: number }>>) => void;
+  'biz:manager': (msg: { type: string }, ack: Ack<SimpleResult>) => void;
+  'biz:collect': (msg: { type?: string }, ack: Ack<Result<{ paidSen: number }>>) => void;
+  /** The rush mini-game: the times (ms) of your taps. */
+  'biz:rush': (msg: { type: string; taps: number[] }, ack: Ack<Result<{ rushUntil: number }>>) => void;
+  'shop:open': (ack: Ack<SimpleResult>) => void;
+  'shop:stock': (msg: { product: string; qty: number }, ack: Ack<SimpleResult>) => void;
+  'shop:price': (msg: { product: string; priceSen: number }, ack: Ack<SimpleResult>) => void;
+  'shop:cashier': (msg: { on: boolean }, ack: Ack<SimpleResult>) => void;
+  /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
+  'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
+  'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }
 
@@ -504,6 +527,8 @@ export interface ServerToClientEvents {
   /** Your own homes, with ratings and suggestions. */
   'props:self': (p: { props: PropSelf[] }) => void;
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
+  /** Your businesses and shop. */
+  'ventures:self': (p: { ventures: Ventures }) => void;
   /** "While you were away…" (offline income). */
   welcome: (w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number }> }) => void;
   'emote:stopped': (p: { id: number }) => void;

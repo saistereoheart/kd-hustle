@@ -429,6 +429,10 @@ export class App {
       this.store.myProps = props;
       this.store.emit();
     });
+    socket.on('ventures:self', ({ ventures }) => {
+      this.store.ventures = ventures;
+      this.store.emit();
+    });
     socket.on('prop:event', (ev) => toast(ev.text, ev.kind, 5000));
     socket.on('welcome', (w) => showWelcomeBack(this, w));
     socket.on('time:vote', (v) => {

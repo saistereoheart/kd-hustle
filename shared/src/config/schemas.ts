@@ -12,6 +12,8 @@ import type { InteriorsConfig } from '../world/interiors';
 import type { GuideConfig } from '../world/guide';
 import type { NpcsConfig } from '../world/npcs';
 import type { FurnitureConfig, PropertiesConfig } from '../property/schemas';
+import type { BusinessesConfig } from '../business/business';
+import type { LoansConfig } from '../business/loans';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -153,5 +155,7 @@ export interface PublicConfig {
   npcs: NpcsConfig;
   furniture: FurnitureConfig;
   properties: PropertiesConfig;
+  businesses: BusinessesConfig;
+  loans: LoansConfig;
 }
 

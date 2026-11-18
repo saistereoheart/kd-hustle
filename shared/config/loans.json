@@ -1,0 +1,71 @@
+{
+  "credit": {
+    "start": 600,
+    "min": 300,
+    "max": 850,
+    "onTime": 4,
+    "repaidLoan": 25,
+    "late": -35,
+    "default": -120,
+    "netWorthBonusPer": 1000000,
+    "netWorthBonusMax": 60
+  },
+  "bank": {
+    "name": "Bank Kota",
+    "types": {
+      "personal": {
+        "name": "Personal loan",
+        "icon": "💳",
+        "maxBaseSen": 500000,
+        "termDays": 7,
+        "collateral": null
+      },
+      "business": {
+        "name": "Business loan",
+        "icon": "🏪",
+        "maxBaseSen": 3000000,
+        "termDays": 14,
+        "collateral": "business"
+      },
+      "property": {
+        "name": "Property loan",
+        "icon": "🏠",
+        "maxLtv": 0.9,
+        "termDays": 30,
+        "collateral": "property"
+      }
+    },
+    "maxMultByStage": [
+      1,
+      2,
+      5,
+      20,
+      80,
+      300
+    ],
+    "maxMultPerLevel": 0.08,
+    "interestPerDayAtBest": 0.004,
+    "interestPerDayAtWorst": 0.03,
+    "penaltyRate": 0.02,
+    "graceMissed": 1,
+    "repossessAfterMissed": 3,
+    "auctionRate": 0.7,
+    "maxLoans": 3
+  },
+  "ahlong": {
+    "name": "Ah Long",
+    "interestPerDay": 0.2,
+    "termDays": 3,
+    "maxByStage": [
+      50000,
+      300000,
+      2000000,
+      10000000,
+      50000000,
+      200000000
+    ],
+    "incomePenalty": 0.5,
+    "survivorTitleSen": 1000000,
+    "collectors": 2
+  }
+}

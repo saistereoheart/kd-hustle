@@ -537,11 +537,14 @@ export class PropertySystem {
    * On login: catch up everything that happened while away (capped, at offline efficiency) and
    * return the summary for the welcome-back screen (null if nothing happened).
    */
-  welcomeBack(p: OnlinePlayer, awayMs: number, offline: { capHours: number; efficiency: number }): AwaySummary | null {
-    if (!this.ownedBy(p).length) return null;
+  welcomeBack(p: OnlinePlayer, awayMs: number, offline: { capHours: number; efficiency: number }, extra: Array<{ label: string; sen: number }> = []): AwaySummary | null {
+    const more = extra.filter((l) => l.sen);
+    if (!this.ownedBy(p).length && !more.length) return null;
     const capDays = Math.ceil((Math.min(awayMs, offline.capHours * 3_600_000) / this.cfg.time.realMsPerGameMinute) / 1440);
-    const earned = this.catchUp(p, offline.efficiency, capDays);
-    const lines = Object.entries(earned).map(([k, v]) => ({ label: k === 'rent' ? '🏠 Rent' : k === 'airbnb' ? '🛏️ Airbnb guests' : '🧾 Running costs', sen: v }));
+    const earned = this.ownedBy(p).length ? this.catchUp(p, offline.efficiency, capDays) : {};
+    // Other passive income (managed businesses) was already paid by its own system; it's listed
+    // here and counts for the Lucky Spin.
+    const lines = [...Object.entries(earned).map(([k, v]) => ({ label: k === 'rent' ? '🏠 Rent' : k === 'airbnb' ? '🛏️ Airbnb guests' : '🧾 Running costs', sen: v })), ...more];
     const total = lines.reduce((a, l) => a + l.sen, 0);
     if (awayMs < 60_000 || !lines.length) return null;
     if (total > 0) this.welcome.set(p.id, { sen: total, at: this.clock(), spun: false });

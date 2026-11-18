@@ -24,6 +24,7 @@ import { NpcSystem } from '../systems/npcs/npcs';
 import { PropertySystem } from '../systems/property/property';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
+import { createVentures } from './ventureHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -159,7 +160,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (item.effect?.buff === 'perfectCook') return stalls.addPerfectTokens(p, item.effect.charges ?? 0);
       throw new GameError(`${item.name} can't be used yet.`);
     },
-    assetsOf: (p) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0),
+    assetsOf: (p) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0) + ventures.assetsOf(p),
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
@@ -194,6 +195,12 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     mods: (p) => prog.mods(p).property,
   });
   props = propSys;
+  // --- businesses and the shop (Phase 6) ------------------------------------------------------
+  const ventures = createVentures({
+    cfg, repos, econ, world, socketOf, pushWallet,
+    incomeMult: (p) => prog.mods(p).passive, // Passive Income skill + gear
+    check: (p) => prog.check(p),
+  });
   inv.lockedIids = (p) => propSys.lockedIids(p);
   const propTimer = setInterval(() => {
     try {
@@ -303,6 +310,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'prop:fix', C2S.propFix, ({ unit, req, how }) => propSys.fix(me, unit, req, how));
     handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));
+    ventures.register(socket, me, handle);
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -654,8 +662,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     afterInit: (p: OnlinePlayer, awayMs = 0) => {
       if (!p.hasCharacter) return;
       // Offline income (homes kept earning while you were away) and the welcome-back screen.
-      const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline);
+      const extra = awayMs > 0 ? ventures.offline(p, awayMs) : [];
+      const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline, extra);
       socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
+      ventures.sendSelf(p);
       if (away) {
         socketOf(p)?.emit('welcome', away);
         pushWallet(p);
@@ -665,11 +675,17 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     propsPublic: () => propSys.all(),
     /** Owns a home in this building (so they may go inside it). */
     ownsIn: (p: OnlinePlayer, building: string) => propSys.ownedBy(p).some((s) => propSys.unitOf(s.unit)?.building === building),
-    saveProgress: (p: OnlinePlayer) => prog.save(p),
+    saveProgress: (p: OnlinePlayer) => {
+      prog.save(p);
+      ventures.save(p);
+    },
     stallsPublic: () => stalls.all(),
     /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
     clockJumped: () => stalls.tick(),
-    leaveStall: (p: OnlinePlayer) => stalls.leave(p),
+    leaveStall: (p: OnlinePlayer) => {
+      stalls.leave(p);
+      ventures.unload(p); // saved, then dropped from memory until they log in again
+    },
     chatCommand,
     moveRules,
     loadInto,
@@ -696,6 +712,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       clearInterval(stallTimer);
       clearInterval(stallSaveTimer);
       clearInterval(propTimer);
+      ventures.stop();
       stalls.saveDirty(true);
     },
   };

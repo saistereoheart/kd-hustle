@@ -211,6 +211,21 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE inventory_items ADD COLUMN grade TEXT NOT NULL DEFAULT 'D';
     `,
   },
+  {
+    id: 11,
+    name: 'player data',
+    // Phase 6: per-player JSON blobs by kind: 'ventures' (idle businesses + the retail shop),
+    // 'finance' (credit score + loans).
+    sql: `
+      CREATE TABLE player_data (
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        data_json  TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, kind)
+      );
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

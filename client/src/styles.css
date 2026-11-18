@@ -890,3 +890,32 @@ body.touch .phone-btn-label kbd { display: none; }
 .item-grade { position: absolute; top: 3px; left: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 6px; background: var(--grade, #adb5bd); color: #11131f; font: 900 12px/18px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
 .item-grade.g-S { box-shadow: 0 0 8px 2px rgba(255, 212, 59, 0.8); }
 .item-buff { color: #8ce99a; font-weight: 700; }
+
+/* ---- Ventures (Phase 6): idle businesses, the shop, rush and checkout mini-games ---- */
+.biz-card { align-items: flex-start; }
+.biz-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.biz-cycle i { width: 0; animation-name: biz-fill; animation-timing-function: linear; animation-fill-mode: forwards; transition: none; }
+.biz-cycle.loop i { animation-iteration-count: infinite; }
+.biz-cycle.ready i { width: 100%; background: linear-gradient(90deg, #40c057, #94d82d); animation: none; }
+@keyframes biz-fill { from { width: 0; } to { width: 100%; } }
+.lv-badge.good { background: rgba(64, 192, 87, 0.25); color: #b2f2bb; }
+.shop-price { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.shop-price b { min-width: 72px; text-align: center; font-size: 15px; }
+.rush-box { text-align: center; }
+.rush-btn { display: grid; place-items: center; width: 150px; height: 150px; margin: 10px auto; border-radius: 50%; border: 4px solid #ffd43b; background: radial-gradient(circle at 35% 30%, #ff922b, #e8590c); color: #fff; font-size: 54px; cursor: pointer; touch-action: manipulation; user-select: none; box-shadow: 0 8px 24px rgba(232, 89, 12, 0.5); }
+.rush-btn span { font: 900 14px system-ui, sans-serif; }
+.rush-btn.pop { animation: rush-pop 0.12s ease-out; }
+@keyframes rush-pop { 50% { transform: scale(0.9); } }
+.rush-count { font-size: 20px; font-weight: 900; margin: 6px 0; }
+.checkout-box { width: min(440px, 100%); }
+.checkout-basket { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; margin: 10px 0; }
+.checkout-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.3); background: rgba(255,255,255,0.06); color: inherit; cursor: pointer; touch-action: manipulation; }
+.checkout-item.scanned { border-style: solid; border-color: #40c057; background: rgba(64, 192, 87, 0.15); }
+.checkout-icon { font-size: 30px; }
+.checkout-total { font-size: 18px; font-weight: 900; text-align: right; margin: 6px 0; }
+.checkout-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* Business and shop buttons stay compact (small chips in a wrapping row), even on a phone. */
+.job-card .biz-actions .btn { width: auto; flex: 1 1 auto; min-width: 0; }
+.job-card .shop-price .btn { width: 40px; flex: 0 0 auto; padding: 4px 0; }
+.biz-card .job-icon, .shop-row .job-icon { align-self: flex-start; }
+@media (max-width: 520px) { .biz-card .job-info, .shop-row .job-info { flex: 1 1 calc(100% - 60px); } }
