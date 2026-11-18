@@ -7,7 +7,8 @@
 //    staff.passiveRate), for an hourly wage;
 //  - orders can come with paid add-ons (ayam goreng, telur mata...) that have their own stock;
 //  - ingredients are bought as stock and go off after a few in-game days of play time.
-// A stall only runs while its owner is online (offline income arrives in Phase 5).
+// A stall runs live while its owner is online. Left open with cooks, it stays open while they're
+// away, and the cooks' takings are worked out (real time, capped) when they log back in.
 import {
   ageStock, customerRate, dayKey, dishPay, orderBaseSen, stockItems, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
   queueCapacity, rushHour, staffPayRate, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
@@ -125,7 +126,71 @@ export class StallSystem {
   }
 
   publicOf(l: Live): StallPublic {
-    return { owner: l.owner, ownerName: l.ownerName, plot: l.s.plot, tier: l.s.tier, open: l.live, rep: Math.round(l.s.rep), staff: l.s.staff, queue: l.queue };
+    return { owner: l.owner, ownerName: l.ownerName, plot: l.s.plot, tier: l.s.tier, open: l.live || this.runsWhileAway(l), rep: Math.round(l.s.rep), staff: l.s.staff, queue: l.queue };
+  }
+
+  /** Left open with cooks when the owner logged off: it stays open (their cooks keep selling;
+   *  the takings are worked out when they log back in, see offline()). */
+  private runsWhileAway(l: Live): boolean {
+    const p = this.world.get(l.owner);
+    return (!p || !p.hasCharacter) && l.s.open && l.s.staff > 0 && Object.values(l.s.stock).some((b) => b.some((x) => x.qty > 0));
+  }
+
+  /**
+   * Offline income (spec §8.7): the owner logs in after `awayMs` of real time (also counting time
+   * the server was down). If they left the stall open with cooks, replay that time an in-game
+   * hour at a time: customers come at the usual rate for that hour (rush, quiet hours…), the
+   * cooks serve as many as they can and stock allows, at the offline rate, minus their wages.
+   * Capped at `capHours`. Returns null if the stall was closed or had no cooks.
+   */
+  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): { sen: number; dishes: number; wagesSen: number; spoiled: number } | null {
+    const l = this.stalls.get(p.id);
+    if (!l || !l.s.open || l.s.staff <= 0 || awayMs < 60_000) return null;
+    const st = this.cfg.stalls;
+    const b = this.bonuses(p);
+    const now = this.clock();
+    const span = Math.min(awayMs, capHours * 3_600_000);
+    const stepMs = 60 * this.cfg.time.realMsPerGameMinute; // one in-game hour
+    const cookMs = staffCookMs(st, l.s, b);
+    let pay = 0, wages = 0, dishes = 0, spoiled = 0, carry = 0, rr = 0;
+    for (let t = now - span; t < now; t += stepMs) {
+      const len = Math.min(stepMs, now - t);
+      const menu = menuRecipes(st, this.cfg.recipes.recipes, l.s).filter((r) => stockCount(l.s, r.id) > 0);
+      if (!menu.length) break; // sold out: the cooks go home
+      const hourF = this.hourF(t);
+      const rush = rushHour(this.cfg.time, hourF) !== null;
+      const arrivals = (customerRate(st, l.s, rush, t, b, !stallOpenNow(st, l.s.tier, hourF)) / 60_000) * len;
+      const capacity = (l.s.staff * len) / cookMs;
+      carry += Math.min(arrivals, capacity);
+      let n = Math.floor(carry);
+      carry -= n;
+      let served = 0;
+      while (n-- > 0) {
+        const left = menu.filter((r) => stockCount(l.s, r.id) > 0);
+        if (!left.length) break;
+        const r = left[rr++ % left.length];
+        takeStock(l.s, r.id);
+        pay += Math.round(orderBaseSen(st, r, l.s, rush, [], b) * staffPayRate(st, l.s));
+        served++;
+      }
+      dishes += served;
+      if (l.s.rep < st.reputation.staffRepCap) l.s.rep = Math.min(st.reputation.staffRepCap, l.s.rep + st.reputation.perStaffDish * served);
+      wages += (wagePerHourSen(st, l.s.tier, b) * l.s.staff * len) / stepMs;
+      spoiled += ageStock(st, l.s, len / this.cfg.time.realMsPerGameMinute);
+    }
+    const income = Math.round(pay * efficiency);
+    const wagesSen = Math.round(wages * efficiency);
+    let net = income - wagesSen;
+    if (net < 0) net = -Math.min(-net, p.walletSen); // wages never push the wallet below zero
+    if (net) {
+      this.econ.run(p, () => this.econ.change(p, net, 0, 'stall-offline', `${dishes} dishes`));
+      this.earn(l, Math.max(0, net));
+    }
+    this.prog.bump(p, 'staffDishes', dishes);
+    if (income > 0) this.prog.bump(p, 'stallEarnSen', income);
+    this.save(l);
+    this.touch(l);
+    return { sen: net, dishes, wagesSen, spoiled };
   }
 
   all(): StallPublic[] {

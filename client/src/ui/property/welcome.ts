@@ -5,7 +5,7 @@ import type { App } from '../../app';
 import { el, toast, uiRoot } from '../dom';
 import { sfx } from '../sound';
 
-export function showWelcomeBack(app: App, w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number }> }) {
+export function showWelcomeBack(app: App, w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number; detail?: string }> }) {
   const h = Math.floor(w.awayMs / 3_600_000), m = Math.floor((w.awayMs % 3_600_000) / 60_000);
   const away = h ? `${h} h ${m} min` : `${m} min`;
   const wheel = el('div', { class: 'spin-wheel' }, el('div', { class: 'spin-face' }, '×2'));
@@ -15,9 +15,9 @@ export function showWelcomeBack(app: App, w: { awayMs: number; earnedSen: number
     'div',
     { class: 'modal welcome-back', role: 'dialog', 'data-testid': 'welcome-back' },
     el('h3', {}, '👋 Welcome back!'),
-    el('p', {}, `While you were away (${away}), your homes kept working:`),
+    el('p', {}, `While you were away (${away}), your money kept working:`),
     el('div', { class: 'welcome-total' }, `${w.earnedSen >= 0 ? '+' : ''}${formatMoney(w.earnedSen)}`),
-    el('div', { class: 'welcome-lines' }, ...w.lines.map((l) => el('div', { class: 'setting-row' }, el('span', {}, l.label), el('b', {}, formatMoney(l.sen))))),
+    el('div', { class: 'welcome-lines' }, ...w.lines.map((l) => el('div', { class: 'setting-row welcome-line' }, el('span', {}, l.label, l.detail ? el('small', { class: 'muted' }, l.detail) : null), el('b', { class: l.sen < 0 ? 'neg' : '' }, `${l.sen >= 0 ? '+' : ''}${formatMoney(l.sen)}`)))),
     el('p', { class: 'muted small' }, `Offline income runs at ${Math.round(app.cfg.economy.offline.efficiency * 100)}% for up to ${app.cfg.economy.offline.capHours} hours.`),
     ...(w.earnedSen > 0 ? [wheel] : []),
     el('div', { class: 'actions' }, ...(w.earnedSen > 0 ? [spin] : []), ok),

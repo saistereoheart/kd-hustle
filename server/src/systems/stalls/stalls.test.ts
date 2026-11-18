@@ -285,6 +285,31 @@ describe('staff', () => {
     expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(top * staffPayRate(cfg.stalls, { upgrades: {} })) - wages);
   });
 
+  it('left open with a cook, the stall stays open while you are away and earns from real time', () => {
+    const s = setup(2_000_000);
+    s.stalls.buy(s.p, 1);
+    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
+    s.stalls.hire(s.p);
+    s.run(1000);
+    s.world.remove(s.p.id);
+    s.run(500);
+    expect(s.stalls.all()[0].open).toBe(true); // still open on the map
+    // Back after 2 hours (e.g. the server was off): the cook's takings, at the offline rate, minus wages.
+    s.setNow(s.now() + 2 * 3_600_000);
+    s.world.add(s.p);
+    const stock0 = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak');
+    const w = s.p.walletSen;
+    const r = s.stalls.offline(s.p, 2 * 3_600_000, cfg.economy.offline.capHours, cfg.economy.offline.efficiency)!;
+    expect(r.dishes).toBeGreaterThan(20);
+    expect(r.sen).toBeGreaterThan(0);
+    expect(r.wagesSen).toBeGreaterThan(0);
+    expect(s.p.walletSen - w).toBe(r.sen);
+    expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBe(stock0 - r.dishes);
+    // Closed (switched off): stays closed, nothing earned.
+    s.stalls.setOpen(s.p, false);
+    expect(s.stalls.offline(s.p, 3_600_000, 8, 0.5)).toBeNull();
+  });
+
   it('can only hire up to the tier limit', () => {
     const s = setup(2_000_000);
     s.stalls.buy(s.p, 1);

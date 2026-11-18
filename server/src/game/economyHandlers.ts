@@ -691,7 +691,18 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     afterInit: (p: OnlinePlayer, awayMs = 0) => {
       if (!p.hasCharacter) return;
       // Offline income (homes kept earning while you were away) and the welcome-back screen.
-      const extra = awayMs > 0 ? ventures.offline(p, awayMs) : [];
+      // Offline income, worked out from real time since the last save (so time the server was
+      // down counts too): your stall (if left open with cooks), managed businesses, then homes.
+      const extra: Array<{ label: string; sen: number; detail?: string }> = [];
+      if (awayMs > 0) {
+        const o = cfg.economy.offline;
+        const st = stalls.offline(p, awayMs, o.capHours, o.efficiency);
+        const tier = st && stalls.get(p.id) ? cfg.stalls.tiers.find((t) => t.tier === stalls.get(p.id)!.s.tier) : undefined;
+        if (st && (st.sen || st.dishes)) {
+          extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.spoiled ? ` · ${st.spoiled} portions went off` : ''}` });
+        }
+        extra.push(...ventures.offline(p, awayMs));
+      }
       const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline, extra);
       socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
       ventures.sendSelf(p);

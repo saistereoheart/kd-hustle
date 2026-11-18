@@ -6,7 +6,7 @@
 // Owners who are online are processed live; an owner who was away is caught up on login (up to
 // the offline cap, at the offline efficiency) and gets a "while you were away" summary.
 import {
-  bookingChance, buildListings, fairNightSen, fairRentSen, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
+  bookingChance, buildListings, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
   type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
@@ -78,7 +78,7 @@ const NO_MODS: PropMods = { rent: 1, airbnb: 1, cleanLoss: 1, appeal: 1 };
 export interface AwaySummary {
   awayMs: number;
   earnedSen: number;
-  lines: Array<{ label: string; sen: number }>;
+  lines: Array<{ label: string; sen: number; detail?: string }>;
 }
 
 export class PropertySystem {
@@ -398,7 +398,7 @@ export class PropertySystem {
    * Runs every in-game hour/day that passed for this owner's units. `efficiency` scales income
    * (offline: 50%); `maxDays` caps how far back we go. Returns the money made, by kind.
    */
-  catchUp(p: OnlinePlayer, efficiency: number, maxDays: number): Record<string, number> {
+  catchUp(p: OnlinePlayer, efficiency: number, maxDays: number, perUnit?: Map<string, Record<string, number>>): Record<string, number> {
     const now = gameTime(this.cfg.time, this.clock());
     const hourNow = Math.floor(now.total / 60);
     const earned: Record<string, number> = {};
@@ -414,6 +414,11 @@ export class PropertySystem {
       for (let d = fromDay + 1; d <= now.day; d++) {
         const r = this.day(p, s, d, efficiency);
         for (const [k, v] of Object.entries(r)) earned[k] = (earned[k] ?? 0) + v;
+        if (perUnit) {
+          const u = perUnit.get(s.unit) ?? {};
+          for (const [k, v] of Object.entries(r)) u[k] = (u[k] ?? 0) + v;
+          perUnit.set(s.unit, u);
+        }
         changed = true;
       }
       if (now.day > s.lastDay) {
@@ -556,14 +561,25 @@ export class PropertySystem {
    * On login: catch up everything that happened while away (capped, at offline efficiency) and
    * return the summary for the welcome-back screen (null if nothing happened).
    */
-  welcomeBack(p: OnlinePlayer, awayMs: number, offline: { capHours: number; efficiency: number }, extra: Array<{ label: string; sen: number }> = []): AwaySummary | null {
+  welcomeBack(p: OnlinePlayer, awayMs: number, offline: { capHours: number; efficiency: number }, extra: AwaySummary['lines'] = []): AwaySummary | null {
     const more = extra.filter((l) => l.sen);
     if (!this.ownedBy(p).length && !more.length) return null;
     const capDays = Math.ceil((Math.min(awayMs, offline.capHours * 3_600_000) / this.cfg.time.realMsPerGameMinute) / 1440);
-    const earned = this.ownedBy(p).length ? this.catchUp(p, offline.efficiency, capDays) : {};
-    // Other passive income (managed businesses) was already paid by its own system; it's listed
+    // One line per home: what it made (rent / Airbnb) minus its running costs. Other passive
+    // income (your stall, managed businesses) was already paid by its own system; it's listed
     // here and counts for the Lucky Spin.
-    const lines = [...Object.entries(earned).map(([k, v]) => ({ label: k === 'rent' ? '🏠 Rent' : k === 'airbnb' ? '🛏️ Airbnb guests' : '🧾 Running costs', sen: v })), ...more];
+    const perUnit = new Map<string, Record<string, number>>();
+    if (this.ownedBy(p).length) this.catchUp(p, offline.efficiency, capDays, perUnit);
+    const homeLines: AwaySummary['lines'] = [];
+    for (const [unit, r] of perUnit) {
+      const s = this.props.get(unit);
+      const t = s ? this.cfg.properties.types[s.type] : undefined;
+      const sen = Object.values(r).reduce((a, v) => a + v, 0);
+      if (!sen) continue;
+      const parts = [r.rent ? `rent ${formatMoney(r.rent)}` : '', r.airbnb ? `Airbnb ${formatMoney(r.airbnb)}` : '', r.costs ? `costs ${formatMoney(r.costs)}` : ''].filter(Boolean);
+      homeLines.push({ label: `${t?.icon ?? '🏠'} ${t?.name ?? unit}`, sen, detail: parts.join(' · ') });
+    }
+    const lines = [...homeLines, ...more];
     const total = lines.reduce((a, l) => a + l.sen, 0);
     if (awayMs < 60_000 || !lines.length) return null;
     if (total > 0) this.welcome.set(p.id, { sen: total, at: this.clock(), spun: false });

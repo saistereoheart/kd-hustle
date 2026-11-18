@@ -237,12 +237,13 @@ export class BusinessSystem {
     }
   }
 
-  /** Offline catch-up (managed businesses only, capped, at the offline rate). */
-  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): number {
+  /** Offline catch-up (managed businesses only, capped, at the offline rate). Returns what each
+   *  business made, by type id. */
+  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): Record<string, number> {
     const v = this.of(p);
     const now = this.clock();
     const from = now - Math.min(awayMs, capHours * 3_600_000);
-    let paid = 0;
+    const paid: Record<string, number> = {};
     for (const [id, b] of Object.entries(v.businesses)) {
       if (!b.level) continue;
       if (!b.manager) {
@@ -252,10 +253,11 @@ export class BusinessSystem {
         continue;
       }
       b.cycleAt = Math.max(b.cycleAt, from);
-      paid += this.advance(p, id, b, efficiency);
+      const sen = this.advance(p, id, b, efficiency);
+      if (sen) paid[id] = sen;
     }
     if (v.retail) v.retail.carry = 0;
-    if (paid) this.save(p);
+    if (Object.keys(paid).length) this.save(p);
     return paid;
   }
 

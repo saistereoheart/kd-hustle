@@ -77,8 +77,8 @@ export function createVentures(d: VentureDeps) {
     /** Offline catch-up (managed businesses), for the welcome-back screen. */
     offline: (p: OnlinePlayer, awayMs: number) => {
       const o = d.cfg.economy.offline;
-      const sen = biz.offline(p, awayMs, o.capHours, o.efficiency);
-      return sen ? [{ label: '🏢 Businesses (managers)', sen }] : [];
+      const paid = biz.offline(p, awayMs, o.capHours, o.efficiency);
+      return d.cfg.businesses.types.filter((t) => paid[t.id]).map((t) => ({ label: `${t.icon} ${t.name}`, sen: paid[t.id], detail: `Lv ${biz.of(p).businesses[t.id]?.level ?? 0} · managed` }));
     },
     assetsOf: (p: OnlinePlayer) => biz.assetsOf(p),
     save: (p: OnlinePlayer) => biz.save(p),

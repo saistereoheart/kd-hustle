@@ -543,7 +543,7 @@ export interface ServerToClientEvents {
   /** A loan event worth a toast (missed instalment, repossession, debt collectors...). */
   'loan:event': (e: { text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** "While you were away…" (offline income). */
-  welcome: (w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number }> }) => void;
+  welcome: (w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number; detail?: string }> }) => void;
   'emote:stopped': (p: { id: number }) => void;
   saved: (p: { at: number }) => void;
   kicked: (p: { reason: string }) => void;

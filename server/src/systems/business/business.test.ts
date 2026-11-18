@@ -110,7 +110,7 @@ describe('idle businesses', () => {
     s.biz.hireManager(s.p, 'carwash');
     const w = s.p.walletSen;
     s.setNow(s.now() + 100 * 3_600_000); // away 100 h
-    const paid = s.biz.offline(s.p, 100 * 3_600_000, 8, 0.5);
+    const paid = s.biz.offline(s.p, 100 * 3_600_000, 8, 0.5).carwash;
     const perHour = (revenuePerCycleSen(carwash, 4) * 3_600_000) / cycleMs(bc, carwash, 4);
     expect(paid).toBeCloseTo(perHour * 8 * 0.5 * (1 - bc.taxRate), -3);
     expect(s.p.walletSen - w).toBe(paid);

@@ -31,6 +31,21 @@ Long loans) are done; next 6c (the player-item boutique).
 
 ---
 
+## Offline income: stalls stay open, real time, a breakdown per source
+
+### How to test it
+- **Your stall keeps the state you left it in.** Switched on with at least one cook and some stock: it **stays open**
+  on the map while you're away (canopy up, cooks standing there). Switched off: it stays closed.
+- **When you log back in**, the time away is worked out from **real time since your last save**, so time the
+  server or game was closed counts too (up to 8 h, at the offline rate of 50%):
+  - **Stall:** replayed an in-game hour at a time. Customers come at the usual rate for each hour (rushes, quiet
+    hours), your cooks serve as many as they can and your stock allows, minus their wages. Stock is used up and
+    can go off; reputation recovers a little (cooks' dishes). If it sells out, the cooks go home.
+  - **Managed businesses** and **homes** (rent, Airbnb, running costs).
+- **The welcome-back screen lists every source on its own line:** your stall (dishes sold, wages, anything that
+  went off), each managed business (name, level), and each home (rent / Airbnb / costs). Everything counts for the
+  Lucky Spin.
+
 ## Phase 6b: loans (Bank Kota and the Ah Long)
 
 ### How to test it
