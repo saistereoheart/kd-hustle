@@ -10,7 +10,7 @@
 // A stall only runs while its owner is online (offline income arrives in Phase 5).
 import {
   ageStock, customerRate, dayKey, dishPay, orderBaseSen, stockItems, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
-  queueCapacity, rushHour, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
+  queueCapacity, rushHour, staffPayRate, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
   validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES,
   type DishState, type RandInt, type ServeResult, type StallCustomer, type StallPublic, type StallSelf, type StallState, type StallUpgrade,
   type StepInput,
@@ -346,6 +346,21 @@ export class StallSystem {
     return this.finish(p, l, d.customer, d.state.recipe, grades);
   }
 
+  /** Start the dish over: a fresh set of steps for the same customer. Free: the ingredients
+   *  are reused, the combo is kept, the clock restarts. */
+  redo(p: OnlinePlayer): DishState {
+    const l = this.mine(p);
+    const d = l.dish;
+    if (!d) throw new GameError("You're not cooking anything.");
+    const recipe = this.cfg.recipeById.get(d.state.recipe)!;
+    const now = this.clock();
+    const steps = makeDish(recipe, this.rand, d.customer.addons ?? []);
+    const state: DishState = { ...d.state, dishId: `dish-${now.toString(36)}-${this.rand(1e6).toString(36)}`, steps };
+    const budget = steps.reduce((a, s) => a + s.maxMs, 0);
+    l.dish = { state, startedAt: now, deadline: now + budget + this.cfg.stalls.dishTimeoutSlackSec * 1000, customer: d.customer };
+    return state;
+  }
+
   cancel(p: OnlinePlayer) {
     const l = this.mine(p);
     if (!l.dish) return;
@@ -427,11 +442,8 @@ export class StallSystem {
   }
 
   private closedReason(l: Live): string {
-    const t = tierDef(this.cfg.stalls, l.s.tier);
     if (!l.s.open) return 'Your stall is closed. Open it first.';
-    const [a, b] = t.hours;
-    const fmt = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
-    return `Your ${t.name} opens ${fmt(a)} – ${fmt(b)} (in-game).`;
+    return 'Your stall is closed right now.';
   }
 
   // ---------------------------------------------------------------- the simulation tick
@@ -456,7 +468,9 @@ export class StallSystem {
       const p = this.world.get(l.owner);
       const dt = Math.min(5000, Math.max(0, now - l.lastTick));
       l.lastTick = now;
-      const shouldBeLive = !!p && p.hasCharacter && l.s.open && stallOpenNow(this.cfg.stalls, l.s.tier, hourF);
+      // Open whenever the owner switches it on; outside the usual hours it's just quieter.
+      const shouldBeLive = !!p && p.hasCharacter && l.s.open;
+      const offHours = !stallOpenNow(this.cfg.stalls, l.s.tier, hourF);
       if (!shouldBeLive) {
         if (l.live || l.queue.length) this.closeUp(p, l, !!p);
         continue;
@@ -505,7 +519,7 @@ export class StallSystem {
           this.hooks.event(owner, { kind: 'lost', text: '📦 Out of ingredients: no one can order. 📱 → Business → Stock.' });
         }
       } else if (l.queue.length < queueCapacity(st, l.s)) {
-        const perMs = customerRate(st, l.s, rush, now, b) / 60_000;
+        const perMs = customerRate(st, l.s, rush, now, b, offHours) / 60_000;
         if (this.rand(1_000_000) / 1_000_000 < perMs * dt) {
           const tier = tierDef(st, l.s.tier);
           const blogger = l.s.rep >= st.blogger.minReputation && this.rand(1_000_000) / 1_000_000 < st.blogger.chance;
@@ -530,7 +544,7 @@ export class StallSystem {
         if (c && now >= c.doneAt) {
           const recipe = this.cfg.recipeById.get(c.customer.recipe)!;
           // Cooks make "Good" food at the passive rate: no combo, no tips, no blogger bonus.
-          staffSen += Math.round(orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * st.staff.passiveRate);
+          staffSen += Math.round(orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * staffPayRate(st, l.s));
           staffDishes++;
           l.queue = l.queue.filter((x) => x.id !== c.customer.id);
           l.cooks[i] = null;

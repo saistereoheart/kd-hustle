@@ -1,7 +1,7 @@
 // HustlePhone → Business: buy and grow your food stall (pasar malam → food truck → kopitiam),
 // stock, staff, upgrades and the menu (recipe mastery).
 import {
-  dishBaseSen, formatMoney, masteryLevel, menuRecipes, staffCookMs, STALL_UPGRADES, stockCount, tierDef, upgradeCostSen, upgradeLevel,
+  dishBaseSen, formatMoney, masteryLevel, menuRecipes, staffCookMs, staffPayRate, STALL_UPGRADES, stockCount, tierDef, upgradeCostSen, upgradeLevel,
   wagePerHourSen, type StallUpgrade,
 } from '@kh/shared';
 import type { App } from '../../app';
@@ -36,7 +36,7 @@ function tierCard(app: App, tierN: number, action: string) {
     'div',
     { class: 'job-card' },
     el('div', { class: 'job-icon' }, t.icon),
-    el('div', { class: 'job-info' }, el('h4', {}, t.name), el('p', {}, t.desc), el('div', { class: 'muted small' }, `${t.priceMult}× prices · up to ${t.staffMax} cook${t.staffMax > 1 ? 's' : ''} · open ${hoursText(t.hours)}`)),
+    el('div', { class: 'job-info' }, el('h4', {}, t.name), el('p', {}, t.desc), el('div', { class: 'muted small' }, `${t.priceMult}× prices · up to ${t.staffMax} cook${t.staffMax > 1 ? 's' : ''} · busiest ${hoursText(t.hours)}, open any time`)),
     b,
   );
 }
@@ -80,7 +80,7 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
           'div',
           { class: 'job-info' },
           el('h4', {}, `Your ${t.name}`),
-          el('p', {}, pub?.open ? `🟢 Open now · ${pub.queue.length} in the queue` : st.open ? `🌙 Opens ${hoursText(t.hours)} (in-game)` : '🔴 Closed (switched off)'),
+          el('p', {}, pub?.open ? `🟢 Open now · ${pub.queue.length} in the queue` : st.open ? '🟡 Opening…' : '🔴 Closed (switched off)'),
           el('div', { class: 'muted small' }, `${stars(st.rep, cfg.reputation.max)} reputation · combo +${Math.round(st.combo * 100)}% · ${st.perfectTokens} Perfect Cook Tokens`),
           el('div', { class: 'muted small' }, `Earned today: ${formatMoney(st.earnedToday)} · value ${formatMoney(Math.floor(st.investedSen * cfg.assetValueRate))} (counts in net worth)`),
         ),
@@ -102,10 +102,10 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
     body.push(
       el('div', { class: 'job-card' }, el('div', { class: 'job-icon' }, '🧑‍🍳'), el('div', { class: 'job-info' },
         el('h4', {}, `Cooks: ${st.staff} / ${t.staffMax}`),
-        el('p', {}, `Each cook makes a dish every ${secs.toFixed(1)} s at ${Math.round(cfg.staff.passiveRate * 100)}% of the normal price (no combo or tips), while the stall is open, even when you're elsewhere.`),
+        el('p', {}, `Each cook makes a dish every ${secs.toFixed(1)} s at ${Math.round(staffPayRate(cfg, st) * 100)}% of the normal price (Staff level raises it; no combo or tips), while the stall is open, even when you're elsewhere.`),
         el('div', { class: 'muted small' }, `Wage: ${formatMoney(wagePerHourSen(cfg, st.tier, b))} per cook per in-game hour (1 real minute) while open.`)), hire),
       el('div', { class: 'stall-actions' }, fire),
-      el('p', { class: 'hint' }, 'Food bloggers only trust the boss: cook those yourself. Staff training and equipment make cooks faster.'),
+      el('p', { class: 'hint' }, 'Food bloggers only trust the boss: cook those yourself. Staff level and equipment make cooks faster; Staff level also raises what their sales earn.'),
     );
   } else if (tab === 'upgrades') {
     for (const key of STALL_UPGRADES) {

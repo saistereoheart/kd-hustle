@@ -1,50 +1,217 @@
 {
   "tiers": [
     {
-      "tier": 1, "id": "pasar", "name": "Pasar Malam Stall", "icon": "⛺",
+      "tier": 1,
+      "id": "pasar",
+      "name": "Pasar Malam Stall",
+      "icon": "⛺",
       "desc": "A folding stall in the night market car park. Opens 5 PM – 2 AM.",
-      "priceSen": 30000, "requires": { "stage": 2 }, "hours": [17, 2], "priceMult": 1,
-      "customersPerMin": 4.5, "patienceSec": [40, 70], "queueBase": 4, "staffMax": 1,
-      "hireSen": 30000, "wagePerDaySen": 14400, "upgradeCostMult": 1
+      "priceSen": 30000,
+      "requires": {
+        "stage": 2
+      },
+      "hours": [
+        17,
+        2
+      ],
+      "priceMult": 1,
+      "customersPerMin": 4.5,
+      "patienceSec": [
+        40,
+        70
+      ],
+      "queueBase": 4,
+      "staffMax": 1,
+      "hireSen": 30000,
+      "wagePerDaySen": 14400,
+      "upgradeCostMult": 1
     },
     {
-      "tier": 2, "id": "truck", "name": "Food Truck", "icon": "🚚",
+      "tier": 2,
+      "id": "truck",
+      "name": "Food Truck",
+      "icon": "🚚",
       "desc": "Your own food truck on the car park's east side. Opens 10 AM – 2 AM, bigger prices.",
-      "priceSen": 2500000, "requires": { "stage": 2, "level": 8 }, "hours": [10, 2], "priceMult": 2.5,
-      "customersPerMin": 5.5, "patienceSec": [50, 80], "queueBase": 5, "staffMax": 2,
-      "hireSen": 300000, "wagePerDaySen": 60000, "upgradeCostMult": 5
+      "priceSen": 2500000,
+      "requires": {
+        "stage": 2,
+        "level": 8
+      },
+      "hours": [
+        10,
+        2
+      ],
+      "priceMult": 2.5,
+      "customersPerMin": 5.5,
+      "patienceSec": [
+        50,
+        80
+      ],
+      "queueBase": 5,
+      "staffMax": 2,
+      "hireSen": 300000,
+      "wagePerDaySen": 60000,
+      "upgradeCostMult": 5
     },
     {
-      "tier": 3, "id": "kopitiam", "name": "Kopitiam", "icon": "🏪",
+      "tier": 3,
+      "id": "kopitiam",
+      "name": "Kopitiam",
+      "icon": "🏪",
       "desc": "A shoplot kopitiam in Dataran Sunway. Opens 6 AM – 2 AM, the best prices.",
-      "priceSen": 25000000, "requires": { "stage": 3 }, "hours": [6, 2], "priceMult": 6,
-      "customersPerMin": 6.5, "patienceSec": [60, 100], "queueBase": 6, "staffMax": 4,
-      "hireSen": 2000000, "wagePerDaySen": 240000, "upgradeCostMult": 30
+      "priceSen": 25000000,
+      "requires": {
+        "stage": 3
+      },
+      "hours": [
+        6,
+        2
+      ],
+      "priceMult": 6,
+      "customersPerMin": 6.5,
+      "patienceSec": [
+        60,
+        100
+      ],
+      "queueBase": 6,
+      "staffMax": 4,
+      "hireSen": 2000000,
+      "wagePerDaySen": 240000,
+      "upgradeCostMult": 30
     }
   ],
   "upgrades": {
-    "equipment": { "name": "Equipment", "icon": "🍳", "desc": "Wider timing windows when you cook, and faster cooks.", "maxLevel": 10, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.08 },
-    "signage": { "name": "Signage & decor", "icon": "🏷️", "desc": "+10% customers per level.", "maxLevel": 10, "baseCostSen": 25000, "costGrowth": 1.6, "perLevel": 0.1 },
-    "queue": { "name": "Queue space", "icon": "🧍", "desc": "+1 customer can wait in line per level.", "maxLevel": 5, "baseCostSen": 15000, "costGrowth": 1.8, "perLevel": 1 },
-    "supplier": { "name": "Supplier contract", "icon": "📦", "desc": "−5% ingredient prices per level.", "maxLevel": 8, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.05 },
-    "training": { "name": "Staff training", "icon": "🎓", "desc": "Your cooks work 10% faster per level.", "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.6, "perLevel": 0.1 }
+    "level": {
+      "name": "Stall level",
+      "icon": "⭐",
+      "desc": "+12% on every dish and add-on price per level.",
+      "maxLevel": 15,
+      "baseCostSen": 15000,
+      "costGrowth": 1.32,
+      "perLevel": 0.12
+    },
+    "equipment": {
+      "name": "Equipment",
+      "icon": "🍳",
+      "desc": "Wider timing windows when you cook, and faster cooks.",
+      "maxLevel": 10,
+      "baseCostSen": 8000,
+      "costGrowth": 1.35,
+      "perLevel": 0.08
+    },
+    "signage": {
+      "name": "Signage & decor",
+      "icon": "🏷️",
+      "desc": "+10% customers per level.",
+      "maxLevel": 10,
+      "baseCostSen": 10000,
+      "costGrowth": 1.35,
+      "perLevel": 0.1
+    },
+    "queue": {
+      "name": "Queue space",
+      "icon": "🧍",
+      "desc": "+1 customer can wait in line per level.",
+      "maxLevel": 5,
+      "baseCostSen": 6000,
+      "costGrowth": 1.5,
+      "perLevel": 1
+    },
+    "supplier": {
+      "name": "Supplier contract",
+      "icon": "📦",
+      "desc": "−5% ingredient prices per level.",
+      "maxLevel": 8,
+      "baseCostSen": 8000,
+      "costGrowth": 1.35,
+      "perLevel": 0.05
+    },
+    "training": {
+      "name": "Staff level",
+      "icon": "🧑‍🍳",
+      "desc": "Your cooks work 10% faster and their sales earn +6% per level.",
+      "maxLevel": 10,
+      "baseCostSen": 12000,
+      "costGrowth": 1.35,
+      "perLevel": 0.1,
+      "bonusPerLevel": 0.06
+    }
   },
-  "staff": { "cookSec": 14, "passiveRate": 0.8 },
+  "staff": {
+    "cookSec": 14,
+    "passiveRate": 0.8
+  },
   "reputation": {
-    "start": 50, "max": 100,
-    "perQuality": { "perfect": 2, "great": 1, "good": 0, "ok": -1, "burnt": -4 },
-    "lostCustomer": -3, "multAtZero": 0.5, "multAtMax": 1.5
+    "start": 50,
+    "max": 100,
+    "perQuality": {
+      "perfect": 2,
+      "great": 1,
+      "good": 0,
+      "ok": -1,
+      "burnt": -4
+    },
+    "lostCustomer": -3,
+    "multAtZero": 0.5,
+    "multAtMax": 1.5
   },
-  "combo": { "perPerfect": 0.05, "max": 0.5 },
-  "tips": { "max": 0.3, "minQuality": "great" },
-  "rush": { "customers": 1.8, "price": 1.2 },
-  "blogger": { "chance": 0.04, "minReputation": 40, "payMult": 5, "repBonus": 10, "repPenalty": 10, "boostCustomers": 1.5, "boostGameHours": 24 },
+  "combo": {
+    "perPerfect": 0.05,
+    "max": 0.5
+  },
+  "tips": {
+    "max": 0.3,
+    "minQuality": "great"
+  },
+  "rush": {
+    "customers": 1.8,
+    "price": 1.2
+  },
+  "blogger": {
+    "chance": 0.04,
+    "minReputation": 40,
+    "payMult": 5,
+    "repBonus": 10,
+    "repPenalty": 10,
+    "boostCustomers": 1.5,
+    "boostGameHours": 24
+  },
   "stock": {
-    "packs": [ { "qty": 10, "discount": 0 }, { "qty": 50, "discount": 0.1 }, { "qty": 200, "discount": 0.2 } ],
-    "shelfLifeGameHours": 72, "deliveryFee": 0.25, "maxPerRecipe": 600
+    "packs": [
+      {
+        "qty": 10,
+        "discount": 0
+      },
+      {
+        "qty": 50,
+        "discount": 0.1
+      },
+      {
+        "qty": 200,
+        "discount": 0.2
+      }
+    ],
+    "shelfLifeGameHours": 72,
+    "deliveryFee": 0.25,
+    "maxPerRecipe": 600
   },
-  "mastery": { "thresholds": [10, 30, 60, 100, 160, 250, 400, 600, 900, 1300], "pricePerLevel": 0.08 },
+  "mastery": {
+    "thresholds": [
+      10,
+      30,
+      60,
+      100,
+      160,
+      250,
+      400,
+      600,
+      900,
+      1300
+    ],
+    "pricePerLevel": 0.08
+  },
   "dishTimeoutSlackSec": 25,
   "cookRadiusTiles": 4,
-  "assetValueRate": 0.5
+  "assetValueRate": 0.5,
+  "offHoursCustomers": 0.45
 }

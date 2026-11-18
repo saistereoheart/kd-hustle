@@ -17,7 +17,9 @@ export interface CookStock {
 }
 
 /** Plays a dish. Resolves with the inputs to send (or null if the player gave up). */
-export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void, stock?: () => CookStock | null): Promise<StepInput[] | null> {
+/** Plays a dish. Resolves with the inputs to send, null if the player gave up, or 'restart' if they
+ *  threw it away to start over (only offered when `canRestart`). */
+export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void, stock?: () => CookStock | null, canRestart = false): Promise<StepInput[] | null | 'restart'> {
   return new Promise((resolve) => {
     const W0 = Math.min(innerWidth - 28, 520);
     const H0 = Math.round(Math.min(W0 * 0.72, innerHeight * 0.48));
@@ -44,6 +46,8 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     /** The add-on trays, beside the plate on a wide screen. */
     const side = el('div', { class: 'cook-side hidden' });
     const quit = el('button', { class: 'btn small', type: 'button', 'data-action': 'cook-quit' }, 'Give up');
+    const redo = el('button', { class: 'btn small', type: 'button', 'data-action': 'cook-redo', title: 'Throw this one away and start again (free)' }, '↺ Start over');
+    if (!canRestart) redo.classList.add('hidden');
     // Stock, big and always visible: portions left and every add-on.
     const stockBar = el('div', { class: 'cook-stock', 'data-testid': 'cook-stock' });
     const paintStock = () => {
@@ -65,7 +69,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       hint,
       el('div', { class: 'cook-stage' }, canvas, side),
       options,
-      el('div', { class: 'cw-foot' }, action, quit),
+      el('div', { class: 'cw-foot' }, action, redo, quit),
     );
     const host = el('div', { class: 'reveal-overlay cook', 'data-testid': 'cook' }, box);
     uiRoot().append(host);
@@ -83,7 +87,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     const cleanup: Array<() => void> = [];
     const now = () => performance.now() - stepStart;
 
-    const done = (result: StepInput[] | null) => {
+    const done = (result: StepInput[] | null | 'restart') => {
       cancelAnimationFrame(raf);
       clearInterval(stockTimer);
       for (const c of [...stepCleanup, ...cleanup]) c();
@@ -96,6 +100,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       onCancel();
       done(null);
     });
+    redo.addEventListener('click', () => done('restart'));
 
     // Keyboard: Space = the action button; 1–4 = sequence options.
     const onKey = (e: KeyboardEvent) => {

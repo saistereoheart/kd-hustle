@@ -78,13 +78,12 @@ export function openStallPanel(app: App, plotId: string) {
     const me = app.store.stall!;
     const rush = rushHour(app.cfg.time, t.hourF);
     const withinHours = stallOpenNow(app.cfg.stalls, me.tier, t.hourF);
+    // Open whenever you switch it on; outside the usual hours it's quieter.
     const status = s.open
-      ? `🟢 Open${rush ? ` · 🍽️ ${rush}!` : ''}`
+      ? `🟢 Open${rush ? ` · 🍽️ ${rush}!` : ''}${withinHours ? '' : ` · 🌙 quiet hours (busiest ${hoursText(tier.hours)})`}`
       : !me.open
         ? '🔴 Closed (switched off)'
-        : !withinHours
-          ? `🌙 Closed: open ${hoursText(tier.hours)} (in-game)`
-          : '🔴 Closed';
+        : '🔴 Closed';
     const queue = el('div', { class: 'stall-queue' });
     if (!s.queue.length) queue.append(el('p', { class: 'muted' }, s.open ? 'Waiting for customers…' : 'No customers while closed.'));
     for (const c of s.queue) {
@@ -162,22 +161,38 @@ export function cookOrder(app: App, customerId: number | undefined, token: boole
       showResult(app, res.served, null);
       return after();
     }
-    const dish = res.dish!;
-    app.cookingDish = dish;
     closePanel();
-    const recipe = app.cfg.recipes.recipes.find((r) => r.id === dish.recipe);
-    void playDish(app.cfg.recipes, dish, `${recipe?.icon ?? '🍳'} ${recipe?.name ?? 'Dish'}`, () => app.socket?.emit('stall:cancel', () => {}), () => cookStock(app, dish.recipe)).then((inputs) => {
-      app.cookingDish = null;
-      if (!inputs) return after();
-      app.socket?.timeout(8000).emit('stall:serve', { dishId: dish.dishId, inputs }, (e2, r2) => {
-        if (e2 || !r2.ok) {
+    play(app, res.dish!, after);
+  });
+}
+
+/** Play a dish the server built; serve it, or start it over (free) when asked. */
+function play(app: App, dish: DishState, after: () => void) {
+  app.cookingDish = dish;
+  const recipe = app.cfg.recipes.recipes.find((r) => r.id === dish.recipe);
+  void playDish(app.cfg.recipes, dish, `${recipe?.icon ?? '🍳'} ${recipe?.name ?? 'Dish'}`, () => app.socket?.emit('stall:cancel', () => {}), () => cookStock(app, dish.recipe), true).then((inputs) => {
+    app.cookingDish = null;
+    if (inputs === 'restart') {
+      app.socket?.timeout(5000).emit('stall:redo', (err, res) => {
+        if (err || !res.ok) {
           sfx.error();
-          toast(e2 ? 'No response.' : r2.ok ? '' : r2.error, 'bad');
+          toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
           return after();
         }
-        showResult(app, r2.result, dish);
-        after();
+        sfx.click();
+        play(app, res.dish, after);
       });
+      return;
+    }
+    if (!inputs) return after();
+    app.socket?.timeout(8000).emit('stall:serve', { dishId: dish.dishId, inputs }, (e2, r2) => {
+      if (e2 || !r2.ok) {
+        sfx.error();
+        toast(e2 ? 'No response.' : r2.ok ? '' : r2.error, 'bad');
+        return after();
+      }
+      showResult(app, r2.result, dish);
+      after();
     });
   });
 }

@@ -19,5 +19,6 @@
     "capHours": 8,
     "efficiency": 0.5
   },
-  "furnitureMaxQty": 10
+  "furnitureMaxQty": 10,
+  "phoneRollFee": 0.1
 }

@@ -6,7 +6,7 @@ import { inHours } from '../time/clock';
 import type { AddonDef, RecipeDef } from './cooking';
 
 const money = z.number().int().nonnegative();
-export const STALL_UPGRADES = ['equipment', 'signage', 'queue', 'supplier', 'training'] as const;
+export const STALL_UPGRADES = ['level', 'equipment', 'signage', 'queue', 'supplier', 'training'] as const;
 export type StallUpgrade = (typeof STALL_UPGRADES)[number];
 
 export const stallsConfigSchema = z.object({
@@ -39,9 +39,15 @@ export const stallsConfigSchema = z.object({
     .min(1),
   upgrades: z.record(
     z.enum(STALL_UPGRADES),
-    z.object({ name: z.string(), icon: z.string(), desc: z.string(), maxLevel: z.number().int().positive(), baseCostSen: money, costGrowth: z.number().min(1), perLevel: z.number() }),
+    z.object({
+      name: z.string(), icon: z.string(), desc: z.string(), maxLevel: z.number().int().positive(), baseCostSen: money, costGrowth: z.number().min(1), perLevel: z.number(),
+      /** A second effect per level (Staff level: + share of the price your cooks' sales earn). */
+      bonusPerLevel: z.number().optional(),
+    }),
   ),
   staff: z.object({ cookSec: z.number().positive(), passiveRate: z.number().positive() }),
+  /** You can open any time; outside a tier's usual hours customers come at this rate. */
+  offHoursCustomers: z.number().min(0).max(1).default(0.45),
   reputation: z.object({
     start: z.number(), max: z.number(),
     perQuality: z.object({ perfect: z.number(), great: z.number(), good: z.number(), ok: z.number(), burnt: z.number() }),
@@ -156,12 +162,12 @@ export function stockItems(cfg: StallsConfig, recipes: RecipeDef[], s: Pick<Stal
 }
 
 /** An add-on's price before quality, combo and tips (tier, skills and rush apply; mastery doesn't). */
-export function addonBaseSen(cfg: StallsConfig, addon: AddonDef, s: Pick<StallState, 'tier'>, rush: boolean, b: StallBonuses = NO_BONUS): number {
-  return Math.round(addon.basePriceSen * tierDef(cfg, s.tier).priceMult * (1 + b.dishPrice) * (rush ? cfg.rush.price : 1));
+export function addonBaseSen(cfg: StallsConfig, addon: AddonDef, s: Pick<StallState, 'tier'> & Partial<Pick<StallState, 'upgrades'>>, rush: boolean, b: StallBonuses = NO_BONUS): number {
+  return Math.round(addon.basePriceSen * tierDef(cfg, s.tier).priceMult * stallLevelMult(cfg, s) * (1 + b.dishPrice) * (rush ? cfg.rush.price : 1));
 }
 
 /** A whole order's base price: the dish plus its add-ons. */
-export function orderBaseSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'tier' | 'mastery'>, rush: boolean, addons: readonly string[] = [], b: StallBonuses = NO_BONUS): number {
+export function orderBaseSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'tier' | 'mastery'> & Partial<Pick<StallState, 'upgrades'>>, rush: boolean, addons: readonly string[] = [], b: StallBonuses = NO_BONUS): number {
   let sen = dishBaseSen(cfg, recipe, s, rush, b);
   for (const id of addons) {
     const a = recipe.addons.find((x) => x.id === id);
@@ -190,18 +196,29 @@ export interface StallBonuses {
 export const NO_BONUS: StallBonuses = { dishPrice: 0, customers: 0, wages: 0, customerBuff: 1, staffSpeedBuff: 1 };
 
 /** A dish's base price before quality, combo and tips. */
-export function dishBaseSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'tier' | 'mastery'>, rush: boolean, b: StallBonuses = NO_BONUS): number {
-  const mastery = 1 + masteryLevel(cfg, s.mastery[recipe.id] ?? 0) * cfg.mastery.pricePerLevel;
-  return Math.round(recipe.basePriceSen * tierDef(cfg, s.tier).priceMult * mastery * (1 + b.dishPrice) * (rush ? cfg.rush.price : 1));
+/** Stall level: every level raises all prices. */
+export function stallLevelMult(cfg: StallsConfig, s: Partial<Pick<StallState, 'upgrades'>>): number {
+  return 1 + (s.upgrades?.level ?? 0) * (cfg.upgrades.level?.perLevel ?? 0);
 }
 
-/** Customers per real minute right now. */
-export function customerRate(cfg: StallsConfig, s: Pick<StallState, 'tier' | 'rep' | 'upgrades' | 'buzzUntil'>, rush: boolean, nowMs: number, b: StallBonuses = NO_BONUS): number {
+/** Your cooks' sales: the passive share, raised by Staff level. */
+export function staffPayRate(cfg: StallsConfig, s: Pick<StallState, 'upgrades'>): number {
+  return cfg.staff.passiveRate * (1 + upgradeLevel(s, 'training') * (cfg.upgrades.training?.bonusPerLevel ?? 0));
+}
+
+/** A dish's base price before quality, combo and tips. */
+export function dishBaseSen(cfg: StallsConfig, recipe: RecipeDef, s: Pick<StallState, 'tier' | 'mastery'> & Partial<Pick<StallState, 'upgrades'>>, rush: boolean, b: StallBonuses = NO_BONUS): number {
+  const mastery = 1 + masteryLevel(cfg, s.mastery[recipe.id] ?? 0) * cfg.mastery.pricePerLevel;
+  return Math.round(recipe.basePriceSen * tierDef(cfg, s.tier).priceMult * mastery * stallLevelMult(cfg, s) * (1 + b.dishPrice) * (rush ? cfg.rush.price : 1));
+}
+
+/** Customers per real minute right now (`offHours`: outside the tier's usual hours). */
+export function customerRate(cfg: StallsConfig, s: Pick<StallState, 'tier' | 'rep' | 'upgrades' | 'buzzUntil'>, rush: boolean, nowMs: number, b: StallBonuses = NO_BONUS, offHours = false): number {
   const r = cfg.reputation;
   const repMult = r.multAtZero + (r.multAtMax - r.multAtZero) * Math.max(0, Math.min(1, s.rep / r.max));
   const signage = 1 + upgradeLevel(s, 'signage') * cfg.upgrades.signage!.perLevel;
   const buzz = s.buzzUntil > nowMs ? cfg.blogger.boostCustomers : 1;
-  return tierDef(cfg, s.tier).customersPerMin * repMult * signage * (1 + b.customers) * (rush ? cfg.rush.customers : 1) * buzz * b.customerBuff;
+  return tierDef(cfg, s.tier).customersPerMin * repMult * signage * (1 + b.customers) * (rush ? cfg.rush.customers : 1) * buzz * b.customerBuff * (offHours ? cfg.offHoursCustomers : 1);
 }
 
 export function queueCapacity(cfg: StallsConfig, s: Pick<StallState, 'tier' | 'upgrades'>): number {

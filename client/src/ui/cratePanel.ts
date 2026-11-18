@@ -6,11 +6,14 @@ import { itemCard, openPanel } from './panel';
 import { playReveal } from './reel';
 import { sfx } from './sound';
 
-export function openCratePanel(app: App, crateId: string) {
+/** `remote`: a quick roll from the phone (same crate, + economy.phoneRollFee). */
+export function openCratePanel(app: App, crateId: string, opts: { remote?: boolean } = {}) {
   const crate = app.crates.get(crateId);
   if (!crate) return;
   const rar = app.cfg.rarities;
-  const panel = openPanel(crate.name, { wide: true, testId: 'crate-panel' });
+  const remote = !!opts.remote;
+  const feeMult = remote ? 1 + app.cfg.economy.phoneRollFee : 1;
+  const panel = openPanel(`${remote ? '📱 ' : ''}${crate.name}`, { wide: true, testId: 'crate-panel' });
   let busy = false;
   /** Auto-Roll (a Hustle Skill): keep rolling the same count until stopped. */
   let auto = false;
@@ -35,7 +38,7 @@ export function openCratePanel(app: App, crateId: string) {
       'div',
       { class: 'crate-head' },
       el('div', { class: 'crate-art' }, el('span', {}, crate.id === 'capsule' ? '🎰' : crate.id === 'luckybag' ? '🧧' : '🎁')),
-      el('div', {}, el('div', { class: 'crate-price' }, `${formatMoney(crate.priceSen)} per roll`), el('div', { class: 'muted' }, `You have ${formatMoney(st.walletSen)}`)),
+      el('div', {}, el('div', { class: 'crate-price' }, `${formatMoney(Math.round(crate.priceSen * feeMult))} per roll`), remote ? el('div', { class: 'muted small' }, `📱 Phone roll: +${Math.round(app.cfg.economy.phoneRollFee * 100)}% fee (free at the machine)`) : null, el('div', { class: 'muted' }, `You have ${formatMoney(st.walletSen)}`)),
     );
     head.querySelector<HTMLElement>('.crate-art')!.style.setProperty('--crate', crate.color);
 
@@ -64,7 +67,7 @@ export function openCratePanel(app: App, crateId: string) {
     }
     const actions = el('div', { class: 'crate-actions' });
     for (const n of [1, 5, 10] as const) {
-      const cost = crate.priceSen * n;
+      const cost = Math.round(crate.priceSen * n * feeMult);
       const b = el('button', { class: `btn ${n === 1 ? 'primary' : ''}`, type: 'button', 'data-roll': String(n), disabled: busy || !!lock || st.walletSen < cost }, `Roll ×${n}`, el('small', {}, formatMoney(cost)));
       b.addEventListener('click', () => roll(n));
       actions.append(b);
@@ -83,7 +86,7 @@ export function openCratePanel(app: App, crateId: string) {
     busy = true;
     render();
     sfx.click();
-    app.socket.timeout(8000).emit('crate:roll', { crateId, count }, (err, res) => {
+    app.socket.timeout(8000).emit('crate:roll', { crateId, count, ...(remote ? { remote: true } : {}) }, (err, res) => {
       busy = false;
       if (err || !res.ok) {
         sfx.error();
@@ -107,7 +110,7 @@ export function openCratePanel(app: App, crateId: string) {
         results: res.results,
         luck: mods.luck,
         speed: mods.rollSpeed,
-        auto: auto ? { isOn: () => auto && app.store.walletSen >= crate.priceSen * count && !lockReason(), stop: () => (auto = false) } : undefined,
+        auto: auto ? { isOn: () => auto && app.store.walletSen >= crate.priceSen * count * feeMult && !lockReason(), stop: () => (auto = false) } : undefined,
         shake: (i) => app.town?.shake(i),
         onDone: (again) => {
           panel.root.classList.remove('hidden');

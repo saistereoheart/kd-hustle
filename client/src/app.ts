@@ -45,6 +45,8 @@ import { TownScene } from './world/townScene';
 import { InteriorScene } from './world/interiorScene';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
+import { StockHud } from './ui/stockHud';
+import { PhoneButton } from './ui/phoneButton';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
 import { HomeScene } from './world/homeScene';
@@ -70,6 +72,8 @@ export class App {
   /** Guide arrow to goals/places + random hints. */
   guide: Guide | null = null;
   voteBanner: VoteBanner | null = null;
+  stockHud: StockHud | null = null;
+  phoneBtn: PhoneButton | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -576,6 +580,8 @@ export class App {
       this.guide = new Guide(this);
       this.minimap?.setPois(this.guide.pois);
       this.voteBanner = new VoteBanner(this);
+      this.stockHud = new StockHud(this);
+      this.phoneBtn = new PhoneButton(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
@@ -817,6 +823,10 @@ export class App {
     this.guide = null;
     this.voteBanner?.destroy();
     this.voteBanner = null;
+    this.stockHud?.destroy();
+    this.stockHud = null;
+    this.phoneBtn?.destroy();
+    this.phoneBtn = null;
     this.progressHud?.destroy();
     this.progressHud = null;
     this.hud?.destroy();

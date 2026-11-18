@@ -85,6 +85,8 @@ export type CrateDef = CratesConfig['crates'][number];
 
 export const economyConfigSchema = z.object({
   startingWalletSen: z.number().int().nonnegative(),
+  /** Quick rolls from the phone (no walking to the machine) cost this much extra (share of the price). */
+  phoneRollFee: z.number().min(0).default(0.1),
   /** Pawn shop pays this fraction of an item's value. */
   pawnRate: z.number().min(0).max(1),
   shardShopPrices: z.record(z.string(), z.number().int().positive()),

@@ -39,7 +39,8 @@ export const C2S = {
   timeVote: z.object({ yes: z.boolean() }),
   /** Go into a building (its OSM id) or come back out (null). */
   interior: z.object({ building: z.string().max(40).nullable() }),
-  crateRoll: z.object({ crateId: z.string().max(32), count: z.union([z.literal(1), z.literal(5), z.literal(10)]) }),
+  /** `remote`: a quick roll from the phone (anywhere, for a small fee: economy.json → phoneRollFee). */
+  crateRoll: z.object({ crateId: z.string().max(32), count: z.union([z.literal(1), z.literal(5), z.literal(10)]), remote: z.boolean().optional() }),
   equip: z.object({ iid: z.number().int().positive() }),
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), count: z.number().int().min(1).max(10000) }),
@@ -449,6 +450,8 @@ export interface ClientToServerEvents {
   'stall:cook': (msg: { customerId?: number; token?: boolean }, ack: Ack<Result<{ dish: DishState | null; served?: ServeResult }>>) => void;
   'stall:serve': (msg: { dishId: string; inputs: Array<{ startMs: number; ev: number[] }> }, ack: Ack<Result<{ result: ServeResult }>>) => void;
   'stall:cancel': (ack: Ack<SimpleResult>) => void;
+  /** Throw away the dish you're making and start it over (free: same customer, no more stock). */
+  'stall:redo': (ack: Ack<Result<{ dish: DishState }>>) => void;
   'stall:upgrade': (msg: { key: string }, ack: Ack<SimpleResult>) => void;
   'stall:hire': (ack: Ack<SimpleResult>) => void;
   'stall:fire': (ack: Ack<SimpleResult>) => void;

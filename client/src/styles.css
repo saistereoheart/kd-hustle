@@ -831,3 +831,31 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 .cook-tray::after { content: attr(data-name); position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; background: #11131f; color: #ffd43b; border: 1px solid #ffd43b; border-radius: 8px; padding: 4px 9px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 5; }
 .cook-tray:hover::after, .cook-tray:focus-visible::after { opacity: 1; }
 @media (max-width: 759px) { .cook-side { display: none; } }
+
+/* ---- your stall's stock, down the right side (big icons, "x 12"; hover/tap shows the name) ---- */
+.stock-hud { position: absolute; right: calc(8px + var(--safe-r)); top: calc(196px + var(--safe-t)); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-height: calc(100vh - 300px); overflow: hidden; }
+body.touch .stock-hud { top: calc(165px + var(--safe-t)); }
+.stock-pill { display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.82); color: #fff; touch-action: manipulation; }
+.stock-pill canvas { flex: 0 0 auto; }
+.stock-pill.addon { border-color: rgba(232, 89, 12, 0.7); }
+.stock-pill.low { border-color: #ffa94d; }
+.stock-pill.out { border-color: #ff6b6b; background: rgba(120, 20, 20, 0.85); }
+.stock-pill-qty { font-size: 16px; font-weight: 900; white-space: nowrap; }
+.stock-pill.out .stock-pill-qty { color: #ffc9c9; }
+.stock-pill-name { max-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: 13px; color: #ffd43b; transition: max-width 0.18s ease, margin 0.18s; }
+.stock-pill:hover .stock-pill-name, .stock-pill:focus-visible .stock-pill-name, .stock-pill.open .stock-pill-name { max-width: 180px; margin-right: 4px; }
+
+/* ---- the phone: big, glowing, bottom left ---- */
+.phone-btn { position: absolute; left: calc(14px + var(--safe-l)); bottom: calc(16px + var(--safe-b)); display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; z-index: 3; cursor: pointer; touch-action: manipulation; }
+body.touch .phone-btn { bottom: calc(176px + var(--safe-b)); left: calc(10px + var(--safe-l)); transform: scale(0.85); transform-origin: bottom left; }
+.phone-btn-body { position: relative; display: block; width: 58px; height: 100px; border-radius: 14px; background: linear-gradient(145deg, #343a40, #11131f); border: 2px solid #ffd43b; box-shadow: 0 0 0 3px rgba(255, 212, 59, 0.25), 0 0 22px rgba(255, 212, 59, 0.55), 0 8px 16px rgba(0,0,0,0.5); animation: phone-glow 2.4s ease-in-out infinite; transition: transform 0.12s; }
+.phone-btn:hover .phone-btn-body { transform: translateY(-4px) rotate(-3deg); }
+.phone-btn-notch { position: absolute; top: 5px; left: 50%; width: 16px; height: 4px; margin-left: -8px; border-radius: 3px; background: #000; }
+.phone-btn-screen { position: absolute; inset: 12px 6px 16px; border-radius: 6px; background: linear-gradient(160deg, #4dabf7, #7048e8 60%, #e64980); display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 5px; }
+.phone-btn-screen i { display: block; border-radius: 4px; background: rgba(255,255,255,0.75); }
+.phone-btn-home { position: absolute; bottom: 5px; left: 50%; width: 18px; height: 4px; margin-left: -9px; border-radius: 3px; background: rgba(255,255,255,0.5); }
+.phone-btn-label { font: 800 13px system-ui, sans-serif; color: #fff; text-shadow: 0 2px 3px rgba(0,0,0,0.8); white-space: nowrap; }
+.phone-btn-label kbd { background: #ffd43b; color: #1b1300; border-radius: 5px; padding: 0 5px; font-family: inherit; }
+body.touch .phone-btn-label kbd { display: none; }
+.phone-btn-badge { position: absolute; top: -6px; right: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: #fa5252; color: #fff; font: 900 13px/22px system-ui, sans-serif; text-align: center; border: 2px solid #fff; }
+@keyframes phone-glow { 0%, 100% { box-shadow: 0 0 0 3px rgba(255, 212, 59, 0.25), 0 0 14px rgba(255, 212, 59, 0.4), 0 8px 16px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 4px rgba(255, 212, 59, 0.4), 0 0 28px rgba(255, 212, 59, 0.75), 0 8px 16px rgba(0,0,0,0.5); } }

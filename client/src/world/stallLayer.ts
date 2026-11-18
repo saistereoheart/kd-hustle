@@ -2,7 +2,7 @@
 // their plots, NPC customers queueing with order bubbles and patience bars, warm lights at
 // night, and the day/night tint over the whole town.
 import Phaser from 'phaser';
-import { darkness, formatMoneyExact, gameTime, randomAppearance, stockCount, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
+import { darkness, formatMoneyExact, gameTime, randomAppearance, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
 import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
@@ -65,8 +65,6 @@ export class StallLayer {
   private views = new Map<string, PlotView>();
   /** The cooks you've hired, standing at the stall (everyone sees them). */
   private staff = new Map<string, StaffView[]>();
-  /** "📦 23 · 🍗 4" over your own stall. */
-  private stockSign: Phaser.GameObjects.Text | null = null;
   private customers = new Map<number, Customer>();
   private night: Phaser.GameObjects.Rectangle;
   private T: number;
@@ -95,7 +93,6 @@ export class StallLayer {
       this.views.set(plot.id, this.drawPlot(plot, s, key));
     }
     this.syncStaff();
-    this.syncStockSign();
     // Customers: add new ones, move the queue up, send leavers away.
     const seen = new Set<number>();
     for (const s of this.app.store.stalls.values()) {
@@ -158,37 +155,6 @@ export class StallLayer {
       if (list.length) this.staff.set(plot.id, list);
       else this.staff.delete(plot.id);
     }
-  }
-
-  /** Your own stall shows its stock, so you can see when to restock from across the car park. */
-  private syncStockSign() {
-    const me = this.app.store.stall;
-    const plot = me ? this.plots.find((p) => p.id === me.plot) : undefined;
-    const r = this.app.cfg.recipes.recipes;
-    if (!me || !plot) {
-      this.stockSign?.destroy();
-      this.stockSign = null;
-      return;
-    }
-    const parts: string[] = [];
-    let low = false;
-    for (const rec of r) {
-      if (!(rec.id in me.stock) && !rec.addons.some((a) => a.id in me.stock)) continue;
-      const n = stockCount(me, rec.id);
-      if (n <= 5) low = true;
-      parts.push(`${rec.icon} ${n}`);
-      for (const a of rec.addons) if (a.id in me.stock || stockCount(me, a.id)) parts.push(`${a.icon}${stockCount(me, a.id)}`);
-    }
-    const text = `📦 ${parts.join('  ') || 'no stock!'}`;
-    const T = this.T;
-    const y = plot.y * T + (plot.tier === 1 ? -100 : plot.tier === 2 ? -62 : -70);
-    if (!this.stockSign) {
-      this.stockSign = this.scene.add
-        .text(plot.x * T, y, text, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', backgroundColor: 'rgba(17,19,31,0.78)', padding: { x: 6, y: 3 }, resolution: 3 })
-        .setOrigin(0.5, 1)
-        .setDepth(999_001);
-    }
-    this.stockSign.setText(text).setPosition(plot.x * T, y).setBackgroundColor(low || !parts.length ? 'rgba(201,42,42,0.88)' : 'rgba(17,19,31,0.78)');
   }
 
   /** "+RM 21.60 🧑‍🍳" rising over your stall when a cook sells something. */
@@ -427,6 +393,5 @@ export class StallLayer {
     this.lamps.destroy();
     for (const list of this.staff.values()) for (const v of list) (v.avatar.destroy(), v.icon.destroy());
     this.staff.clear();
-    this.stockSign?.destroy();
   }
 }

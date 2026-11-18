@@ -18,6 +18,7 @@ import { renderTitles } from './titles';
 import { renderHandbook } from './handbook';
 import { renderClock } from './clock';
 import { renderProperties } from './properties';
+import { renderRolls } from './rolls';
 
 export interface PhoneCtx {
   app: App;
@@ -42,6 +43,7 @@ interface PhoneApp {
 }
 
 const APPS: PhoneApp[] = [
+  { id: 'rolls', name: 'Quick Rolls', icon: '🎰', color: '#f03e3e', render: renderRolls },
   {
     id: 'daily', name: 'Daily', icon: '🎁', color: '#e64980', render: renderDaily,
     badge: (app) => (app.store.progress.daily.canClaim ? '!' : null),
@@ -68,7 +70,6 @@ const APPS: PhoneApp[] = [
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
   { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
   { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0) },
-  { id: 'index', name: 'Index', icon: '📖', color: '#5f3dc4', open: (app) => openInventoryPanel(app, 1) },
   { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
   {
     id: 'properties', name: 'Properties', icon: '🏠', color: '#0b7285', render: renderProperties,
@@ -78,11 +79,13 @@ const APPS: PhoneApp[] = [
     id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
     badge: (app) => (app.store.stall && Object.values(app.store.stall.stock).every((b) => !b.reduce((a, x) => a + x.qty, 0)) ? '!' : null),
   },
-  { id: 'bank', name: 'Bank Kota', icon: '🏦', color: '#868e96', soon: 'Loans, credit score and the Ah Long. Coming with Phase 6.' },
-  { id: 'market', name: 'Pasar Online', icon: '🛒', color: '#868e96', soon: 'Trade and sell items to other players. Coming with Phase 7.' },
-  { id: 'leaderboard', name: 'Leaderboard', icon: '🏆', color: '#868e96', soon: 'Race your friends on net worth, rarest pull and more. Coming with Phase 7.' },
   { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings() },
 ];
+
+/** How many apps want your attention (for the badge on the phone button). */
+export function phoneBadgeCount(app: App): number {
+  return APPS.filter((a) => a.badge?.(app)).length;
+}
 
 export function openPhone(app: App, startApp?: string) {
   const panel = openPanel('📱 HustlePhone', { testId: 'phone-panel', cls: 'phone-frame' });

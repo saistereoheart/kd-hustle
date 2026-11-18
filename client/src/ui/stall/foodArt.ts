@@ -653,3 +653,30 @@ function mix(a: [number, number, number], b: [number, number, number], t: number
   const k = Math.max(0, Math.min(1, t));
   return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * k)).join(',')})`;
 }
+
+/** A round icon for a dish or ingredient (stock display): the food on a little white plate. */
+export function foodIcon(id: string, size: number): HTMLCanvasElement {
+  const dpr = Math.min(3, devicePixelRatio || 1);
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.round(size * dpr);
+  c.style.width = c.style.height = `${size}px`;
+  const ctx = c.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+  const m = size / 2;
+  if (id === 'teh_tarik') {
+    drawGlass(ctx, size * 0.24, size * 0.14, size * 0.44, size * 0.66, 0.62, 0.7, '#b5651d');
+    return c;
+  }
+  ellipse(ctx, m + 1, m + 2, m * 0.92, m * 0.8, 0, 'rgba(0,0,0,0.3)');
+  ellipse(ctx, m, m, m * 0.92, m * 0.8, 0, '#f8f9fa');
+  ellipse(ctx, m, m, m * 0.74, m * 0.62, 0, '#e9ecef');
+  if (id === 'nasi_lemak') {
+    ellipse(ctx, m, m, m * 0.7, m * 0.58, 0, '#2f9e44');
+    drawRice(ctx, m - m * 0.15, m + m * 0.1, m * 0.36, m * 0.36);
+    drawFood(ctx, 'sambal', m + m * 0.05, m - m * 0.45, m * 0.55, m * 0.42, 0.35);
+    drawFood(ctx, 'telur_rebus', m + m * 0.1, m + m * 0.0, m * 0.55, m * 0.5, 0.35);
+  } else if (id === 'roti_canai') {
+    drawRoti(ctx, m, m, m * 0.62, 0.95);
+  } else drawFood(ctx, id, m - m * 0.68, m - m * 0.56, m * 1.36, m * 1.12, 0.6);
+  return c;
+}

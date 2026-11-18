@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (teh tarik & roti canai redrawn)_
+_Last updated: 2026-11-18 (stall levels, stock icons, phone button)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -28,6 +28,29 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.4: stall levels, open any time, stock icons, start over, phone button + quick rolls
+
+### How to test it
+1. **📱 → Business → Upgrades:**
+   - **Stall level** (⭐ +12% on every price per level) and **Staff level** (cooks 10% faster, and their sales
+     earn +6% per level) are new.
+   - Every upgrade is cheaper now (e.g. RM 80–150 for level 1), and each next level costs about 1.35× the last.
+2. **Open any time:** switch the stall on at midday. It runs, marked "🌙 quiet hours", with fewer customers
+   (45%) outside the busiest hours.
+3. **Stock icons:** walk near your stall (or open it).
+   - Your stock appears down the right side as big food icons with "x 12" (orange when low, red when out).
+   - Hover (or tap) one to see its name. The sign over the stall is gone.
+4. **Start over:** while cooking, **↺ Start over** throws the dish away and starts it again, for free (same
+   customer, no extra stock, your combo is kept).
+5. **Phone:**
+   - The big glowing phone at the bottom left, labelled "Phone (P)" (above the joystick on a phone), opens it.
+     A red badge counts apps that need you.
+   - Inside: **🎰 Quick Rolls** comes first. Roll any crate from anywhere for a 10% phone fee; it's free at the
+     machine.
+   - The "coming soon" apps and the duplicate Index icon are gone (Index is a tab in the Bag).
 
 ---
 

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { dishBaseSen, orderBaseSen, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { customerRate, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -110,12 +110,23 @@ describe('buying a stall', () => {
 });
 
 describe('customers and cooking', () => {
-  it('customers queue at night while open; none come in the daytime', () => {
+  it('stall level raises every price; staff level raises what cooks earn', () => {
+    const nasi = cfg.recipeById.get('nasi_lemak')!;
+    const base = dishBaseSen(cfg.stalls, nasi, { tier: 1, mastery: {} }, false);
+    expect(dishBaseSen(cfg.stalls, nasi, { tier: 1, mastery: {}, upgrades: { level: 2 } }, false)).toBe(Math.round(nasi.basePriceSen * (1 + 2 * cfg.stalls.upgrades.level!.perLevel)));
+    expect(base).toBe(nasi.basePriceSen);
+    expect(staffPayRate(cfg.stalls, { upgrades: { training: 5 } })).toBeCloseTo(cfg.stalls.staff.passiveRate * (1 + 5 * cfg.stalls.upgrades.training!.bonusPerLevel!));
+  });
+
+  it('the stall opens any time; quiet hours just bring fewer customers', () => {
     const day = setup(500_000, 12);
     day.stalls.buy(day.p, 1);
     day.run(60_000);
-    expect(day.stalls.all()[0].queue).toHaveLength(0);
-    expect(day.stalls.all()[0].open).toBe(false);
+    expect(day.stalls.all()[0].open).toBe(true);
+    const tier = cfg.stalls.tiers[0];
+    const st = { tier: 1, rep: 50, upgrades: {}, buzzUntil: 0 };
+    expect(customerRate(cfg.stalls, st, false, 0, undefined, true)).toBeCloseTo(customerRate(cfg.stalls, st, false, 0) * cfg.stalls.offHoursCustomers);
+    expect(tier.customersPerMin).toBeGreaterThan(0);
     const night = setup();
     night.stalls.buy(night.p, 1);
     night.run(60_000);
@@ -143,6 +154,19 @@ describe('customers and cooking', () => {
     expect(s.stalls.selfOf(s.p)!.mastery.nasi_lemak).toBe(1);
     expect(s.p.prog.stats).toMatchObject({ dishes: 1, dishes_nasi_lemak: 1, perfectDishes: 1 });
     expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBeLessThan(10);
+  });
+
+  it('starting a dish over is free: same customer, no more stock, a new dish id', () => {
+    const s = setup();
+    s.stalls.buy(s.p, 1);
+    s.run(40_000);
+    const { dish } = s.stalls.cook(s.p, undefined, false);
+    const stock = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak');
+    const again = s.stalls.redo(s.p);
+    expect(again.dishId).not.toBe(dish!.dishId);
+    expect(again.customerId).toBe(dish!.customerId);
+    expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBe(stock);
+    expect(() => s.stalls.serve(s.p, dish!.dishId, [])).toThrow(); // the old one is gone
   });
 
   it('impossible inputs (faster than real time) get a Burnt dish', () => {
@@ -205,12 +229,12 @@ describe('staff', () => {
     const wages = 5 * Math.round(cfg.stalls.tiers[0].wagePerDaySen / 24);
     // Income from cooks (at ~50%, some at rush-hour prices) minus 5 hours of wages.
     const delta = s.p.walletSen - afterHire;
-    expect(delta).toBeGreaterThanOrEqual(staffDishes * Math.round(base * cfg.stalls.staff.passiveRate) - wages);
+    expect(delta).toBeGreaterThanOrEqual(staffDishes * Math.round(base * staffPayRate(cfg.stalls, { upgrades: {} })) - wages);
     // At most: every order in a rush with the dearest add-ons.
     const nasi = cfg.recipeById.get('nasi_lemak')!;
     const dearest = [...nasi.addons].sort((a, b) => b.basePriceSen - a.basePriceSen).slice(0, nasi.maxAddons).map((a) => a.id);
     const top = orderBaseSen(cfg.stalls, nasi, { tier: 1, mastery: {} }, true, dearest);
-    expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(top * cfg.stalls.staff.passiveRate) - wages);
+    expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(top * staffPayRate(cfg.stalls, { upgrades: {} })) - wages);
   });
 
   it('can only hire up to the tier limit', () => {

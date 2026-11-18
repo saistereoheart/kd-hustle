@@ -219,17 +219,21 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
   function register(socket: AnySocket, me: OnlinePlayer) {
     // --- crates -------------------------------------------------------------------------
-    handle(socket, 'crate:roll', C2S.crateRoll, ({ crateId, count }) => {
+    handle(socket, 'crate:roll', C2S.crateRoll, ({ crateId, count, remote }) => {
       if (!me.hasCharacter) throw new GameError('Create your character first.');
       if (!rollLimiter.hit(String(me.id))) throw new GameError('Easy, tiger! One roll at a time.');
       const crate = cfg.crateById.get(crateId);
       if (!crate) throw new GameError('Unknown crate.');
-      if (!nearInteractable(me, 'crate', crateId)) throw new GameError(`Go to the ${crate.name} to roll it.`);
+      if (!remote && !nearInteractable(me, 'crate', crateId)) throw new GameError(`Go to the ${crate.name} to roll it.`);
       const lock = prog.crateLock(me, crate);
       if (lock) throw new GameError(lock);
+      // A quick roll from the phone: the same roll, plus a small fee (charged first, so it can't be dodged).
+      const fee = remote ? Math.round(crate.priceSen * count * cfg.economy.phoneRollFee) : 0;
+      if (fee && me.walletSen < crate.priceSen * count + fee) throw new GameError(`That's ${formatMoney(crate.priceSen * count + fee)} with the phone fee.`);
+      if (fee) econ.run(me, () => econ.change(me, -fee, 0, 'crate-phone-fee', `${crateId}x${count}`));
       const batch = gacha.roll(me, crateId, count, rollMods(me, crateId));
       for (const r of batch.announce) announce(me, r);
-      pushWallet(me, -crate.priceSen * count + (batch.pageReward?.sen ?? 0), 'crate');
+      pushWallet(me, -crate.priceSen * count - fee + (batch.pageReward?.sen ?? 0), 'crate');
       prog.onRolls(me, crate, batch.results, crate.priceSen * count);
       return { results: batch.results, walletSen: me.walletSen, pity: me.pity[crateId], pageReward: batch.pageReward };
     });
@@ -328,6 +332,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return stalls.cook(me, customerId, !!token);
     });
     handle(socket, 'stall:serve', C2S.stallServe, ({ dishId, inputs }) => ({ result: stalls.serve(me, dishId, inputs) }));
+    handle(socket, 'stall:redo', null, () => ({ dish: stalls.redo(me) }));
     handle(socket, 'stall:cancel', null, () => {
       stalls.cancel(me);
       return {};

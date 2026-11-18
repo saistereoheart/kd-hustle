@@ -81,7 +81,6 @@ export class Hud {
       el(
         'div',
         { class: 'hud-buttons' },
-        btn('📱', 'HustlePhone (P or Tab)', 'phone', opts.onPhone),
         btn('🎒', 'Bag (B)', 'bag', opts.onBag),
         btn('💬', 'Chat (Enter)', 'chat', opts.onChat),
         btn('😀', 'Emotes (Q)', 'emote', opts.onEmote),
