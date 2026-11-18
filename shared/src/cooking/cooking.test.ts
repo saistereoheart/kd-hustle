@@ -81,6 +81,7 @@ describe('building a dish', () => {
       expect(spoons).toBeGreaterThanOrEqual(1);
       expect(spoons).toBeLessThanOrEqual(3);
       expect(steps.some((s) => s.art === 'kole')).toBe(hot);
+      expect(steps).toHaveLength(hot ? 2 : 1); // iced: just make it; hot: then tarik
       if (hot) sawHot = true;
       else sawIced = true;
     }
@@ -96,6 +97,18 @@ describe('building a dish', () => {
     expect(gradeStep(recipes, box, [0, 300, 1, 600, 1, 900]).grade).toBe('perfect');
     expect(gradeStep(recipes, box, [0, 300, 1, 600]).grade).toBe('good'); // a spoon short
     expect(gradeStep(recipes, box, [0, 300, 1, 600, 1, 900, 1, 1200]).grade).toBe('good'); // a spoon too many
+  });
+
+  it('tarik slider: following the moving zone is Perfect, leaving it still is not', () => {
+    const m: Extract<StepParams, { kind: 'track' }> = { kind: 'track', label: '', hint: '', art: 'kole', maxMs: 7000, durationMs: 5000, zone: [0.4, 0.6], wave: { amp: 0.22, periodMs: 2400, phase: 0 } };
+    const follow: number[] = [];
+    for (let t = 0; t < m.durationMs; t += 60) {
+      const z = meterZoneAt(m, t + 30);
+      follow.push(t, Math.round(((z[0] + z[1]) / 2) * 1000) / 1000);
+    }
+    expect(gradeStep(recipes, m, follow).grade).toBe('perfect');
+    expect(['good', 'miss']).toContain(gradeStep(recipes, m, [0, 0.5]).grade);
+    expect(validateDishInputs([m], [{ startMs: 0, ev: [0, 1.5] }], 9000)).toMatch(/slider/);
   });
 
   it('a moving zone has to be followed', () => {

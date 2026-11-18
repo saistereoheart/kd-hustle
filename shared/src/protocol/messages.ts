@@ -45,7 +45,8 @@ export const C2S = {
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), count: z.number().int().min(1).max(10000) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
-  jobStart: z.object({ kind: z.enum(['delivery', 'carwash']) }),
+  /** `remote`: a delivery taken from the phone instead of a Jobs Board. */
+  jobStart: z.object({ kind: z.enum(['delivery', 'carwash']), remote: z.boolean().optional() }),
   skillUpgrade: z.object({ skill: z.string().min(1).max(32) }),
   itemUse: z.object({ iid: z.number().int().positive() }),
   titleEquip: z.object({ title: z.string().max(32).nullable() }),
@@ -434,7 +435,7 @@ export interface ClientToServerEvents {
   'pawn:sell': (msg: { itemId: string; variant: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
   'pawn:scrap': (msg: { itemId: string; variant: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
   'shard:buy': (msg: { itemId: string }, ack: Ack<Result<{ item: InventoryItem; isNew: boolean }>>) => void;
-  'job:start': (msg: { kind: 'delivery' | 'carwash' }, ack: Ack<Result<{ job: JobState }>>) => void;
+  'job:start': (msg: { kind: 'delivery' | 'carwash'; remote?: boolean }, ack: Ack<Result<{ job: JobState }>>) => void;
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;
   'job:cancel': (ack: Ack<SimpleResult>) => void;
   'skill:upgrade': (msg: { skill: string }, ack: Ack<Result<{ level: number; walletSen: number; skills: Record<string, number> }>>) => void;
@@ -483,7 +484,7 @@ export interface ServerToClientEvents {
   /** Your stall's private state changed. */
   'stall:self': (p: { stall: StallSelf | null }) => void;
   /** Something happened at your stall that's worth a toast (a cook served a dish, a customer left...). */
-  'stall:event': (p: { kind: 'staffServed' | 'staffSale' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  'stall:event': (p: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   snapshot: (p: SnapshotPayload) => void;
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;

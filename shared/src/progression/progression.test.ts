@@ -96,8 +96,9 @@ describe('skills', () => {
 
   it('keeps Manifesting compatible with Phase 2 saves (level 1 = RM 0.02/s)', () => {
     expect(skillLevel(cfg.upgrades, {}, 'manifest')).toBe(1);
-    expect(manifestRateSen(cfg.upgrades, {})).toBe(2);
-    expect(manifestRateSen(cfg.upgrades, { manifest: 3 })).toBe(4);
+    expect(manifestRateSen(cfg.upgrades, {})).toBe(70); // level 1: RM 0.50 + RM 0.20
+    expect(manifestRateSen(cfg.upgrades, { manifest: 3 })).toBe(110);
+    expect(manifestRateSen(cfg.upgrades, { manifest: 5 })).toBe(150); // RM 1.50 a second = RM 5,400 an hour
   });
 
   it('locks skills behind level / stage and at max', () => {

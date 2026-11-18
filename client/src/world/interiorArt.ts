@@ -32,7 +32,7 @@ export interface RoomDoor {
 }
 
 /** Half the doorway's width (px). */
-export const DOOR_HALF = 1.2 * T;
+export const DOOR_HALF = 0.85 * T;
 
 /** Floor, walls, the doorway (in any wall) and its mat. Returns nothing: it's one static Graphics. */
 export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: RoomDoor) {
@@ -84,10 +84,11 @@ export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: Roo
     g.fillStyle(0x8c5a3c, 1).fillRoundedRect(x, y, w, h, 4);
     g.lineStyle(2, 0xd9a066, 1).strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, 3);
   };
-  if (door.side === 'bottom') mat(door.pos - 1.1 * T, H - 0.75 * T, 2.2 * T, 0.75 * T);
-  else if (door.side === 'top') mat(door.pos - 1.1 * T, 2 * T, 2.2 * T, 0.75 * T);
-  else if (door.side === 'left') mat(0, door.pos - 1.1 * T, 0.75 * T, 2.2 * T);
-  else mat(W - 0.75 * T, door.pos - 1.1 * T, 0.75 * T, 2.2 * T);
+  const m = DOOR_HALF * 0.92;
+  if (door.side === 'bottom') mat(door.pos - m, H - 0.75 * T, m * 2, 0.75 * T);
+  else if (door.side === 'top') mat(door.pos - m, 2 * T, m * 2, 0.75 * T);
+  else if (door.side === 'left') mat(0, door.pos - m, 0.75 * T, m * 2);
+  else mat(W - 0.75 * T, door.pos - m, 0.75 * T, m * 2);
 }
 
 /** A glowing spot under a counter / machine so it's obvious you can use it. */

@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (teh tarik custom orders)_
+_Last updated: 2026-11-18 (queue items)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -28,6 +28,26 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.6: queue items (job boards, manifesting, doors, low stock, closing, tarik slider, stall stock)
+
+### How to test it
+- **Job boards:** 4 more around town (by Gergasi, The Strand, Mitraland and the pasar malam). **📱 → Jobs**
+  takes a delivery from anywhere (the car wash is still done inside Kilat).
+- **Manifesting:** RM 0.50 + RM 0.20 per Manifesting level, every second (level 5 = RM 1.50/s = RM 5,400/h),
+  plus 12 XP a minute.
+- **Doors:** you only go in when you're lined up with the door mark and pushing into it. Doorways inside rooms
+  are narrower.
+- **Low stock:** a heads-up (with a sound) when a dish or add-on is down to 5. In the stall panel the item pulses
+  orange.
+- **Closing the stall:** switching it off gives 20 s to serve who's waiting (no new customers); orders being made
+  always finish; then the rest go home with no reputation hit.
+- **Teh tarik:** the froth step is gone. **Tarik!** (hot drinks only) is a slider: hold it and drag it up and down
+  (or W/S, ↑/↓) to keep the kole in the moving green zone.
+- **Stock:** moved off the main screen into a column down the side of **your stall's panel** (big food icons,
+  "x 12", the name on hover or tap, and + Restock). The cooking screen's stock bar uses the same food icons.
 
 ---
 

@@ -19,6 +19,7 @@ import { renderHandbook } from './handbook';
 import { renderClock } from './clock';
 import { renderProperties } from './properties';
 import { renderRolls } from './rolls';
+import { openJobsPanel } from '../jobs';
 
 export interface PhoneCtx {
   app: App;
@@ -44,6 +45,7 @@ interface PhoneApp {
 
 const APPS: PhoneApp[] = [
   { id: 'rolls', name: 'Quick Rolls', icon: '🎰', color: '#f03e3e', render: renderRolls },
+  { id: 'jobs', name: 'Jobs', icon: '📋', color: '#2b8a3e', open: (app) => openJobsPanel(app, { remote: true }) },
   {
     id: 'daily', name: 'Daily', icon: '🎁', color: '#e64980', render: renderDaily,
     badge: (app) => (app.store.progress.daily.canClaim ? '!' : null),

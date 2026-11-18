@@ -45,7 +45,6 @@ import { TownScene } from './world/townScene';
 import { InteriorScene } from './world/interiorScene';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
-import { StockHud } from './ui/stockHud';
 import { PhoneButton } from './ui/phoneButton';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
@@ -72,7 +71,6 @@ export class App {
   /** Guide arrow to goals/places + random hints. */
   guide: Guide | null = null;
   voteBanner: VoteBanner | null = null;
-  stockHud: StockHud | null = null;
   phoneBtn: PhoneButton | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
@@ -448,7 +446,8 @@ export class App {
         this.town?.stalls.popIncome(ev.sen ?? 0);
         return;
       }
-      toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' ? 'info' : 'bad', 4500);
+      if (ev.kind === 'lowStock') sfx.error();
+      toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' || ev.kind === 'lowStock' ? 'info' : 'bad', ev.kind === 'lowStock' ? 6000 : 4500);
     });
     socket.on('progress', ({ progress, events }) => {
       this.store.setProgress(progress);
@@ -580,7 +579,6 @@ export class App {
       this.guide = new Guide(this);
       this.minimap?.setPois(this.guide.pois);
       this.voteBanner = new VoteBanner(this);
-      this.stockHud = new StockHud(this);
       this.phoneBtn = new PhoneButton(this);
       this.chat = new Chat(
         (text) =>
@@ -823,8 +821,6 @@ export class App {
     this.guide = null;
     this.voteBanner?.destroy();
     this.voteBanner = null;
-    this.stockHud?.destroy();
-    this.stockHud = null;
     this.phoneBtn?.destroy();
     this.phoneBtn = null;
     this.progressHud?.destroy();

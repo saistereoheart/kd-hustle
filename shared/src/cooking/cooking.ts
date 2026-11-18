@@ -10,6 +10,7 @@
 //   sequence  pick ingredients in the order the customer asked           (sides, curry)
 //   path      drag through numbered points in order                     (sambal swirl, fold)
 //   meter     hold to raise / release to drop; keep it in the zone       (teh tarik foam)
+//   track     hold and drag a slider to keep a level in a (moving) green zone (tarik the kole)
 //   assemble  tap the ingredient boxes the customer's order needs          (pack a nasi lemak)
 //             (the base sides plus any paid add-ons, e.g. ayam goreng, which have their own stock)
 import { z } from 'zod';
@@ -38,6 +39,10 @@ export const stepTemplateSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('meter'), ...base, durationMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range, rise: z.number().positive(), fall: z.number().positive(),
     /** The green zone moves up and down (amp = how far, as a share of the meter; period in ms). */
+    wave: z.object({ amp: z.number().min(0).max(0.5), periodMs: z.number().positive() }).optional(),
+  }),
+  z.object({
+    kind: z.literal('track'), ...base, durationMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range,
     wave: z.object({ amp: z.number().min(0).max(0.5), periodMs: z.number().positive() }).optional(),
   }),
   z.object({
@@ -126,12 +131,14 @@ export type StepParams =
   | (Base & { kind: 'sequence'; options: Array<{ id: string; name: string; icon: string }>; order: string[] })
   | (Base & { kind: 'path'; points: Array<[number, number]>; radius: number })
   | (Base & { kind: 'meter'; durationMs: number; zone: [number, number]; rise: number; fall: number; wave?: { amp: number; periodMs: number; phase: number } })
+  | (Base & { kind: 'track'; durationMs: number; zone: [number, number]; wave?: { amp: number; periodMs: number; phase: number } })
   | (Base & { kind: 'assemble'; options: Array<{ id: string; name: string; icon: string; addon?: boolean; countLabels?: string[] }>; want: string[]; fastMs: number });
 
 /** What the player did in one step. `startMs` is when the step began (ms since the dish began);
  *  `ev` times are ms since the step began:
  *  hold [down, up] · timing [press] · rhythm [tap...] · sequence [optionIndex, t, ...] ·
- *  path [x, y, t, ...] (x/y 0..1) · meter [down, up, down, up...] · assemble [optionIndex, t, ...] */
+ *  path [x, y, t, ...] (x/y 0..1) · meter [down, up, down, up...] · assemble [optionIndex, t, ...] ·
+ *  track [t, level, t, level, ...] (level 0..1, the slider position from that moment) */
 export interface StepInput {
   startMs: number;
   ev: number[];
@@ -209,6 +216,11 @@ export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []
         const wave = s.wave ? { amp: s.wave.amp, periodMs: s.wave.periodMs, phase: Math.round(between(rand, [0, 6283])) / 1000 } : undefined;
         return { ...b, kind: 'meter', durationMs: s.durationMs, zone: [c - s.zoneWidth / 2, c + s.zoneWidth / 2], rise: s.rise, fall: s.fall, ...(wave ? { wave } : {}), maxMs: s.durationMs + 2500 };
       }
+      case 'track': {
+        const c = between(rand, s.zoneCenter);
+        const wave = s.wave ? { amp: s.wave.amp, periodMs: s.wave.periodMs, phase: Math.round(between(rand, [0, 6283])) / 1000 } : undefined;
+        return { ...b, kind: 'track', durationMs: s.durationMs, zone: [c - s.zoneWidth / 2, c + s.zoneWidth / 2], ...(wave ? { wave } : {}), maxMs: s.durationMs + 1500 };
+      }
       case 'assemble': {
         // The customer wants some of the base sides (e.g. "no timun") plus their add-ons.
         // `want` can repeat an id: that's how many (ice level, spoons of condensed milk).
@@ -240,7 +252,7 @@ export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []
 }
 
 /** Where a meter step's green zone is at `t` ms (it may move up and down). */
-export function meterZoneAt(step: Extract<StepParams, { kind: 'meter' }>, t: number): [number, number] {
+export function meterZoneAt(step: { zone: [number, number]; wave?: { amp: number; periodMs: number; phase: number } }, t: number): [number, number] {
   if (!step.wave) return step.zone;
   const d = step.wave.amp * Math.sin((t / step.wave.periodMs) * Math.PI * 2 + step.wave.phase);
   return [step.zone[0] + d, step.zone[1] + d];
@@ -345,6 +357,25 @@ export function gradeStep(cfg: RecipesConfig, step: StepParams, ev: number[], wi
       const grade: Grade = all ? (lastT <= step.fastMs * windowMult ? 'perfect' : 'great') : share >= 0.6 ? 'good' : 'miss';
       return { grade, accuracy: share };
     }
+    case 'track': {
+      // The slider's level at each moment = the last position set; count time in the moving zone
+      // after a short moment to get there.
+      const half = ((step.zone[1] - step.zone[0]) / 2) * windowMult;
+      const leadMs = 600;
+      let inZone = 0, n = 0, k = 0, v = 0.5;
+      for (let t = 0; t < step.durationMs; t += 20) {
+        while (k + 1 < ev.length && ev[k] <= t) {
+          v = Math.max(0, Math.min(1, ev[k + 1]));
+          k += 2;
+        }
+        if (t < leadMs) continue;
+        const z = meterZoneAt(step, t);
+        if (Math.abs(v - (z[0] + z[1]) / 2) <= half) inZone++;
+        n++;
+      }
+      const share = inZone / Math.max(1, n);
+      return { grade: byShare(share, w.share), accuracy: share };
+    }
     case 'path': {
       let next = 0;
       const r = step.radius * windowMult;
@@ -403,8 +434,12 @@ export function validateDishInputs(steps: StepParams[], inputs: StepInput[], ser
     prevStart = startMs;
     const step = steps[i];
     const pairs = step.kind === 'sequence' || step.kind === 'assemble';
-    const stride = step.kind === 'path' ? 3 : pairs ? 2 : 1;
+    const stride = step.kind === 'path' ? 3 : pairs || step.kind === 'track' ? 2 : 1;
     const off = step.kind === 'path' ? 2 : pairs ? 1 : 0;
+    if (step.kind === 'track') {
+      if (ev.length > 2000) return 'too many moves';
+      for (let j = 1; j < ev.length; j += 2) if (!(ev[j] >= -0.01 && ev[j] <= 1.01)) return 'slider off the scale';
+    }
     for (let j = off; j < ev.length; j += stride) {
       const t = ev[j];
       if (!Number.isFinite(t) || t < 0 || t > step.maxMs + 300) return 'event outside the step';

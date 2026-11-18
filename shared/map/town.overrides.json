@@ -323,6 +323,26 @@
       "kind": "stall",
       "x": -268,
       "y": 229
+    },
+    {
+      "kind": "jobsboard",
+      "x": -36,
+      "y": -101
+    },
+    {
+      "kind": "jobsboard",
+      "x": -206,
+      "y": -18
+    },
+    {
+      "kind": "jobsboard",
+      "x": -88,
+      "y": -4
+    },
+    {
+      "kind": "jobsboard",
+      "x": -266,
+      "y": 222
     }
   ],
   "interactables": [
@@ -378,6 +398,34 @@
       "type": "furniture",
       "name": "IKEJA Furniture",
       "building": "w1509727667"
+    },
+    {
+      "id": "jobsboard_gergasi",
+      "type": "jobs",
+      "name": "Jobs Board",
+      "x": -35.5,
+      "y": -99.5
+    },
+    {
+      "id": "jobsboard_strand",
+      "type": "jobs",
+      "name": "Jobs Board",
+      "x": -205.5,
+      "y": -16.5
+    },
+    {
+      "id": "jobsboard_mitraland",
+      "type": "jobs",
+      "name": "Jobs Board",
+      "x": -87.5,
+      "y": -2.5
+    },
+    {
+      "id": "jobsboard_pasar",
+      "type": "jobs",
+      "name": "Jobs Board",
+      "x": -265.5,
+      "y": 223.5
     }
   ],
   "elevate": [

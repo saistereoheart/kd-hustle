@@ -74,9 +74,9 @@
     },
     "manifest": {
       "branch": "fortune", "name": "Manifesting", "icon": "🧘",
-      "desc": "Sit still and manifest wealth with the 🧘 Manifest emote (key −). Earns RM every second you hold it.",
+      "desc": "Sit still and manifest wealth with the 🧘 Manifest emote (key −). Earns RM 0.50 + RM 0.20 per level every second you hold it, and a little XP.",
       "maxLevel": 25, "startLevel": 1, "baseCostSen": 5000, "costGrowth": 1.6,
-      "effect": { "kind": "manifestRate", "base": 2, "perLevel": 1 }
+      "effect": { "kind": "manifestRate", "base": 70, "perLevel": 20 }
     },
     "passive_income": {
       "branch": "fortune", "name": "Passive Income", "icon": "📈",

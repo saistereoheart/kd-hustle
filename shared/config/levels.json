@@ -6,7 +6,7 @@
     "crateRoll": { "capsule": 3, "luckybag": 10, "mallbox": 30 },
     "jobBase": 20,
     "jobPerRm": 0.5,
-    "manifestPerMinute": 3,
+    "manifestPerMinute": 12,
     "skillLevel": 15,
     "pawnSellPerItem": 1,
     "potionUse": 5,

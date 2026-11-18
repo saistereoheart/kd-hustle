@@ -193,7 +193,8 @@
     ],
     "shelfLifeGameHours": 72,
     "deliveryFee": 0.25,
-    "maxPerRecipe": 600
+    "maxPerRecipe": 600,
+    "lowWarn": 5
   },
   "mastery": {
     "thresholds": [
@@ -213,5 +214,6 @@
   "dishTimeoutSlackSec": 25,
   "cookRadiusTiles": 4,
   "assetValueRate": 0.5,
-  "offHoursCustomers": 0.45
+  "offHoursCustomers": 0.45,
+  "closingGraceSec": 20
 }

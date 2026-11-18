@@ -156,6 +156,21 @@ describe('customers and cooking', () => {
     expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBeLessThan(10);
   });
 
+  it('closing up: the queue is held for the grace period, then the stall closes', () => {
+    const s = setup();
+    s.stalls.buy(s.p, 1);
+    s.run(40_000);
+    expect(s.stalls.all()[0].queue.length).toBeGreaterThan(0);
+    s.stalls.setOpen(s.p, false);
+    s.run(5_000);
+    const mid = s.stalls.all()[0];
+    expect(mid.open).toBe(true); // still serving who's there
+    expect(mid.queue.length).toBeGreaterThan(0);
+    s.run(cfg.stalls.closingGraceSec * 1000);
+    expect(s.stalls.all()[0].open).toBe(false);
+    expect(s.stalls.all()[0].queue).toHaveLength(0);
+  });
+
   it('starting a dish over is free: same customer, no more stock, a new dish id', () => {
     const s = setup();
     s.stalls.buy(s.p, 1);

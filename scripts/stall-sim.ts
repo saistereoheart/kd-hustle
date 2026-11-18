@@ -60,6 +60,13 @@ function inputs(steps: StepParams[], jitter: number, rand: RandInt): StepInput[]
       const picks = s.want.map((id) => s.options.findIndex((o) => o.id === id));
       if (jitter > 100 && rand(3) === 0) picks.splice(1, 0, (picks[0] + 1) % s.options.length);
       ev = picks.flatMap((o, i) => [o, 700 * (i + 1) + Math.abs(j())]);
+    } else if (s.kind === 'track') {
+      // Drag the slider along with the zone (a sloppy player lags and aims off).
+      const off = j() / 1500, lag = jitter > 100 ? 250 : 0;
+      for (let t = 0; t < s.durationMs; t += 80) {
+        const z = meterZoneAt(s, Math.max(0, t - lag) + 40);
+        ev.push(t, Math.max(0, Math.min(1, Math.round(((z[0] + z[1]) / 2 + off) * 1000) / 1000)));
+      }
     } else if (s.kind === 'meter') {
       // Follow the (maybe moving) zone: hold while under its middle; a sloppy player aims off.
       const off = j() / 2000;
@@ -77,7 +84,7 @@ function inputs(steps: StepParams[], jitter: number, rand: RandInt): StepInput[]
     }
     const inp = { startMs: start, ev };
     // How long the step really took: its last input + a beat to read the next one.
-    const times = s.kind === 'sequence' || s.kind === 'assemble' ? ev.filter((_, i) => i % 2 === 1) : s.kind === 'path' ? ev.filter((_, i) => i % 3 === 2) : s.kind === 'meter' ? [s.durationMs] : ev;
+    const times = s.kind === 'sequence' || s.kind === 'assemble' ? ev.filter((_, i) => i % 2 === 1) : s.kind === 'path' ? ev.filter((_, i) => i % 3 === 2) : s.kind === 'meter' || s.kind === 'track' ? [s.durationMs] : ev;
     start += Math.min(s.maxMs, Math.max(...times, 0) + 500);
     return inp;
   });

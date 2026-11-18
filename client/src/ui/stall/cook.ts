@@ -5,14 +5,14 @@
 import { gradeStep, meterLevel, meterZoneAt, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
-import { drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas } from './foodArt';
+import { foodIcon, drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas } from './foodArt';
 
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
 const GRADE_COLOR: Record<Grade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#74c0fc', miss: '#ff6b6b' };
 
 /** Live stock shown while you cook: the dish's portions and each add-on (id → count). */
 export interface CookStock {
-  dish: { icon: string; name: string; qty: number };
+  dish: { id: string; icon: string; name: string; qty: number };
   addons: Array<{ id: string; icon: string; name: string; qty: number }>;
 }
 
@@ -53,9 +53,9 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     const paintStock = () => {
       const st = stock?.();
       if (!st) return void stockBar.classList.add('hidden');
-      const chip = (icon: string, name: string, qty: number, main = false) =>
-        el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${main ? ' main' : ''}`, title: name }, `${icon} `, el('b', {}, String(qty)), main ? ` ${name} left` : '');
-      stockBar.replaceChildren(el('span', { class: 'cook-stock-label' }, '📦'), chip(st.dish.icon, st.dish.name, st.dish.qty, true), ...st.addons.map((a) => chip(a.icon, a.name, a.qty)));
+      const chip = (id: string, name: string, qty: number, main = false) =>
+        el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${main ? ' main' : ''}`, title: name }, foodIcon(id, 24), el('b', {}, `x ${qty}`), main ? ` ${name}` : '');
+      stockBar.replaceChildren(el('span', { class: 'cook-stock-label' }, '📦'), chip(st.dish.id, st.dish.name, st.dish.qty, true), ...st.addons.map((a) => chip(a.id, a.name, a.qty)));
     };
     paintStock();
     const stockTimer = window.setInterval(paintStock, 1000);
@@ -104,6 +104,11 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
 
     // Keyboard: Space = the action button; 1–4 = sequence options.
     const onKey = (e: KeyboardEvent) => {
+      if (step()?.kind === 'track' && ['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code)) {
+        e.preventDefault();
+        setSlider(slider + (e.code === 'ArrowUp' || e.code === 'KeyW' ? 0.06 : -0.06));
+        return;
+      }
       if (e.repeat) return;
       if (e.code === 'Space') {
         e.preventDefault();
@@ -203,11 +208,13 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       side.classList.add('hidden');
       trays = [];
       box.classList.toggle('assemble', s.kind === 'assemble');
+      box.classList.toggle('track', s.kind === 'track');
       if (s.kind !== 'assemble' && (W !== W0 || H !== H0)) sizeCanvas(W0, H0);
-      action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path');
+      action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path' || s.kind === 'track');
       action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : s.art === 'kole' ? 'Hold to lift' : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
       if (s.kind === 'assemble') setupAssemble(s);
+      if (s.kind === 'track') setupTrack();
       if (s.kind === 'path') setupPath(s);
     }
 
@@ -274,6 +281,56 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         });
         (o.addon && sideW ? side : options).append(b);
         return b;
+      });
+    }
+
+    // ---------------------------------------------------------------- track (hold the slider)
+    // A tall slider beside the scene: hold its thumb and drag it up and down (or W/S, ↑/↓) to set
+    // the kole's height. We record [t, level] whenever it moves.
+    let slider = 0.5;
+    let thumb: HTMLElement | null = null;
+    function setSlider(v: number) {
+      if (step()?.kind !== 'track' || finishedStep) return;
+      slider = Math.max(0, Math.min(1, v));
+      if (thumb) thumb.style.bottom = `calc(${slider * 100}% - 22px)`;
+      const t = Math.round(now()), lv = Math.round(slider * 1000) / 1000;
+      if (ev.length >= 2 && t - ev[ev.length - 2] < 25) ev[ev.length - 1] = lv;
+      else ev.push(t, lv);
+    }
+    function setupTrack() {
+      // Room for the slider beside the canvas on a narrow screen.
+      if (W + 100 > innerWidth - 24) sizeCanvas(Math.max(200, innerWidth - 24 - 104), H);
+      slider = 0.5;
+      ev = [0, 0.5];
+      const track = el('div', { class: 'tarik-track', 'data-testid': 'tarik-slider' });
+      thumb = el('div', { class: 'tarik-thumb' }, '☕');
+      track.append(el('div', { class: 'tarik-rail' }), thumb);
+      thumb.style.bottom = 'calc(50% - 22px)';
+      track.style.height = `${H}px`;
+      let dragging = false;
+      const at = (e: PointerEvent) => {
+        const r = track.getBoundingClientRect();
+        setSlider(1 - (e.clientY - r.top) / r.height);
+      };
+      track.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        try {
+          track.setPointerCapture(e.pointerId);
+        } catch {
+          /* synthetic pointer */
+        }
+        at(e);
+      });
+      track.addEventListener('pointermove', (e) => dragging && at(e));
+      track.addEventListener('pointerup', () => (dragging = false));
+      track.addEventListener('pointercancel', () => (dragging = false));
+      side.replaceChildren(el('div', { class: 'tarik-side' }, el('div', { class: 'tarik-tip' }, '▲ lift'), track, el('div', { class: 'tarik-tip' }, '▼ lower')));
+      side.classList.remove('hidden');
+      side.style.width = '';
+      stepCleanup.push(() => {
+        thumb = null;
+        side.replaceChildren();
+        side.classList.add('hidden');
       });
     }
 
@@ -648,12 +705,12 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.fillText(String(i + 1), x * W, y * H);
         });
         if (t > s.maxMs) finish();
-      } else if (s.kind === 'meter') {
-        const v = meterLevel(s, holding ? [...ev] : ev, Math.min(t, s.durationMs));
+      } else if (s.kind === 'track' || s.kind === 'meter') {
+        const v = s.kind === 'track' ? slider : meterLevel(s, holding ? [...ev] : ev, Math.min(t, s.durationMs));
         const zone = meterZoneAt(s, Math.min(t, s.durationMs));
         if (s.art === 'kole') {
-          // Tarik: the kole (pouring jug) rises while you hold and drops when you let go; the tea
-          // stream stretches down into the mug. Keep the jug's height in the moving green zone.
+          // Tarik: the kole (pouring jug) goes up and down with the slider; the tea stream
+          // stretches down into the mug. Keep the jug's height in the moving green zone.
           const mw = Math.min(W * 0.2, 110), mh = mw * 1.05;
           const mugX = cx - 40, mugY = H - mh - 30;
           const koleY = mugY - 30 - v * (mugY - 70);

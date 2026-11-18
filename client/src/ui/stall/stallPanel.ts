@@ -6,6 +6,7 @@ import { el, toast, uiRoot } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 import { playDish, type CookStock } from './cook';
+import { foodIcon } from './foodArt';
 
 const QUALITY: Record<string, { text: string; color: string }> = {
   perfect: { text: 'PERFECT!', color: '#ffd43b' },
@@ -38,7 +39,8 @@ export function openStallPanel(app: App, plotId: string) {
   const pub = () => app.store.stalls.get(plotId);
   const mine = () => pub()?.owner === myId;
   const tier = tierDef(app.cfg.stalls, plot.tier);
-  const panel = openPanel(`${tier.icon} ${tier.name}`, { wide: false, testId: 'stall-panel' });
+  // Your own stall is wider: the stock sits in a column down its side.
+  const panel = openPanel(`${tier.icon} ${tier.name}`, { wide: mine(), testId: 'stall-panel' });
   let busy = false;
   /** Patience bars to refresh in place (no re-render, so buttons never move under a click). */
   let bars: Array<{ fill: HTMLElement; arrivedAt: number; patienceMs: number; serving: boolean }> = [];
@@ -115,13 +117,12 @@ export function openStallPanel(app: App, plotId: string) {
     );
     const manage = el('button', { class: 'btn small', type: 'button', 'data-action': 'stall-manage' }, '📱 Stock, staff, upgrades');
     manage.addEventListener('click', () => app.openPhone('business'));
-    panel.body.replaceChildren(
-      stallStockStrip(app),
+    panel.body.replaceChildren(el('div', { class: 'stall-layout' }, el('div', { class: 'stall-main' },
       el('div', { class: 'stall-status' }, el('b', {}, status), el('span', { class: 'muted small' }, ` ${stars(me.rep, app.cfg.stalls.reputation.max)} · combo +${Math.round(me.combo * 100)}% · today ${formatMoney(me.earnedToday)}`)),
       queue,
       el('div', { class: 'stall-actions' }, cookBtn, tokenBtn),
       el('div', { class: 'stall-actions small' }, toggle, manage),
-      el('p', { class: 'hint' }, `Tap a customer to cook their order, or cook the next one. ${me.staff ? `Your ${me.staff} cook${me.staff > 1 ? 's' : ''} serve the rest.` : 'Hire a cook to serve while you do other things.'}`),
+      el('p', { class: 'hint' }, `Tap a customer to cook their order, or cook the next one. ${me.staff ? `Your ${me.staff} cook${me.staff > 1 ? 's' : ''} serve the rest.` : 'Hire a cook to serve while you do other things.'}`)), stockColumn(app)),
     );
   };
 
@@ -203,23 +204,36 @@ export function cookStock(app: App, recipeId: string): CookStock | null {
   const r = app.cfg.recipes.recipes.find((x) => x.id === recipeId);
   if (!st || !r) return null;
   return {
-    dish: { icon: r.icon, name: r.name, qty: stockCount(st, r.id) },
+    dish: { id: r.id, icon: r.icon, name: r.name, qty: stockCount(st, r.id) },
     addons: r.addons.map((a) => ({ id: a.id, icon: a.icon, name: a.name, qty: stockCount(st, a.id) })),
   };
 }
 
-/** A strip of every stock count (dishes and add-ons), red when out, orange when low. */
-function stallStockStrip(app: App): HTMLElement {
+/** Your stock, down the side of the stall panel: a big drawn icon per dish and add-on with
+ *  "x 12" (orange when low, red when out); hover or tap one for its name. */
+function stockColumn(app: App): HTMLElement {
   const st = app.store.stall;
-  const strip = el('div', { class: 'cook-stock stall-stock', 'data-testid': 'stall-stock' }, el('span', { class: 'cook-stock-label' }, '📦'));
-  if (!st) return strip;
+  const col = el('div', { class: 'stall-stock-col', 'data-testid': 'stall-stock' }, el('div', { class: 'stall-stock-title' }, '📦 Stock'));
+  if (!st) return col;
+  const low = app.cfg.stalls.stock.lowWarn;
   for (const r of menuRecipes(app.cfg.stalls, app.cfg.recipes.recipes, st)) {
     for (const it of [r, ...r.addons]) {
       const qty = stockCount(st, it.id);
-      strip.append(el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${it === r ? ' main' : ''}`, title: it.name }, `${it.icon} `, el('b', {}, String(qty)), it === r ? ` ${it.name}` : ''));
+      const pill = el(
+        'button',
+        { class: `stock-pill${it === r ? '' : ' addon'}${qty <= 0 ? ' out' : qty <= low ? ' low' : ''}`, type: 'button', 'data-item': it.id, 'aria-label': `${it.name}: ${qty}` },
+        foodIcon(it.id, 36),
+        el('span', { class: 'stock-pill-name' }, it.name),
+        el('b', { class: 'stock-pill-qty' }, `x ${qty}`),
+      );
+      pill.addEventListener('click', () => pill.classList.toggle('open'));
+      col.append(pill);
     }
   }
-  return strip;
+  const buy = el('button', { class: 'btn small', type: 'button', 'data-action': 'stall-restock' }, '+ Restock');
+  buy.addEventListener('click', () => app.openPhone('business'));
+  col.append(buy);
+  return col;
 }
 
 function showResult(app: App, r: ServeResult, dish: DishState | null) {

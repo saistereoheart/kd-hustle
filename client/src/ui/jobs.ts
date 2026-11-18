@@ -42,8 +42,10 @@ const carwashBlurb = 'Three steps: 🧽 soap off the dirt (bird droppings need e
 const carwashPayText = (app: App) =>
   `up to ${formatMoney(Math.round(app.cfg.jobs.carwash.baseSen * levelMult(app, 'carwash') * (1 + app.cfg.jobs.carwash.speedBonus)))}`;
 
-export function openJobsPanel(app: App) {
-  const panel = openPanel('📋 Jobs Board', { testId: 'jobs-panel' });
+/** `remote`: from the phone (deliveries start anywhere; the car wash is done at Kilat). */
+export function openJobsPanel(app: App, opts: { remote?: boolean } = {}) {
+  const panel = openPanel(opts.remote ? '📱 Jobs' : '📋 Jobs Board', { testId: 'jobs-panel' });
+  remoteJobs = !!opts.remote;
   const j = app.cfg.jobs;
   const render = () => {
     const st = app.store;
@@ -52,7 +54,7 @@ export function openJobsPanel(app: App) {
     cancel?.addEventListener('click', () => cancelJob(app));
     panel.body.replaceChildren(
       jobCard(app, 'delivery', '🛵', 'Pick up food and deliver it: walk, ride your 🚲 basikal, or order a 🛵 kapcai from your 📱 Phone (P) for faster trips and bigger tips.', `~${formatMoney(dPay)} + tips per 300 m`, true),
-      jobCard(app, 'carwash', '🚿', `At Kilat Car Wash (east of here). ${carwashBlurb}`, carwashPayText(app), false),
+      jobCard(app, 'carwash', '🚿', `At Kilat Car Wash${opts.remote ? '' : ' (east of here)'}. ${carwashBlurb}`, carwashPayText(app), false),
       ...(cancel ? [cancel] : []),
     );
   };
@@ -75,8 +77,11 @@ export function openCarwashPanel(app: App) {
   render();
 }
 
+/** The jobs panel was opened from the phone (deliveries start anywhere). */
+let remoteJobs = false;
+
 function startJob(app: App, kind: JobKind) {
-  app.socket?.timeout(6000).emit('job:start', { kind }, (err, res) => {
+  app.socket?.timeout(6000).emit('job:start', { kind, ...(remoteJobs && kind === 'delivery' ? { remote: true } : {}) }, (err, res) => {
     if (err || !res.ok) {
       sfx.error();
       return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');

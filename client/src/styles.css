@@ -784,7 +784,7 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 /* ---- cooking: stock bar + ingredient boxes ---- */
 .cook-stock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; padding: 6px 8px; border-radius: 12px; background: rgba(255, 212, 59, 0.12); border: 1px solid rgba(255, 212, 59, 0.4); }
 .cook-stock-label { font-size: 18px; }
-.cook-stock-chip { font-size: 14px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.1); white-space: nowrap; }
+.cook-stock-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 14px; padding: 2px 8px 2px 3px; border-radius: 999px; background: rgba(255,255,255,0.1); white-space: nowrap; }
 .cook-stock-chip b { font-size: 16px; }
 .cook-stock-chip.main { background: rgba(105, 219, 124, 0.25); font-size: 15px; }
 .cook-stock-chip.low { background: rgba(255, 169, 77, 0.35); }
@@ -832,9 +832,12 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 .cook-tray:hover::after, .cook-tray:focus-visible::after { opacity: 1; }
 @media (max-width: 759px) { .cook-side { display: none; } }
 
-/* ---- your stall's stock, down the right side (big icons, "x 12"; hover/tap shows the name) ---- */
-.stock-hud { position: absolute; right: calc(8px + var(--safe-r)); top: calc(196px + var(--safe-t)); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-height: calc(100vh - 300px); overflow: hidden; }
-body.touch .stock-hud { top: calc(165px + var(--safe-t)); }
+/* ---- your stall's stock: a column down the side of the stall panel ---- */
+.stall-layout { display: flex; gap: 12px; align-items: flex-start; }
+.stall-main { flex: 1; min-width: 0; }
+.stall-stock-col { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); }
+.stall-stock-title { font-weight: 800; font-size: 13px; color: #ffd43b; }
+@media (max-width: 640px) { .stall-layout { flex-direction: column-reverse; } .stall-stock-col { flex-direction: row; flex-wrap: wrap; } }
 .stock-pill { display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.82); color: #fff; touch-action: manipulation; }
 .stock-pill canvas { flex: 0 0 auto; }
 .stock-pill.addon { border-color: rgba(232, 89, 12, 0.7); }
@@ -859,3 +862,13 @@ body.touch .phone-btn { bottom: calc(176px + var(--safe-b)); left: calc(10px + v
 body.touch .phone-btn-label kbd { display: none; }
 .phone-btn-badge { position: absolute; top: -6px; right: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: #fa5252; color: #fff; font: 900 13px/22px system-ui, sans-serif; text-align: center; border: 2px solid #fff; }
 @keyframes phone-glow { 0%, 100% { box-shadow: 0 0 0 3px rgba(255, 212, 59, 0.25), 0 0 14px rgba(255, 212, 59, 0.4), 0 8px 16px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 4px rgba(255, 212, 59, 0.4), 0 0 28px rgba(255, 212, 59, 0.75), 0 8px 16px rgba(0,0,0,0.5); } }
+.stock-pill.low, .stock-pill.out { animation: stock-pulse 1.2s ease-in-out infinite; }
+@keyframes stock-pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 169, 77, 0.45); } }
+
+/* ---- tarik: the slider you hold beside the scene ---- */
+.tarik-side { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tarik-tip { font: 800 11px system-ui, sans-serif; color: #adb5bd; }
+.tarik-track { position: relative; width: 74px; border-radius: 37px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15); touch-action: none; cursor: grab; }
+.tarik-rail { position: absolute; left: 50%; top: 18px; bottom: 18px; width: 8px; margin-left: -4px; border-radius: 4px; background: linear-gradient(#ffd43b, #b5651d); opacity: 0.6; }
+.tarik-thumb { position: absolute; left: 50%; width: 52px; height: 44px; margin-left: -26px; border-radius: 14px; background: linear-gradient(#f1f3f5, #adb5bd); border: 3px solid #ffd43b; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 22px; pointer-events: none; }
+.cook-box.track { width: min(680px, calc(100vw - 16px)); }

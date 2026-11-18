@@ -503,8 +503,14 @@ export class TownScene extends Phaser.Scene {
     if (cands) {
       const px = this.pos.x / T, py = (this.pos.y - 4) / T;
       for (const { b, d } of cands) {
-        const into = -(vx * d.nx + vy * d.ny) / (Math.hypot(d.nx, d.ny) || 1);
-        if (into > 0.55 && Math.hypot(px - (d.frontX + 0.5), py - (d.frontY + 0.5)) < 1.35) {
+        // Only right on the door mark: lined up with it (≤ ~half a tile sideways) and right in
+        // front of it, pushing into the wall.
+        const l = Math.hypot(d.nx, d.ny) || 1;
+        const nx = d.nx / l, ny = d.ny / l;
+        const into = -(vx * nx + vy * ny);
+        const ox = px - d.x, oy = py - d.y; // the door mark is drawn centred on (d.x, d.y)
+        const side = Math.abs(ox * ny - oy * nx), out = ox * nx + oy * ny;
+        if (into > 0.55 && side < 0.55 && out > -0.2 && out < 1.5) {
           hit = b;
           break;
         }

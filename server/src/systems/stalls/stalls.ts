@@ -47,12 +47,16 @@ interface Live {
   dirtySelf: boolean;
   dirtySave: boolean;
   outOfStockWarned: boolean;
+  /** Items we've already warned are running low (cleared when restocked). */
+  lowWarned: Set<string>;
+  /** Server ms the closing-up grace ends (0 = not closing). */
+  closingUntil: number;
 }
 
 export interface StallHooks {
   publicChanged: (stalls: StallPublic[]) => void;
   selfChanged: (p: OnlinePlayer, stall: StallSelf | null) => void;
-  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
 }
 
@@ -98,7 +102,7 @@ export class StallSystem {
   private wrap(owner: number, ownerName: string, s: StallState): Live {
     return {
       owner, ownerName, s, queue: [], cooks: [], dish: null, live: false, unpaid: false, lastTick: this.clock(), wageAcc: 0,
-      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false,
+      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false, lowWarned: new Set(), closingUntil: 0,
     };
   }
 
@@ -213,7 +217,7 @@ export class StallSystem {
   setOpen(p: OnlinePlayer, open: boolean) {
     const l = this.mine(p);
     l.s.open = open;
-    if (!open) this.closeUp(p, l, false);
+    // Switching off starts the closing grace in the next tick (the queue is served, then it closes).
     this.touch(l);
     this.flush();
   }
@@ -471,10 +475,33 @@ export class StallSystem {
       // Open whenever the owner switches it on; outside the usual hours it's just quieter.
       const shouldBeLive = !!p && p.hasCharacter && l.s.open;
       const offHours = !stallOpenNow(this.cfg.stalls, l.s.tier, hourF);
+      // Switching off doesn't slam the shutters: for a short grace no one new comes, waiting
+      // customers can still be served, and anything already cooking is finished.
+      let closing = false;
       if (!shouldBeLive) {
-        if (l.live || l.queue.length) this.closeUp(p, l, !!p);
-        continue;
-      }
+        if (!l.live && !l.queue.length) continue;
+        if (!p || !p.hasCharacter) {
+          this.closeUp(p, l, false);
+          continue;
+        }
+        if (!l.closingUntil) {
+          l.closingUntil = now + this.cfg.stalls.closingGraceSec * 1000;
+          this.hooks.event(p, { kind: 'closed', text: `🌙 Closing up: ${this.cfg.stalls.closingGraceSec} s to finish the orders in your queue.` });
+        }
+        const busy = !!l.dish || l.cooks.some((c) => !!c);
+        if (now >= l.closingUntil) {
+          if (!busy) {
+            l.closingUntil = 0;
+            this.closeUp(p, l, true);
+            continue;
+          }
+          // Time's up: whoever's still waiting goes home (no hard feelings); orders in progress finish.
+          const before = l.queue.length;
+          l.queue = l.queue.filter((c) => c.serving);
+          if (l.queue.length !== before) this.touch(l);
+        }
+        closing = true;
+      } else l.closingUntil = 0;
       if (!l.live) {
         l.live = true;
         this.touch(l, false);
@@ -511,6 +538,16 @@ export class StallSystem {
         this.hooks.event(owner, { kind: 'lost', text: `😤 ${lost.length === 1 ? 'A customer' : `${lost.length} customers`} gave up waiting.` });
       }
 
+      // Heads-up when something on the menu is running low (once, until you restock it).
+      for (const it of stockItems(st, this.cfg.recipes.recipes, l.s)) {
+        const n = stockCount(l.s, it.id);
+        if (n > st.stock.lowWarn) l.lowWarned.delete(it.id);
+        else if (n > 0 && !l.lowWarned.has(it.id)) {
+          l.lowWarned.add(it.id);
+          this.hooks.event(owner, { kind: 'lowStock', text: `📦 Running low: ${it.icon} ${it.name} (${n} left). 📱 → Business → Stock.` });
+        }
+      }
+
       // New customers: they only come for dishes you have ingredients for.
       const menu = menuRecipes(st, this.cfg.recipes.recipes, l.s).filter((r) => stockCount(l.s, r.id) > 0);
       if (!menu.length) {
@@ -518,7 +555,7 @@ export class StallSystem {
           l.outOfStockWarned = true;
           this.hooks.event(owner, { kind: 'lost', text: '📦 Out of ingredients: no one can order. 📱 → Business → Stock.' });
         }
-      } else if (l.queue.length < queueCapacity(st, l.s)) {
+      } else if (!closing && l.queue.length < queueCapacity(st, l.s)) {
         const perMs = customerRate(st, l.s, rush, now, b, offHours) / 60_000;
         if (this.rand(1_000_000) / 1_000_000 < perMs * dt) {
           const tier = tierDef(st, l.s.tier);
@@ -549,7 +586,7 @@ export class StallSystem {
           l.queue = l.queue.filter((x) => x.id !== c.customer.id);
           l.cooks[i] = null;
         }
-        if (!l.cooks[i] && !l.unpaid) {
+        if (!l.cooks[i] && !l.unpaid && !(closing && now >= l.closingUntil)) {
           // Cooks leave food bloggers to the boss.
           const next = l.queue.find((x) => !x.serving && !x.blogger && stockCount(l.s, x.recipe) > 0);
           if (next && takeStock(l.s, next.recipe)) {

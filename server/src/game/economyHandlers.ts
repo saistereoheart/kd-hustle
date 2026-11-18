@@ -387,11 +387,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
 
     // --- jobs -----------------------------------------------------------------------------
-    handle(socket, 'job:start', C2S.jobStart, ({ kind }) => {
+    handle(socket, 'job:start', C2S.jobStart, ({ kind, remote }) => {
       if (kind === 'carwash') {
         if (!nearInteractable(me, 'carwash')) throw new GameError('Go inside Kilat Car Wash to wash cars.');
         if (me.vehicle) throw new GameError('Hop off your ride first.');
-      } else if (!nearInteractable(me, 'jobs')) throw new GameError('Find the Jobs Board in Dataran Sunway Square to take a job.');
+      } else if (!remote && !nearInteractable(me, 'jobs')) throw new GameError('Find a Jobs Board (or take a delivery from 📱 → Jobs).');
       const job = jobs.start(me, kind);
       const { budgetMs: _b, ...visible } = job;
       return { job: visible };

@@ -48,6 +48,8 @@ export const stallsConfigSchema = z.object({
   staff: z.object({ cookSec: z.number().positive(), passiveRate: z.number().positive() }),
   /** You can open any time; outside a tier's usual hours customers come at this rate. */
   offHoursCustomers: z.number().min(0).max(1).default(0.45),
+  /** Closing up: seconds to serve who's waiting before the shutters come down (orders being made always finish). */
+  closingGraceSec: z.number().nonnegative().default(20),
   reputation: z.object({
     start: z.number(), max: z.number(),
     perQuality: z.object({ perfect: z.number(), great: z.number(), good: z.number(), ok: z.number(), burnt: z.number() }),
@@ -70,6 +72,8 @@ export const stallsConfigSchema = z.object({
     /** Ordering from the phone instead of the hypermarket costs this much extra. */
     deliveryFee: z.number().min(0),
     maxPerRecipe: z.number().int().positive(),
+    /** Warn the owner when an item is down to this many. */
+    lowWarn: z.number().int().nonnegative().default(5),
   }),
   /** Dishes cooked (active) per recipe to reach each mastery level. */
   mastery: z.object({ thresholds: z.array(z.number().int().positive()).min(1), pricePerLevel: z.number() }),
