@@ -6,21 +6,25 @@ export interface Prefs {
   particles: boolean;
   /** Random gameplay tips every few minutes. */
   hints: boolean;
+  /** The shared radio. */
+  musicOn: boolean;
+  musicVolume: number;
 }
 
 export function loadPrefs(): Prefs {
   try {
-    return { volume: 70, particles: true, hints: true, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    return { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { volume: 70, particles: true, hints: true };
+    return { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40 };
   }
 }
-function savePrefs(p: Prefs) {
+export function savePrefs(p: Prefs) {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(p));
   } catch {
     /* ignore */
   }
+  window.dispatchEvent(new Event('kh-prefs')); // the radio picks up volume / on-off
 }
 
 function ago(ts: number | null): string {
@@ -57,6 +61,17 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  const musicOn = el('input', { type: 'checkbox', 'aria-label': 'Music', checked: prefs.musicOn });
+  musicOn.addEventListener('change', () => {
+    prefs.musicOn = musicOn.checked;
+    savePrefs(prefs);
+  });
+  const musicVol = el('input', { type: 'range', min: '0', max: '100', value: String(prefs.musicVolume), 'aria-label': 'Music volume' });
+  musicVol.addEventListener('input', () => {
+    prefs.musicVolume = Number(musicVol.value);
+    savePrefs(prefs);
+  });
+
   const edit = el('button', { class: 'btn', type: 'button' }, '👕 Edit character');
   const logout = el('button', { class: 'btn danger', type: 'button', 'data-action': 'logout' }, 'Log out');
   const close = el('button', { class: 'btn', type: 'button' }, 'Close');
@@ -67,6 +82,8 @@ export function openSettings(opts: {
     el('h3', {}, '⚙️ Settings'),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, 'Last saved'), savedLabel)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
+    el('div', { class: 'setting-row' }, el('span', {}, '🎵 Shared radio'), musicOn),
+    el('div', { class: 'setting-row' }, el('span', {}, 'Music volume'), musicVol),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),
     el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · P or Tab HustlePhone · B bag · 1–0 hotbar (with Q: emotes) · − manifest · M map · N minimap')),

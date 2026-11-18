@@ -32,6 +32,19 @@ income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (th
 
 ---
 
+## The shared radio (your request)
+
+### How to test it
+- Put music on the server PC, one folder per genre: `server/music/lofi/Artist - Title.mp3` (see README → Music).
+  Restart, or type `/music rescan` in chat.
+- **Everyone hears the same track at the same moment** (each device plays the file from the shared position and
+  re-syncs if it drifts more than 1.5 s). Browsers only allow sound after your first tap or key press.
+- **📱 → 📻 Radio** (or tap the 🎵 pill next to the phone): **⏭ Vote to skip**, and a **genre vote**. Both need
+  **more than half of the players online** (2 of 2, 2 of 3, 3 of 4…); tap again to take your vote back. A genre win
+  switches straight away.
+- Per player: mute and music volume (Radio app or ⚙️ Settings).
+- Tested with two players: same track within 0.3 s, a 2/2 genre vote switched both, a 2/2 skip moved both on.
+
 ## Phase 7a: the Lucky Strand Casino (and solid stalls)
 
 ### How to test it
@@ -922,6 +935,11 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Shared radio**
+- **Your own music files, served by the game server** (Spotify can't be shared this way). Track lengths come from
+  the first client that loads the file (no extra audio library on the server).
+- A genre with one track restarts it on a skip.
 
 **Phase 7a (casino)**
 - **One slot machine type** (3 reels, bets scale with your stage) instead of separate 3-reel and 5-reel machines.

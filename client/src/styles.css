@@ -978,3 +978,11 @@ body.touch .phone-btn-label kbd { display: none; }
 .bj-result { font-weight: 900; } .bj-hand.r-win .bj-result, .bj-hand.r-blackjack .bj-result { color: #b2f2bb; } .bj-hand.r-lose .bj-result, .bj-hand.r-bust .bj-result { color: #ffc9c9; }
 .bj-controls { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 @media (max-width: 640px) { .bj-seats { grid-template-columns: repeat(3, 1fr); } .roulette-grid { grid-template-columns: repeat(7, 1fr); } .roulette-grid .zero { grid-row: auto; grid-column: span 7; } .roulette-outside { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---- the shared radio ---- */
+.radio-pill { position: absolute; left: calc(88px + var(--safe-l)); bottom: calc(22px + var(--safe-b)); z-index: 3; display: flex; align-items: center; gap: 6px; max-width: min(260px, 40vw); padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.85); color: #fff; font: 700 12px system-ui, sans-serif; cursor: pointer; }
+.radio-pill.hidden { display: none; }
+.radio-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.radio-votes { color: #ffd43b; white-space: nowrap; }
+body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + var(--safe-l)); max-width: 45vw; }
+.btn.voted { outline: 2px solid #69db7c; }

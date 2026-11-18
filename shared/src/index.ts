@@ -24,3 +24,4 @@ export * from './items/grades';
 export * from './business/business';
 export * from './business/loans';
 export * from './casino/casino';
+export * from './music/music';

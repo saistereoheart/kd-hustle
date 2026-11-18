@@ -103,6 +103,22 @@ docs/     Spec, progress log, credits
 Balance and content live in `shared/config/*.json`, and the town layout lives in `shared/map/town.json`.
 Restart the server after editing them.
 
+## Music (the shared radio)
+Everyone in the game hears the same track at the same time; a majority vote skips it or switches the genre
+(📱 → 📻 Radio). The music is **your own files on the server PC**, never in this repo:
+
+```
+server/music/
+  lofi/      Artist - Title.mp3   (one folder per genre; any name)
+  chill/     ...
+  dangdut/   ...
+```
+
+File names like `Artist - Title.mp3` show as "Title · Artist". MP3, OGG, M4A, WAV, FLAC and Opus work. Add files
+while the server runs and type `/music rescan` in chat (admin). Use music you're allowed to share, e.g. FreePD.com
+(public domain), OpenGameArt.org (CC0), Pixabay Music, Incompetech (CC-BY: credit the artist). Set `MUSIC_DIR` to
+use another folder.
+
 ## Map data
 Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the ODbL.
 The generated map files in `shared/map/` are ODbL; the code is MIT.

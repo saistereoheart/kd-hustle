@@ -40,3 +40,7 @@
 Real place and road names (Kota Damansara, Dataran Sunway, Persiaran Surian…) are used for inspiration only.
 Every shop, mall, bank and brand in the game is a fictional parody. `docs/reference/` map screenshots are **not**
 committed (Google Maps imagery can't be redistributed).
+
+## Music
+The shared radio plays files the host puts in `server/music/` (git-ignored). None are included in this repo. Hosts
+are responsible for using music they may share (public domain / CC0 / CC-BY with credit, or similar).

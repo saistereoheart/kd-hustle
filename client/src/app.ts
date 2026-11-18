@@ -48,6 +48,7 @@ import { InteriorScene } from './world/interiorScene';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
+import { Radio } from './ui/radio';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
 import { HomeScene } from './world/homeScene';
@@ -74,6 +75,7 @@ export class App {
   guide: Guide | null = null;
   voteBanner: VoteBanner | null = null;
   phoneBtn: PhoneButton | null = null;
+  radio: Radio | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -435,6 +437,10 @@ export class App {
       this.store.ventures = ventures;
       this.store.emit();
     });
+    socket.on('music', (v) => {
+      this.store.music = v;
+      this.store.emit();
+    });
     socket.on('bank:self', ({ bank }) => {
       this.store.bank = bank;
       this.store.emit();
@@ -518,6 +524,11 @@ export class App {
 
   private onInit(p: InitPayload) {
     window.setTimeout(() => refreshSpin(this), 1500); // the daily free spin badge
+    this.socket?.timeout(5000).emit('music:view', (err, res) => {
+      if (err || !res.ok) return;
+      this.store.music = res.view;
+      this.store.emit();
+    });
     const resume = !!this.town && !p.needsCharacter && this.lastInit?.you.id === p.you.id && document.body.dataset.state === 'town';
     this.lastInit = p;
     if (p.you.appearance) rememberLook(p.you.appearance);
@@ -606,6 +617,7 @@ export class App {
       this.minimap?.setPois(this.guide.pois);
       this.voteBanner = new VoteBanner(this);
       this.phoneBtn = new PhoneButton(this);
+      this.radio ??= new Radio(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
@@ -850,6 +862,8 @@ export class App {
     this.voteBanner = null;
     this.phoneBtn?.destroy();
     this.phoneBtn = null;
+    this.radio?.destroy();
+    this.radio = null;
     this.progressHud?.destroy();
     this.progressHud = null;
     this.hud?.destroy();

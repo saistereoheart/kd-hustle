@@ -27,6 +27,7 @@ import type { GameIO } from './gameServer';
 import { createVentures } from './ventureHandlers';
 import { createLoans } from './loanHandlers';
 import { createCasino } from './casinoHandlers';
+import { createMusic } from './musicHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -249,6 +250,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     biz: () => ventures.biz,
     check: (p) => prog.check(p),
   });
+  // --- the shared radio ---------------------------------------------------------------------
+  const radio = createMusic({ cfg, io, world });
   // --- the Lucky Strand Casino (Phase 7) --------------------------------------------------------
   const casino = createCasino({
     cfg, repos, econ, world, io, socketOf, pushWallet,
@@ -371,6 +374,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     ventures.register(socket, me, handle);
     finance.register(socket, me, handle);
     casino.register(socket, me, handle);
+    radio.register(socket, me, handle);
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -579,6 +583,12 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       stalls.tick();
       return `It's now ${formatClock(gameTime(cfg.time, Date.now()))} in-game.`;
     }
+    if (cmd === 'music') {
+      // /music rescan: pick up music files added to the genre folders.
+      const n = radio.rescan();
+      io.emit('music', radio.music.view());
+      return `Radio: ${n} tracks found.`;
+    }
     if (cmd === 'loanday') {
       // /loanday <player|me> [n]: run n loan days now (testing instalments, missed payments, collectors).
       const p = target === 'me' ? me : world.byName(target ?? '');
@@ -587,7 +597,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       for (let i = 0; i < n; i++) finance.loans.loanDay(p);
       return `Ran ${n} loan day${n > 1 ? 's' : ''} for ${p.name}.`;
     }
-    const HELP = 'Commands: /time <hour> · /loanday <player|me> [days] · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
+    const HELP = 'Commands: /time <hour> · /music rescan · /loanday <player|me> [days] · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
     if (cmd === 'setlevel' || cmd === 'setstage') {
       const p = target === 'me' ? me : world.byName(target ?? '');
       if (!p) return `No online player called "${target}".`;
@@ -771,6 +781,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       ventures.unload(p); // saved, then dropped from memory until they log in again
       finance.unload(p);
       casino.leave(p);
+      radio.leave(p);
     },
     chatCommand,
     moveRules,
@@ -801,6 +812,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       ventures.stop();
       finance.stop();
       casino.stop(); // hands back undecided bets (before everyone is saved)
+      radio.stop();
       stalls.saveDirty(true);
     },
   };

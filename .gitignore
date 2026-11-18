@@ -47,3 +47,6 @@ playwright-report/
 
 # OSM downloads (raw, large)
 data-src/
+
+# Music for the shared radio (your own files; not redistributed)
+server/music/

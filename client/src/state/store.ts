@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -46,6 +46,8 @@ export class Store {
   boutique: BoutiqueSelf | null = null;
   /** Today's free Lucky Spin is still there (null until we ask). */
   canSpin: boolean | null = null;
+  /** The shared radio (what's playing, votes). */
+  music: MusicView | null = null;
   /** Every stall on the map, by plot id. */
   stalls = new Map<string, StallPublic>();
   /** Server clock − local clock (ms), so the game clock matches the server's. */

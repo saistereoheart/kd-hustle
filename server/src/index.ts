@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { AuthService } from './auth/authService';
 import { backupDatabase } from './backup/backup';
 import { loadConfig, toPublicConfig } from './config/loadConfig';
+import { musicDirOf } from './game/musicHandlers';
 import { openDatabase } from './db/db';
 import { createRepos } from './db/repos';
 import { attachGame, type GameIO } from './game/gameServer';
@@ -47,6 +48,8 @@ async function main() {
   const saves = new SaveManager(repos, world);
 
   const app = createHttpApp({ auth, cfg, publicConfig: toPublicConfig(cfg) });
+  // The shared radio's music files (your own, in one folder per genre; never in the repo).
+  app.use('/music', express.static(musicDirOf(cfg), { maxAge: '1h', fallthrough: false }));
   const server = http.createServer(app);
   const io: GameIO = new Server(server, { serveClient: false, destroyUpgrade: false });
   const game = attachGame(io, { cfg, auth, repos, world, saves });

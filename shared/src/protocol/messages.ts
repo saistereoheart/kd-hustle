@@ -11,6 +11,7 @@ import type { Placed, PropertyMode } from '../property/schemas';
 import type { Rating, Suggestion } from '../property/rating';
 import type { BoutiqueSelf, Checkout, Listing, Ventures } from '../business/business';
 import type { BankView, Loan } from '../business/loans';
+import type { MusicView } from '../music/music';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -33,6 +34,9 @@ export const C2S = {
   shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
   shopCashier: z.object({ on: z.boolean() }),
   checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
+  // --- the shared radio ---
+  musicGenre: z.object({ genre: z.string().min(1).max(64) }),
+  musicDuration: z.object({ track: z.string().min(1).max(400), ms: z.number().int().positive().max(86_400_000) }),
   // --- casino (Phase 7) ---
   casinoGame: z.object({ game: z.enum(['roulette', 'blackjack', 'crash', 'wheel']) }),
   casinoSen: z.object({ sen: z.number().int().positive().max(1e13) }),
@@ -516,6 +520,14 @@ export interface ClientToServerEvents {
   /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
   'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
   'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
+  // --- the shared radio ---
+  'music:view': (ack: Ack<Result<{ view: MusicView }>>) => void;
+  /** Vote to skip the track (again to take the vote back). */
+  'music:skip': (ack: Ack<SimpleResult>) => void;
+  /** Vote for a genre (your vote for the current genre clears it). */
+  'music:genre': (msg: { genre: string }, ack: Ack<SimpleResult>) => void;
+  /** A client loaded the track and knows how long it is. */
+  'music:duration': (msg: { track: string; ms: number }, ack: Ack<SimpleResult>) => void;
   // --- casino (Phase 7) ---
   /** Open a shared table: you get its state now and every change while watching. */
   'casino:watch': (msg: { game: 'roulette' | 'blackjack' | 'crash' | 'wheel' }, ack: Ack<Result<{ view: unknown; session: CasinoSession }>>) => void;
@@ -574,6 +586,8 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** The shared radio changed (new track, votes). */
+  music: (v: MusicView) => void;
   /** A shared casino table changed (only while you watch it). */
   'casino:table': (p: { game: 'roulette'; view: RouletteView } | { game: 'blackjack'; view: BlackjackView } | { game: 'crash'; view: CrashView } | { game: 'wheel'; view: WheelView & { layout: string[] } }) => void;
   /** Today's casino session (bet / won). */

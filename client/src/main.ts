@@ -30,6 +30,8 @@ window.__kh = {
   luck: () => app.mods().luck,
   /** Inside a building? (its id, our room position, the stations) */
   interior: () => app.interior?.debugInfo() ?? null,
+  /** Tests: the radio player (position, file, playing?). */
+  radio: () => (app.radio ? { t: Math.round(app.radio.audio.currentTime * 10) / 10, src: decodeURIComponent(app.radio.audio.src.split('/music/')[1] ?? ''), paused: app.radio.audio.paused } : null),
   /** Tests: open a casino game panel. */
   openCasino: (game: string) => app.openInteractable({ type: 'casino', game }),
   /** Tests: go into a building through its door (stand at the door first: /tp to doorOf). */

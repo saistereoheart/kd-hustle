@@ -1,0 +1,7 @@
+{
+  "dir": "server/music",
+  "majority": 0.5,
+  "extensions": [".mp3", ".ogg", ".m4a", ".wav", ".flac", ".opus"],
+  "maxTrackMs": 900000,
+  "resyncMs": 1500
+}

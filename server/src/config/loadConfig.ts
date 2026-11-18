@@ -13,7 +13,7 @@ import {
   type QuestsConfig, type GoalsConfig,
   timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
   interiorsConfigSchema, type InteriorsConfig, guideConfigSchema, type GuideConfig, npcsConfigSchema, type NpcsConfig, furnitureConfigSchema, propertiesConfigSchema, type FurnitureConfig, type PropertiesConfig,
-  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, type BusinessesConfig, type LoansConfig, type CasinoConfig,
+  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, musicConfigSchema, type BusinessesConfig, type LoansConfig, type CasinoConfig, type MusicConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -54,6 +54,7 @@ export interface ServerConfig {
   businesses: BusinessesConfig;
   loans: LoansConfig;
   casino: CasinoConfig;
+  music: MusicConfig;
   recipeById: Map<string, RecipeDef>;
   /** The configs progression needs, in one bundle (shared with the client's maths). */
   prog: ProgCfg;
@@ -142,6 +143,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     businesses: readJson(j('businesses.json'), businessesConfigSchema),
     loans: readJson(j('loans.json'), loansConfigSchema),
     casino: readJson(j('casino.json'), casinoConfigSchema),
+    music: readJson(j('music.json'), musicConfigSchema),
     recipeById,
     prog,
     itemById,
@@ -194,5 +196,6 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     businesses: cfg.businesses,
     loans: cfg.loans,
     casino: cfg.casino,
+    music: cfg.music,
   };
 }
