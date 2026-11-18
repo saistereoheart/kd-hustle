@@ -13,7 +13,7 @@ import {
   type QuestsConfig, type GoalsConfig,
   timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
   interiorsConfigSchema, type InteriorsConfig, guideConfigSchema, type GuideConfig, npcsConfigSchema, type NpcsConfig, furnitureConfigSchema, propertiesConfigSchema, type FurnitureConfig, type PropertiesConfig,
-  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, musicConfigSchema, type BusinessesConfig, type LoansConfig, type CasinoConfig, type MusicConfig,
+  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, musicConfigSchema, eventsConfigSchema, type EventsConfig, type BusinessesConfig, type LoansConfig, type CasinoConfig, type MusicConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -55,6 +55,7 @@ export interface ServerConfig {
   loans: LoansConfig;
   casino: CasinoConfig;
   music: MusicConfig;
+  events: EventsConfig;
   recipeById: Map<string, RecipeDef>;
   /** The configs progression needs, in one bundle (shared with the client's maths). */
   prog: ProgCfg;
@@ -94,7 +95,8 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
   const problems = validateEconomyConfigs(rarities, items, crates);
   if (problems.length) throw new Error(`Invalid economy config:\n  - ${problems.slice(0, 8).join('\n  - ')}`);
   const crateOfItem = new Map<string, CrateDef>();
-  for (const c of crates.crates) for (const id of c.pool) crateOfItem.set(id, c);
+  // An item's home crate (event crates reuse items; they don't change what an item is worth).
+  for (const c of crates.crates) if (!c.event) for (const id of c.pool) crateOfItem.set(id, c);
   const economy = readJson(j('economy.json'), economyConfigSchema);
   const itemById = new Map(items.items.map((i) => [i.id, i]));
   const prog: ProgCfg = {
@@ -144,6 +146,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     loans: readJson(j('loans.json'), loansConfigSchema),
     casino: readJson(j('casino.json'), casinoConfigSchema),
     music: readJson(j('music.json'), musicConfigSchema),
+    events: readJson(j('events.json'), eventsConfigSchema),
     recipeById,
     prog,
     itemById,
@@ -197,5 +200,6 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     loans: cfg.loans,
     casino: cfg.casino,
     music: cfg.music,
+    events: cfg.events,
   };
 }

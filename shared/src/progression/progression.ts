@@ -218,7 +218,7 @@ export function computeMods(
   const luckSources: LuckSource[] = [];
   const luckSkill = sv('luck');
   if (luckSkill > 0) luckSources.push({ type: 'upgrade', mult: 1 + luckSkill, label: 'Lucky Charm' });
-  for (const b of buffs('luck')) luckSources.push({ type: 'potion', mult: b.mult, label: b.item });
+  for (const b of buffs('luck')) luckSources.push({ type: 'potion', mult: b.mult, label: b.item.replace(/^event:/, '') });
   if (title?.bonus?.luck) luckSources.push({ type: 'title', mult: title.bonus.luck, label: title.name });
   if (gear.luck) luckSources.push({ type: 'gear', mult: 1 + gear.luck, label: 'Your gear' });
 

@@ -48,6 +48,8 @@ export function emptyProgress(): ServerProgress {
 }
 
 export interface ProgressionHooks {
+  /** Buffs everyone has right now (a server event like Lucky Hour). */
+  extraBuffs?: () => ActiveBuff[];
   /** Wallet/shards changed by `delta` sen. */
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   items: (p: OnlinePlayer, items: InventoryItem[]) => void;
@@ -127,7 +129,8 @@ export class ProgressionSystem {
 
   activeBuffs(p: OnlinePlayer): ActiveBuff[] {
     const now = this.clock();
-    return p.prog.buffs.filter((b) => b.until > now).map((b) => ({ item: b.item, kind: b.kind, mult: b.mult, leftMs: b.until - now }));
+    const own = p.prog.buffs.filter((b) => b.until > now).map((b) => ({ item: b.item, kind: b.kind, mult: b.mult, leftMs: b.until - now }));
+    return [...own, ...(this.hooks.extraBuffs?.() ?? [])];
   }
 
   state(p: OnlinePlayer): ProgressState {

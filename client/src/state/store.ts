@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -46,6 +46,15 @@ export class Store {
   boutique: BoutiqueSelf | null = null;
   /** Today's free Lucky Spin is still there (null until we ask). */
   canSpin: boolean | null = null;
+  /** The server event running now (and its buffs, from the events config). */
+  event: ActiveEvent | null = null;
+  eventDefs: EventDef[] = [];
+  eventBuffs(now = Date.now()): ActiveBuff[] {
+    const e = this.event;
+    const def = e && this.eventDefs.find((d) => d.id === e.id);
+    const left = e ? e.endsAt - (now + this.clockOffset) : 0;
+    return def && left > 0 ? def.buffs.map((b) => ({ item: `event:${def.name}`, kind: b.kind, mult: b.mult, leftMs: left })) : [];
+  }
   /** The shared radio (what's playing, votes). */
   music: MusicView | null = null;
   /** An open trade window. */
@@ -106,7 +115,8 @@ export class Store {
   /** Buffs still running right now (time left counted down locally between server updates). */
   buffs(now = Date.now()): ActiveBuff[] {
     const dt = now - this.progressAt;
-    return this.progress.buffs.map((b) => ({ ...b, leftMs: b.leftMs - dt })).filter((b) => b.leftMs > 0);
+    const own = this.progress.buffs.filter((b) => !b.item.startsWith('event:')).map((b) => ({ ...b, leftMs: b.leftMs - dt })).filter((b) => b.leftMs > 0);
+    return [...own, ...this.eventBuffs(now)];
   }
 
   on(fn: Listener) {

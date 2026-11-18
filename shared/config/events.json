@@ -1,0 +1,10 @@
+{
+  "randomEveryMin": 40,
+  "randomChance": 0.6,
+  "events": [
+    { "id": "lucky_hour", "name": "Lucky Hour", "icon": "🍀", "desc": "2× luck on every crate!", "minutes": 10, "buffs": [{ "kind": "luck", "mult": 2 }] },
+    { "id": "rush_hour", "name": "Rush Hour", "icon": "🍽️", "desc": "2× customers at every stall!", "minutes": 10, "buffs": [{ "kind": "customers", "mult": 2 }] },
+    { "id": "pasar_festival", "name": "Pasar Malam Festival", "icon": "🏮", "desc": "1.5× stall customers, XP and passive income!", "minutes": 15, "buffs": [{ "kind": "customers", "mult": 1.5 }, { "kind": "xp", "mult": 1.5 }, { "kind": "passive", "mult": 1.5 }] },
+    { "id": "durian_season", "name": "Durian Season", "icon": "🌰", "desc": "The limited Durian Crate is in 📱 Quick Rolls: rare-and-up items only!", "minutes": 15, "buffs": [], "crate": "durian" }
+  ]
+}

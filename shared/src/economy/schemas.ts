@@ -79,6 +79,8 @@ export const cratesConfigSchema = z.object({
       pool: z.array(z.string()).min(1),
       /** Wealth stage / player level needed to roll it. */
       requires: z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({}),
+      /** A limited crate: only rollable while this server event runs. Its pool reuses other crates' items. */
+      event: z.string().optional(),
     }),
   ),
 });
@@ -230,6 +232,7 @@ export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, cr
   for (const c of crates.crates) {
     for (const id of c.pool) {
       if (!itemIds.has(id)) errors.push(`crate ${c.id}: unknown item ${id}`);
+      if (c.event) continue; // event crates reuse items from their home crates
       if (seen.has(id)) errors.push(`item ${id} is in crates ${seen.get(id)} and ${c.id}`);
       seen.set(id, c.id);
     }

@@ -13,6 +13,7 @@ import type { BoutiqueSelf, Checkout, Listing, Ventures } from '../business/busi
 import type { BankView, Loan } from '../business/loans';
 import type { MusicView } from '../music/music';
 import type { BoardEntry, TradeView } from '../social/social';
+import type { ActiveEvent } from '../events/events';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -537,6 +538,7 @@ export interface ClientToServerEvents {
   'trade:cancel': (ack: Ack<SimpleResult>) => void;
   'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
   'board:view': (ack: Ack<Result<{ entries: BoardEntry[] }>>) => void;
+  'event:view': (ack: Ack<Result<{ event: ActiveEvent | null }>>) => void;
   // --- the shared radio ---
   'music:view': (ack: Ack<Result<{ view: MusicView }>>) => void;
   /** Vote to skip the track (again to take the vote back). */
@@ -603,6 +605,8 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** A server event started or ended (null = none running). */
+  event: (p: { event: ActiveEvent | null }) => void;
   /** Someone wants to trade with you. */
   'trade:request': (p: { from: number; name: string }) => void;
   /** Your trade window (null = closed). `done` when the swap went through. */

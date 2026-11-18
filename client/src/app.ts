@@ -49,6 +49,7 @@ import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
 import { Radio } from './ui/radio';
+import { EventBanner } from './ui/eventBanner';
 import { showTrade, showTradeRequest } from './ui/trade';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
@@ -77,6 +78,7 @@ export class App {
   voteBanner: VoteBanner | null = null;
   phoneBtn: PhoneButton | null = null;
   radio: Radio | null = null;
+  eventBanner: EventBanner | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -124,7 +126,7 @@ export class App {
     setFurnitureCatalog(this.cfg.furniture);
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
-    for (const c of this.cfg.crates.crates) for (const id of c.pool) this.cratesOfItem.set(id, c);
+    for (const c of this.cfg.crates.crates) if (!c.event) for (const id of c.pool) this.cratesOfItem.set(id, c);
     const c = this.cfg;
     this.prog = {
       rarities: c.rarities, items: c.items, itemById: this.items, crates: c.crates, crateOfItem: this.cratesOfItem, pawnRate: c.economy.pawnRate,
@@ -439,6 +441,10 @@ export class App {
       this.store.emit();
     });
     socket.on('notice', (n) => toast(n.text, n.kind, 5000));
+    socket.on('event', ({ event }) => {
+      this.store.event = event;
+      this.store.emit();
+    });
     socket.on('inv:removed', ({ iids }) => this.store.removeItems(iids));
     socket.on('trade:request', ({ from, name }) => showTradeRequest(this, from, name));
     socket.on('trade', ({ trade, done, reason }) => {
@@ -534,6 +540,12 @@ export class App {
 
   private onInit(p: InitPayload) {
     window.setTimeout(() => refreshSpin(this), 1500); // the daily free spin badge
+    this.store.eventDefs = this.cfg.events.events;
+    this.socket?.timeout(5000).emit('event:view', (err, res) => {
+      if (err || !res.ok) return;
+      this.store.event = res.event;
+      this.store.emit();
+    });
     this.socket?.timeout(5000).emit('music:view', (err, res) => {
       if (err || !res.ok) return;
       this.store.music = res.view;
@@ -628,6 +640,7 @@ export class App {
       this.voteBanner = new VoteBanner(this);
       this.phoneBtn = new PhoneButton(this);
       this.radio ??= new Radio(this);
+      this.eventBanner ??= new EventBanner(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
@@ -874,6 +887,8 @@ export class App {
     this.phoneBtn = null;
     this.radio?.destroy();
     this.radio = null;
+    this.eventBanner?.destroy();
+    this.eventBanner = null;
     this.progressHud?.destroy();
     this.progressHud = null;
     this.hud?.destroy();

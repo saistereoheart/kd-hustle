@@ -153,7 +153,13 @@ describe('values', () => {
       for (const o of odds) {
         if (!o.p) continue;
         const tier = rar.tiers.find((t) => t.id === o.tier)!;
-        ev += o.p * c.priceSen * tier.valueFactor * 0.5;
+        // An item is worth its HOME crate's price × tier factor. Event crates reuse items from cheaper
+        // crates, so for them average the home prices of the items in that tier.
+        const inTier = c.pool.filter((id) => items.get(id)?.rarity === o.tier);
+        const base = c.event
+          ? inTier.reduce((a, id) => a + (crates.crates.find((h) => !h.event && h.pool.includes(id))?.priceSen ?? 0), 0) / Math.max(1, inTier.length)
+          : c.priceSen;
+        ev += o.p * base * tier.valueFactor * 0.5;
       }
       expect(ev).toBeLessThan(c.priceSen);
     }

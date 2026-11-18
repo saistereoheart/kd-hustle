@@ -16,6 +16,7 @@ import type { BusinessesConfig } from '../business/business';
 import type { LoansConfig } from '../business/loans';
 import type { CasinoConfig } from '../casino/casino';
 import type { MusicConfig } from '../music/music';
+import type { EventsConfig } from '../events/events';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -161,5 +162,6 @@ export interface PublicConfig {
   loans: LoansConfig;
   casino: CasinoConfig;
   music: MusicConfig;
+  events: EventsConfig;
 }
 

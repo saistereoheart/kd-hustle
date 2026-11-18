@@ -8,7 +8,9 @@ import type { PhoneCtx } from './phone';
 export function renderRolls({ app }: PhoneCtx): HTMLElement[] {
   const fee = app.cfg.economy.phoneRollFee;
   const pr = app.store.progress;
-  const cards = app.cfg.crates.crates.map((c) => {
+  // Event crates (Durian Season...) only show while their event runs.
+  const ev = app.store.event && app.store.event.endsAt > app.store.serverNow() ? app.store.event.id : null;
+  const cards = app.cfg.crates.crates.filter((c) => !c.event || c.event === ev).map((c) => {
     const r = c.requires;
     const lock = r.stage && pr.stage < r.stage ? `Wealth stage ${r.stage} (${stageDef(app.cfg.stages, r.stage).name})` : r.level && pr.level < r.level ? `Level ${r.level}` : null;
     const open = el('button', { class: 'btn primary', type: 'button', 'data-action': `quick-roll-${c.id}`, disabled: !!lock }, lock ? '🔒' : 'Roll');

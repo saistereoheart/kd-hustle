@@ -29,6 +29,7 @@ import { createLoans } from './loanHandlers';
 import { createCasino } from './casinoHandlers';
 import { createMusic } from './musicHandlers';
 import { createSocial } from './socialHandlers';
+import { createEvents } from './eventHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -141,6 +142,15 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     }, cfg.economy.announceDelayMs);
   };
 
+  // --- server events (Phase 7): Lucky Hour, Rush Hour... ------------------------------------
+  const events = createEvents({
+    cfg, io, world, rand: cryptoRand,
+    announce: (text, banner) => {
+      repos.announcements.add(text, 'legendary');
+      io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+      if (banner) io.emit('announce', { text, tier: 'legendary', takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
+    },
+  });
   // --- progression (Phase 3) ---------------------------------------------------------------
   // eslint-disable-next-line prefer-const
   let stalls: StallSystem;
@@ -169,6 +179,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       throw new GameError(`${item.name} can't be used yet.`);
     },
     assetsOf,
+    extraBuffs: () => events.buffs(),
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
@@ -306,6 +317,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (!rollLimiter.hit(String(me.id))) throw new GameError('Easy, tiger! One roll at a time.');
       const crate = cfg.crateById.get(crateId);
       if (!crate) throw new GameError('Unknown crate.');
+      if (!events.crateOpen(crate.event)) throw new GameError(`The ${crate.name} is only around during its event.`);
       if (!remote && !nearInteractable(me, 'crate', crateId)) throw new GameError(`Go to the ${crate.name} to roll it.`);
       const lock = prog.crateLock(me, crate);
       if (lock) throw new GameError(lock);
@@ -388,6 +400,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     casino.register(socket, me, handle);
     radio.register(socket, me, handle);
     social.register(socket, me, handle);
+    handle(socket, 'event:view', null, () => ({ event: events.view() }));
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -596,6 +609,20 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       stalls.tick();
       return `It's now ${formatClock(gameTime(cfg.time, Date.now()))} in-game.`;
     }
+    if (cmd === 'event') {
+      // /event <id> [minutes] | /event stop
+      if (target === 'stop') {
+        events.stop();
+        return 'Event stopped.';
+      }
+      if (!target) return `Usage: /event <${cfg.events.events.map((e) => e.id).join('|')}> [minutes] · /event stop`;
+      try {
+        const def = events.start(target, what ? Number(what) : undefined);
+        return `${def.name} started.`;
+      } catch (e) {
+        return (e as Error).message;
+      }
+    }
     if (cmd === 'music') {
       // /music rescan: pick up music files added to the genre folders.
       const n = radio.rescan();
@@ -610,7 +637,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       for (let i = 0; i < n; i++) finance.loans.loanDay(p);
       return `Ran ${n} loan day${n > 1 ? 's' : ''} for ${p.name}.`;
     }
-    const HELP = 'Commands: /time <hour> · /music rescan · /loanday <player|me> [days] · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
+    const HELP = 'Commands: /time <hour> · /event <id> [min] · /music rescan · /loanday <player|me> [days] · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
     if (cmd === 'setlevel' || cmd === 'setstage') {
       const p = target === 'me' ? me : world.byName(target ?? '');
       if (!p) return `No online player called "${target}".`;
@@ -829,6 +856,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       casino.stop(); // hands back undecided bets (before everyone is saved)
       radio.stop();
       social.stop();
+      events.dispose();
       stalls.saveDirty(true);
     },
   };

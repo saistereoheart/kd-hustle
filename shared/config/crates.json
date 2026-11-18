@@ -122,6 +122,38 @@
       "requires": {
         "stage": 2
       }
+    },
+    {
+      "id": "durian",
+      "name": "Durian Crate",
+      "priceSen": 200000,
+      "requires": {
+        "stage": 2
+      },
+      "event": "durian_season",
+      "color": "#82c91e",
+      "pity": {
+        "epic": 20,
+        "legendary": 100
+      },
+      "pool": [
+        "glow_aura",
+        "red_cape",
+        "neon_name",
+        "cat_ears",
+        "bubble_aura",
+        "bat_wings",
+        "flame_aura",
+        "golden_crown",
+        "top_hat",
+        "angel_wings",
+        "diamond_shades",
+        "halo",
+        "naga_aura",
+        "phoenix_wings",
+        "rainbow_name",
+        "durian_crown"
+      ]
     }
   ]
 }
