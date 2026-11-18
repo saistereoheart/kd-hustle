@@ -35,6 +35,9 @@ export const stepTemplateSchema = z.discriminatedUnion('kind', [
     options: z.array(z.object({ id: z.string(), name: z.string(), icon: z.string() })).min(2),
     /** How many base sides an order asks for [min, max]. */
     pick: z.tuple([z.number().int().positive(), z.number().int().positive()]),
+    /** Instead of `pick`: the order takes this many from each group, in turn (e.g. teh tarik:
+     *  one tea, one milk, then hot OR iced). Ids are from `options`. */
+    groups: z.array(z.object({ ids: z.array(z.string()).min(1), pick: z.tuple([z.number().int().nonnegative(), z.number().int().positive()]) })).optional(),
     /** All correct within this long = Perfect (slower = Great). */
     fastMs: z.number().positive(),
     maxMs: z.number().positive(),
@@ -170,14 +173,20 @@ export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []
       }
       case 'assemble': {
         // The customer wants some of the base sides (e.g. "no timun") plus their add-ons.
-        const pool = s.options.map((o) => o.id);
-        const [lo, hi] = [Math.min(s.pick[0], pool.length), Math.min(s.pick[1], pool.length)];
-        const n = lo + rand(Math.max(1, hi - lo + 1));
         const want: string[] = [];
-        while (want.length < n) want.push(pool.splice(rand(pool.length), 1)[0]);
+        const takeFrom = (ids: string[], range: [number, number]) => {
+          const pool = ids.filter((id) => s.options.some((o) => o.id === id));
+          const [lo, hi] = [Math.min(range[0], pool.length), Math.min(range[1], pool.length)];
+          const n = lo + rand(Math.max(1, hi - lo + 1));
+          for (let k = 0; k < n; k++) want.push(pool.splice(rand(pool.length), 1)[0]);
+        };
+        if (s.groups?.length) for (const g of s.groups) takeFrom(g.ids, g.pick);
+        else takeFrom(s.options.map((o) => o.id), s.pick);
         const known = new Set(recipe.addons.map((a) => a.id));
         for (const a of addons) if (known.has(a) && !want.includes(a)) want.push(a);
         const options = [...s.options, ...recipe.addons.map((a) => ({ id: a.id, name: a.name, icon: a.icon, addon: true }))];
+        // The ticket lists things in the order the trays stand (base sides first, then add-ons).
+        want.sort((x, y) => options.findIndex((o) => o.id === x) - options.findIndex((o) => o.id === y));
         return { ...b, kind: 'assemble', options, want, fastMs: s.fastMs, maxMs: s.maxMs };
       }
     }

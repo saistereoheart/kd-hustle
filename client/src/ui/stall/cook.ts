@@ -5,7 +5,7 @@
 import { gradeStep, meterLevel, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
-import { drawFood, drawPlate, drawRice, trayCanvas } from './foodArt';
+import { drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas } from './foodArt';
 
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
 const GRADE_COLOR: Record<Grade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#74c0fc', miss: '#ff6b6b' };
@@ -200,7 +200,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       box.classList.toggle('assemble', s.kind === 'assemble');
       if (s.kind !== 'assemble' && (W !== W0 || H !== H0)) sizeCanvas(W0, H0);
       action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path');
-      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? '✅ Bungkus! (serve)' : 'Hold to pour';
+      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
       if (s.kind === 'assemble') setupAssemble(s);
       if (s.kind === 'path') setupPath(s);
@@ -362,26 +362,25 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         const raw: [number, number, number] = s.art === 'tea' ? [240, 220, 180] : [250, 250, 245];
         const gold: [number, number, number] = s.art === 'tea' ? [196, 120, 40] : [242, 178, 60];
         const burnt: [number, number, number] = [70, 40, 20];
-        const col = p <= 1 ? mix(raw, gold, p) : mix(gold, burnt, (p - 1) * 2);
         if (s.art === 'tea') {
-          ctx.fillStyle = '#dee2e6';
-          ctx.fillRect(cx - 50, cy - 55, 100, 120);
-          ctx.fillStyle = col;
-          ctx.fillRect(cx - 44, cy - 35, 88, 94);
+          // Tea steeping in a glass: pale → deep amber → stewed; steam rising.
+          const col = p <= 1 ? mix([236, 214, 170], [176, 96, 30], p) : mix([176, 96, 30], [60, 30, 12], (p - 1) * 2);
+          const gw = Math.min(W * 0.28, 150), gh = Math.min(H * 0.6, gw * 1.3);
+          drawGlass(ctx, cx - gw / 2, cy - gh / 2 - 10, gw, gh, 0.85, 0, col);
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.lineWidth = 3;
+          for (let k = 0; k < 3; k++) {
+            const sx = cx - gw * 0.25 + k * gw * 0.25, ph = t / 400 + k;
+            ctx.beginPath();
+            ctx.moveTo(sx, cy - gh / 2 - 16);
+            ctx.bezierCurveTo(sx + Math.sin(ph) * 10, cy - gh / 2 - 34, sx - Math.sin(ph) * 10, cy - gh / 2 - 46, sx, cy - gh / 2 - 60);
+            ctx.stroke();
+          }
         } else {
-          // A pan with an egg / roti that browns from the edges.
-          ctx.fillStyle = '#343a40';
-          ctx.beginPath();
-          ctx.arc(cx, cy, H * 0.36, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = col;
-          ctx.beginPath();
-          ctx.arc(cx, cy, H * 0.27, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = s.art === 'egg' ? '#ffd43b' : mix([255, 240, 200], [230, 170, 90], p);
-          ctx.beginPath();
-          ctx.arc(cx, cy, H * (s.art === 'egg' ? 0.1 : 0.2), 0, Math.PI * 2);
-          ctx.fill();
+          // Roti on a hot griddle, browning from pale to golden to burnt.
+          const rad = Math.min(W, H) * 0.34;
+          drawGriddle(ctx, cx, cy - 8, rad * 1.15);
+          drawRoti(ctx, cx, cy - 8, rad * 0.9, p);
         }
         // The colour gauge: the marker moves; the notch is the perfect moment.
         const gx = W * 0.12, gw = W * 0.76, gy = H - 26;
@@ -402,27 +401,48 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         ctx.fill();
         if (!ev.length && t > s.maxMs) finish();
       } else if (s.kind === 'rhythm') {
-        // Rings close in on the target; tap when a ring meets it.
-        const tx = cx, ty = cy;
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        // The scene, then rings closing in on the target: tap when a ring meets it.
+        const tx = cx, ty = s.art === 'pull' ? H * 0.68 : cy;
+        const done = Math.min(ev.length, s.beats.length) / s.beats.length;
+        if (s.art === 'pull') {
+          // Teh tarik: pouring from a mug held high into one held low, the stream stretching.
+          const mw = Math.min(70, W * 0.14), mh = mw * 1.15;
+          const lift = 0.5 + 0.5 * Math.sin(t / 160);
+          const upX = tx - mw * 1.6, upY = H * 0.12 + (1 - lift) * 20;
+          drawSteelMug(ctx, upX - mw / 2, upY, mw, mh, 0.9);
+          drawSteelMug(ctx, tx - mw / 2, ty - mh / 2, mw, mh, 0);
+          ctx.strokeStyle = '#b5651d';
+          ctx.lineWidth = 6;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(upX + mw * 0.55, upY + mh * 0.25);
+          ctx.quadraticCurveTo(tx - mw * 0.2, upY + mh, tx, ty - mh / 2 + 4);
+          ctx.stroke();
+          ctx.strokeStyle = 'rgba(255, 230, 190, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          // Roti dough on an oiled steel counter, getting thinner and wider with every slap.
+          drawCounter(ctx, W, H);
+          drawDough(ctx, tx, ty, Math.min(W, H) * 0.42, done);
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.arc(tx, ty, 34, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.font = '34px system-ui';
-        ctx.fillText(s.art === 'pull' ? '🫖' : '🫓', tx, ty + 2);
         for (const b of s.beats) {
           const dt = b - t;
           if (dt < -150 || dt > 1400) continue;
           const r = 34 + Math.max(0, dt) * 0.09;
-          ctx.strokeStyle = dt < 0 ? 'rgba(255,107,107,0.6)' : '#ffd43b';
-          ctx.lineWidth = 3;
+          ctx.strokeStyle = dt < 0 ? 'rgba(255,107,107,0.8)' : '#ffd43b';
+          ctx.lineWidth = 4;
           ctx.beginPath();
           ctx.arc(tx, ty, r, 0, Math.PI * 2);
           ctx.stroke();
         }
         ctx.font = 'bold 14px system-ui';
-        ctx.fillStyle = '#adb5bd';
+        ctx.fillStyle = s.art === 'pull' ? '#adb5bd' : '#343a40';
         ctx.fillText(`${Math.min(ev.length, s.beats.length)} / ${s.beats.length}`, tx, H - 18);
         if (t > s.beats[s.beats.length - 1] + 600) finish();
       } else if (s.kind === 'sequence') {
@@ -444,19 +464,22 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         });
         if (t > s.maxMs) finish();
       } else if (s.kind === 'assemble') {
-        // The order ticket: a big picture of each thing with its name; ✓ once it's on the plate.
-        const cell = Math.min(96, (W - 30) / Math.max(1, s.want.length));
-        const tw = cell * s.want.length + 20, tx0 = cx - tw / 2;
+        // The order ticket: a big picture of each thing with its name, in tray order; the base
+        // items, then a divider and the add-ons. ✓ once it's on the plate.
+        const baseIds = s.want.filter((id) => !s.options.find((o) => o.id === id)?.addon);
+        const addIds = s.want.filter((id) => s.options.find((o) => o.id === id)?.addon);
+        const sepW = addIds.length && baseIds.length ? 26 : 0;
+        const cell = Math.min(96, (W - 30 - sepW) / Math.max(1, s.want.length));
+        const tw = cell * s.want.length + 20 + sepW, tx0 = cx - tw / 2;
         ctx.fillStyle = '#fff9db';
         ctx.beginPath();
         ctx.roundRect(tx0, 8, tw, cell * 0.95 + 26, 8);
         ctx.fill();
         ctx.fillStyle = '#868e96';
         ctx.font = 'bold 11px system-ui';
-        ctx.fillText('ORDER', cx, 18);
-        s.want.forEach((id, i) => {
-          const o = s.options.find((x) => x.id === id)!;
-          const x = tx0 + 10 + i * cell;
+        ctx.fillText('ORDER', tx0 + 10 + (baseIds.length * cell) / 2, 18);
+        const item = (id: string, x: number) => {
+          const o = s.options.find((q) => q.id === id)!;
           const got = picked.includes(id);
           ctx.globalAlpha = got ? 0.4 : 1;
           ctx.fillStyle = '#ffffff';
@@ -468,41 +491,109 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.fillStyle = '#212529';
           ctx.font = `bold ${cell < 70 ? 10 : 12}px system-ui`;
           ctx.fillText(o.name, x + cell / 2, 26 + cell * 0.72, cell - 4);
-          if (o.addon) {
-            ctx.fillStyle = '#e8590c';
-            ctx.font = 'bold 9px system-ui';
-            ctx.fillText('+ ADD-ON', x + cell / 2, 26 + cell * 0.86);
-          }
           if (got) {
             ctx.fillStyle = '#2f9e44';
             ctx.font = 'bold 26px system-ui';
             ctx.fillText('✓', x + cell * 0.78, 26 + cell * 0.2);
           }
-        });
-        // The plate: banana leaf, the rice, and what you've added, each in its place.
+        };
+        baseIds.forEach((id, i) => item(id, tx0 + 10 + i * cell));
+        if (addIds.length) {
+          const ax = tx0 + 10 + baseIds.length * cell + sepW;
+          if (sepW) {
+            ctx.strokeStyle = '#e8590c';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(ax - sepW / 2, 14);
+            ctx.lineTo(ax - sepW / 2, 26 + cell * 0.9);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = '#e8590c';
+          ctx.font = 'bold 11px system-ui';
+          ctx.fillText('+ ADD-ONS', ax + (addIds.length * cell) / 2, 18);
+          ctx.fillStyle = 'rgba(232, 89, 12, 0.1)';
+          ctx.fillRect(ax - 4, 24, addIds.length * cell + 8, cell * 0.9);
+          addIds.forEach((id, i) => item(id, ax + i * cell));
+        }
         const top = cell * 0.95 + 40;
         const pcy = top + (H - top) / 2;
         const prx = Math.min(W * 0.4, (H - top) * 0.78), pry = Math.min(prx * 0.62, (H - top) / 2 - 4);
-        drawPlate(ctx, cx, pcy, prx, pry);
-        drawRice(ctx, cx - prx * 0.12, pcy + pry * 0.05, prx * 0.3, pry * 0.42);
-        const slots: Array<[number, number]> = [[0.32, -0.42], [0.5, 0.05], [0.3, 0.45], [-0.05, 0.55], [-0.45, 0.42], [-0.55, -0.05], [-0.38, -0.48], [0.05, -0.6]];
-        picked.forEach((id, i) => {
-          const [sx, sy] = slots[i % slots.length];
-          const fw = prx * 0.5, fh = pry * 0.5;
-          drawFood(ctx, id, cx + sx * prx - fw / 2, pcy + sy * pry - fh / 2, fw, fh, 0.5);
-        });
+        if (s.art === 'drink') {
+          // The glass fills as you go: tea, then milk lightens it, then steam or ice on top.
+          const has = (id: string) => picked.includes(id);
+          const milk = has('susu_pekat') || has('susu_cair');
+          const fill = (has('teh') ? 0.5 : 0) + (milk ? 0.22 : 0) + (has('panas') ? 0.12 : 0) + (has('ais') ? 0.08 : 0);
+          const col = has('teh') ? (milk ? (has('susu_pekat') ? '#c98b4e' : '#d29a62') : '#6b2f0c') : milk ? '#f4ecdb' : '#bfe0f5';
+          const gh = Math.min(H - top - 16, 220), gw = gh * 0.72;
+          const gx = cx - gw / 2, gy = top + (H - top - gh) / 2;
+          drawGlass(ctx, gx, gy, gw, gh, fill, 0, col);
+          if (has('ais')) for (let k = 0; k < 4; k++) drawFood(ctx, 'ais', gx + 8 + (k % 2) * gw * 0.42, gy + gh * (1 - fill) - 6 + Math.floor(k / 2) * 18, gw * 0.4, 22, 0.3);
+          if (has('panas')) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 3;
+            for (let k = 0; k < 3; k++) {
+              const sx = gx + gw * (0.25 + k * 0.25), ph = t / 400 + k;
+              ctx.beginPath();
+              ctx.moveTo(sx, gy - 6);
+              ctx.bezierCurveTo(sx + Math.sin(ph) * 8, gy - 22, sx - Math.sin(ph) * 8, gy - 34, sx, gy - 46);
+              ctx.stroke();
+            }
+          }
+        } else if (s.art === 'curry') {
+          // Roti canai on a plate, the curries in little bowls beside it.
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.beginPath();
+          ctx.ellipse(cx + 3, pcy + 5, prx, pry, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#f8f9fa';
+          ctx.beginPath();
+          ctx.ellipse(cx, pcy, prx, pry, 0, 0, Math.PI * 2);
+          ctx.fill();
+          drawRoti(ctx, cx - prx * 0.25, pcy, pry * 0.78, 0.95);
+          picked.forEach((id, i) => drawBowl(ctx, id, cx + prx * (0.42 + (i % 2) * 0.02), pcy + (i % 2 ? 0.42 : -0.42) * pry * (i > 1 ? 0.2 : 1), pry * 0.42));
+        } else {
+          // The plate: banana leaf, the rice, and what you've added, each in its place.
+          drawPlate(ctx, cx, pcy, prx, pry);
+          drawRice(ctx, cx - prx * 0.12, pcy + pry * 0.05, prx * 0.3, pry * 0.42);
+          const slots: Array<[number, number]> = [[0.32, -0.42], [0.5, 0.05], [0.3, 0.45], [-0.05, 0.55], [-0.45, 0.42], [-0.55, -0.05], [-0.38, -0.48], [0.05, -0.6]];
+          picked.forEach((id, i) => {
+            const [sx, sy] = slots[i % slots.length];
+            const fw = prx * 0.5, fh = pry * 0.5;
+            drawFood(ctx, id, cx + sx * prx - fw / 2, pcy + sy * pry - fh / 2, fw, fh, 0.5);
+          });
+        }
         ctx.fillStyle = t > s.fastMs * dish.windowMult ? '#ffa94d' : '#adb5bd';
         ctx.font = 'bold 14px system-ui';
         ctx.fillText(`${Math.max(0, (s.maxMs - t) / 1000).toFixed(1)} s`, W - 34, H - 16);
         if (t > s.maxMs) finish();
       } else if (s.kind === 'path') {
-        // A leaf / plate with numbered dots; your trail shows where you've been.
-        ctx.fillStyle = s.art === 'leaf' ? '#2f9e44' : s.art === 'sambal' ? '#f1f3f5' : '#ffe8cc';
+        // Roti: a thin dough sheet on the oiled counter; each corner you bring in folds over.
+        drawCounter(ctx, W, H);
+        const sw = W * 0.7, sh = H * 0.7, x0 = cx - sw / 2, y0 = cy - sh / 2;
+        ctx.fillStyle = 'rgba(255, 244, 214, 0.9)';
         ctx.beginPath();
-        ctx.ellipse(cx, cy, W * 0.42, H * 0.42, 0, 0, Math.PI * 2);
+        ctx.roundRect(x0, y0, sw, sh, 14);
         ctx.fill();
-        ctx.strokeStyle = s.art === 'sambal' ? '#c92a2a' : '#fff';
-        ctx.lineWidth = s.art === 'sambal' ? 9 : 4;
+        // folded flaps: one per corner passed (every second point is the middle)
+        const folds = Math.floor(passed / 2);
+        ctx.fillStyle = 'rgba(240, 215, 160, 0.95)';
+        ctx.strokeStyle = 'rgba(180, 130, 70, 0.5)';
+        ctx.lineWidth = 1.5;
+        for (let k = 0; k < folds && k * 2 < s.points.length; k++) {
+          const [px, py] = s.points[k * 2];
+          ctx.beginPath();
+          ctx.moveTo(px * W, py * H);
+          ctx.lineTo(cx + (px * W - cx) * 0.15 + (py * H - cy) * 0.6, cy + (py * H - cy) * 0.15 - (px * W - cx) * 0.6 * (H / W));
+          ctx.lineTo(cx, cy);
+          ctx.lineTo(cx + (px * W - cx) * 0.15 - (py * H - cy) * 0.6, cy + (py * H - cy) * 0.15 + (px * W - cx) * 0.6 * (H / W));
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.beginPath();
         trail.forEach(([x, y], i) => (i ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H)));
@@ -519,13 +610,17 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         if (t > s.maxMs) finish();
       } else if (s.kind === 'meter') {
         const v = meterLevel(s, holding ? [...ev] : ev, Math.min(t, s.durationMs));
-        // A glass of teh tarik with foam on top.
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.fillRect(cx - 60, cy - 70, 120, 150);
-        ctx.fillStyle = '#c47c3c';
-        ctx.fillRect(cx - 56, cy + 76 - 140 * 0.6, 112, 140 * 0.6);
-        ctx.fillStyle = '#fff4e0';
-        ctx.fillRect(cx - 56, cy + 76 - 140 * 0.6 - 140 * v * 0.4, 112, 140 * v * 0.4);
+        // A glass of teh tarik: the higher you pour, the thicker the froth.
+        const gw = Math.min(W * 0.26, 140), gh = Math.min(H * 0.66, gw * 1.35);
+        drawGlass(ctx, cx - gw / 2 - 20, cy - gh / 2 + 4, gw, gh, 0.6, v, '#b5651d');
+        if (holding) {
+          ctx.strokeStyle = '#b5651d';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(cx - 20, 6);
+          ctx.lineTo(cx - 20, cy - gh / 2 + 10);
+          ctx.stroke();
+        }
         meter(W - 50, H * 0.1, 26, H * 0.8, v, s.zone);
         ctx.fillStyle = '#adb5bd';
         ctx.font = 'bold 14px system-ui';

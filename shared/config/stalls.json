@@ -24,7 +24,7 @@
   ],
   "upgrades": {
     "equipment": { "name": "Equipment", "icon": "🍳", "desc": "Wider timing windows when you cook, and faster cooks.", "maxLevel": 10, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.08 },
-    "signage": { "name": "Signage & decor", "icon": "🪧", "desc": "+10% customers per level.", "maxLevel": 10, "baseCostSen": 25000, "costGrowth": 1.6, "perLevel": 0.1 },
+    "signage": { "name": "Signage & decor", "icon": "🏷️", "desc": "+10% customers per level.", "maxLevel": 10, "baseCostSen": 25000, "costGrowth": 1.6, "perLevel": 0.1 },
     "queue": { "name": "Queue space", "icon": "🧍", "desc": "+1 customer can wait in line per level.", "maxLevel": 5, "baseCostSen": 15000, "costGrowth": 1.8, "perLevel": 1 },
     "supplier": { "name": "Supplier contract", "icon": "📦", "desc": "−5% ingredient prices per level.", "maxLevel": 8, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.05 },
     "training": { "name": "Staff training", "icon": "🎓", "desc": "Your cooks work 10% faster per level.", "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.6, "perLevel": 0.1 }

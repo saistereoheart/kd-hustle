@@ -17,22 +17,24 @@
       "addonChance": 0.4, "maxAddons": 2
     },
     {
-      "id": "teh_tarik", "name": "Teh Tarik", "icon": "🧋", "basePriceSen": 1000, "ingredientCostSen": 250,
+      "id": "teh_tarik", "name": "Teh Tarik", "icon": "☕", "basePriceSen": 1000, "ingredientCostSen": 250,
       "unlock": { "recipe": "nasi_lemak", "mastery": 1 },
       "steps": [
-        { "kind": "timing", "label": "Brew the tea", "hint": "Stop when it turns deep amber", "art": "tea", "targetMs": [1500, 3000], "maxMs": 6000 },
+        { "kind": "assemble", "label": "Make the drink", "hint": "Tea, then the milk, then hot or iced, as ordered", "art": "drink", "pick": [3, 3], "fastMs": 4500, "maxMs": 12000,
+          "options": [ { "id": "teh", "name": "Teh (brewed)", "icon": "☕" }, { "id": "susu_pekat", "name": "Susu pekat", "icon": "🥛" }, { "id": "susu_cair", "name": "Susu cair", "icon": "🥛" }, { "id": "panas", "name": "Panas (hot)", "icon": "♨️" }, { "id": "ais", "name": "Ais (iced)", "icon": "🧊" } ],
+          "groups": [ { "ids": ["teh"], "pick": [1, 1] }, { "ids": ["susu_pekat", "susu_cair"], "pick": [1, 1] }, { "ids": ["panas", "ais"], "pick": [1, 1] } ] },
         { "kind": "rhythm", "label": "Tarik!", "hint": "Pull on every beat", "art": "pull", "beats": 6, "intervalMs": [480, 620], "leadMs": 900 },
         { "kind": "meter", "label": "Froth it up", "hint": "Hold to pour higher; keep the foam in the zone", "art": "foam", "durationMs": 3500, "zoneWidth": 0.22, "zoneCenter": [0.45, 0.7], "rise": 0.55, "fall": 0.4 }
       ]
     },
     {
-      "id": "roti_canai", "name": "Roti Canai", "icon": "🫓", "basePriceSen": 1500, "ingredientCostSen": 375,
+      "id": "roti_canai", "name": "Roti Canai", "icon": "🥞", "basePriceSen": 1500, "ingredientCostSen": 375,
       "unlock": { "recipe": "teh_tarik", "mastery": 1 },
       "steps": [
         { "kind": "rhythm", "label": "Stretch the dough", "hint": "Slap it on every beat", "art": "dough", "beats": 5, "intervalMs": [520, 680], "leadMs": 900 },
         { "kind": "timing", "label": "Flip it!", "hint": "Flip when it's golden underneath", "art": "flip", "targetMs": [1400, 2600], "maxMs": 5000 },
         { "kind": "path", "label": "Fold the corners", "hint": "Each corner into the middle", "art": "fold", "shape": "corners", "points": 8, "radius": 0.09 },
-        { "kind": "sequence", "label": "Serve it with…", "hint": "What the customer asked for", "art": "curry", "pick": 2,
+        { "kind": "assemble", "label": "Serve it with…", "hint": "Tap the curries the customer asked for (any order)", "art": "curry", "pick": [1, 2], "fastMs": 4500, "maxMs": 12000,
           "options": [ { "id": "dhal", "name": "Dhal", "icon": "🥣" }, { "id": "kari_ayam", "name": "Kari ayam", "icon": "🍗" }, { "id": "kari_ikan", "name": "Kari ikan", "icon": "🐠" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
       ]
     }

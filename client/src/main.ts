@@ -1,5 +1,8 @@
 import './styles.css';
+import { makeDish } from '@kh/shared';
 import { App } from './app';
+import { playDish } from './ui/stall/cook';
+import { cookStock } from './ui/stall/stallPanel';
 
 const app = new App();
 void app.start();
@@ -53,6 +56,15 @@ window.__kh = {
   ...(import.meta.env.DEV
     ? {
         peek: (x: number, y: number) => app.town?.debugPeek(x, y),
+        /** Dev/tests: play a recipe's cooking screens locally (nothing is sent; for looking at the art). */
+        previewDish: (recipeId: string, addons: string[] = []) => {
+          const r = app.cfg.recipes.recipes.find((x) => x.id === recipeId);
+          if (!r) return;
+          const steps = makeDish(r, (n: number) => Math.floor(Math.random() * n), addons);
+          const dish = { dishId: 'preview', recipe: r.id, customerId: 0, steps, windowMult: 1, blogger: false };
+          app.cookingDish = dish;
+          void playDish(app.cfg.recipes, dish, `${r.icon} ${r.name}`, () => {}, () => cookStock(app, r.id));
+        },
         /** Dev/tests: every door of a building (front tile centre + outward normal). */
         doors: (id: string) => app.map?.buildings.find((b) => b.id === id)?.doors.map((d) => ({ x: d.frontX + 0.5, y: d.frontY + 0.5, nx: d.nx, ny: d.ny })) ?? [],
         /** Dev/tests: zoom the town camera (1 = normal) for close-up screenshots. */

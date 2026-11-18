@@ -65,6 +65,27 @@ describe('building a dish', () => {
     expect(box.want).toContain('telur_mata');
     expect(box.want).not.toContain('not_a_thing');
   });
+
+  it('teh tarik: one tea, one milk, then hot OR iced, in that order', () => {
+    const teh = recipes.recipes.find((r) => r.id === 'teh_tarik')!;
+    for (let i = 0; i < 30; i++) {
+      const box = makeDish(teh, rand).find((s) => s.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
+      expect(box.want).toHaveLength(3);
+      expect(box.want[0]).toBe('teh');
+      expect(['susu_pekat', 'susu_cair']).toContain(box.want[1]);
+      expect(['panas', 'ais']).toContain(box.want[2]);
+    }
+  });
+
+  it('lists the order in tray order: base sides first, then add-ons', () => {
+    for (let i = 0; i < 20; i++) {
+      const steps = makeDish(nasi, rand, ['telur_mata', 'ayam_goreng']);
+      const box = steps.find((s) => s.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
+      const idx = box.want.map((id) => box.options.findIndex((o) => o.id === id));
+      expect(idx).toEqual([...idx].sort((a, b) => a - b));
+      expect(box.want.slice(-2)).toEqual(['ayam_goreng', 'telur_mata']);
+    }
+  });
 });
 
 describe('add-ons', () => {

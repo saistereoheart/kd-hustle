@@ -260,6 +260,160 @@ export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, 
       }
       break;
     }
+    case 'dhal': {
+      // yellow lentil curry with a few lentils, chilli oil and curry leaves
+      const g = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#ffd43b');
+      g.addColorStop(1, '#d9a10a');
+      blob(ctx, cx, cy, rx * 0.95, ry * 0.9, r, g);
+      for (let i = 0; i < n(16); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 1.4, 1, r() * 3, 'rgba(230, 160, 20, 0.9)');
+      }
+      for (let i = 0; i < n(5); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 2.4, 1.1, r() * 3, '#2b8a3e');
+      }
+      for (let i = 0; i < n(6); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 2 + r() * 2, 1.2, 0, 'rgba(232, 89, 12, 0.55)');
+      }
+      break;
+    }
+    case 'kari_ayam': {
+      // chicken curry: orange-red gravy, chicken pieces, potato, an oil sheen
+      const g = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#f08c00');
+      g.addColorStop(1, '#a83c0c');
+      blob(ctx, cx, cy, rx * 0.95, ry * 0.9, r, g);
+      for (let i = 0; i < n(5); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.13;
+        blob(ctx, px, py, s * 1.1, s * 0.85, r, '#c2731f');
+        ellipse(ctx, px - s * 0.3, py - s * 0.3, s * 0.35, s * 0.2, 0, 'rgba(255, 210, 140, 0.6)');
+      }
+      for (let i = 0; i < n(3); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, Math.min(w, h) * 0.09, Math.min(w, h) * 0.07, 0, '#f2c14e');
+      }
+      ellipse(ctx, cx - rx * 0.35, cy - ry * 0.35, rx * 0.25, ry * 0.1, -0.4, 'rgba(255,255,255,0.3)');
+      break;
+    }
+    case 'kari_ikan': {
+      // fish head curry style: reddish gravy, a fish piece, okra and tomato
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#e8590c');
+      g.addColorStop(1, '#922b0e');
+      blob(ctx, cx, cy, rx * 0.95, ry * 0.9, r, g);
+      const s = Math.min(w, h) * 0.22;
+      ellipse(ctx, cx - s * 0.2, cy, s * 1.3, s * 0.6, -0.2, '#e9d8c4');
+      ellipse(ctx, cx - s * 0.2, cy - s * 0.15, s * 1.1, s * 0.3, -0.2, '#cdb59b');
+      ctx.fillStyle = '#d4c0a8';
+      ctx.beginPath();
+      ctx.moveTo(cx + s * 1.0, cy - s * 0.2);
+      ctx.lineTo(cx + s * 1.5, cy - s * 0.55);
+      ctx.lineTo(cx + s * 1.45, cy + s * 0.3);
+      ctx.fill();
+      for (let i = 0; i < n(4); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 3, 2, r() * 3, '#5c940d');
+        ellipse(ctx, px, py, 1, 1, 0, '#c0eb75');
+      }
+      for (let i = 0; i < n(3); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 2.4, 2, 0, '#c92a2a');
+      }
+      break;
+    }
+    case 'teh': {
+      // a jug of strong brewed tea, with a teabag hanging on its string
+      const g = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#9c4a14');
+      g.addColorStop(1, '#4a1e06');
+      ellipse(ctx, cx, cy, rx * 0.92, ry * 0.86, 0, g as unknown as string);
+      ellipse(ctx, cx - rx * 0.3, cy - ry * 0.35, rx * 0.3, ry * 0.12, -0.3, 'rgba(255,255,255,0.25)');
+      const bx = cx + rx * 0.25, by = cy + ry * 0.05, bw = Math.min(w, h) * 0.26;
+      ctx.fillStyle = '#e9dcc0';
+      ctx.beginPath();
+      ctx.roundRect(bx - bw / 2, by - bw * 0.55, bw, bw * 1.1, 3);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(120, 70, 30, 0.45)';
+      ctx.fillRect(bx - bw / 2 + 2, by, bw - 4, bw * 0.5);
+      ctx.strokeStyle = '#f1f3f5';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx, by - bw * 0.55);
+      ctx.lineTo(bx + rx * 0.5, y + 2);
+      ctx.stroke();
+      ctx.fillStyle = '#e03131';
+      ctx.fillRect(bx + rx * 0.5 - 3, y, 7, 5);
+      break;
+    }
+    case 'susu_pekat': {
+      // sweetened condensed milk: thick, glossy, creamy-yellow ribbons folding over
+      ellipse(ctx, cx, cy, rx * 0.9, ry * 0.85, 0, '#f3e3b5');
+      ctx.strokeStyle = '#fff4d6';
+      ctx.lineWidth = Math.max(3, Math.min(w, h) * 0.09);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const yy = cy - ry * 0.5 + i * ry * 0.33;
+        ctx.moveTo(cx - rx * 0.6, yy);
+        ctx.quadraticCurveTo(cx, yy + ry * 0.25 * (i % 2 ? -1 : 1), cx + rx * 0.6, yy);
+      }
+      ctx.stroke();
+      ellipse(ctx, cx - rx * 0.3, cy - ry * 0.4, rx * 0.25, ry * 0.1, -0.3, 'rgba(255,255,255,0.6)');
+      break;
+    }
+    case 'susu_cair': {
+      // evaporated milk: thin, pale and smooth, a little splash
+      ellipse(ctx, cx, cy, rx * 0.92, ry * 0.86, 0, '#fbf7ee');
+      ellipse(ctx, cx, cy, rx * 0.7, ry * 0.62, 0, '#f4ecdb');
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + r();
+        ellipse(ctx, cx + Math.cos(a) * rx * 0.55, cy + Math.sin(a) * ry * 0.5, 2.2, 1.6, 0, '#ffffff');
+      }
+      ellipse(ctx, cx - rx * 0.3, cy - ry * 0.35, rx * 0.22, ry * 0.08, -0.3, 'rgba(255,255,255,0.8)');
+      break;
+    }
+    case 'panas': {
+      // hot water: a steel kettle spout over steaming water
+      ellipse(ctx, cx, cy, rx * 0.92, ry * 0.86, 0, 'rgba(170, 210, 235, 0.85)');
+      ellipse(ctx, cx - rx * 0.3, cy - ry * 0.3, rx * 0.3, ry * 0.1, -0.3, 'rgba(255,255,255,0.6)');
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 3; k++) {
+        const sx = cx - rx * 0.4 + k * rx * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, cy + ry * 0.3);
+        ctx.bezierCurveTo(sx + 6, cy, sx - 6, cy - ry * 0.3, sx, cy - ry * 0.7);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'ais': {
+      // ice cubes: translucent, bluish edges, bright highlights
+      const k = Math.max(2, Math.round(7 * amount));
+      for (let i = 0; i < k; i++) {
+        const [px, py] = amount < 1 ? [cx + (i - (k - 1) / 2) * Math.min(w, h) * 0.22, cy + ((i % 2) - 0.5) * 4] : spot();
+        const s = Math.min(w, h) * 0.17;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(r() * 0.8 - 0.4);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(-s / 2 + 2, -s / 2 + 3, s, s);
+        ctx.fillStyle = 'rgba(208, 235, 255, 0.92)';
+        ctx.fillRect(-s / 2, -s / 2, s, s);
+        ctx.strokeStyle = 'rgba(116, 192, 252, 0.9)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(-s / 2, -s / 2, s, s);
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(-s / 2 + 2, -s / 2 + 2, s * 0.35, s * 0.18);
+        ctx.restore();
+      }
+      break;
+    }
     default:
       ellipse(ctx, cx, cy, rx * 0.7, ry * 0.7, 0, '#adb5bd');
   }
@@ -328,4 +482,174 @@ export function trayCanvas(id: string, w: number, h: number): HTMLCanvasElement 
   drawTray(ctx, 1, 1, w - 4, h - 5);
   drawFood(ctx, id, 6, 6, w - 14, h - 15, 1);
   return c;
+}
+
+// ------------------------------------------------------------------ teh tarik & roti canai scenes
+
+/** An oiled stainless counter top (roti canai is stretched and folded on one). */
+export function drawCounter(ctx: Ctx, w: number, h: number) {
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, '#ced4da');
+  g.addColorStop(0.5, '#e9ecef');
+  g.addColorStop(1, '#adb5bd');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < h; i += 6) {
+    ctx.beginPath();
+    ctx.moveTo(0, i);
+    ctx.lineTo(w, i + 3);
+    ctx.stroke();
+  }
+  // oil sheen
+  ellipse(ctx, w * 0.5, h * 0.5, w * 0.36, h * 0.34, 0.2, 'rgba(255, 236, 153, 0.18)');
+}
+
+/** A stretched, translucent roti dough sheet (`spread` 0 = a ball, 1 = paper thin). */
+export function drawDough(ctx: Ctx, cx: number, cy: number, size: number, spread: number, seed = 3) {
+  const r = rng(seed);
+  const rad = size * (0.25 + spread * 0.75);
+  ellipse(ctx, cx + 4, cy + 6, rad, rad * 0.86, 0, 'rgba(0,0,0,0.28)');
+  const g = ctx.createRadialGradient(cx - rad * 0.3, cy - rad * 0.3, 2, cx, cy, rad);
+  g.addColorStop(0, `rgba(255, 246, 220, ${0.98 - spread * 0.25})`);
+  g.addColorStop(1, `rgba(232, 200, 140, ${0.98 - spread * 0.3})`);
+  ctx.fillStyle = g;
+  ctx.strokeStyle = 'rgba(170, 120, 60, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const n = 18;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const k = 1 - spread * 0.12 + r() * spread * 0.18;
+    const px = cx + Math.cos(a) * rad * k, py = cy + Math.sin(a) * rad * 0.86 * k;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (spread > 0.3) {
+    // thin spots and little tears where it's stretched
+    for (let i = 0; i < 10; i++) {
+      const a = r() * Math.PI * 2, d = rad * (0.3 + r() * 0.6);
+      ellipse(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.86, rad * 0.06, rad * 0.04, a, 'rgba(255,255,255,0.35)');
+    }
+  }
+  ellipse(ctx, cx - rad * 0.3, cy - rad * 0.3, rad * 0.3, rad * 0.12, -0.5, 'rgba(255,255,255,0.3)');
+}
+
+/** A roti canai on a griddle or plate: layered, flaky, golden spots (`brown` 0..1+). */
+export function drawRoti(ctx: Ctx, cx: number, cy: number, rad: number, brown: number, seed = 9) {
+  const r = rng(seed);
+  const t = Math.max(0, Math.min(1.6, brown));
+  const base = t <= 1 ? mix([250, 236, 200], [226, 170, 88], t) : mix([226, 170, 88], [90, 50, 20], (t - 1) / 0.6);
+  ellipse(ctx, cx, cy, rad, rad * 0.9, 0, base);
+  ctx.strokeStyle = 'rgba(160, 100, 40, 0.45)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(cx + (r() - 0.5) * 4, cy + (r() - 0.5) * 4, rad * (0.3 + i * 0.17), rad * (0.27 + i * 0.15), r(), 0.4, Math.PI * 1.7);
+    ctx.stroke();
+  }
+  // crispy golden-brown spots appear as it cooks
+  const spots = Math.round(28 * Math.min(1, t));
+  for (let i = 0; i < spots; i++) {
+    const a = r() * Math.PI * 2, d = rad * Math.sqrt(r()) * 0.9;
+    ellipse(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, 2 + r() * 3, 1.4 + r() * 2, a, t > 1.15 ? '#3b2010' : 'rgba(176, 102, 30, 0.75)');
+  }
+}
+
+/** A flat iron griddle (tawa), seen from above. */
+export function drawGriddle(ctx: Ctx, cx: number, cy: number, rad: number) {
+  ellipse(ctx, cx + 4, cy + 6, rad, rad * 0.9, 0, 'rgba(0,0,0,0.35)');
+  const g = ctx.createRadialGradient(cx - rad * 0.3, cy - rad * 0.3, 2, cx, cy, rad);
+  g.addColorStop(0, '#495057');
+  g.addColorStop(1, '#212529');
+  ellipse(ctx, cx, cy, rad, rad * 0.9, 0, g as unknown as string);
+  ctx.strokeStyle = '#868e96';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rad, rad * 0.9, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+/** A clear glass mug of teh tarik (`fill` 0..1 tea level, `foam` 0..1 froth on top, `col` tea colour). */
+export function drawGlass(ctx: Ctx, x: number, y: number, w: number, h: number, fill: number, foam: number, col: string) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2 + 3, y + h + 4, w * 0.55, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // handle
+  ctx.strokeStyle = 'rgba(230, 240, 250, 0.75)';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(x + w + 2, y + h * 0.45, h * 0.2, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+  const tea = h * Math.max(0, Math.min(1, fill));
+  const foamH = h * 0.4 * Math.max(0, Math.min(1, foam));
+  ctx.fillStyle = col;
+  ctx.fillRect(x + 4, y + h - tea, w - 8, tea);
+  if (foamH > 1) {
+    const top = y + h - tea - foamH;
+    const g = ctx.createLinearGradient(0, top, 0, top + foamH);
+    g.addColorStop(0, '#fff8ec');
+    g.addColorStop(1, '#e8c79a');
+    ctx.fillStyle = g;
+    ctx.fillRect(x + 4, top, w - 8, foamH);
+    const r = rng(5);
+    for (let i = 0; i < 14; i++) ellipse(ctx, x + 6 + r() * (w - 12), top + r() * Math.min(10, foamH), 1.5 + r() * 2, 1.2 + r() * 1.5, 0, 'rgba(255,255,255,0.8)');
+  }
+  // glass body: rim, sides, shine
+  ctx.strokeStyle = 'rgba(220, 235, 245, 0.9)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + 3, y + h);
+  ctx.lineTo(x + w - 3, y + h);
+  ctx.lineTo(x + w, y);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(x + 7, y + 6, 6, h - 12);
+}
+
+/** A stainless pulling mug (side view), tilted by `tilt` radians around its base. */
+export function drawSteelMug(ctx: Ctx, x: number, y: number, w: number, h: number, tilt = 0) {
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.rotate(tilt);
+  const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  g.addColorStop(0, '#868e96');
+  g.addColorStop(0.35, '#f1f3f5');
+  g.addColorStop(0.6, '#ced4da');
+  g.addColorStop(1, '#6c757d');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h);
+  ctx.lineTo(-w / 2 + 3, 0);
+  ctx.lineTo(w / 2 - 3, 0);
+  ctx.lineTo(w / 2, -h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#495057';
+  ctx.fillRect(-w / 2, -h, w, 4);
+  ctx.strokeStyle = '#adb5bd';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(w / 2 + 2, -h * 0.55, h * 0.18, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A small bowl of curry beside the roti (seen from above). */
+export function drawBowl(ctx: Ctx, id: string, cx: number, cy: number, rad: number) {
+  ellipse(ctx, cx + 2, cy + 3, rad, rad * 0.85, 0, 'rgba(0,0,0,0.28)');
+  ellipse(ctx, cx, cy, rad, rad * 0.85, 0, '#f1f3f5');
+  ellipse(ctx, cx, cy, rad * 0.82, rad * 0.68, 0, '#ced4da');
+  drawFood(ctx, id, cx - rad * 0.8, cy - rad * 0.66, rad * 1.6, rad * 1.32, 0.7);
+}
+
+function mix(a: [number, number, number], b: [number, number, number], t: number): string {
+  const k = Math.max(0, Math.min(1, t));
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * k)).join(',')})`;
 }

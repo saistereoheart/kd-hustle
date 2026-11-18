@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (touch-ups after the second feedback round)_
+_Last updated: 2026-11-18 (teh tarik & roti canai redrawn)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -28,6 +28,31 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.3: teh tarik & roti canai redrawn, orders in tray order
+
+### How to test it
+(Teh tarik unlocks at nasi lemak mastery 1, roti canai at teh tarik mastery 1.)
+1. **Teh tarik:** step 1 is now **Make the drink**: tap the trays as ordered: brewed tea (with its teabag),
+   then the milk (susu pekat or susu cair), then **panas** (hot) or **ais** (iced). The glass fills as you go
+   (steam or ice cubes on top). Then **Tarik!** (two steel mugs, the tea stream stretching between them) and
+   **Froth it up** (the froth builds in the glass while you pour).
+2. **Roti canai:** stretch the dough on an oiled steel counter (it gets wider and thinner with each slap), flip
+   it on the griddle (it browns, then burns), fold the corners (the flaps fold in), then **Serve it with…**: tap
+   the curry trays (dhal, kari ayam, kari ikan, sambal), any order; they appear in bowls next to the roti.
+3. **Every order** (nasi lemak too) lists its items in the order the trays stand, never shuffled; on the ticket the
+   add-ons are set apart by a dashed line under "+ ADD-ONS".
+
+### What changed
+- `assemble` steps take optional `groups` (pick this many from each group, in turn): teh tarik is one tea, one
+  milk, then hot OR iced. Orders are sorted by tray position.
+- Roti canai's "Serve it with…" is an `assemble` step now (1–2 curries, any order) instead of a remember-the-order
+  step, since the ticket is sorted.
+- New drawings in `foodArt.ts`: brewed tea + teabag, condensed and evaporated milk, hot water, ice, dhal, kari
+  ayam, kari ikan; glass mug, steel pulling mugs, oiled counter, dough, roti, griddle, curry bowls.
+- Emoji that older Windows can't show were swapped: roti canai 🥞, teh tarik ☕, signage 🏷️.
 
 ---
 
@@ -786,8 +811,6 @@ Simple options picked where the spec was open, per CLAUDE.md:
 ## Known issues / limitations
 
 - **Phase 5.2:** the stock bar above the cooking screen still uses emoji; the trays and plate are drawn.
-- **Phase 5.2:** only the nasi lemak's "pack the order" step uses the drawn food; teh tarik and roti canai keep
-  their old screens.
 
 - **Phase 5.1:** lamp shadows near a map chunk's edge are cut off at the edge (chunks are drawn separately).
 - **Phase 5.1:** about a third of Ronda trips (mostly at the map's edges, where roads only connect outside the
