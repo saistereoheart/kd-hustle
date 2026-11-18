@@ -4,6 +4,7 @@ import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, t
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
+import { addCanvasTexture } from './canvasTexture';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
@@ -29,7 +30,7 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
   const wornKey = [worn.hat, worn.face, worn.back].map((w) => (w ? `${w.shape}.${w.paint.c1}.${w.paint.variant}` : '-')).join('|');
   const key = `char_${appearanceKey(a)}_${appearanceKey({ wornKey } as unknown as Appearance)}`;
   if (scene.textures.exists(key)) return key;
-  const tex = scene.textures.addCanvas(key, renderSheet(a, cfg, worn))!;
+  const tex = addCanvasTexture(scene, key, renderSheet(a, cfg, worn))!;
   for (let i = 0; i < FRAME_COUNT; i++) {
     tex.add(i, 0, (i % COLS) * FRAME_PX_W, Math.floor(i / COLS) * FRAME_PX_H, FRAME_PX_W, FRAME_PX_H);
   }
@@ -255,6 +256,7 @@ export class Avatar {
 
   /** True while riding on an elevated deck (drawn above it instead of under it). */
   private onDeck = false;
+  private rainbowAt = 0;
 
   setPosition(x: number, y: number) {
     this.container.setPosition(x, y);
@@ -290,7 +292,9 @@ export class Avatar {
   /** Called every frame: ends emotes when their time is up. */
   tick(now: number) {
     if (this.emoteUntil && now > this.emoteUntil) this.stopEmote();
-    if (this.rainbowName) {
+    // Recolouring re-renders the text, so the rainbow steps ~8×/s rather than every frame.
+    if (this.rainbowName && now - this.rainbowAt > 120) {
+      this.rainbowAt = now;
       const c = Phaser.Display.Color.HSVToRGB((now / 2500) % 1, 0.65, 1) as Phaser.Types.Display.ColorObject;
       this.nameText.setColor(Phaser.Display.Color.RGBToString(c.r, c.g, c.b));
     }

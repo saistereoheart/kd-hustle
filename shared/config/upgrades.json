@@ -6,7 +6,7 @@
     { "id": "rolling", "name": "Rolling", "icon": "🎰" },
     { "id": "fortune", "name": "Fortune", "icon": "💰" },
     { "id": "movement", "name": "Movement", "icon": "👟" },
-    { "id": "property", "name": "Property", "icon": "🏠", "comingSoon": "Opens when you can buy property (rent %, Airbnb price %, slower cleanliness decay)." },
+    { "id": "property", "name": "Property", "icon": "🏠" },
     { "id": "business", "name": "Business", "icon": "🏪" },
     { "id": "banking", "name": "Banking", "icon": "🏦", "comingSoon": "Opens with Bank Kota (higher loan limit, lower interest)." }
   ],
@@ -80,10 +80,34 @@
     },
     "passive_income": {
       "branch": "fortune", "name": "Passive Income", "icon": "📈",
-      "desc": "+5% passive income per level (Manifesting now; rent and businesses later).",
+      "desc": "+5% passive income per level: Manifesting, rent and Airbnb (businesses later).",
       "maxLevel": 20, "baseCostSen": 40000, "costGrowth": 1.5,
       "effect": { "kind": "passiveIncome", "perLevel": 0.05 },
       "requires": { "level": 2 }
+    },
+    "prime_landlord": {
+      "branch": "property", "name": "Prime Landlord", "icon": "🏠",
+      "desc": "+6% on all the rent your tenants pay per level.",
+      "maxLevel": 20, "baseCostSen": 40000, "costGrowth": 1.42,
+      "effect": { "kind": "rentIncome", "perLevel": 0.06 }
+    },
+    "kerb_appeal": {
+      "branch": "property", "name": "Kerb Appeal", "icon": "🌿",
+      "desc": "Your homes look pricier: the fair rent and nightly rate go up 5% per level, so you can charge more and tenants and guests stay happy.",
+      "maxLevel": 10, "baseCostSen": 60000, "costGrowth": 1.55,
+      "effect": { "kind": "tenantAppeal", "perLevel": 0.05 }
+    },
+    "five_star_host": {
+      "branch": "property", "name": "Five-Star Host", "icon": "🛎️",
+      "desc": "+6% on every Airbnb booking per level.",
+      "maxLevel": 20, "baseCostSen": 50000, "costGrowth": 1.42,
+      "effect": { "kind": "airbnbIncome", "perLevel": 0.06 }
+    },
+    "spotless": {
+      "branch": "property", "name": "Spotless", "icon": "🧹",
+      "desc": "Guests leave your Airbnb 7% less dirty per level.",
+      "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.5,
+      "effect": { "kind": "cleanLoss", "perLevel": 0.07 }
     },
     "secret_recipe": {
       "branch": "business", "name": "Secret Recipe", "icon": "📜",

@@ -13,6 +13,7 @@ import { Avatar } from './avatar';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
+import { Culler } from './culler';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 
 interface Sample {
@@ -383,6 +384,7 @@ export class TownScene extends Phaser.Scene {
       this.stalls.update(delta);
       this.npcs.update(delta);
       this.mapView.update(this.cameras.main.worldView);
+      this.culler.update(this.cameras.main.worldView, delta);
       this.updateDecks(delta);
       this.slowChecks(delta);
       return;
@@ -444,6 +446,7 @@ export class TownScene extends Phaser.Scene {
     this.npcs.update(delta);
     this.followBeacon();
     this.mapView.update(this.cameras.main.worldView);
+    this.culler.update(this.cameras.main.worldView, delta);
     this.updateDecks(delta);
 
     this.slowChecks(delta);
@@ -703,6 +706,7 @@ export class TownScene extends Phaser.Scene {
       sign.setAlpha(p.kind === 'soon' ? 0.75 : 1);
       this.tweens.add({ targets: [board, title, sub], y: '-=3', duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.signs.push(sign);
+      this.culler.add(sign, x, y - 72, 160);
     }
     // Any outdoor interactable without a signpost gets a small floating label.
     const signed = new Set(pois.map((p) => p.interactable).filter(Boolean));
@@ -717,15 +721,25 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
         .setOrigin(0.5, 1)
         .setDepth(999_000);
       this.tweens.add({ targets: label, y: label.y - 5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.culler.add(label, it.x * T, it.y * T - 40, 120);
     }
   }
   private signs: Phaser.GameObjects.Container[] = [];
+  /** Signs and labels far off-screen are hidden (Phaser draws everything otherwise). */
+  private culler = new Culler();
+  /** What the home signs last showed: they're only redrawn when ownership changes. */
+  private homeSignsKey = '';
   private homeSigns = new Map<string, Phaser.GameObjects.Text>();
 
   /** 🏷️ FOR SALE / 🏠 owner signs at every home building's door (refreshed when owners change). */
   private syncHomeSigns() {
     const T = this.app.map.tileSize;
     const me = this.selfId;
+    // Called on every store change: skip unless the owners changed.
+    let key = `${me}`;
+    for (const [id, o] of this.app.store.props) key += `|${id}:${o.owner}:${o.ownerName}`;
+    if (key === this.homeSignsKey) return;
+    this.homeSignsKey = key;
     const byBuilding = new Map<string, typeof this.app.listings>();
     for (const u of this.app.listings) byBuilding.set(u.building, [...(byBuilding.get(u.building) ?? []), u]);
     for (const [bid, units] of byBuilding) {
@@ -742,8 +756,11 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
           .setOrigin(0.5, 1)
           .setDepth(998_000);
         this.homeSigns.set(bid, t);
+        this.culler.add(t, u.x * T, u.y * T - 30, 120);
       }
-      t.setText(text).setColor(color);
+      // Restyling a Text re-renders it, so only when it changed.
+      if (t.text !== text) t.setText(text);
+      if (t.style.color !== color) t.setColor(color);
     }
   }
 

@@ -41,6 +41,22 @@ export function openInventoryPanel(app: App, startTab = 0) {
       app.store.emit();
     });
 
+  /** Re-render without the grid jumping: the clicked card stays where it was on screen (the
+   *  details card above the grid comes and goes, and stays pinned at the top while you scroll). */
+  const keepInPlace = (key: string, fn: () => void) => {
+    const find = () => [...content.querySelectorAll<HTMLElement>('.item-card')].find((c) => c.dataset.key === key);
+    const before = find()?.getBoundingClientRect().top;
+    fn();
+    const after = find()?.getBoundingClientRect().top;
+    if (before !== undefined && after !== undefined) panel.body.scrollTop += after - before;
+    // Not hidden under the pinned details card.
+    const card = find(), d = content.querySelector<HTMLElement>('.item-detail');
+    if (card && d) {
+      const gap = d.getBoundingClientRect().bottom + 6 - card.getBoundingClientRect().top;
+      if (gap > 0) panel.body.scrollTop -= gap;
+    }
+  };
+
   const renderItems = () => {
     const st = app.store;
     const stacks = st.stacks().sort(
@@ -61,11 +77,12 @@ export function openInventoryPanel(app: App, startTab = 0) {
       const gcfg = app.cfg.grades;
       const card = itemCard(rar, def, s.variant, { count: s.items.length, equipped: worn, serial: s.serial, grade: s.grade, gradeColor: gradeDef(gcfg, s.grade).color });
       card.dataset.item = s.itemId;
+      card.dataset.key = key;
       card.tabIndex = 0;
       if (selected === key) card.classList.add('selected');
       card.addEventListener('click', () => {
         selected = selected === key ? null : key;
-        render();
+        keepInPlace(key, () => render());
       });
       cards.set(s, card);
       if (selected === key) {
@@ -143,9 +160,15 @@ export function openInventoryPanel(app: App, startTab = 0) {
         const buff = gearBuff(gcfg, { type: def.type, rarity: def.rarity, grade: s.grade, variant: s.variant });
         const nameEl = el('h4', {}, def.name);
         nameEl.style.color = tier.color;
+        const close = el('button', { class: 'icon-btn item-detail-close', type: 'button', 'aria-label': 'Close details' }, '✕');
+        close.addEventListener('click', () => {
+          selected = null;
+          keepInPlace(key, () => render());
+        });
         detail = el(
           'div',
-          { class: 'item-detail' },
+          { class: 'item-detail sticky', 'data-testid': 'item-detail' },
+          close,
           el('img', { src: iconUrl(def, s.variant, 96), alt: def.name }),
           el(
             'div',

@@ -33,19 +33,36 @@ export class NpcLayer {
     return n ? { x: n.avatar.x, y: n.avatar.y } : null;
   }
 
+  private errandNpc = -1;
+
   update(_delta: number) {
     const now = this.app.store.serverNow();
     const T = this.app.map.tileSize;
     const errandNpc = this.app.store.errand?.stage === 'return' ? this.app.store.errand.npc : -1;
+    // Restyling a Text re-renders it (font measuring + a texture upload), so only on change.
+    const restyle = errandNpc !== this.errandNpc;
+    this.errandNpc = errandNpc;
+    const view = this.scene.cameras.main.worldView;
+    const pad = 200;
+    const pnow = performance.now();
     for (const n of this.npcs) {
       const p = npcPose(n.route, this.app.cfg.npcs, now);
       const x = p.x * T, y = p.y * T;
       n.avatar.setPosition(x, y);
+      if (restyle) {
+        n.tag.setText(n.route.id === errandNpc ? `❗ ${n.route.name}` : n.route.name);
+        n.tag.setColor(n.route.id === errandNpc ? '#ffe066' : '#c5f6fa');
+      }
+      // Off-screen townsfolk aren't drawn or animated.
+      const vis = x > view.x - pad && x < view.right + pad && y > view.y - pad && y < view.bottom + pad;
+      if (n.avatar.container.visible !== vis) {
+        n.avatar.container.setVisible(vis);
+        n.tag.setVisible(vis);
+      }
+      if (!vis) continue;
       n.avatar.setState(p.dir, p.moving);
-      n.avatar.tick(performance.now());
+      n.avatar.tick(pnow);
       n.tag.setPosition(x, y - 58).setDepth(n.avatar.container.depth + 1);
-      n.tag.setText(n.route.id === errandNpc ? `❗ ${n.route.name}` : n.route.name);
-      n.tag.setColor(n.route.id === errandNpc ? '#ffe066' : '#c5f6fa');
     }
   }
 

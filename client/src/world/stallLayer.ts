@@ -6,6 +6,7 @@ import { darkness, formatMoneyExact, gameTime, randomAppearance, type BuiltMap, 
 import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
+import { Culler } from './culler';
 
 type Plot = BuiltMap['stallPlots'][number];
 const TOP_DEPTH = 1_000_001; // canopies draw above characters (walk "under" them)
@@ -69,6 +70,8 @@ export class StallLayer {
   private night: Phaser.GameObjects.Rectangle;
   private T: number;
   private lamps: LightLayer;
+  /** Plots far off-screen aren't drawn (their Graphics are re-tessellated every frame). */
+  private culler = new Culler();
 
   constructor(private scene: Phaser.Scene, private app: App) {
     this.T = app.map.tileSize;
@@ -90,7 +93,9 @@ export class StallLayer {
       const v = this.views.get(plot.id);
       if (v?.key === key) continue;
       if (v) for (const o of v.objs) o.destroy();
-      this.views.set(plot.id, this.drawPlot(plot, s, key));
+      const nv = this.drawPlot(plot, s, key);
+      for (const o of nv.objs) this.culler.add(o as unknown as Phaser.GameObjects.Image, plot.x * this.T, plot.y * this.T, 180);
+      this.views.set(plot.id, nv);
     }
     this.syncStaff();
     // Customers: add new ones, move the queue up, send leavers away.
@@ -304,6 +309,8 @@ export class StallLayer {
   update(dtMs: number) {
     const now = this.app.store.serverNow();
     const speed = 150 * (dtMs / 1000);
+    const cv = this.scene.cameras.main.worldView;
+    const onScreen = (x: number, y: number) => x > cv.x - 300 && x < cv.right + 300 && y > cv.y - 300 && y < cv.bottom + 300;
     for (const [id, cu] of this.customers) {
       const ax = cu.avatar.x, ay = cu.avatar.y;
       const dx = cu.tx - ax, dy = cu.ty - ay;
@@ -323,6 +330,11 @@ export class StallLayer {
           continue;
         }
       }
+      // Far off-screen: not drawn (they still walk, so they're in place when you get there).
+      const on = onScreen(cu.avatar.x, cu.avatar.y);
+      if (cu.avatar.container.visible !== on) cu.avatar.container.setVisible(on);
+      if (!cu.leaving && cu.bubble.visible !== on) (cu.bubble.setVisible(on), cu.bar.setVisible(on));
+      if (!on) continue;
       cu.avatar.tick(performance.now());
       cu.bubble.setPosition(cu.avatar.x, cu.avatar.y - 56);
       if (!cu.leaving) {
@@ -337,6 +349,9 @@ export class StallLayer {
     const pnow = performance.now();
     for (const list of this.staff.values())
       for (const v of list) {
+        const on = onScreen(v.avatar.x, v.avatar.y);
+        if (v.avatar.container.visible !== on) v.avatar.container.setVisible(on);
+        if (!on) continue;
         if (v.busy) {
           v.avatar.setState(Math.sin(pnow / 600) > 0 ? 'left' : 'down', true);
           v.icon.setY(v.avatar.y - 64 + Math.sin(pnow / 180) * 3);
@@ -348,6 +363,7 @@ export class StallLayer {
     // Day / night: tint the whole view (multiply), warmer at dusk and dawn.
     const cam = this.scene.cameras.main;
     const view = cam.worldView;
+    this.culler.update(view, dtMs);
     // Three views wide, centred on the view: the camera moves after this runs (and lerps behind
     // fast vehicles), so a view-sized overlay would show a bright strip at the edge at speed.
     this.night.setPosition(view.x - view.width, view.y - view.height).setSize(view.width * 3, view.height * 3);

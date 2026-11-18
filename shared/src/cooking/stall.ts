@@ -59,7 +59,13 @@ export const stallsConfigSchema = z.object({
   }),
   combo: z.object({ perPerfect: z.number(), max: z.number() }),
   tips: z.object({ max: z.number(), minQuality: z.enum(['perfect', 'great', 'good']) }),
-  rush: z.object({ customers: z.number(), price: z.number() }),
+  /** Meal-time rushes: more customers and higher prices. `floorMult`: every open stall gets at
+   *  least this × its tier's base rate (so the rush is busy for everyone, not just the best
+   *  stalls); `extraQueue`: more room in the queue. */
+  rush: z.object({ customers: z.number(), price: z.number(), floorMult: z.number().nonnegative().default(0), extraQueue: z.number().int().nonnegative().default(0) }),
+  /** No stall gets fewer than this × its tier's base rate (before quiet hours), however low its
+   *  reputation: keeps new players' stalls from being starved. */
+  minCustomersMult: z.number().nonnegative().default(0),
   blogger: z.object({
     chance: z.number(), minReputation: z.number(), payMult: z.number(), repBonus: z.number(), repPenalty: z.number(),
     /** More customers for this many in-game hours after a happy blogger. */
@@ -222,11 +228,13 @@ export function customerRate(cfg: StallsConfig, s: Pick<StallState, 'tier' | 're
   const repMult = r.multAtZero + (r.multAtMax - r.multAtZero) * Math.max(0, Math.min(1, s.rep / r.max));
   const signage = 1 + upgradeLevel(s, 'signage') * cfg.upgrades.signage!.perLevel;
   const buzz = s.buzzUntil > nowMs ? cfg.blogger.boostCustomers : 1;
-  return tierDef(cfg, s.tier).customersPerMin * repMult * signage * (1 + b.customers) * (rush ? cfg.rush.customers : 1) * buzz * b.customerBuff * (offHours ? cfg.offHoursCustomers : 1);
+  const mult = repMult * signage * (1 + b.customers) * buzz * b.customerBuff * (rush ? cfg.rush.customers : 1);
+  const floor = rush ? Math.max(cfg.rush.floorMult, cfg.minCustomersMult) : cfg.minCustomersMult;
+  return tierDef(cfg, s.tier).customersPerMin * Math.max(mult, floor) * (offHours ? cfg.offHoursCustomers : 1);
 }
 
-export function queueCapacity(cfg: StallsConfig, s: Pick<StallState, 'tier' | 'upgrades'>): number {
-  return tierDef(cfg, s.tier).queueBase + upgradeLevel(s, 'queue') * cfg.upgrades.queue!.perLevel;
+export function queueCapacity(cfg: StallsConfig, s: Pick<StallState, 'tier' | 'upgrades'>, rush = false): number {
+  return tierDef(cfg, s.tier).queueBase + upgradeLevel(s, 'queue') * cfg.upgrades.queue!.perLevel + (rush ? cfg.rush.extraQueue : 0);
 }
 
 /** Equipment widens the cooking windows. */

@@ -273,10 +273,26 @@ describe('stall economics', () => {
     const base = customerRate(stalls, stall(), false, 0);
     expect(customerRate(stalls, stall({ rep: 100 }), false, 0)).toBeGreaterThan(base);
     expect(customerRate(stalls, stall({ upgrades: { signage: 2 } }), false, 0)).toBeCloseTo(base * 1.2);
-    expect(customerRate(stalls, stall(), true, 0)).toBeCloseTo(base * stalls.rush.customers);
+    // A well-run stall in a rush: the rush multiplier on top of everything.
+    const good = stall({ rep: 100, upgrades: { signage: 3 } });
+    expect(customerRate(stalls, good, true, 0)).toBeCloseTo(customerRate(stalls, good, false, 0) * stalls.rush.customers);
     expect(customerRate(stalls, stall({ buzzUntil: 10 }), false, 0)).toBeCloseTo(base * stalls.blogger.boostCustomers);
     expect(customerRate(stalls, stall(), false, 0, { ...NO_BONUS, customerBuff: 2 })).toBeCloseTo(base * 2);
     expect(queueCapacity(stalls, stall({ upgrades: { queue: 2 } }))).toBe(stalls.tiers[0].queueBase + 2);
+    expect(queueCapacity(stalls, stall(), true)).toBe(stalls.tiers[0].queueBase + stalls.rush.extraQueue);
+  });
+
+  it('keeps foot traffic fair: a floor for every stall, and a busy rush for everyone', () => {
+    const tierBase = stalls.tiers[0].customersPerMin;
+    // Reputation 0, no upgrades: still at least the floor.
+    expect(customerRate(stalls, stall({ rep: 0 }), false, 0)).toBeGreaterThanOrEqual(tierBase * stalls.minCustomersMult - 1e-9);
+    // In a rush every stall gets at least the rush floor, however new it is.
+    expect(customerRate(stalls, stall({ rep: 0 }), true, 0)).toBeCloseTo(tierBase * stalls.rush.floorMult);
+    expect(customerRate(stalls, stall(), true, 0)).toBeGreaterThanOrEqual(tierBase * stalls.rush.floorMult - 1e-9);
+    // Reputation still matters, but a top stall gets less than 2× a brand-new one.
+    const ratio = customerRate(stalls, stall({ rep: 100 }), false, 0) / customerRate(stalls, stall({ rep: 0 }), false, 0);
+    expect(ratio).toBeGreaterThan(1.2);
+    expect(ratio).toBeLessThan(2);
   });
 
   it('opens at the tier hours only', () => {

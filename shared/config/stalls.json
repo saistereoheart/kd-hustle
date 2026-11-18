@@ -152,8 +152,8 @@
       "burnt": -4
     },
     "lostCustomer": -3,
-    "multAtZero": 0.5,
-    "multAtMax": 1.5
+    "multAtZero": 0.8,
+    "multAtMax": 1.3
   },
   "combo": {
     "perPerfect": 0.05,
@@ -163,10 +163,8 @@
     "max": 0.3,
     "minQuality": "great"
   },
-  "rush": {
-    "customers": 1.8,
-    "price": 1.2
-  },
+  "rush": { "customers": 2.2, "price": 1.2, "floorMult": 2.4, "extraQueue": 2 },
+  "minCustomersMult": 0.9,
   "blogger": {
     "chance": 0.04,
     "minReputation": 40,

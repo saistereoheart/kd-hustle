@@ -59,7 +59,17 @@ export interface PropertyHooks {
   selfChanged: (p: OnlinePlayer) => void;
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   event: (p: OnlinePlayer, ev: PropEvent) => void;
+  /** The owner's Property skills (multipliers); none if left out. */
+  mods?: (p: OnlinePlayer) => PropMods;
 }
+
+export interface PropMods {
+  rent: number;
+  airbnb: number;
+  cleanLoss: number;
+  appeal: number;
+}
+const NO_MODS: PropMods = { rent: 1, airbnb: 1, cleanLoss: 1, appeal: 1 };
 
 
 /** "While you were away" totals. */
@@ -151,9 +161,9 @@ export class PropertySystem {
         ...s,
         work: s.work,
         rating: r,
-        fairNightSen: fairNightSen(this.cfg.properties, s.type, r.stars, u.loc),
-        fairRentSen: fairRentSen(this.cfg.properties, s.type, u.loc, r.stars),
-        happiness: s.tenant ? tenantHappiness(s.condition, r.stars, s.rentSen, fairRentSen(this.cfg.properties, s.type, u.loc, r.stars), this.tenantDef(s.tenant.kind).rentTolerance) : null,
+        fairNightSen: this.fairNight(p, s, r.stars),
+        fairRentSen: this.fairRent(p, s, r.stars),
+        happiness: s.tenant ? tenantHappiness(s.condition, r.stars, s.rentSen, this.fairRent(p, s, r.stars), this.tenantDef(s.tenant.kind).rentTolerance) : null,
         suggestions: suggestions(this.rating, { w: t.w, h: t.h, type: s.type, loc: u.loc }, s.layout, s.cleanliness, ownedFree),
         loc: u.loc,
       };
@@ -172,6 +182,18 @@ export class PropertySystem {
     let sum = 0;
     for (const s of this.props.values()) if (s.owner === p.id) sum += Math.floor(s.boughtSen * this.cfg.properties.assetValueRate);
     return sum;
+  }
+
+  private pmods(p: OnlinePlayer): PropMods {
+    return this.hooks.mods?.(p) ?? NO_MODS;
+  }
+
+  /** Fair daily rent / nightly rate for a unit: type, location, rating, and Kerb Appeal. */
+  private fairRent(p: OnlinePlayer, s: PropState, stars: number) {
+    return Math.round(fairRentSen(this.cfg.properties, s.type, this.byUnit.get(s.unit)!.loc, stars) * this.pmods(p).appeal);
+  }
+  private fairNight(p: OnlinePlayer, s: PropState, stars: number) {
+    return Math.round(fairNightSen(this.cfg.properties, s.type, stars, this.byUnit.get(s.unit)!.loc) * this.pmods(p).appeal);
   }
 
   private tenantDef(kind: string) {
@@ -389,8 +411,7 @@ export class PropertySystem {
   }
 
   private hour(p: OnlinePlayer, s: PropState) {
-    const u = this.byUnit.get(s.unit)!;
-    const fair = fairRentSen(this.cfg.properties, s.type, u.loc, this.ratingOf(s).stars);
+    const fair = this.fairRent(p, s, this.ratingOf(s).stars);
     const ratio = s.rentSen / Math.max(1, fair);
     const appeal = ratio <= 1 ? 1 : Math.max(0.05, 1 - (ratio - 1) * 1.8);
     if (!this.chance(this.cfg.properties.rent.applyChancePerHour * appeal)) return;
@@ -418,9 +439,10 @@ export class PropertySystem {
     // Running costs: assessment tax + maintenance fees.
     pay('costs', -s.boughtSen * (pc.costs.taxPerDayRate + pc.costs.maintenancePerDayRate), 'property-costs');
     const rating = this.ratingOf(s);
+    const pm = this.pmods(p);
     if (s.mode === 'rent' && s.tenant) {
       const t = this.tenantDef(s.tenant.kind);
-      const fair = fairRentSen(pc, s.type, u.loc, rating.stars);
+      const fair = this.fairRent(p, s, rating.stars);
       // Maintenance: new requests; open ones wear the place down. A manager handles them.
       if (this.chance(pc.rent.maintenanceChancePerDay)) {
         const text = pc.rent.requests[this.rand(pc.rent.requests.length)];
@@ -440,7 +462,7 @@ export class PropertySystem {
       if (this.chance(lateChance)) s.tenant.owed = dueSen;
       else {
         const cut = s.manager ? 1 - pc.costs.managerCut : 1;
-        pay('rent', dueSen * cut * eff, 'property-rent');
+        pay('rent', dueSen * cut * eff * pm.rent, 'property-rent'); // + Prime Landlord, Passive Income
         s.tenant.owed = 0;
       }
       if (happy < pc.rent.moveOutBelowHappiness && this.chance(pc.rent.moveOutChancePerDay)) {
@@ -453,12 +475,12 @@ export class PropertySystem {
       if (s.guest && day >= s.guest.until) {
         const g = s.guest;
         s.guest = null;
-        let paid = g.paySen * eff;
+        let paid = g.paySen * eff * pm.airbnb; // + Five-Star Host, Passive Income
         if (s.superhost) paid *= 1 + a.superhostBonus;
         if (this.chance(a.tipChance)) paid *= 1.15;
         pay('airbnb', paid, 'property-airbnb');
         const lo = a.cleanLossPerStay[0], hi = a.cleanLossPerStay[1];
-        s.cleanliness = Math.max(0, s.cleanliness - (lo + this.rand(hi - lo + 1)));
+        s.cleanliness = Math.max(0, s.cleanliness - Math.round((lo + this.rand(hi - lo + 1)) * pm.cleanLoss)); // Spotless
         if (this.chance(a.damageChance)) s.condition = Math.max(0, s.condition - 15);
         const review = this.review(s, rating);
         s.reviews = [review, ...s.reviews].slice(0, 12);
@@ -475,7 +497,7 @@ export class PropertySystem {
       }
       // A new booking (weekends and events are busier; VIPs pay 3× for 5★ only).
       if (!s.guest && rating.stars > a.minStars) {
-        const fair = fairNightSen(pc, s.type, rating.stars, u.loc);
+        const fair = this.fairNight(p, s, rating.stars);
         const weekend = day % 7 === 5 || day % 7 === 6;
         const event = this.chance(a.eventChancePerDay);
         if (this.chance(bookingChance(pc, rating.stars, s.nightSen, fair, u.loc, weekend, event))) {

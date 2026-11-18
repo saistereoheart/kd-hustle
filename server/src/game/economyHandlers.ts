@@ -191,6 +191,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     selfChanged: (p) => socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) }),
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     event: (p, ev) => socketOf(p)?.emit('prop:event', ev),
+    mods: (p) => prog.mods(p).property,
   });
   props = propSys;
   inv.lockedIids = (p) => propSys.lockedIids(p);

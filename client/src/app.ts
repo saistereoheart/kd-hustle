@@ -225,9 +225,15 @@ export class App {
   }
 
   /** Our live bonuses (luck, XP, job pay, walk speed...), computed like the server does. */
+  private modsCache: { at: number; v: Mods } | null = null;
+  /** Skills, gear, title and potions combined (cached for a moment: it's read every frame). */
   mods(): Mods {
+    const now = performance.now();
+    if (this.modsCache && now - this.modsCache.at < 250) return this.modsCache.v;
     const st = this.store;
-    return computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory) });
+    const v = computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory) });
+    this.modsCache = { at: now, v };
+    return v;
   }
 
   snapshot(): ProgressSnapshot {

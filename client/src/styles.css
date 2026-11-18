@@ -337,7 +337,11 @@ body.touch .osm-credit { bottom: auto; top: calc(190px + var(--safe-t)); }
 .item-detail { display: flex; gap: 12px; align-items: flex-start; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
 .item-detail img { width: 96px; height: 96px; }
 .item-detail h4 { margin: 0 0 4px; font-size: 16px; text-transform: none; letter-spacing: 0; }
-.detail-actions { display: flex; gap: 8px; margin-top: 8px; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* The bag's details card stays pinned at the top while you scroll the items under it. */
+.item-detail.sticky { position: sticky; top: -12px; z-index: 3; background: color-mix(in srgb, var(--panel-solid) 94%, #fff); border: 1px solid var(--line); box-shadow: 0 8px 18px rgba(0,0,0,0.35); max-height: 46vh; overflow-y: auto; padding-right: 40px; }
+.item-detail-close { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; font-size: 14px; z-index: 1; }
+@media (max-width: 520px) { .item-detail.sticky img { width: 64px; height: 64px; } }
 
 .crate-head { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
 .crate-art { width: 72px; height: 72px; border-radius: 16px; background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--crate) 60%, #fff), var(--crate)); display: grid; place-items: center; font-size: 38px; box-shadow: 0 6px 18px color-mix(in srgb, var(--crate) 50%, transparent); }
@@ -832,13 +836,22 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 .cook-tray:hover::after, .cook-tray:focus-visible::after { opacity: 1; }
 @media (max-width: 759px) { .cook-side { display: none; } }
 
-/* ---- your stall's stock: a column down the side of the stall panel ---- */
-.stall-layout { display: flex; gap: 12px; align-items: flex-start; }
-.stall-main { flex: 1; min-width: 0; }
-.stall-stock-col { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); }
-.stall-stock-title { font-weight: 800; font-size: 13px; color: #ffd43b; }
-@media (max-width: 640px) { .stall-layout { flex-direction: column-reverse; } .stall-stock-col { flex-direction: row; flex-wrap: wrap; } }
-.stock-pill { display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.82); color: #fff; touch-action: manipulation; }
+/* ---- your stall's stock: separate boxes lined up outside the stall window ---- */
+.stall-wrap { position: relative; width: min(460px, 100%); display: flex; flex-direction: column; align-items: stretch; }
+.stall-wrap > .panel { width: 100%; }
+.stall-main { min-width: 0; }
+/* Wide screens: down the panel's left side, each box stretching out to the left on hover. */
+.stall-stock-rail { position: absolute; right: calc(100% + 10px); top: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: none; padding: 2px 2px 2px 40px; }
+.stall-stock-rail .stock-pill { transform-origin: right center; flex: 0 0 auto; }
+.stall-stock-rail:empty { display: none; }
+/* Phones / narrow windows: no room beside it, so a row of boxes above the panel. */
+@media (max-width: 1000px) {
+  .stall-stock-rail { position: static; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; max-height: none; overflow: visible; margin-bottom: 8px; }
+  .stall-wrap > .panel { max-height: calc(88vh - 64px); }
+}
+.stock-pill { display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.92); color: #fff; touch-action: manipulation; box-shadow: 0 4px 12px rgba(0,0,0,0.45); cursor: pointer; transition: transform 0.15s; }
+.stock-pill:hover, .stock-pill.open { transform: scale(1.08); }
+.stock-pill.restock { padding: 8px 12px; border-color: rgba(105, 219, 124, 0.7); }
 .stock-pill canvas { flex: 0 0 auto; }
 .stock-pill.addon { border-color: rgba(232, 89, 12, 0.7); }
 .stock-pill.low { border-color: #ffa94d; }

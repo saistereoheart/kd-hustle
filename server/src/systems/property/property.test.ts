@@ -8,7 +8,7 @@ import { World, type OnlinePlayer } from '../../game/world';
 import { ROOT } from '../../paths';
 import { Economy, GameError } from '../economy/economy';
 import { emptyProgress } from '../progression/progression';
-import { PropertySystem } from './property';
+import { PropertySystem, type PropMods } from './property';
 
 const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
 const T = cfg.map.tileSize;
@@ -25,7 +25,7 @@ function seeded(seed: number): RandInt {
   };
 }
 
-function setup(walletSen = 200_000_000, rand: RandInt = seeded(3)) {
+function setup(walletSen = 200_000_000, rand: RandInt = seeded(3), mods?: PropMods) {
   const db = openDatabase(':memory:');
   const repos = createRepos(db);
   const id = repos.accounts.create('owner', 'h', false, { x: 0, y: 0 }, 2, walletSen);
@@ -41,7 +41,7 @@ function setup(walletSen = 200_000_000, rand: RandInt = seeded(3)) {
   const econ = new Economy(repos, cfg);
   const events: string[] = [];
   const props = new PropertySystem(cfg, repos, econ, world, rand, {
-    publicChanged: () => {}, selfChanged: () => {}, wallet: () => {}, event: (_p, ev) => events.push(ev.text),
+    publicChanged: () => {}, selfChanged: () => {}, wallet: () => {}, event: (_p, ev) => events.push(ev.text), mods: mods && (() => mods),
   }, () => now);
   const studio = props.units.find((u) => u.type === 'studio')!;
   const goTo = (u: { x: number; y: number }) => {
@@ -160,6 +160,39 @@ describe('long-term rent', () => {
     s.days(20);
     expect(me().tenant).toBeNull();
     expect(s.events.some((e) => /moved out/.test(e))).toBe(true);
+  });
+});
+
+describe('Property skills', () => {
+  /** A studio let at the fair rent, with a tenant in. */
+  function rented(mods?: PropMods) {
+    const s = setup(200_000_000, seeded(7), mods);
+    s.goTo(s.studio);
+    s.props.buy(s.p, s.studio.id); // free first home: no running costs, so earnings = rent
+    s.props.setMode(s.p, s.studio.id, 'rent');
+    const me = () => s.props.selfOf(s.p)[0];
+    s.props.setPrices(s.p, s.studio.id, me().fairRentSen);
+    for (let h = 0; h < 96 && !me().tenant; h++) {
+      s.setNow(s.now() + 60 * cfg.time.realMsPerGameMinute);
+      s.props.tick();
+    }
+    expect(me().tenant).not.toBeNull();
+    return { s, me };
+  }
+
+  it('Prime Landlord (and Passive Income) multiply the rent you collect', () => {
+    const a = rented();
+    const b = rented({ rent: 1.5, airbnb: 1, cleanLoss: 1, appeal: 1 });
+    a.s.days(6);
+    b.s.days(6);
+    expect(a.me().earnedSen).toBeGreaterThan(0);
+    expect(b.me().earnedSen / a.me().earnedSen).toBeCloseTo(1.5, 1);
+  });
+
+  it('Kerb Appeal raises the fair rent (so you can charge more)', () => {
+    const a = rented();
+    const b = rented({ rent: 1, airbnb: 1, cleanLoss: 1, appeal: 1.25 });
+    expect(b.me().fairRentSen / a.me().fairRentSen).toBeCloseTo(1.25, 2);
   });
 });
 

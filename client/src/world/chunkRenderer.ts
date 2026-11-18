@@ -8,6 +8,7 @@
 import Phaser from 'phaser';
 import { CANOPY_DECOR, Decor, pointInPoly, Tile, tileHash, type Box, type BuiltBuilding, type BuiltMap, type BuiltRoad } from '@kh/shared';
 import { buildDecorSprites, DECOR_SPRITE } from './tileset';
+import { addCanvasTexture } from './canvasTexture';
 
 const CHUNK = 16; // tiles per chunk side (512 px)
 /** Elevated roads draw above characters (≈ 500,000 + y) but below labels and tree canopies. */
@@ -224,7 +225,9 @@ export class ChunkRenderer {
   constructor(private scene: Phaser.Scene, private map: BuiltMap, resolution: number) {
     this.res = resolution;
     const bytesPerChunk = (CHUNK * map.tileSize * resolution) ** 2 * 4 * 1.5; // + canopy layers
-    this.maxChunks = Math.max(16, Math.floor((72 * 1024 * 1024) / bytesPerChunk));
+    // Enough to keep the chunks around you (and the prefetch ring) without redrawing them when
+    // you walk back and forth.
+    this.maxChunks = Math.max(24, Math.floor((112 * 1024 * 1024) / bytesPerChunk));
     this.buildIndex();
   }
 
@@ -294,7 +297,7 @@ export class ChunkRenderer {
   update(view: Phaser.Geom.Rectangle, budgetMs = 8, force = false) {
     const T = this.map.tileSize;
     const S = CHUNK * T;
-    const pad = S * 0.5;
+    const pad = S * 0.75; // draw chunks a bit before they scroll into view
     const cx0 = Math.floor((view.x - pad) / S), cx1 = Math.floor((view.right + pad) / S);
     const cy0 = Math.floor((view.y - pad) / S), cy1 = Math.floor((view.bottom + pad) / S);
     const minCx = Math.floor(this.map.originTx / CHUNK), maxCx = Math.floor((this.map.originTx + this.map.width - 1) / CHUNK);
@@ -363,19 +366,19 @@ export class ChunkRenderer {
     const hasCanopy = this.drawChunk(gctx, cctx, dctx, cx, cy);
 
     const keys = [`${keyBase}_g`];
-    this.scene.textures.addCanvas(keys[0], ground);
+    addCanvasTexture(this.scene, keys[0], ground);
     const ox = (cx * CHUNK - BLEED) * T, oy = (cy * CHUNK - BLEED) * T;
     const img = this.scene.add.image(ox, oy, keys[0]).setOrigin(0).setScale(1 / this.res).setDepth(-1000);
     let canopy: Phaser.GameObjects.Image | null = null;
     if (hasCanopy) {
       keys.push(`${keyBase}_c`);
-      this.scene.textures.addCanvas(`${keyBase}_c`, canopyCanvas);
+      addCanvasTexture(this.scene, `${keyBase}_c`, canopyCanvas);
       canopy = this.scene.add.image(ox, oy, `${keyBase}_c`).setOrigin(0).setScale(1 / this.res).setDepth(1_000_000).setAlpha(0.72);
     }
     let deck: Phaser.GameObjects.Image | null = null;
     if (deckCanvas) {
       keys.push(`${keyBase}_d`);
-      this.scene.textures.addCanvas(`${keyBase}_d`, deckCanvas);
+      addCanvasTexture(this.scene, `${keyBase}_d`, deckCanvas);
       deck = this.scene.add.image(ox, oy, `${keyBase}_d`).setOrigin(0).setScale(1 / this.res).setDepth(DECK_DEPTH).setAlpha(this.deckAlpha);
     }
     this.live.set(`${cx},${cy}`, { ground: img, canopy, deck, keys, lastUsed: now });

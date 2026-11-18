@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (claiming homes)_
+_Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes, Property skills)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -17,7 +17,7 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 215 unit tests |
+| `npm test` (Vitest) | ✅ 218 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | Real phone on the LAN | ⏳ needs you |
@@ -28,6 +28,44 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.8: feedback fixes (lag, stall traffic, bag details, stock boxes, Property skills)
+
+### How to test it
+- **Less lag when moving.** Walk and ride around town; it should feel smoother, mostly when new streets come into
+  view. In a profile of a 15-second walk, busy main-thread time dropped from ~7.5 s to ~2.9 s. What was slow:
+  - **NPC name tags were re-rendered every frame.** In Phaser, setting a text's colour redraws and re-uploads it, even
+    when it's the same colour. Now they're only redrawn when the errand target changes.
+  - **Home signs ("FOR SALE") were re-rendered on every update** (wallet ticks, stall changes…). With the new
+    shoplot lofts that was 500+ signs each time. Now only when ownership changes.
+  - **Everything on the map was drawn every frame, even far off-screen.** That covered all stalls (their shapes
+    re-tessellated each frame), signposts, labels, signs, townsfolk, customers and cooks. Now anything far off-screen
+    is hidden (`client/src/world/culler.ts`).
+  - **Each new map chunk was read back pixel by pixel** (~40 ms per chunk) for a feature we don't use. Chunks (and
+    character sprites) now go straight to the GPU. Chunks are also drawn a bit further ahead and kept longer.
+  - Smaller things: skill/gear bonuses are no longer recomputed every frame, and the rainbow name colour steps
+    ~8×/s.
+- **Stall foot traffic is fairer and busier at meal times** (`stalls.json`):
+  - Reputation now swings traffic 0.8×–1.3× (was 0.5×–1.5×, a 3× gap between a struggling stall and a top one).
+  - No stall drops below 0.9× its tier's base rate (`minCustomersMult`).
+  - In a rush (breakfast, lunch, dinner) every open stall gets at least 2.4× base (`rush.floorMult`), the rush
+    multiplier is 2.2× (was 1.8×), and queues hold 2 more (`rush.extraQueue`).
+  - Signage, Kaki Promo, Customer Rush and bloggers still add on top.
+- **Bag:** the selected item's details stay pinned at the top while you scroll the items. Picking an item doesn't
+  make the grid jump, and ✕ closes the details.
+- **Stall stock:** separate small boxes outside the stall window, not a panel inside it.
+  - Each box is just the drawn icon and "x 12". Hovering (or tapping) a box stretches it to show the name.
+  - On a wide screen they line up down the window's left side; on a phone or narrow window, in a row above it.
+  - The last box (＋📦) opens Restock. The stall window is back to normal width.
+- **Property skills** (📱 → Skills → 🏠 Property, no longer "coming soon"):
+  - **Prime Landlord:** +6% rent per level (max 20).
+  - **Kerb Appeal:** fair rent and nightly rate +5% per level (max 10), so you can charge more and tenants and guests
+    stay happy.
+  - **Five-Star Host:** +6% Airbnb pay per level (max 20).
+  - **Spotless:** guests leave 7% less mess per level (max 10).
+  - **Passive Income** now also counts for rent and Airbnb, as its description promised.
 
 ---
 
@@ -775,6 +813,14 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 5.8 (feedback fixes)**
+- **Fair foot traffic** is a floor, not a cap: struggling and new stalls get lifted (0.9× base always, 2.4× base in
+  a rush), while upgrades (signage, Kaki Promo) still pay off above that. The reputation swing is narrower too.
+- **Passive Income now boosts rent and Airbnb** (multiplied with the new Property skills). Its description had
+  promised this.
+- **Off-screen culling** uses a 320 px margin around the view and re-checks every ~96 px of movement (or every
+  0.5 s).
 
 **Phase 5.7 (claiming homes)**
 - **Claiming works through the existing property system** rather than as a separate one. "Claim" is a purchase at

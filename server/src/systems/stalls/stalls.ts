@@ -555,7 +555,7 @@ export class StallSystem {
           l.outOfStockWarned = true;
           this.hooks.event(owner, { kind: 'lost', text: '📦 Out of ingredients: no one can order. 📱 → Business → Stock.' });
         }
-      } else if (!closing && l.queue.length < queueCapacity(st, l.s)) {
+      } else if (!closing && l.queue.length < queueCapacity(st, l.s, rush)) {
         const perMs = customerRate(st, l.s, rush, now, b, offHours) / 60_000;
         if (this.rand(1_000_000) / 1_000_000 < perMs * dt) {
           const tier = tierDef(st, l.s.tier);

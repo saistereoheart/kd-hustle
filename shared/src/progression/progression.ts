@@ -189,6 +189,8 @@ export interface Mods {
   autoRoll: boolean;
   /** Stall bonuses (Business skills + Customer Rush / Speed Tonic). */
   stall: { dishPrice: number; customers: number; wages: number; customerBuff: number; staffSpeedBuff: number };
+  /** Property skills (Passive Income counts for rent and Airbnb too). All multipliers. */
+  property: { rent: number; airbnb: number; cleanLoss: number; appeal: number };
 }
 
 /** Combines multipliers: multiply within a source type, add across types (like luck, no cap). */
@@ -220,6 +222,7 @@ export function computeMods(
   if (title?.bonus?.luck) luckSources.push({ type: 'title', mult: title.bonus.luck, label: title.name });
   if (gear.luck) luckSources.push({ type: 'gear', mult: 1 + gear.luck, label: 'Your gear' });
 
+  const passive = mult('passiveIncome', 'passive', undefined, gear.passive);
   return {
     luck: totalLuck(luckSources, cfg.rarities.maxLuck),
     luckSources,
@@ -228,7 +231,7 @@ export function computeMods(
     potionDuration: 1 + sv('potionDuration'),
     xp: mult('xp', 'xp', title?.bonus?.xp, gear.xp),
     jobPay: mult('jobPay', 'jobPay', title?.bonus?.jobPay, gear.jobPay),
-    passive: mult('passiveIncome', 'passive', undefined, gear.passive),
+    passive,
     walk: 1 + sv('walkSpeed'),
     carwashExtraSec: sv('carwashSeconds'),
     rollSpeed: 1 + sv('rollSpeed'),
@@ -240,6 +243,12 @@ export function computeMods(
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
       staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1) * (1 + (gear.chef ?? 0)),
+    },
+    property: {
+      rent: (1 + sv('rentIncome')) * passive,
+      airbnb: (1 + sv('airbnbIncome')) * passive,
+      cleanLoss: Math.max(0.3, 1 - sv('cleanLoss')),
+      appeal: 1 + sv('tenantAppeal'),
     },
   };
 }
