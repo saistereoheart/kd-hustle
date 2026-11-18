@@ -1,0 +1,11 @@
+{
+  "name": "Pasar Online",
+  "requires": { "stage": 2 },
+  "feeRate": 0.05,
+  "maxListings": 10,
+  "minBidStep": 0.05,
+  "auctionHours": [6, 12, 24],
+  "antiSnipeMs": 30000,
+  "maxPriceSen": 100000000000,
+  "historySize": 12
+}

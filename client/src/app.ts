@@ -442,6 +442,10 @@ export class App {
       this.store.emit();
     });
     socket.on('notice', (n) => toast(n.text, n.kind, 5000));
+    socket.on('market', ({ listings }) => {
+      this.store.marketListings = listings;
+      this.store.emit();
+    });
     socket.on('event', ({ event }) => {
       this.store.event = event;
       this.store.emit();

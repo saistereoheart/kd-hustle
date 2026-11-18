@@ -14,6 +14,7 @@ import type { BankView, Loan } from '../business/loans';
 import type { MusicView } from '../music/music';
 import type { BoardEntry, TradeView } from '../social/social';
 import type { ActiveEvent } from '../events/events';
+import type { MarketListing, MarketSale } from '../market/market';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -40,6 +41,10 @@ export const C2S = {
   playerId: z.object({ to: z.number().int().positive() }),
   tradeRespond: z.object({ from: z.number().int().positive(), accept: z.boolean() }),
   tradeOffer: z.object({ items: z.array(z.number().int().positive()).max(30), sen: z.number().int().min(0).max(1e15) }),
+  marketList: z.object({ iid: z.number().int().positive(), kind: z.enum(['fixed', 'auction']), priceSen: z.number().int().positive().max(1e15), hours: z.number().positive().max(1000).optional() }),
+  marketId: z.object({ id: z.number().int().positive() }),
+  marketBid: z.object({ id: z.number().int().positive(), sen: z.number().int().positive().max(1e15) }),
+  marketHistory: z.object({ itemId: z.string().min(1).max(64) }),
   coinflip: z.object({ to: z.number().int().positive(), sen: z.number().int().positive().max(1e15) }),
   gift: z.object({ to: z.number().int().positive(), sen: z.number().int().min(0).max(1e15), items: z.array(z.number().int().positive()).max(30) }),
   // --- the shared radio ---
@@ -539,6 +544,12 @@ export interface ClientToServerEvents {
   'trade:cancel': (ack: Ack<SimpleResult>) => void;
   'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
   'coinflip:challenge': (msg: { to: number; sen: number }, ack: Ack<SimpleResult>) => void;
+  'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
+  'market:list': (msg: { iid: number; kind: 'fixed' | 'auction'; priceSen: number; hours?: number }, ack: Ack<Result<{ removed: number }>>) => void;
+  'market:cancel': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
+  'market:buy': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
+  'market:bid': (msg: { id: number; sen: number }, ack: Ack<SimpleResult>) => void;
+  'market:history': (msg: { itemId: string }, ack: Ack<Result<{ sales: MarketSale[]; avgSen: number | null }>>) => void;
   'coinflip:respond': (msg: { from: number; accept: boolean }, ack: Ack<SimpleResult>) => void;
   'board:view': (ack: Ack<Result<{ entries: BoardEntry[] }>>) => void;
   'event:view': (ack: Ack<Result<{ event: ActiveEvent | null }>>) => void;
@@ -610,6 +621,8 @@ export interface ServerToClientEvents {
   'ventures:self': (p: { ventures: Ventures }) => void;
   /** A server event started or ended (null = none running). */
   event: (p: { event: ActiveEvent | null }) => void;
+  /** Pasar Online listings changed. */
+  market: (p: { listings: MarketListing[] }) => void;
   /** Someone challenged you to a coinflip. */
   'coinflip:challenge': (p: { from: number; name: string; sen: number }) => void;
   /** A coinflip you were in: who won. */

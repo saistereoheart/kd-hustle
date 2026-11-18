@@ -157,8 +157,15 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   let props: PropertySystem | null = null;
   // eslint-disable-next-line prefer-const
   let finance: ReturnType<typeof createLoans>;
+  /** Set once the Pasar Online is up (net worth counts what you have listed or bid). */
+  let marketRef: import('../systems/market/market').MarketSystem | null = null;
   /** Homes, stalls and businesses, minus what you owe (loans count against net worth). */
-  const assetsOf = (p: OnlinePlayer) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0) + ventures.assetsOf(p) - (finance?.owedOf(p) ?? 0);
+  const assetsOf = (p: OnlinePlayer) => {
+    // Items on the Pasar Online and bids being held are still yours.
+    const held = marketRef?.heldOf(p);
+    const market = held ? netWorthSen(cfg.prog, held.bidsSen, held.items) : 0;
+    return stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0) + ventures.assetsOf(p) + market - (finance?.owedOf(p) ?? 0);
+  };
   const prog: ProgressionSystem = new ProgressionSystem(cfg, repos, econ, cryptoRand, {
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
@@ -277,6 +284,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
     },
   });
+  marketRef = social.market;
   // --- the shared radio ---------------------------------------------------------------------
   const radio = createMusic({ cfg, io, world });
   // --- the Lucky Strand Casino (Phase 7) --------------------------------------------------------
@@ -788,6 +796,9 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       // Offline income, worked out from real time since the last save (so time the server was
       // down counts too): your stall (if left open with cooks), managed businesses, then homes.
       const extra: Array<{ label: string; sen: number; detail?: string }> = [];
+      // Pasar Online sales, auction wins and refunds that came in while you were away.
+      const mk = social.market.collect(p);
+      if (mk.sen || mk.notes.length) extra.push({ label: `🛒 ${cfg.market.name}`, sen: mk.sen, detail: mk.notes.slice(-4).join(' · ') });
       if (awayMs > 0) {
         const o = cfg.economy.offline;
         const st = stalls.offline(p, awayMs, o.capHours, o.efficiency);

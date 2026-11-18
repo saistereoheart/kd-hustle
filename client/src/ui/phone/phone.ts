@@ -15,6 +15,7 @@ import { renderSpin } from './spin';
 import { renderRadio } from './radio';
 import { renderPlayers } from './players';
 import { renderBoards } from './boards';
+import { renderMarket } from './market';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -97,6 +98,7 @@ const APPS: PhoneApp[] = [
     badge: (app) => (Object.values(app.store.ventures.businesses).some((b) => b.level && !b.manager && b.stored) ? '💰' : null),
   },
   { id: 'players', name: 'Players', icon: '👥', color: '#3b5bdb', render: renderPlayers },
+  { id: 'market', name: 'Pasar Online', icon: '🛒', color: '#2f9e44', render: renderMarket },
   { id: 'boards', name: 'Leaderboards', icon: '🏆', color: '#e67700', render: renderBoards },
   { id: 'radio', name: 'Radio', icon: '📻', color: '#0c8599', render: renderRadio },
   { id: 'spin', name: 'Lucky Spin', icon: '🎡', color: '#f08c00', render: renderSpin, badge: (app) => (app.store.canSpin ? '!' : null) },

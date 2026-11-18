@@ -244,6 +244,38 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    id: 13,
+    name: 'pasar online',
+    // Phase 7: the marketplace. A listed item is out of the seller's inventory; an auction's top
+    // bid is held (already taken from the bidder). Sales are kept for price history.
+    sql: `
+      CREATE TABLE market_listings (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        item_id       TEXT NOT NULL,
+        variant       TEXT NOT NULL,
+        grade         TEXT NOT NULL,
+        serial        INTEGER,
+        kind          TEXT NOT NULL,
+        price_sen     INTEGER NOT NULL,
+        top_bid_sen   INTEGER NOT NULL DEFAULT 0,
+        top_bidder_id INTEGER,
+        ends_at       INTEGER,
+        listed_at     INTEGER NOT NULL
+      );
+      CREATE TABLE market_sales (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id   TEXT NOT NULL,
+        variant   TEXT NOT NULL,
+        grade     TEXT NOT NULL,
+        price_sen INTEGER NOT NULL,
+        kind      TEXT NOT NULL,
+        at        INTEGER NOT NULL
+      );
+      CREATE INDEX market_sales_item ON market_sales(item_id, at);
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

@@ -118,6 +118,12 @@ export function createRepos(db: DB) {
        ON CONFLICT(unit_id) DO UPDATE SET account_id = excluded.account_id, type = excluded.type, data_json = excluded.data_json, updated_at = excluded.updated_at`,
     ),
     propDelete: db.prepare('DELETE FROM properties WHERE unit_id = ?'),
+    mkAll: db.prepare('SELECT m.*, a.username, b.username AS bidder FROM market_listings m JOIN accounts a ON a.id = m.seller_id LEFT JOIN accounts b ON b.id = m.top_bidder_id ORDER BY m.id'),
+    mkInsert: db.prepare('INSERT INTO market_listings (seller_id, item_id, variant, grade, serial, kind, price_sen, ends_at, listed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+    mkBid: db.prepare('UPDATE market_listings SET top_bid_sen = ?, top_bidder_id = ?, ends_at = ? WHERE id = ?'),
+    mkDelete: db.prepare('DELETE FROM market_listings WHERE id = ?'),
+    mkSale: db.prepare('INSERT INTO market_sales (item_id, variant, grade, price_sen, kind, at) VALUES (?, ?, ?, ?, ?, ?)'),
+    mkHistory: db.prepare('SELECT item_id, variant, grade, price_sen, kind, at FROM market_sales WHERE item_id = ? ORDER BY at DESC LIMIT ?'),
     bqAll: db.prepare('SELECT b.*, a.username FROM boutique_listings b JOIN accounts a ON a.id = b.seller_id ORDER BY b.id'),
     bqInsert: db.prepare('INSERT INTO boutique_listings (seller_id, item_id, variant, grade, serial, price_sen, listed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     bqDelete: db.prepare('DELETE FROM boutique_listings WHERE id = ?'),
@@ -179,6 +185,21 @@ export function createRepos(db: DB) {
         })),
       save: (unit: string, owner: number, type: string, data: unknown) => s.propUpsert.run(unit, owner, type, JSON.stringify(data), Date.now()),
       delete: (unit: string) => s.propDelete.run(unit),
+    },
+    /** Pasar Online: listings and the sales history. */
+    market: {
+      all: () =>
+        (s.mkAll.all() as Array<{ id: number; seller_id: number; username: string; item_id: string; variant: string; grade: string; serial: number | null; kind: string; price_sen: number; top_bid_sen: number; top_bidder_id: number | null; bidder: string | null; ends_at: number | null; listed_at: number }>).map((r) => ({
+          id: r.id, seller: r.seller_id, sellerName: r.username, itemId: r.item_id, variant: r.variant, grade: r.grade, serial: r.serial, kind: r.kind as 'fixed' | 'auction',
+          priceSen: r.price_sen, topBidSen: r.top_bid_sen, topBidder: r.top_bidder_id, topBidderName: r.bidder, endsAt: r.ends_at, listedAt: r.listed_at,
+        })),
+      insert: (seller: number, itemId: string, variant: string, grade: string, serial: number | null, kind: string, priceSen: number, endsAt: number | null, at: number) =>
+        Number(s.mkInsert.run(seller, itemId, variant, grade, serial, kind, priceSen, endsAt, at).lastInsertRowid),
+      bid: (id: number, sen: number, bidder: number, endsAt: number | null) => s.mkBid.run(sen, bidder, endsAt, id).changes === 1,
+      delete: (id: number) => s.mkDelete.run(id).changes === 1,
+      sale: (itemId: string, variant: string, grade: string, priceSen: number, kind: string, at: number) => s.mkSale.run(itemId, variant, grade, priceSen, kind, at),
+      history: (itemId: string, limit: number) =>
+        (s.mkHistory.all(itemId, limit) as Array<{ item_id: string; variant: string; grade: string; price_sen: number; kind: string; at: number }>).map((r) => ({ itemId: r.item_id, variant: r.variant, grade: r.grade, priceSen: r.price_sen, kind: r.kind as 'fixed' | 'auction', at: r.at })),
     },
     /** Items on display in player boutiques. */
     boutique: {

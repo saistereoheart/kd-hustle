@@ -8,6 +8,7 @@ import type { Repos } from '../db/repos';
 import type { Economy } from '../systems/economy/economy';
 import { TradeSystem } from '../systems/trade/trade';
 import { CoinflipSystem } from '../systems/coinflip/coinflip';
+import { MarketSystem } from '../systems/market/market';
 import { cryptoRand } from '../systems/gacha/gacha';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
@@ -59,6 +60,16 @@ export function createSocial(d: SocialDeps) {
     announce: (t) => d.announce(t),
     check: (p) => d.check(p),
   });
+
+  const market: MarketSystem = new MarketSystem(d.cfg, d.repos, d.econ, d.world, {
+    wallet: (p, delta, reason) => d.pushWallet(p, delta, reason),
+    items: (p, items) => items.length && d.socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
+    changed: () => d.io.emit('market', { listings: market.all() }),
+    notice: (p, text, kind) => d.socketOf(p)?.emit('notice', { text, kind }),
+    lockedIids: (p) => d.lockedIids(p),
+    check: (p) => d.check(p),
+  });
+  const marketTimer = setInterval(() => market.tick(), 2000);
 
   const tiers = d.cfg.rarities.tiers;
   const collectibles = d.cfg.items.items.filter(isCollectible).length;
@@ -117,6 +128,12 @@ export function createSocial(d: SocialDeps) {
     handle(socket, 'trade:cancel', null, () => (trade.cancel(me), {}));
     handle(socket, 'gift:send', C2S.gift, ({ to, sen, items }) => (trade.gift(me, to, sen, items), {}));
     handle(socket, 'board:view', null, () => ({ entries: boards() }));
+    handle(socket, 'market:view', null, () => ({ listings: market.all() }));
+    handle(socket, 'market:list', C2S.marketList, ({ iid, kind, priceSen, hours }) => ({ removed: market.list(me, iid, kind, priceSen, hours).removed }));
+    handle(socket, 'market:cancel', C2S.marketId, ({ id }) => (market.cancel(me, id), {}));
+    handle(socket, 'market:buy', C2S.marketId, ({ id }) => (market.buy(me, id), {}));
+    handle(socket, 'market:bid', C2S.marketBid, ({ id, sen }) => (market.bid(me, id, sen), {}));
+    handle(socket, 'market:history', C2S.marketHistory, ({ itemId }) => market.history(itemId));
     handle(socket, 'coinflip:challenge', C2S.coinflip, ({ to, sen }) => (coinflip.challenge(me, to, sen), {}));
     handle(socket, 'coinflip:respond', C2S.tradeRespond, ({ from, accept }) => (coinflip.respond(me, from, accept), {}));
   }
@@ -130,7 +147,11 @@ export function createSocial(d: SocialDeps) {
       coinflip.leave(p);
       snapshot(p);
     },
-    stop: () => clearInterval(timer),
+    market,
+    stop: () => {
+      clearInterval(timer);
+      clearInterval(marketTimer);
+    },
     boardIds: LEADERBOARDS.map((b) => b.id),
   };
 }

@@ -27,3 +27,4 @@ export * from './casino/casino';
 export * from './music/music';
 export * from './social/social';
 export * from './events/events';
+export * from './market/market';

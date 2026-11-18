@@ -12,8 +12,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
-income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (the Lucky Strand Casino + the daily free spin) and 7b-1
-(trading, gifting, leaderboards) are done; next 7b-2 (PvP coinflip, the Pasar Online marketplace, server events).
+income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
+Online). Plus the shared radio. Next: Phase 8 (end game and polish).
 
 | Check | Result |
 |---|---|
@@ -31,6 +31,25 @@ income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (th
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 7b-2: server events, PvP coinflip, Pasar Online
+
+### How to test it
+- **Server events:** `/event lucky_hour` (or `rush_hour`, `pasar_festival`, `durian_season`; add minutes, `/event stop`
+  to end). Otherwise a random one may start every ~40 min while people are online. A banner with a countdown sits
+  at the top; everyone gets the buffs (Lucky Hour 2× luck, Rush Hour 2× stall customers, the Festival 1.5×
+  customers/XP/passive). **Durian Season** puts the limited **Durian Crate** (RM 2,000, rare-and-up items) in 📱 Quick
+  Rolls; it disappears when the event ends.
+- **🪙 PvP coinflip:** 📱 → 👥 Players → 🪙 Coinflip, pick a stake (within the casino limits of the lower wealth stage).
+  They accept or decline; on accept both stakes go in, the server flips, the winner takes the pot minus 2%, and both
+  see the coin spin.
+- **🛒 Pasar Online** (wealth stage 2): **Sell** an item at a fixed price (presets from its value, or your own) or as
+  an **auction** for 6 / 12 / 24 in-game hours (6 / 12 / 24 real minutes). **Browse** to buy or bid: your bid is held
+  until someone outbids you (refunded then); a bid in the last 30 s extends the auction. When it closes the winner
+  gets the item and the seller the money (5% fee). **📈** shows the item's last sales and their average. Players who
+  are offline get money and items at their next login (on the welcome-back screen). Up to 10 listings each; listed
+  items and held bids still count in your net worth.
+- Database: migration 13 adds `market_listings` and `market_sales`.
 
 ## Phase 7b-1: trading, gifting and leaderboards
 
@@ -950,6 +969,12 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 7b-2**
+- **Coinflip stakes are RM only** (not items) and both stakes are taken at accept.
+- **Events stack with potions** the same way potions stack (multiplied).
+- **The Pasar Online and the Butik both exist:** the Butik is your own shop (8 slots, opened once); the Pasar Online is
+  the open market (anyone at stage 2, auctions, history).
+
 **Shared radio**
 - **Your own music files, served by the game server** (Spotify can't be shared this way). Track lengths come from
   the first client that loads the file (no extra audio library on the server).
@@ -1231,6 +1256,8 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
-## Next: Phase 7 (casino and social economy)
+## Next: Phase 8 (end game and polish)
 
-From the spec (§20): Lucky Strand Casino, player-to-player trading, and the rest of the social economy.
+From the spec (§20): the higher crates (Towkay → Diamond Vault), end-game assets (Cascades penthouse, Menara
+Mitraland, the mall), rebirth and the Rebirth Shop, the remaining recipes, all content from §19, sound, juice and
+mobile performance passes, the admin panel, a full balance pass with the simulator, a final bug sweep.
