@@ -1,0 +1,302 @@
+// The Airbnb star rating (spec §9.3) and the suggestions panel (§9.4). Pure maths, shared by the
+// server (what guests see), the client (live stars while decorating) and the tests.
+//
+//   stars = 0.5 + 4.5 × (25% comfort + 20% style + 15% rarity + 15% amenities + 15% clean + 10% space)
+//   then, for each missing essential (bed, toilet, shower, kitchen, aircond, wifi), −0.5★ and a
+//   cap of 2.5★ (0.4 lower per extra one missing).
+//
+// Every factor is 0..1. Suggestions are found by trying a change (buy a piece, clean, remove
+// one) and re-rating, so the predicted gain is exactly what the change would do.
+import type { FurnitureConfig, FurniturePiece, Placed, PropertiesConfig } from './schemas';
+
+export interface RatingCfg {
+  furniture: FurnitureConfig;
+  properties: PropertiesConfig;
+  /** Item id → rarity index (0 common, 1 uncommon, 2 rare...). */
+  rarityIndex: (item: string) => number;
+}
+
+export interface Factors {
+  comfort: number;
+  style: number;
+  rarity: number;
+  amenities: number;
+  clean: number;
+  space: number;
+}
+
+export interface Rating {
+  stars: number;
+  /** The uncapped score (0..1) and each factor. */
+  score: number;
+  factors: Factors;
+  missing: string[];
+  /** Pieces per theme. */
+  themes: Record<string, number>;
+  /** Share of the floor covered by furniture (rugs don't count). */
+  fill: number;
+  /** Some floor can't be reached from the door (blocked walkway). */
+  blocked: boolean;
+}
+
+/** What the rating needs from a layout, so "what if I add X" is cheap to try. */
+interface Agg {
+  comfort: number;
+  styleSum: number;
+  n: number;
+  themes: Record<string, number>;
+  raritySum: number;
+  amenities: Set<string>;
+  essentials: Set<string>;
+  covered: number;
+}
+
+export function footprint(p: Pick<FurniturePiece, 'w' | 'h'>, rot: number): [number, number] {
+  return rot % 2 ? [p.h, p.w] : [p.w, p.h];
+}
+
+function aggregate(cfg: RatingCfg, placed: Array<Pick<Placed, 'item' | 'rot'>>): Agg {
+  const a: Agg = { comfort: 0, styleSum: 0, n: 0, themes: {}, raritySum: 0, amenities: new Set(), essentials: new Set(), covered: 0 };
+  for (const pl of placed) addPiece(cfg, a, pl.item);
+  return a;
+}
+
+function addPiece(cfg: RatingCfg, a: Agg, item: string) {
+  const p = cfg.furniture.pieces[item];
+  if (!p) return;
+  a.n++;
+  a.comfort += p.comfort;
+  a.styleSum += p.style;
+  if (p.theme) a.themes[p.theme] = (a.themes[p.theme] ?? 0) + 1;
+  a.raritySum += cfg.rarityIndex(item);
+  if (p.amenity) a.amenities.add(p.amenity);
+  if (p.essential) a.essentials.add(p.essential);
+  if (!p.floor && !p.wall) a.covered += p.w * p.h;
+}
+
+function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanliness: number, blocked: boolean) {
+  const r = cfg.properties.rating;
+  const area = unit.w * unit.h;
+  const comfort = Math.min(1, a.comfort / (area * r.comfortPerM2));
+  const bestTheme = Math.max(0, ...Object.values(a.themes));
+  let set = 0;
+  for (const [n, v] of r.themeSets) if (bestTheme >= n) set = v;
+  const avgStyle = a.n ? a.styleSum / a.n / 10 : 0;
+  const style = Math.min(1, set * 0.7 + avgStyle * 0.5);
+  const rarity = a.n ? Math.min(1, a.raritySum / a.n / r.rarityForMax) : 0;
+  const amenities = Math.min(1, a.amenities.size / r.amenitiesForMax);
+  const clean = Math.max(0, Math.min(1, cleanliness / 100));
+  const fill = a.covered / area;
+  const [lo, hi] = r.idealFill;
+  let space = fill < lo ? fill / lo : fill <= hi ? 1 : Math.max(0, 1 - (fill - hi) / 0.3);
+  if (blocked) space *= 0.4;
+  const factors: Factors = { comfort, style, rarity, amenities, clean, space };
+  const w = r.weights;
+  const total = comfort * w.comfort + style * w.style + rarity * w.rarity + amenities * w.amenities + clean * w.clean + space * w.space;
+  const missing = cfg.furniture.essentials.filter((e) => !a.essentials.has(e));
+  let stars = 0.5 + 4.5 * total;
+  if (missing.length) stars = Math.min(stars - r.missingPenalty * missing.length, r.missingCap - r.missingCapStep * (missing.length - 1));
+  stars = Math.max(cfg.properties.airbnb.minStars, Math.round(stars * 10) / 10);
+  return { stars, score: total, factors, missing, fill };
+}
+
+/** Free floor cells that can't be reached from the doorway (bottom middle). */
+function walkwayBlocked(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[]): boolean {
+  const W = unit.w, H = unit.h;
+  const solid = new Uint8Array(W * H);
+  for (const pl of placed) {
+    const p = cfg.furniture.pieces[pl.item];
+    if (!p || p.floor || p.wall) continue;
+    const [w, h] = footprint(p, pl.rot);
+    for (let y = pl.y; y < pl.y + h; y++) for (let x = pl.x; x < pl.x + w; x++) if (x >= 0 && y >= 0 && x < W && y < H) solid[y * W + x] = 1;
+  }
+  const start = (H - 1) * W + Math.floor(W / 2);
+  if (solid[start]) return true;
+  const seen = new Uint8Array(W * H);
+  const q = [start];
+  seen[start] = 1;
+  while (q.length) {
+    const i = q.pop()!;
+    const x = i % W, y = (i - x) / W;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (!seen[j] && !solid[j]) {
+        seen[j] = 1;
+        q.push(j);
+      }
+    }
+  }
+  let free = 0, reached = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (solid[i]) continue;
+    free++;
+    if (seen[i]) reached++;
+  }
+  return free > 0 && reached / free < 0.85;
+}
+
+export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[], cleanliness: number): Rating {
+  const a = aggregate(cfg, placed);
+  const blocked = walkwayBlocked(cfg, unit, placed);
+  return { ...score(cfg, unit, a, cleanliness, blocked), themes: a.themes, blocked };
+}
+
+// ------------------------------------------------------------------ layout rules
+/** Why a layout is invalid (out of the room, overlapping, blocking the door, wall item off a wall), or null. */
+export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[]): string | null {
+  const W = unit.w, H = unit.h;
+  const grid = new Int32Array(W * H).fill(-1);
+  const wallGrid = new Int32Array(W * H).fill(-1);
+  const door = [Math.floor(W / 2) - 1, Math.floor(W / 2)];
+  const iids = new Set<number>();
+  for (let k = 0; k < placed.length; k++) {
+    const pl = placed[k];
+    const p = cfg.furniture.pieces[pl.item];
+    if (!p) return `${pl.item} isn't furniture.`;
+    if (iids.has(pl.iid)) return 'The same item is placed twice.';
+    iids.add(pl.iid);
+    const [w, h] = footprint(p, pl.rot);
+    if (pl.x < 0 || pl.y < 0 || pl.x + w > W || pl.y + h > H) return 'Something sticks out of the room.';
+    if (p.wall && pl.y !== 0 && pl.x !== 0 && pl.x + w !== W) return 'Wall items have to touch a wall.';
+    if (p.floor) continue;
+    const g = p.wall ? wallGrid : grid;
+    for (let y = pl.y; y < pl.y + h; y++)
+      for (let x = pl.x; x < pl.x + w; x++) {
+        if (g[y * W + x] >= 0) return 'Two pieces overlap.';
+        g[y * W + x] = k;
+        if (!p.wall && y === H - 1 && door.includes(x)) return 'Keep the doorway clear.';
+      }
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ money
+/** Location demand: up to +30% near the MRT, The Strand and Dataran Sunway. */
+export function locationMult(cfg: PropertiesConfig, distTiles: number): number {
+  return 1 + cfg.locationBonus * Math.max(0, 1 - distTiles / cfg.locationRangeTiles);
+}
+
+/** A fair nightly price for this rating; the recommended range is ±10%. */
+export function fairNightSen(cfg: PropertiesConfig, type: string, stars: number, loc: number): number {
+  const t = cfg.types[type];
+  return Math.round(t.nightBaseSen * (0.25 + 0.75 * Math.pow(stars / 5, 1.6)) * loc);
+}
+
+/** Chance a night gets booked: better stars and a fair price fill up; overpricing empties it. */
+export function bookingChance(cfg: PropertiesConfig, stars: number, priceSen: number, fairSen: number, loc: number, weekend: boolean, event: boolean): number {
+  const a = cfg.airbnb;
+  const r = priceSen / Math.max(1, fairSen);
+  const priceF = r <= 0.7 ? 1.3 : Math.max(0.05, 1.3 - (r - 0.7) * 1.0);
+  const p = (a.bookingBase + a.bookingPerStar * stars) * priceF * (weekend ? a.weekendBoost : 1) * (event ? a.eventBoost : 1) * Math.sqrt(loc);
+  return Math.max(0, Math.min(0.97, p));
+}
+
+/** Fair long-term rent per in-game day (furnishing adds up to +20%). */
+export function fairRentSen(cfg: PropertiesConfig, type: string, loc: number, stars: number): number {
+  return Math.round(cfg.types[type].rentPerDaySen * loc * (1 + 0.2 * Math.min(1, stars / 5)));
+}
+
+/** Tenant happiness 0..100 from the unit's condition, furnishing and how fair the rent is. */
+export function tenantHappiness(condition: number, stars: number, rentSen: number, fairSen: number, tolerance: number): number {
+  const fairness = Math.max(0, Math.min(1, 1 - (rentSen / Math.max(1, fairSen * tolerance) - 1) / 0.5));
+  return Math.round(0.35 * Math.max(0, Math.min(100, condition)) + 25 * Math.min(1, stars / 5) + 40 * fairness);
+}
+
+// ------------------------------------------------------------------ suggestions
+export interface Suggestion {
+  text: string;
+  /** Star gain if you do it. */
+  gain: number;
+  /** Extra per night at the fair price. */
+  nightGainSen: number;
+  action: { kind: 'buy' | 'place'; item: string } | { kind: 'clean' } | { kind: 'remove'; iid: number };
+}
+
+/**
+ * The top 3 changes that would raise the rating most: missing essentials, completing a theme
+ * set, cleaning, freeing a cramped room, better comfort. `owned` = furniture you have but
+ * haven't placed (placing costs nothing, so it ranks above buying).
+ */
+export function suggestions(
+  cfg: RatingCfg,
+  unit: { w: number; h: number; type: string; loc: number },
+  placed: Placed[],
+  cleanliness: number,
+  owned: string[],
+): Suggestion[] {
+  const base = rateUnit(cfg, unit, placed, cleanliness);
+  const a0 = aggregate(cfg, placed);
+  const fair0 = fairNightSen(cfg.properties, unit.type, base.stars, unit.loc);
+  const out: Suggestion[] = [];
+  const name = (item: string) => item.replace(/_/g, ' ');
+  const tryAdd = (item: string) => {
+    const a = { ...a0, themes: { ...a0.themes }, amenities: new Set(a0.amenities), essentials: new Set(a0.essentials) };
+    addPiece(cfg, a, item);
+    return score(cfg, unit, a, cleanliness, base.blocked).stars;
+  };
+  const push = (text: string, stars: number, action: Suggestion['action']) => {
+    const gain = Math.round((stars - base.stars) * 10) / 10;
+    if (gain <= 0) return;
+    out.push({ text, gain, nightGainSen: fairNightSen(cfg.properties, unit.type, stars, unit.loc) - fair0, action });
+  };
+  const ownedSet = new Set(owned);
+  const catalog = Object.entries(cfg.furniture.pieces);
+  // Best candidate per idea: owned first (free), else the cheapest in the store.
+  const pick = (want: (p: FurniturePiece, id: string) => boolean) => {
+    const own = [...ownedSet].find((id) => cfg.furniture.pieces[id] && want(cfg.furniture.pieces[id], id));
+    if (own) return { item: own, owned: true };
+    const buy = catalog.filter(([id, p]) => p.storeSen && want(p, id)).sort((x, y) => x[1].storeSen! - y[1].storeSen!)[0];
+    return buy ? { item: buy[0], owned: false } : null;
+  };
+  for (const e of base.missing) {
+    const c = pick((p) => p.essential === e);
+    if (c) push(`${c.owned ? 'Place your' : 'Add a'} ${name(c.item)} (missing essential)`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
+  }
+  if (cleanliness < 80) {
+    const stars = score(cfg, unit, a0, 100, base.blocked).stars;
+    push(`Clean the unit (cleanliness ${Math.round(cleanliness)}%)`, stars, { kind: 'clean' });
+  }
+  // Theme sets: the theme you have most of, one piece closer to its next set.
+  const sets = cfg.properties.rating.themeSets;
+  const themesByCount = Object.entries(base.themes).sort((x, y) => y[1] - x[1]);
+  for (const [theme, n] of themesByCount.slice(0, 2)) {
+    const next = sets.find(([k]) => k > n);
+    if (!next) continue;
+    const c = pick((p) => p.theme === theme && !p.essential);
+    if (!c) continue;
+    const themeName = cfg.furniture.themes[theme]?.name ?? theme;
+    push(`${next[0] - n} more ${themeName} piece${next[0] - n > 1 ? 's' : ''} complete${next[0] - n > 1 ? '' : 's'} a ${next[0]}-set (try ${name(c.item)})`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
+  }
+  // Missing amenities.
+  for (const am of cfg.furniture.amenities) {
+    if (a0.amenities.has(am)) continue;
+    const c = pick((p) => p.amenity === am);
+    if (c) push(`${c.owned ? 'Place your' : 'Add a'} ${name(c.item)} (amenity)`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
+  }
+  // Comfort.
+  const comfy = pick((p) => !p.essential && p.comfort >= 5);
+  if (comfy && base.factors.comfort < 0.9) push(`More comfort: ${name(comfy.item)}`, tryAdd(comfy.item), { kind: comfy.owned ? 'place' : 'buy', item: comfy.item });
+  // Cramped or blocked: take out the piece whose removal helps most.
+  if (base.blocked || base.fill > cfg.properties.rating.idealFill[1]) {
+    let best: { iid: number; stars: number; item: string } | null = null;
+    for (const pl of placed) {
+      const p = cfg.furniture.pieces[pl.item];
+      if (!p || p.essential || p.wall || p.floor) continue;
+      const rest = placed.filter((x) => x.iid !== pl.iid);
+      const stars = rateUnit(cfg, unit, rest, cleanliness).stars;
+      if (!best || stars > best.stars) best = { iid: pl.iid, stars, item: pl.item };
+    }
+    if (best) push(base.blocked ? `The walkway is blocked: move or remove the ${name(best.item)}` : `The room is cramped: remove the ${name(best.item)}`, best.stars, { kind: 'remove', iid: best.iid });
+  }
+  out.sort((x, y) => y.gain - x.gain || (x.action.kind === 'place' ? -1 : 1));
+  // One suggestion per item/action.
+  const seen = new Set<string>();
+  return out.filter((s) => {
+    const k = s.action.kind === 'clean' ? 'clean' : s.action.kind === 'remove' ? `rm${s.action.iid}` : s.action.item;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, 3);
+}

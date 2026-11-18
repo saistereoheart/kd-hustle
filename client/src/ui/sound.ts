@@ -59,6 +59,11 @@ export const sfx = {
     tone(1319, 0.12, 'triangle', 0.08);
     tone(1760, 0.25, 'triangle', 0.07, 0.09);
   },
+  /** A shop door: a little two-note bell. */
+  door: () => {
+    tone(1568, 0.12, 'triangle', 0.06);
+    tone(1175, 0.2, 'triangle', 0.05, 0.1);
+  },
   /** Potion gulp. */
   gulp: () => {
     tone(420, 0.1, 'sine', 0.12, 0, 260);

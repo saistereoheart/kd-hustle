@@ -26,7 +26,8 @@
     "fetch-osm": "tsx scripts/fetch-osm.ts",
     "import-map": "tsx scripts/import-map.ts",
     "map-preview": "tsx scripts/map-preview.ts",
-    "map-inspect": "tsx scripts/map-inspect.ts"
+    "map-inspect": "tsx scripts/map-inspect.ts",
+    "sim:stall": "tsx scripts/stall-sim.ts"
   },
   "engines": {
     "node": ">=20"

@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState, StallSelf,
+  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState, StallSelf,
 } from '@kh/shared';
 import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
@@ -30,6 +30,8 @@ export interface OnlinePlayer {
   move: MoveState;
   /** Continuous emote currently playing (see systems/emotes). */
   emote: string | null;
+  /** Building the player is inside (they stand at its door; see interiors). */
+  interior: string | null;
 
   // --- economy (Phase 2) ---
   walletSen: number;
@@ -55,6 +57,8 @@ export interface OnlinePlayer {
 
   // --- progression (Phase 3) ---
   prog: ServerProgress;
+  /** NPC errand in progress (not saved: it's dropped when you leave). */
+  errand: ErrandState | null;
 }
 
 export class World {
@@ -117,6 +121,7 @@ export class World {
       emote: p.emote,
       cosmetics: p.cosmetics,
       vehicle: p.vehicle,
+      interior: p.interior,
     };
   }
 
@@ -144,6 +149,7 @@ export class World {
       vehicles: this.vehiclesOf(p),
       progress: this.progressOf(p),
       stall: this.stallOf(p),
+      errand: p.errand,
     };
   }
 }

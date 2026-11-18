@@ -356,6 +356,19 @@ export class ProgressionSystem {
     this.check(p);
   }
 
+  /** A one-off reward (an NPC errand...): paid in one transaction, then the usual checks. */
+  reward(p: OnlinePlayer, r: Reward, reason: string, stat?: string) {
+    const before = this.money(p);
+    const granted = this.econ.run(p, () => {
+      const items = this.grant(p, r, reason);
+      if (stat) this.bump(p, stat);
+      this.save(p);
+      return items;
+    });
+    this.afterGrant(p, before, granted, reason);
+    this.check(p);
+  }
+
   // ---------------------------------------------------------------- the check
   /** Hands out new quests when the day changes (quests are per calendar day). */
   private rolloverQuests(p: OnlinePlayer) {

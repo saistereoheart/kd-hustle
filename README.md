@@ -88,6 +88,8 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | `npm run sim` | Economy balance simulator: plays N hours with the real config and server systems, prints time to each wealth stage vs the pacing targets, the Hustle Path timeline and income/sinks (`-- --hours=30 --runs=10 --session=2 --budget=0.2`) |
 | `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
 | `npm run map-preview` | PNG of the collision grid, for map editing |
+| `npm run map-inspect` | SVG/PNG of the built map (roads, decks, buildings with ids, doors, signposts, walk-unreachable ground in red): `-- x0 y0 x1 y1 --px 4 --ids` |
+| `npm run sim:stall` | Phase 4 check: a pasar malam night with perfect cooking, sloppy cooking and a hired cook vs jobs (`-- --nights=5 --tier=1`) |
 
 ## Project layout
 ```

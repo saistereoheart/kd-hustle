@@ -1,10 +1,45 @@
 {
   "realMsPerGameMinute": 1000,
   "offsetGameMinutes": 600,
-  "phases": { "dawn": [5, 7], "day": [7, 18], "dusk": [18, 20] },
+  "phases": {
+    "dawn": [
+      5,
+      7
+    ],
+    "day": [
+      7,
+      18
+    ],
+    "dusk": [
+      18,
+      20
+    ]
+  },
   "rushHours": [
-    { "name": "Breakfast rush", "from": 7, "to": 9 },
-    { "name": "Lunch rush", "from": 12, "to": 14 },
-    { "name": "Dinner rush", "from": 19, "to": 21 }
-  ]
+    {
+      "name": "Breakfast rush",
+      "from": 7,
+      "to": 9
+    },
+    {
+      "name": "Lunch rush",
+      "from": 12,
+      "to": 14
+    },
+    {
+      "name": "Dinner rush",
+      "from": 19,
+      "to": 21
+    }
+  ],
+  "skipVote": {
+    "allowedHours": [
+      20,
+      5
+    ],
+    "skipToHour": 7,
+    "durationMs": 30000,
+    "cooldownMs": 120000,
+    "majority": 0.5
+  }
 }

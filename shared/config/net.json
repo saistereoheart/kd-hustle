@@ -1,4 +1,5 @@
 {
   "snapshotRateHz": 15,
-  "interpolationDelayMs": 110
+  "interpolationDelayMs": 110,
+  "reconnectGraceMs": 20000
 }

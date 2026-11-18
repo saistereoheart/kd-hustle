@@ -32,6 +32,7 @@ async function newPlayer(browser: Browser, mobile: boolean, label: string, error
 
 async function register(page: Page, name: string, shotPrefix: string) {
   await page.goto('/');
+  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.screenshot({ path: `${SHOTS}/${shotPrefix}-1-auth.png` });
   await page.fill('input[name=username]', name);
@@ -118,6 +119,7 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   // Reload restores position + appearance.
   const beforeReload = (await self(A.page))!;
   await A.page.reload();
+  await A.page.click('[data-testid=title-start]');
   await waitTown(A.page);
   const afterReload = (await self(A.page))!;
   expect(Math.abs(afterReload.x - beforeReload.x)).toBeLessThan(2);
@@ -130,6 +132,8 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   await B.page.click('[data-action=settings]');
   await B.page.screenshot({ path: `${SHOTS}/phone-5-settings.png` });
   await B.page.click('[data-action=logout]');
+  await B.page.waitForSelector('[data-testid=title-start]', { timeout: 15_000 }); // back to the start screen
+  await B.page.click('[data-testid=title-start]');
   await B.page.waitForSelector('#auth', { timeout: 15_000 });
   await B.page.click('[data-tab=login]');
   await B.page.fill('input[name=username]', nameB);
@@ -143,6 +147,7 @@ test('two players can meet, chat, emote and keep their progress', async ({ brows
   // Logging in as A on another device kicks the first one.
   const A2 = await newPlayer(browser, false, 'desktop2', errors);
   await A2.page.goto('/');
+  await A2.page.click('[data-testid=title-start]'); // the start screen
   await A2.page.waitForSelector('#auth');
   await A2.page.click('[data-tab=login]');
   await A2.page.fill('input[name=username]', nameA);

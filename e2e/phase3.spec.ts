@@ -15,6 +15,15 @@ type KH = {
   chat: () => string[];
 };
 const kh = <T>(p: Page, fn: (k: KH) => T) => p.evaluate((src) => new Function('k', `return (${src})(k)`)((window as unknown as { __kh: KH }).__kh), fn.toString()) as Promise<T>;
+
+/** Teleport (admin /tp) to where an interactable is used: its spot, or its building's door. */
+async function goTo(p: Page, id: string) {
+  const s = await p.evaluate((i) => (window as unknown as { __kh: { spotOf: (i: string) => { x: number; y: number } } }).__kh.spotOf(i), id);
+  await p.keyboard.press('Enter');
+  await p.fill('#chat-input', `/tp ${s.x} ${s.y}`);
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(800);
+}
 const progress = (p: Page) => kh(p, (k) => k.progress());
 const wallet = (p: Page) => kh(p, (k) => k.wallet());
 
@@ -24,6 +33,7 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`));
   await page.goto('/');
+  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
@@ -76,7 +86,7 @@ test('phase 3: progression, HustlePhone, potions and stages', async ({ browser }
   await A.page.keyboard.press('Escape');
 
   // --- Lucky Bag is locked until you're a Hustler ---
-  await chatCommand(A.page, '/tp -218 117'); // the Lucky Bag stall
+  await goTo(A.page, 'luckybag_stall');
   await kh(A.page, (k) => k.open('luckybag_stall'));
   await A.page.waitForSelector('[data-testid=crate-panel]');
   await expect(A.page.getByTestId('crate-lock')).toContainText('Hustler');
@@ -135,6 +145,7 @@ test('phase 3: progression, HustlePhone, potions and stages', async ({ browser }
   await expect.poll(async () => kh(A.page, (k) => k.luck())).toBeCloseTo(2);
   await A.page.keyboard.press('Escape');
   await expect(A.page.locator('.hud-chip.buff-luck')).toBeVisible();
+  await goTo(A.page, 'luckybag_stall');
   await kh(A.page, (k) => k.open('luckybag_stall'));
   await A.page.waitForSelector('[data-testid=crate-panel]');
   await expect(A.page.getByTestId('crate-lock')).toHaveCount(0);
@@ -142,8 +153,8 @@ test('phase 3: progression, HustlePhone, potions and stages', async ({ browser }
   await A.page.screenshot({ path: `${SHOTS}/p3-10-crate-with-luck.png` });
   // Roll it: the roll counts towards stats (and the "Roll any crate" style quests).
   await A.page.click('[data-roll="1"]');
-  await A.page.waitForSelector('[data-action=skip]');
-  await A.page.click('[data-action=skip]');
+  // Skip the reel if it's still spinning (a fast or rare roll may already have stopped).
+  await A.page.locator('[data-action=skip]').click({ timeout: 3000 }).catch(() => {});
   await A.page.click('[data-action=reveal-ok]');
   await expect.poll(async () => (await progress(A.page)).stats.rolls_luckybag).toBe(1);
   await A.page.keyboard.press('Escape');
@@ -163,6 +174,7 @@ test('phase 3: progression, HustlePhone, potions and stages', async ({ browser }
   // --- Everything survives a reload (it lives on the server) ---
   const before = await progress(A.page);
   await A.page.reload();
+  await A.page.click('[data-testid=title-start]');
   await A.page.waitForFunction(() => document.body.dataset.state === 'town');
   const after = await progress(A.page);
   expect({ level: after.level, stage: after.stage, title: after.title, xp: after.xp }).toEqual({ level: before.level, stage: before.stage, title: before.title, xp: before.xp });

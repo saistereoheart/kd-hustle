@@ -187,6 +187,22 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    id: 9,
+    name: 'properties',
+    // Phase 5: owned homes. The unit id is "<OSM building id>#<n>" (stable across map changes);
+    // mode, rent, tenant, Airbnb layout, reviews... live in data_json.
+    sql: `
+      CREATE TABLE properties (
+        unit_id    TEXT PRIMARY KEY,
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        type       TEXT NOT NULL,
+        data_json  TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX properties_owner ON properties(account_id);
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

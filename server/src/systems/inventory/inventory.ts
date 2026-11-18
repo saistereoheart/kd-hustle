@@ -5,6 +5,9 @@ import type { OnlinePlayer } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
 
 export class InventorySystem {
+  /** Instances that can't be given up right now (furniture placed in a property). */
+  lockedIids: (p: OnlinePlayer) => Set<number> = () => new Set();
+
   constructor(
     private readonly cfg: ServerConfig,
     private readonly econ: Economy,
@@ -38,8 +41,9 @@ export class InventorySystem {
   /** Pick `count` instances of an item+variant to give up. Equipped items go last; limited serials are protected. */
   private pick(p: OnlinePlayer, itemId: string, variant: string, count: number): InventoryItem[] {
     const equipped = new Set(Object.values(p.equipped));
+    const locked = this.lockedIids(p);
     const stack = p.inventory
-      .filter((i) => i.itemId === itemId && i.variant === variant && i.serial === null)
+      .filter((i) => i.itemId === itemId && i.variant === variant && i.serial === null && !locked.has(i.iid))
       .sort((a, b) => Number(equipped.has(a.iid)) - Number(equipped.has(b.iid)) || b.iid - a.iid);
     if (stack.length < count) throw new GameError(stack.length ? `You only have ${stack.length}.` : 'You don\'t have that item (limited items can\'t be pawned).');
     return stack.slice(0, count);

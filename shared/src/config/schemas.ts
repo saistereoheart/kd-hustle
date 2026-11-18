@@ -7,6 +7,10 @@ import type { GoalsConfig, LevelsConfig, QuestsConfig, StagesConfig, TitlesConfi
 import type { TimeConfig } from '../time/clock';
 import type { RecipesConfig } from '../cooking/cooking';
 import type { StallsConfig } from '../cooking/stall';
+import type { InteriorsConfig } from '../world/interiors';
+import type { GuideConfig } from '../world/guide';
+import type { NpcsConfig } from '../world/npcs';
+import type { FurnitureConfig, PropertiesConfig } from '../property/schemas';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -57,6 +61,9 @@ export type MovementConfig = z.infer<typeof movementConfigSchema>;
 export const netConfigSchema = z.object({
   snapshotRateHz: z.number().positive(),
   interpolationDelayMs: z.number().nonnegative(),
+  /** A dropped connection keeps you in the world this long (server) and the game on screen
+   *  (client) while it reconnects; after that you're back at the start screen. */
+  reconnectGraceMs: z.number().int().nonnegative().default(20_000),
 });
 export type NetConfig = z.infer<typeof netConfigSchema>;
 
@@ -139,5 +146,10 @@ export interface PublicConfig {
   time: TimeConfig;
   recipes: RecipesConfig;
   stalls: StallsConfig;
+  interiors: InteriorsConfig;
+  guide: GuideConfig;
+  npcs: NpcsConfig;
+  furniture: FurnitureConfig;
+  properties: PropertiesConfig;
 }
 

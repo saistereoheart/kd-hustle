@@ -12,6 +12,7 @@ import { loadPrefs } from '../ui/settings';
 import { Avatar } from './avatar';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
+import { NpcLayer } from './npcLayer';
 
 interface Sample {
   t: number;
@@ -25,6 +26,8 @@ interface Remote {
   name: string;
   avatar: Avatar;
   samples: Sample[];
+  /** Latest public state (appearance, cosmetics, level, which building they're in). */
+  pub: PlayerPublic;
 }
 
 /** Position at time t from a buffer of timed samples (drops samples that are too old). */
@@ -59,6 +62,8 @@ export class TownScene extends Phaser.Scene {
   private nearInteract: BuiltMap['interactables'][number] | null = null;
   private nearPlot: BuiltMap['stallPlots'][number] | null = null;
   private stalls!: StallLayer;
+  npcs!: NpcLayer;
+  private nearNpc: number | null = null;
   private marker: Phaser.GameObjects.Container | null = null;
   private vehicleSpeed: Float32Array = new Float32Array(0);
   private offs: Array<() => void> = [];
@@ -129,8 +134,11 @@ export class TownScene extends Phaser.Scene {
     });
 
     this.vehicleSpeed = vehicleSpeedGrid(this.app.map, cfg.terrain);
-    this.createInteractableLabels();
+    this.createSigns();
+    this.syncHomeSigns();
+    this.offs.push(this.app.store.on(() => this.syncHomeSigns()));
     this.stalls = new StallLayer(this, this.app);
+    this.npcs = new NpcLayer(this, this.app);
     this.offs.push(this.app.store.on(() => this.stalls.sync()));
     this.me.setState(you.dir, false);
     for (const p of this.initData.players) this.addRemote(p);
@@ -141,14 +149,14 @@ export class TownScene extends Phaser.Scene {
 
     // Door lookup: the tile in front of each door, plus its neighbours.
     for (const b of map.buildings) {
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dx = -1; dx <= 1; dx++) {
-          if (!b.door) continue;
-          const i = gridIndexAt(map, (b.door.frontX + dx + 0.5) * T, (b.door.frontY + dy + 0.5) * T);
-          if (i < 0) continue;
-          const existing = this.doorIndex.get(i);
-          if (!existing || (dx === 0 && dy === 0) || (!existing.name && b.name)) this.doorIndex.set(i, b);
-        }
+      for (const d of b.doors)
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const i = gridIndexAt(map, (d.frontX + dx + 0.5) * T, (d.frontY + dy + 0.5) * T);
+            if (i < 0) continue;
+            const existing = this.doorIndex.get(i);
+            if (!existing || (dx === 0 && dy === 0) || (!existing.name && b.name)) this.doorIndex.set(i, b);
+          }
     }
 
     // --- network events ---
@@ -164,9 +172,19 @@ export class TownScene extends Phaser.Scene {
       this.remotes.get(id)?.avatar.destroy();
       this.remotes.delete(id);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      const r = this.remotes.get(id);
+      if (r) {
+        if (appearance) r.pub.appearance = appearance;
+        if (cosmetics) r.pub.cosmetics = cosmetics;
+        if (level !== undefined) r.pub.level = level;
+        if (interior !== undefined) {
+          r.pub.interior = interior;
+          r.avatar.container.setVisible(!interior); // they went inside a building
+        }
+      }
       if (level !== undefined) av.setLevel(level);
       if (title !== undefined) av.setTitle(this.titleInfo(title));
       if (cosmetics) av.setCosmetics(cosmetics);
@@ -209,6 +227,7 @@ export class TownScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const off of this.offs) off();
       this.mapView.destroy();
+      this.npcs?.destroy();
       this.offs = [];
       for (const r of this.remotes.values()) r.avatar.destroy();
       this.remotes.clear();
@@ -237,7 +256,8 @@ export class TownScene extends Phaser.Scene {
     // Someone who was already sitting/sleeping/dancing when we joined.
     const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
     if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
-    this.remotes.set(p.id, { id: p.id, name: p.name, avatar, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
+    if (p.interior) avatar.container.setVisible(false);
+    this.remotes.set(p.id, { id: p.id, name: p.name, avatar, pub: { ...p }, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
   private onSnapshot(s: SnapshotPayload) {
@@ -260,6 +280,10 @@ export class TownScene extends Phaser.Scene {
 
   /** Called by the HUD's interact button / E key. */
   interact() {
+    if (this.nearNpc !== null) {
+      this.app.talkTo(this.nearNpc);
+      return;
+    }
     if (this.nearPlot) {
       this.app.openStallAt(this.nearPlot.id);
       return;
@@ -273,7 +297,51 @@ export class TownScene extends Phaser.Scene {
       toast('Nothing to interact with here.');
       return;
     }
-    toast(`🚧 ${b.name ?? 'This building'}: interiors open in a later phase!`);
+    this.app.enterBuilding(b);
+  }
+
+  /** Reconnected after a short drop-out: catch up with who's around without restarting. */
+  resync(p: InitPayload) {
+    this.initData = p;
+    const ids = new Set(p.players.map((o) => o.id));
+    for (const [id, r] of this.remotes) {
+      if (!ids.has(id)) {
+        r.avatar.destroy();
+        this.remotes.delete(id);
+      }
+    }
+    for (const o of p.players) {
+      const r = this.remotes.get(o.id);
+      if (!r) this.addRemote(o);
+      else {
+        r.pub = { ...o };
+        r.avatar.container.setVisible(!o.interior);
+      }
+    }
+    // The server is the authority on where we are (it may have moved us).
+    if (Math.hypot(p.you.x - this.pos.x, p.you.y - this.pos.y) > 48) {
+      this.pos = { x: p.you.x, y: p.you.y };
+      this.me.setPosition(p.you.x, p.you.y);
+    }
+    this.lastSent = { x: NaN, y: NaN, dir: this.dir, moving: false };
+  }
+
+  /** Forget the last prompt so the next check shows it again (after leaving a building). */
+  refreshPrompt() {
+    this.nearNpc = null;
+    this.nearInteract = null;
+    this.nearBuilding = null;
+    this.nearPlot = null;
+    this.slowAcc = 1000;
+  }
+
+  /** Other players inside a building (shown in its interior). */
+  playersInside(building: string): PlayerPublic[] {
+    return [...this.remotes.values()].filter((r) => r.pub.interior === building).map((r) => r.pub);
+  }
+
+  get selfCosmetics() {
+    return this.me.currentCosmetics;
   }
 
   override update(_time: number, delta: number) {
@@ -294,14 +362,15 @@ export class TownScene extends Phaser.Scene {
       this.me.tick(now);
       this.updateRemotes(now);
       this.stalls.update(delta);
+      this.npcs.update(delta);
       this.mapView.update(this.cameras.main.worldView);
       this.updateDecks(delta);
       this.slowChecks(delta);
       return;
     }
 
-    // --- local movement (client prediction) ---
-    let { x: vx, y: vy } = this.app.inputVector();
+    // --- local movement (client prediction); none while we're inside a building ---
+    let { x: vx, y: vy } = this.app.interior || this.app.home ? { x: 0, y: 0 } : this.app.inputVector();
     const len = Math.hypot(vx, vy);
     if (len > 1) {
       vx /= len;
@@ -352,6 +421,7 @@ export class TownScene extends Phaser.Scene {
 
     this.updateRemotes(now);
     this.stalls.update(delta);
+    this.npcs.update(delta);
     this.mapView.update(this.cameras.main.worldView);
     this.updateDecks(delta);
 
@@ -370,7 +440,7 @@ export class TownScene extends Phaser.Scene {
     const { map, cfg } = this.app;
     // --- slower checks: doors, district, minimap ---
     this.slowAcc += delta;
-    if (this.slowAcc >= 150) {
+    if (this.slowAcc >= 150 && !this.app.interior && !this.app.home) {
       this.slowAcc = 0;
       const tx = Math.floor(this.pos.x / map.tileSize);
       const ty = Math.floor((this.pos.y - 4) / map.tileSize);
@@ -380,6 +450,7 @@ export class TownScene extends Phaser.Scene {
       let it: (typeof map.interactables)[number] | null = null;
       let best = radius;
       for (const c of map.interactables) {
+        if (c.building) continue; // used from inside its building
         const d = Math.hypot(this.pos.x / map.tileSize - c.x, this.pos.y / map.tileSize - c.y);
         if (d < best) {
           best = d;
@@ -392,18 +463,24 @@ export class TownScene extends Phaser.Scene {
       const mine = myPlot ? map.stallPlots.find((p) => p.id === myPlot) : undefined;
       if (mine && Math.hypot(this.pos.x / map.tileSize - mine.x, this.pos.y / map.tileSize - mine.y) <= cfg.stalls.cookRadiusTiles - 1) plot = mine;
       if (plot && it && Math.hypot(this.pos.x / map.tileSize - it.x, this.pos.y / map.tileSize - it.y) < Math.hypot(this.pos.x / map.tileSize - plot.x, this.pos.y / map.tileSize - plot.y) && plot !== mine) plot = null;
-      if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot) {
+      const npc = this.me.vehicle ? null : this.npcs.nearest(this.pos.x, this.pos.y, cfg.npcs.talkRadiusTiles);
+      const npcId = npc?.id ?? null;
+      if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot || npcId !== this.nearNpc) {
         this.nearInteract = it;
         this.nearBuilding = b;
         this.nearPlot = plot;
+        this.nearNpc = npcId;
         let prompt: string | null = null;
-        if (plot) {
+        if (npc) {
+          const e = this.app.store.errand;
+          prompt = e?.npc === npc.id && e.stage === 'return' ? `🧺 Hand in to ${npc.name}` : `💬 Talk to ${npc.name}`;
+        } else if (plot) {
           const s = this.app.store.stalls.get(plot.id);
           prompt = !s ? `${cfg.stalls.tiers.find((t) => t.tier === plot.tier)?.name ?? 'Stall'} spot (free)` : plot === mine ? '🍳 Your stall' : `${s.ownerName}'s stall`;
         } else if (it) {
           const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
           prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
-        } else if (b) prompt = `Enter ${b.name ?? (b.kind === 'terrace' || b.kind === 'semid' || b.kind === 'bungalow' ? 'house' : 'shop')}`;
+        } else if (b) prompt = this.app.doorPrompt(b);
         this.app.hud?.setPrompt(prompt, this.app.touch);
       }
       // Delivery target marker + objective HUD.
@@ -412,7 +489,9 @@ export class TownScene extends Phaser.Scene {
       this.updateMarker(target);
       const cam = this.cameras.main;
       const dpr = this.app.dpr; // camera numbers are in device pixels; the DOM HUD uses CSS pixels
-      this.app.jobHud?.update(this.pos.x, this.pos.y, { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom / dpr, cx: cam.width / 2 / dpr, cy: cam.height / 2 / dpr });
+      const screen = { x: cam.worldView.x, y: cam.worldView.y, zoom: cam.zoom / dpr, cx: cam.width / 2 / dpr, cy: cam.height / 2 / dpr };
+      this.app.jobHud?.update(this.pos.x, this.pos.y, screen);
+      this.app.guide?.update(this.pos.x, this.pos.y, screen);
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
@@ -461,15 +540,41 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.shake(250 + intensity * 450, 0.004 + intensity * 0.012);
   }
 
-  /** Floating labels above crate machines, the Jobs Board, the pawn shop and the car wash. */
-  private createInteractableLabels() {
+  /**
+   * Big signposts for the places that matter (JOBS BOARD, BUY STOCK, PASAR MALAM STALLS...),
+   * colour-coded by kind and readable from far away, plus small labels for any other outdoor
+   * interactable. Things inside buildings are signposted at the building's door.
+   */
+  private createSigns() {
     const T = this.app.map.tileSize;
-    const icon: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿' };
+    const KIND_COLOR: Record<string, number> = { work: 0x2f9e44, crate: 0x7048e8, shop: 0x1c7ed6, stall: 0xe8590c, soon: 0x868e96 };
+    const pois = this.app.guide?.pois ?? [];
+    for (const p of pois) {
+      const x = p.x * T, y = p.y * T;
+      const title = this.add.text(0, 0, `${p.icon} ${p.label}`, { fontFamily: 'system-ui, sans-serif', fontSize: '17px', fontStyle: '900', color: '#ffffff', resolution: 3 }).setOrigin(0.5, 1);
+      const sub = this.add.text(0, 2, p.sub, { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#f1f3f5', resolution: 3 }).setOrigin(0.5, 0);
+      const w = Math.max(title.width, sub.width) + 22;
+      const h = title.height + (p.sub ? sub.height : 0) + 10;
+      const board = this.add.graphics();
+      board.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2 + 3, -title.height - 5 + 4, w, h, 10);
+      board.fillStyle(KIND_COLOR[p.kind] ?? 0x495057, 0.95).fillRoundedRect(-w / 2, -title.height - 5, w, h, 10);
+      board.lineStyle(2, 0xffffff, 0.85).strokeRoundedRect(-w / 2, -title.height - 5, w, h, 10);
+      // a pole down to the spot, with a little base
+      const pole = this.add.graphics();
+      pole.fillStyle(0x343a40, 1).fillRect(-2, -title.height - 5 + h, 4, 70 - (-title.height - 5 + h));
+      pole.fillStyle(0x000000, 0.25).fillEllipse(0, 72, 18, 6);
+      const sign = this.add.container(x, y - 72, [pole, board, title, ...(p.sub ? [sub] : [])]).setDepth(999_000 + y / 100);
+      sign.setAlpha(p.kind === 'soon' ? 0.75 : 1);
+      this.tweens.add({ targets: [board, title, sub], y: '-=3', duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.signs.push(sign);
+    }
+    // Any outdoor interactable without a signpost gets a small floating label.
+    const signed = new Set(pois.map((p) => p.interactable).filter(Boolean));
     for (const it of this.app.map.interactables) {
-      if (it.type === 'carwash') this.drawCarwashBay(it.x * T, it.y * T);
+      if (it.building || signed.has(it.id)) continue;
       const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
       const label = this.add
-        .text(it.x * T, it.y * T - 40, `${it.crate === 'luckybag' ? '🧧' : it.crate === 'mallbox' ? '🎁' : icon[it.type]} ${it.name}${crate ? `
+        .text(it.x * T, it.y * T - 40, `⭐ ${it.name}${crate ? `
 ${formatMoney(crate.priceSen)}` : ''}`, {
           fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#ffe066', stroke: '#11131f', strokeThickness: 4, align: 'center', resolution: 2,
         })
@@ -478,38 +583,32 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       this.tweens.add({ targets: label, y: label.y - 5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
   }
+  private signs: Phaser.GameObjects.Container[] = [];
+  private homeSigns = new Map<string, Phaser.GameObjects.Text>();
 
-  /** A roadside car wash bay: wet concrete pad, a canopy with a sign, a car waiting, a hose. */
-  private drawCarwashBay(x: number, y: number) {
-    const g = this.add.graphics().setDepth(-800);
-    // concrete pad with drain stripes and puddles
-    g.fillStyle(0x000000, 0.18).fillRoundedRect(x - 118, y - 66, 236, 104, 14);
-    g.fillStyle(0xced4da, 1).fillRoundedRect(x - 120, y - 70, 236, 100, 14);
-    g.fillStyle(0xadb5bd, 1);
-    for (let i = -100; i < 110; i += 26) g.fillRect(x + i, y + 18, 14, 4);
-    g.fillStyle(0x74c0fc, 0.45).fillEllipse(x - 60, y + 4, 54, 16).fillEllipse(x + 52, y - 10, 40, 12);
-    g.fillStyle(0xffffff, 0.6).fillCircle(x - 74, y - 2, 4).fillCircle(x - 66, y + 6, 3).fillCircle(x + 44, y - 14, 3);
-    // a hatchback waiting for a wash (top-down)
-    g.fillStyle(0x000000, 0.2).fillRoundedRect(x - 34, y - 48, 76, 40, 10);
-    g.fillStyle(0x1971c2, 1).fillRoundedRect(x - 38, y - 54, 76, 40, 11);
-    g.fillStyle(0xa5d8ff, 1).fillRoundedRect(x - 18, y - 50, 16, 32, 4).fillRoundedRect(x + 14, y - 50, 12, 32, 4);
-    g.fillStyle(0x1864ab, 1).fillRoundedRect(x - 2, y - 50, 16, 32, 3);
-    g.fillStyle(0x7c5a3a, 0.75).fillCircle(x - 28, y - 22, 5).fillCircle(x + 30, y - 46, 4).fillCircle(x + 6, y - 20, 3);
-    g.fillStyle(0xfff3bf, 1).fillRect(x - 40, y - 50, 3, 8).fillRect(x - 40, y - 26, 3, 8);
-    // hose reel
-    g.fillStyle(0xf59f00, 1).fillCircle(x + 92, y - 40, 10);
-    g.lineStyle(3, 0x2f9e44, 1).strokeCircle(x + 92, y - 40, 7);
-    g.beginPath().moveTo(x + 92, y - 32).lineTo(x + 80, y - 6).lineTo(x + 58, y + 4).strokePath();
-    // canopy posts + sign (drawn above characters so you walk "under" it)
-    const top = this.add.graphics().setDepth(1_000_001);
-    top.fillStyle(0x495057, 1).fillRect(x - 116, y - 112, 6, 50).fillRect(x + 104, y - 112, 6, 50);
-    top.fillStyle(0x1c7ed6, 0.92).fillRoundedRect(x - 124, y - 122, 240, 22, 6);
-    top.fillStyle(0xffffff, 0.92);
-    for (let i = 0; i < 8; i++) top.fillTriangle(x - 120 + i * 30, y - 100, x - 105 + i * 30, y - 100, x - 112 + i * 30, y - 92);
-    this.add
-      .text(x - 4, y - 111, '💦 KILAT CAR WASH 💦', { fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#ffffff', resolution: 2 })
-      .setOrigin(0.5)
-      .setDepth(1_000_002);
+  /** 🏷️ FOR SALE / 🏠 owner signs at every home building's door (refreshed when owners change). */
+  private syncHomeSigns() {
+    const T = this.app.map.tileSize;
+    const me = this.selfId;
+    const byBuilding = new Map<string, typeof this.app.listings>();
+    for (const u of this.app.listings) byBuilding.set(u.building, [...(byBuilding.get(u.building) ?? []), u]);
+    for (const [bid, units] of byBuilding) {
+      const owners = units.map((u) => this.app.store.props.get(u.id));
+      const free = owners.filter((o) => !o).length;
+      const mine = owners.some((o) => o?.owner === me);
+      const text = mine ? '🏠 YOUR HOME' : free === units.length ? (units.length > 1 ? `🏷️ FOR SALE · ${free} units` : '🏷️ FOR SALE') : free ? `🏷️ ${free} FOR SALE` : `🏠 ${owners[0]?.ownerName ?? ''}`;
+      const color = mine ? '#8ce99a' : free ? '#ffe066' : '#a5d8ff';
+      let t = this.homeSigns.get(bid);
+      if (!t) {
+        const u = units[0];
+        t = this.add
+          .text(u.x * T, u.y * T - 30, text, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '900', color, backgroundColor: 'rgba(17,19,31,0.75)', padding: { x: 6, y: 3 }, resolution: 2 })
+          .setOrigin(0.5, 1)
+          .setDepth(998_000);
+        this.homeSigns.set(bid, t);
+      }
+      t.setText(text).setColor(color);
+    }
   }
 
   private updateMarker(target: { x: number; y: number } | null) {

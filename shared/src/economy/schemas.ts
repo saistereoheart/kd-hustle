@@ -91,6 +91,10 @@ export const economyConfigSchema = z.object({
   /** Completing a crate's Item Index page pays crate price × this. */
   indexPageRewardMultiplier: z.number().nonnegative(),
   interactRadiusTiles: z.number().positive(),
+  /** Spec §8.7: passive income keeps going while you're logged out, capped and at a discount. */
+  offline: z.object({ capHours: z.number().positive(), efficiency: z.number().min(0).max(1) }).default({ capHours: 8, efficiency: 0.5 }),
+  /** Most pieces of furniture you can buy in one go. */
+  furnitureMaxQty: z.number().int().positive().default(10),
   rollRateLimit: rateLimit,
   /** Delay before other players see a rare-pull announcement (so it lands after the reel). */
   announceDelayMs: z.number().int().nonnegative(),
@@ -203,7 +207,8 @@ export function rideFareSen(cfg: RidesConfig, meters: number): number {
 
 /** Items that count towards the Item Index (potions are consumables, not collectibles). */
 export function isCollectible(def: ItemDef): boolean {
-  return def.type !== 'potion';
+  // Potions and store-bought furniture (fixed price, not from a crate) aren't collectibles.
+  return def.type !== 'potion' && !(def.type === 'furniture' && def.valueSen);
 }
 
 /** Cross-file checks: every pool item exists, every collectible is in exactly one crate (potions may

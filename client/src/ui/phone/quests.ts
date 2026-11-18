@@ -1,3 +1,4 @@
+import { closePanel } from '../panel';
 // HustlePhone → Quests: today's 3 daily quests (new ones every day at midnight).
 import { formatMoney, questProgress, questText } from '@kh/shared';
 import { el, toast } from '../dom';
@@ -33,11 +34,18 @@ export function renderQuests({ app, rerender }: PhoneCtx): HTMLElement[] {
         toast(`📋 Quest complete: +${reward}`, 'good');
       });
     });
+    // 📍 Where do I do this? Points the guide arrow at the place.
+    const where = !q.claimed && !prog.done ? app.guide?.questTarget(q.id) : null;
+    const whereBtn = where ? el('button', { class: 'btn small where-btn', type: 'button', title: `Show me: ${where.label}` }, `📍 ${where.label}`) : null;
+    whereBtn?.addEventListener('click', () => {
+      app.guide?.point(where!.id);
+      closePanel();
+    });
     return el(
       'div',
       { class: `quest-card${q.claimed ? ' claimed' : prog.done ? ' ready' : ''}`, 'data-quest': q.id },
       el('div', { class: 'quest-icon' }, def.icon),
-      el('div', { class: 'quest-info' }, el('div', { class: 'quest-text' }, questText(def, q.target, formatMoney)), bar, el('div', { class: 'muted small' }, `Reward: ${reward}`)),
+      el('div', { class: 'quest-info' }, el('div', { class: 'quest-text' }, questText(def, q.target, formatMoney)), bar, el('div', { class: 'muted small' }, `Reward: ${reward}`), ...(whereBtn ? [whereBtn] : [])),
       btn,
     );
   });

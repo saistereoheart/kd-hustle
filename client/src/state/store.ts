@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -27,6 +27,14 @@ export class Store {
   };
   /** When `progress` arrived (buff timers count down from here). */
   progressAt = Date.now();
+  /** Who owns which home (unit id → owner). */
+  props = new Map<string, PropPublic>();
+  /** Your own homes (full detail, with ratings and suggestions). */
+  myProps: PropSelf[] = [];
+  /** An NPC errand in progress. */
+  errand: ErrandState | null = null;
+  /** The skip-the-night vote (null until the server sends it). */
+  vote: SkipVoteState | null = null;
   /** Our food stall (private view), or null. */
   stall: StallSelf | null = null;
   /** Every stall on the map, by plot id. */
@@ -35,7 +43,13 @@ export class Store {
   clockOffset = 0;
   private listeners = new Set<Listener>();
 
+  setProps(list: PropPublic[]) {
+    this.props = new Map(list.map((p) => [p.unit, p]));
+    this.emit();
+  }
+
   load(you: SelfState) {
+    this.errand = you.errand ?? null;
     this.walletSen = you.walletSen;
     this.shards = you.shards;
     this.inventory = [...you.inventory];

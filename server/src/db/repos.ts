@@ -111,6 +111,12 @@ export function createRepos(db: DB) {
       `INSERT INTO stalls (account_id, tier, plot, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET tier = excluded.tier, plot = excluded.plot, data_json = excluded.data_json, updated_at = excluded.updated_at`,
     ),
+    propsAll: db.prepare('SELECT p.unit_id, p.account_id, p.type, p.data_json, a.username FROM properties p JOIN accounts a ON a.id = p.account_id'),
+    propUpsert: db.prepare(
+      `INSERT INTO properties (unit_id, account_id, type, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(unit_id) DO UPDATE SET account_id = excluded.account_id, type = excluded.type, data_json = excluded.data_json, updated_at = excluded.updated_at`,
+    ),
+    propDelete: db.prepare('DELETE FROM properties WHERE unit_id = ?'),
     progressById: db.prepare('SELECT xp, level, stage, title, progress_json FROM players WHERE account_id = ?'),
     setProgress: db.prepare('UPDATE players SET xp = ?, level = ?, stage = ?, title = ?, progress_json = ? WHERE account_id = ?'),
   };
@@ -151,6 +157,18 @@ export function createRepos(db: DB) {
           data: parseJson<Record<string, unknown>>(r.data_json, {}),
         })),
       save: (accountId: number, tier: number, plot: string, data: unknown) => s.stallUpsert.run(accountId, tier, plot, JSON.stringify(data), Date.now()),
+    },
+    properties: {
+      all: () =>
+        (s.propsAll.all() as Array<{ unit_id: string; account_id: number; type: string; data_json: string; username: string }>).map((r) => ({
+          unit: r.unit_id,
+          owner: r.account_id,
+          ownerName: r.username,
+          type: r.type,
+          data: parseJson<Record<string, unknown>>(r.data_json, {}),
+        })),
+      save: (unit: string, owner: number, type: string, data: unknown) => s.propUpsert.run(unit, owner, type, JSON.stringify(data), Date.now()),
+      delete: (unit: string) => s.propDelete.run(unit),
     },
     progress: {
       load: (accountId: number): ProgressRecord => {

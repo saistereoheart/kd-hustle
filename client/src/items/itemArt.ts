@@ -5,6 +5,7 @@
 //   hats:  origin = top-centre of the head, y up is negative
 //   faces: origin = between the eyes
 //   backs: origin = centre of the shoulders
+import { drawFurniturePiece, furniturePiece } from './furnitureArt';
 import type { ItemDef } from '@kh/shared';
 
 type Ctx = CanvasRenderingContext2D;
@@ -674,6 +675,17 @@ function drawGeneric(ctx: Ctx, def: ItemDef, paint: Paint) {
       ctx.textBaseline = 'middle';
       ctx.fillText('RM', 0, 1);
       break;
+    case 'furn': {
+      // Airbnb furniture: its top-down art, fitted into the icon box.
+      const pc = furniturePiece(def.id);
+      const pw = pc?.w ?? 1, ph = pc?.h ?? 1;
+      const k = 26 / Math.max(pw, ph);
+      ctx.save();
+      ctx.translate((-pw * k) / 2, (-ph * k) / 2);
+      drawFurniturePiece(ctx, def.id, pw * k, ph * k);
+      ctx.restore();
+      break;
+    }
     case 'chair':
       ctx.fillStyle = F(-9, -12, 9, 12);
       ctx.fillRect(-8, -12, 16, 12);

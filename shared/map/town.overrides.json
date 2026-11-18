@@ -20,8 +20,8 @@
     "east": 101.604
   },
   "spawn": [
-    -232,
-    120
+    -225,
+    151
   ],
   "districts": [
     {
@@ -211,6 +211,14 @@
     },
     "w467991759": {
       "hidden": true
+    },
+    "w1275938577": {
+      "name": "Kilat Car Wash",
+      "kind": "shop"
+    },
+    "w1509727667": {
+      "name": "IKEJA",
+      "kind": "furniture"
     }
   },
   "areas": [
@@ -303,8 +311,8 @@
   "decor": [
     {
       "kind": "jobsboard",
-      "x": -232,
-      "y": 117
+      "x": -225,
+      "y": 147
     },
     {
       "kind": "busstop",
@@ -322,8 +330,8 @@
       "id": "jobsboard",
       "type": "jobs",
       "name": "Jobs Board",
-      "x": -231.5,
-      "y": 118
+      "x": -224.5,
+      "y": 148.5
     },
     {
       "id": "capsule_machine",
@@ -357,14 +365,19 @@
       "id": "carwash",
       "type": "carwash",
       "name": "Kilat Car Wash",
-      "x": -199,
-      "y": 117.5
+      "building": "w1275938577"
     },
     {
       "id": "gergasi",
       "type": "market",
       "name": "Gergasi Hypermarket",
       "building": "w366614388"
+    },
+    {
+      "id": "ikeja",
+      "type": "furniture",
+      "name": "IKEJA Furniture",
+      "building": "w1509727667"
     }
   ],
   "elevate": [

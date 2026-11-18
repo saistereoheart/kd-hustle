@@ -45,7 +45,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         tierOf(rar, app.items.get(b.itemId)!.rarity).index - tierOf(rar, app.items.get(a.itemId)!.rarity).index || a.itemId.localeCompare(b.itemId),
     );
     if (!stacks.length) {
-      content.replaceChildren(el('p', { class: 'empty' }, 'Your bag is empty. Roll a crate: the Capsule Machine is at Kedai Runcit Pak Abu, next to the Jobs Board.'));
+      content.replaceChildren(el('p', { class: 'empty' }, 'Your bag is empty. Roll a crate: the Capsule Machine is inside Kedai Runcit Pak Abu, just north of the square.'));
       return;
     }
     const equippedIids = new Set(Object.values(st.equipped));

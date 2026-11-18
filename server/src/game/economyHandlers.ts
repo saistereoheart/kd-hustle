@@ -19,6 +19,8 @@ import { placePlayer } from '../systems/movement/placement';
 import { RideSystem } from '../systems/rides/rides';
 import { ProgressionSystem } from '../systems/progression/progression';
 import { StallSystem } from '../systems/stalls/stalls';
+import { NpcSystem } from '../systems/npcs/npcs';
+import { PropertySystem } from '../systems/property/property';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import type { OnlinePlayer, World } from './world';
@@ -82,7 +84,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   log.info(`Delivery jobs: ${jobs.candidateCounts.pickups} pickup shops, ${jobs.candidateCounts.dropoffs} homes`);
 
   /** Is the player standing at an interactable of this type (and crate)? */
-  const nearInteractable = (p: OnlinePlayer, type: 'crate' | 'jobs' | 'pawn' | 'carwash' | 'market', crate?: string) =>
+  const nearInteractable = (p: OnlinePlayer, type: import('@kh/shared').InteractType, crate?: string) =>
     cfg.map.interactables.some(
       (i) =>
         i.type === type &&
@@ -136,6 +138,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   // --- progression (Phase 3) ---------------------------------------------------------------
   // eslint-disable-next-line prefer-const
   let stalls: StallSystem;
+  let props: PropertySystem | null = null;
   const prog: ProgressionSystem = new ProgressionSystem(cfg, repos, econ, cryptoRand, {
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
@@ -155,7 +158,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (item.effect?.buff === 'perfectCook') return stalls.addPerfectTokens(p, item.effect.charges ?? 0);
       throw new GameError(`${item.name} can't be used yet.`);
     },
-    assetsOf: (p) => stalls.assetsOf(p),
+    assetsOf: (p) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0),
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
@@ -175,6 +178,28 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   }, 250);
   const stallSaveTimer = setInterval(() => stalls.saveDirty(), 10_000);
   world.progressOf = (p) => prog.state(p);
+  const npcs = new NpcSystem({
+    map: cfg.map,
+    cfg: cfg.npcs,
+    pay: (p, sen, xp, reason) => prog.reward(p, { sen, xp }, reason, 'errands'),
+    stageOf: (p) => p.prog.stage,
+  });
+  // --- property (Phase 5) ---------------------------------------------------------------------
+  const propSys = new PropertySystem(cfg, repos, econ, world, cryptoRand, {
+    publicChanged: () => io.emit('props', { props: propSys.all() }),
+    selfChanged: (p) => socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) }),
+    wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+    event: (p, ev) => socketOf(p)?.emit('prop:event', ev),
+  });
+  props = propSys;
+  inv.lockedIids = (p) => propSys.lockedIids(p);
+  const propTimer = setInterval(() => {
+    try {
+      propSys.tick();
+    } catch (err) {
+      log.error('property tick failed', err);
+    }
+  }, 1000);
   jobs.modsFor = (p) => {
     const m = prog.mods(p);
     return { jobPay: m.jobPay, carwashExtraSec: m.carwashExtraSec };
@@ -199,7 +224,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (!rollLimiter.hit(String(me.id))) throw new GameError('Easy, tiger! One roll at a time.');
       const crate = cfg.crateById.get(crateId);
       if (!crate) throw new GameError('Unknown crate.');
-      if (!nearInteractable(me, 'crate', crateId)) throw new GameError(`Walk to the ${crate.name} to roll it.`);
+      if (!nearInteractable(me, 'crate', crateId)) throw new GameError(`Go to the ${crate.name} to roll it.`);
       const lock = prog.crateLock(me, crate);
       if (lock) throw new GameError(lock);
       const batch = gacha.roll(me, crateId, count, rollMods(me, crateId));
@@ -233,6 +258,61 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
     handle(socket, 'skill:upgrade', C2S.skillUpgrade, ({ skill }) => prog.upgradeSkill(me, skill));
 
+    // --- property and Airbnb (Phase 5) -----------------------------------------------------
+    handle(socket, 'prop:buy', C2S.propUnit, ({ unit }) => {
+      propSys.buy(me, unit);
+      prog.check(me);
+      return {};
+    });
+    handle(socket, 'prop:sell', C2S.propUnit, ({ unit }) => propSys.sell(me, unit));
+    handle(socket, 'prop:mode', C2S.propMode, ({ unit, mode }) => {
+      propSys.setMode(me, unit, mode);
+      return {};
+    });
+    handle(socket, 'prop:prices', C2S.propPrices, ({ unit, rentSen, nightSen }) => {
+      propSys.setPrices(me, unit, rentSen, nightSen);
+      return {};
+    });
+    handle(socket, 'prop:staff', C2S.propStaff, ({ unit, role, on }) => {
+      propSys.setStaff(me, unit, role, on);
+      return {};
+    });
+    handle(socket, 'prop:layout', C2S.propLayout, ({ unit, layout }) => {
+      const r = propSys.setLayout(me, unit, layout);
+      me.prog.stats.decorations = (me.prog.stats.decorations ?? 0) + 1;
+      prog.check(me);
+      return { stars: r.stars };
+    });
+    handle(socket, 'prop:fix', C2S.propFix, ({ unit, req, how }) => propSys.fix(me, unit, req, how));
+    handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
+    handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));
+    handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
+      if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
+      const piece = cfg.furniture.pieces[item];
+      if (!piece?.storeSen) throw new GameError("That isn't sold in the store.");
+      if (qty > cfg.economy.furnitureMaxQty) throw new GameError(`Up to ${cfg.economy.furnitureMaxQty} at a time.`);
+      const cost = piece.storeSen * qty;
+      if (me.walletSen < cost) throw new GameError('Not enough money.');
+      const items = econ.run(me, () => {
+        econ.change(me, -cost, 0, 'furniture', `${item}x${qty}`);
+        return Array.from({ length: qty }, () => econ.grant(me, item, 'normal', null).item);
+      });
+      pushWallet(me, -cost, 'furniture');
+      socketOf(me)?.emit('inv:added', { items, index: [] });
+      me.prog.stats.furnitureBought = (me.prog.stats.furnitureBought ?? 0) + qty;
+      prog.check(me);
+      return { items };
+    });
+
+    // --- wandering NPCs: chat and errands ---------------------------------------------------
+    handle(socket, 'npc:talk', C2S.npc, ({ npc }) => npcs.talk(me, npc));
+    handle(socket, 'npc:accept', C2S.npc, ({ npc }) => ({ errand: npcs.accept(me, npc) }));
+    handle(socket, 'npc:progress', null, () => npcs.progress(me));
+    handle(socket, 'npc:cancel', null, () => {
+      npcs.cancel(me);
+      return {};
+    });
+
     // --- food stall (Phase 4) -----------------------------------------------------------------
     handle(socket, 'stall:buy', C2S.stallBuy, ({ tier }) => {
       stalls.buy(me, tier);
@@ -265,7 +345,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return {};
     });
     handle(socket, 'stall:stock', C2S.stallStock, ({ recipe, qty, delivery }) => {
-      if (!delivery && !nearInteractable(me, 'market')) throw new GameError('Buy in person at Gergasi Hypermarket (The Strand), or order delivery for a fee.');
+      if (!delivery && !nearInteractable(me, 'market')) throw new GameError('Buy in person inside Gergasi Hypermarket, or order delivery for a fee.');
       stalls.buyStock(me, recipe, qty, delivery);
       return {};
     });
@@ -276,7 +356,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
     // --- pawn shop + shard shop -----------------------------------------------------------
     const atPawn = () => {
-      if (!nearInteractable(me, 'pawn')) throw new GameError('Visit Kedai Pajak Untung to sell or scrap items.');
+      if (!nearInteractable(me, 'pawn')) throw new GameError('Go inside Kedai Pajak Untung to sell or scrap items.');
     };
     handle(socket, 'pawn:sell', C2S.stack, ({ itemId, variant, count }) => {
       atPawn();
@@ -304,9 +384,9 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     // --- jobs -----------------------------------------------------------------------------
     handle(socket, 'job:start', C2S.jobStart, ({ kind }) => {
       if (kind === 'carwash') {
-        if (!nearInteractable(me, 'carwash')) throw new GameError('Go to Kilat Car Wash (east of the Jobs Board) to wash cars.');
+        if (!nearInteractable(me, 'carwash')) throw new GameError('Go inside Kilat Car Wash to wash cars.');
         if (me.vehicle) throw new GameError('Hop off your ride first.');
-      } else if (!nearInteractable(me, 'jobs')) throw new GameError('Find the Jobs Board in Dataran Sunway to take a job.');
+      } else if (!nearInteractable(me, 'jobs')) throw new GameError('Find the Jobs Board in Dataran Sunway Square to take a job.');
       const job = jobs.start(me, kind);
       const { budgetMs: _b, ...visible } = job;
       return { job: visible };
@@ -553,11 +633,24 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       register(socket, me);
     },
     /** After `init`: hand out anything already earned (titles, goals...) and send the progress. */
-    afterInit: (p: OnlinePlayer) => {
-      if (p.hasCharacter) prog.check(p);
+    afterInit: (p: OnlinePlayer, awayMs = 0) => {
+      if (!p.hasCharacter) return;
+      // Offline income (homes kept earning while you were away) and the welcome-back screen.
+      const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline);
+      socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
+      if (away) {
+        socketOf(p)?.emit('welcome', away);
+        pushWallet(p);
+      }
+      prog.check(p);
     },
+    propsPublic: () => propSys.all(),
+    /** Owns a home in this building (so they may go inside it). */
+    ownsIn: (p: OnlinePlayer, building: string) => propSys.ownedBy(p).some((s) => propSys.unitOf(s.unit)?.building === building),
     saveProgress: (p: OnlinePlayer) => prog.save(p),
     stallsPublic: () => stalls.all(),
+    /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
+    clockJumped: () => stalls.tick(),
     leaveStall: (p: OnlinePlayer) => stalls.leave(p),
     chatCommand,
     moveRules,
@@ -584,6 +677,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       clearInterval(dayTimer);
       clearInterval(stallTimer);
       clearInterval(stallSaveTimer);
+      clearInterval(propTimer);
       stalls.saveDirty(true);
     },
   };

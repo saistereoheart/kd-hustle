@@ -282,7 +282,7 @@ export class ChunkRenderer {
     for (const a of m.areas) {
       if (!a.name) continue;
       const [x, y] = polyCentroid(a.poly);
-      this.labels.push({ text: a.name, x, y, angle: 0, size: 1.4, italic: true });
+      this.labels.push({ text: a.name, x, y, angle: 0, size: 1.0, italic: true });
     }
     this.labels.forEach((l, i) => {
       const half = l.text.length * l.size * 0.35 + 1;

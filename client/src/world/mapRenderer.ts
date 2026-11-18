@@ -31,22 +31,28 @@ export class MapView {
       }
     }
     const T = map.tileSize;
+    // Two kinds of building names: places you can USE (something inside: gold, heavy, with a
+    // door icon) and plain landmarks (white, lighter, smaller). Area names are drawn italic in
+    // the map chunks, street names along their roads.
+    const useful = new Set(map.interactables.map((i) => i.building).filter(Boolean));
     for (const b of map.buildings) {
       if (!b.name) continue;
       const w = (b.bbox.x1 - b.bbox.x0) * T;
+      const isUseful = useful.has(b.id);
       const t = scene.add
-        .text(((b.bbox.x0 + b.bbox.x1) / 2) * T, ((b.bbox.y0 + b.bbox.y1) / 2) * T, b.name, {
+        .text(((b.bbox.x0 + b.bbox.x1) / 2) * T, ((b.bbox.y0 + b.bbox.y1) / 2) * T, isUseful ? `🚪 ${b.name}` : b.name, {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: `${Math.max(16, Math.min(30, w / 9))}px`,
-          fontStyle: 'bold',
-          color: '#ffffff',
+          fontSize: `${isUseful ? Math.max(17, Math.min(30, w / 8)) : Math.max(14, Math.min(24, w / 10))}px`,
+          fontStyle: isUseful ? '900' : '600',
+          color: isUseful ? '#ffe066' : '#f1f3f5',
           stroke: '#1d2133',
-          strokeThickness: 5,
+          strokeThickness: isUseful ? 6 : 4,
           align: 'center',
           wordWrap: { width: Math.max(140, w - 16) },
           resolution: 2,
         })
         .setOrigin(0.5)
+        .setAlpha(isUseful ? 1 : 0.9)
         .setDepth(-900);
       this.labels.push(t);
     }

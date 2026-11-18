@@ -25,6 +25,25 @@ window.__kh = {
   openStall: (plot: string) => app.openStallAt(plot),
   plotPos: (plot: string) => app.map?.stallPlots.find((p) => p.id === plot) ?? null,
   luck: () => app.mods().luck,
+  /** Inside a building? (its id, our room position, the stations) */
+  interior: () => app.interior?.debugInfo() ?? null,
+  inv: () => app.store.inventory.map((i) => ({ iid: i.iid, itemId: i.itemId })),
+  myProps: () => app.store.myProps,
+  home: () => app.home?.debugInfo() ?? null,
+  /** Tests: place furniture in the home you're in (decorate mode). */
+  homePlace: (iid: number, item: string, x: number, y: number, rot = 0) => app.home?.debugPlace(iid, item, x, y, rot),
+  /** Tests: buy one piece of furniture (you must be inside the store; the server checks). */
+  buyFurniture: (item: string) => app.socket?.emit('furniture:buy', { item, qty: 1 }, () => {}),
+  /** Where to stand to use an interactable (tile coords for /tp). */
+  spotOf: (id: string) => {
+    const it = app.map?.interactables.find((i) => i.id === id);
+    return it ? { x: Math.floor(it.x), y: Math.floor(it.y) } : null;
+  },
+  /** Where to stand to enter a building (door front, tile coords). */
+  doorOf: (id: string) => {
+    const d = app.map?.buildings.find((b) => b.id === id)?.door;
+    return d ? { x: d.frontX + 0.5, y: d.frontY + 0.5 } : null;
+  },
   /** Open the UI of an interactable by id (the server still checks you are standing there). */
   open: (id: string) => {
     const it = app.map?.interactables.find((i) => i.id === id);

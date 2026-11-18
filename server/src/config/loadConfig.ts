@@ -12,6 +12,7 @@ import {
   validateProgressionConfigs, type ProgCfg, type UpgradesConfig, type LevelsConfig, type StagesConfig, type TitlesConfig,
   type QuestsConfig, type GoalsConfig,
   timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
+  interiorsConfigSchema, type InteriorsConfig, guideConfigSchema, type GuideConfig, npcsConfigSchema, type NpcsConfig, furnitureConfigSchema, propertiesConfigSchema, type FurnitureConfig, type PropertiesConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -44,6 +45,11 @@ export interface ServerConfig {
   time: TimeConfig;
   recipes: RecipesConfig;
   stalls: StallsConfig;
+  interiors: InteriorsConfig;
+  guide: GuideConfig;
+  npcs: NpcsConfig;
+  furniture: FurnitureConfig;
+  properties: PropertiesConfig;
   recipeById: Map<string, RecipeDef>;
   /** The configs progression needs, in one bundle (shared with the client's maths). */
   prog: ProgCfg;
@@ -100,6 +106,11 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
   const stalls = readJson(j('stalls.json'), stallsConfigSchema);
   const recipeById = new Map(recipes.recipes.map((r) => [r.id, r]));
   for (const r of recipes.recipes) if (r.unlock && !recipeById.has(r.unlock.recipe)) throw new Error(`recipes.json: ${r.id} unlocks from unknown recipe ${r.unlock.recipe}`);
+  const furniture = readJson(j('furniture.json'), furnitureConfigSchema);
+  for (const id of Object.keys(furniture.pieces)) {
+    const def = itemById.get(id);
+    if (!def || def.type !== 'furniture') throw new Error(`furniture.json: ${id} must be an item of type "furniture" in items.json`);
+  }
   const progProblems = validateProgressionConfigs(prog);
   if (progProblems.length) throw new Error(`Invalid progression config:\n  - ${progProblems.slice(0, 8).join('\n  - ')}`);
   return {
@@ -119,6 +130,11 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     time,
     recipes,
     stalls,
+    interiors: readJson(j('interiors.json'), interiorsConfigSchema),
+    guide: readJson(j('guide.json'), guideConfigSchema),
+    npcs: readJson(j('npcs.json'), npcsConfigSchema),
+    furniture,
+    properties: readJson(j('properties.json'), propertiesConfigSchema),
     recipeById,
     prog,
     itemById,
@@ -162,5 +178,10 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     time: cfg.time,
     recipes: cfg.recipes,
     stalls: cfg.stalls,
+    interiors: cfg.interiors,
+    guide: cfg.guide,
+    npcs: cfg.npcs,
+    furniture: cfg.furniture,
+    properties: cfg.properties,
   };
 }

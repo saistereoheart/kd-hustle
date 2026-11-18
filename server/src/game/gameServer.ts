@@ -2,7 +2,7 @@
 // the World, validates every message with zod, and broadcasts position snapshots.
 import type { Server, Socket } from 'socket.io';
 import {
-  C2S, DIR_INDEX, validateAppearance,
+  C2S, DIR_INDEX, atDoor, roomStyleOf, validateAppearance,
   type ClientToServerEvents, type InitPayload, type ServerToClientEvents, type SnapshotRow,
 } from '@kh/shared';
 import type { AuthedAccount, AuthService } from '../auth/authService';
@@ -16,6 +16,7 @@ import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
 import { EmoteSystem } from '../systems/emotes/emotes';
+import { SkipNightVote } from '../systems/timeskip/timeskip';
 import { attachEconomy } from './economyHandlers';
 import { emptyProgress } from '../systems/progression/progression';
 import type { OnlinePlayer, World } from './world';
@@ -44,6 +45,29 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   // Test-only switch so automated tests can use admin commands with throwaway accounts.
   const allAdmin = process.env.KH_TEST_ALL_ADMIN === '1';
   const spawn = cfg.map.spawnPx;
+
+  // --- skip-the-night vote ------------------------------------------------------------
+  const skip = new SkipNightVote(cfg.time, cfg.time.skipVote);
+  /** Players connected right now (not ones in their reconnect grace period). */
+  const onlineCount = () => [...world.players.values()].filter((p) => p.hasCharacter && !offline.has(p.id)).length;
+  const voteState = () => skip.state(onlineCount(), Date.now());
+  const systemSay = (text: string) => io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+  const skipNight = () => {
+    cfg.time.offsetGameMinutes += skip.skipMinutes(Date.now());
+    io.emit('time:offset', { offsetGameMinutes: cfg.time.offsetGameMinutes });
+    economy.clockJumped();
+    systemSay('🌅 Vote passed: the night was skipped. Good morning, Kota Damansara!');
+  };
+  const voteTimer = setInterval(() => {
+    if (skip.tick(Date.now())) {
+      systemSay('🌙 Not enough votes: the night goes on.');
+      io.emit('time:vote', voteState());
+    }
+  }, 1000);
+
+  // --- reconnect grace: a dropped connection keeps you in the world for a bit ---------------
+  /** Players whose socket dropped, with the timer that removes them for good. */
+  const offline = new Map<number, NodeJS.Timeout>();
 
   // --- auth handshake -------------------------------------------------------------
   io.use((socket, next) => {
@@ -77,20 +101,29 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     chat: chat.list(),
     serverTime: Date.now(),
     stalls: economy.stallsPublic(),
+    props: economy.propsPublic(),
   });
 
   io.on('connection', (socket: GameSocket) => {
     const acc = socket.data.account;
     let p = world.get(acc.id);
 
+    /** How long they were logged out (for offline income); 0 when back within the grace period. */
+    let awayMs = 0;
+    const pending = offline.get(acc.id);
+    if (pending) {
+      clearTimeout(pending);
+      offline.delete(acc.id);
+    }
     if (p) {
-      // Same account connected again (second tab/device): the newest connection wins.
+      // Same account connected again (second tab/device, or back within the grace period).
       saves.saveNow(p);
       const oldId = p.socketId;
       p.socketId = socket.id;
       if (oldId !== socket.id) kickSocket(oldId, 'This account was opened somewhere else.');
     } else {
       const rec = repos.players.load(acc.id);
+      if (rec?.lastSavedAt) awayMs = Math.max(0, Date.now() - rec.lastSavedAt);
       if (!rec) {
         log.warn(`No player row for account ${acc.id}`);
         socket.disconnect(true);
@@ -118,6 +151,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         mapVersion: cfg.map.overrides.version,
         move: newMoveState(x, y, Date.now(), cfg.movement),
         emote: null,
+        interior: null,
         walletSen: 0,
         shards: 0,
         inventory: [],
@@ -136,6 +170,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         rideQuote: null,
         ride: null,
         prog: emptyProgress(),
+        errand: null,
       };
       economy.loadInto(p);
       world.add(p);
@@ -147,7 +182,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     void socket.join(me.scene);
     socket.emit('init', buildInit(me));
     economy.register(socket, me);
-    economy.afterInit(me);
+    economy.afterInit(me, awayMs);
+    socket.emit('time:vote', voteState());
 
     // --- character creator ----------------------------------------------------------
     socket.on('character:save', (msg, ack) => {
@@ -186,6 +222,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         return;
       }
       if (me.x !== m.x || me.y !== m.y || me.dir !== m.dir) me.dirty = true;
+      // Walking around outdoors means you've left the building.
+      if (me.interior && (me.x !== m.x || me.y !== m.y)) {
+        me.interior = null;
+        io.to(me.scene).emit('player:updated', { id: me.id, interior: null });
+      }
       if (emotes.onMove(me, m.moving)) io.to(me.scene).emit('emote:stopped', { id: me.id });
       me.x = m.x;
       me.y = m.y;
@@ -220,6 +261,40 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       if (res.kind === 'played') io.to(me.scene).emit('emote:played', { id: me.id, emote: res.emote });
     });
 
+    // --- skip the night -----------------------------------------------------------------
+    socket.on('time:vote', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const parsed = C2S.timeVote.safeParse(msg);
+      if (!parsed.success || !me.hasCharacter) return reply({ ok: false, error: 'Bad request' });
+      const wasActive = skip.active;
+      const res = skip.vote(me.id, me.name, parsed.data.yes, onlineCount(), Date.now());
+      if (!res.ok) return reply({ ok: false, error: res.error });
+      reply({ ok: true });
+      if (res.passed) skipNight();
+      else if (!wasActive) systemSay(`🗳️ ${me.name} wants to skip the night. Vote in 📱 → Clock (${res.state.needed} of ${res.state.online} needed).`);
+      io.emit('time:vote', voteState());
+    });
+
+    // --- building interiors --------------------------------------------------------------
+    socket.on('interior', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const parsed = C2S.interior.safeParse(msg);
+      if (!parsed.success || !me.hasCharacter) return reply({ ok: false, error: 'Bad request' });
+      const id = parsed.data.building;
+      if (id !== null) {
+        const b = cfg.map.buildings.find((x) => x.id === id);
+        if (!b || (!roomStyleOf(cfg.interiors, b) && !economy.ownsIn(me, id))) return reply({ ok: false, error: "You can't go in there." });
+        if (me.ride || me.vehicle) return reply({ ok: false, error: 'Get off your ride first.' });
+        const T = cfg.map.tileSize;
+        if (!atDoor(cfg.map, id, me.x / T, me.y / T, cfg.interiors.enterRadiusTiles + 1.5)) return reply({ ok: false, error: 'Walk up to the door first.' });
+      }
+      if (me.interior !== id) {
+        me.interior = id;
+        io.to(me.scene).emit('player:updated', { id: me.id, interior: id });
+      }
+      reply({ ok: true });
+    });
+
     socket.on('emote:stop', () => {
       if (emotes.stop(me)) io.to(me.scene).emit('emote:stopped', { id: me.id });
     });
@@ -232,22 +307,42 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       setTimeout(() => socket.disconnect(true), 100);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       const current = world.get(me.id);
       if (!current || current.socketId !== socket.id) return; // replaced by a newer connection
-      if (current.job) economy.cancelJob(current);
-      economy.leave(current); // off the ride; a Ronda passenger is dropped off where they are
-      economy.flushManifest(current);
+      // Save straight away (never lose progress), but keep them in the world for a short grace
+      // period: a WiFi hiccup reconnects without anyone noticing. Logging out leaves at once.
       try {
-        economy.saveProgress(current); // buff timers pause while offline
-        economy.leaveStall(current); // the stall closes while its owner is away
+        economy.flushManifest(current);
+        economy.saveProgress(current);
         saves.saveNow(current); // save trigger 3
       } catch (err) {
         log.error(`Save on disconnect failed for ${me.name}`, err);
       }
-      world.remove(me.id);
-      if (current.hasCharacter) io.to(current.scene).emit('player:left', { id: me.id });
-      log.info(`${me.name} disconnected (${world.players.size} online)`);
+      const graceMs = reason === 'server namespace disconnect' ? 0 : cfg.net.reconnectGraceMs;
+      const remove = () => {
+        offline.delete(me.id);
+        const p = world.get(me.id);
+        if (!p || p.socketId !== socket.id) return; // came back on a new connection
+        if (p.job) economy.cancelJob(p);
+        economy.leave(p); // off the ride; a Ronda passenger is dropped off where they are
+        economy.flushManifest(p);
+        try {
+          economy.saveProgress(p); // buff timers pause while offline
+          economy.leaveStall(p); // the stall closes while its owner is away
+          saves.saveNow(p);
+        } catch (err) {
+          log.error(`Save on leave failed for ${me.name}`, err);
+        }
+        world.remove(me.id);
+        if (p.hasCharacter) io.to(p.scene).emit('player:left', { id: me.id });
+        log.info(`${me.name} left (${world.players.size} online)`);
+        if (skip.leave(me.id, onlineCount(), Date.now())) skipNight();
+        io.emit('time:vote', voteState());
+      };
+      if (graceMs <= 0) return remove();
+      offline.set(me.id, setTimeout(remove, graceMs));
+      log.info(`${me.name} disconnected; keeping them for ${Math.round(graceMs / 1000)} s in case they reconnect`);
     });
   });
 
@@ -269,6 +364,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   return {
     stop() {
       clearInterval(snapshotTimer);
+      clearInterval(voteTimer);
+      for (const t of offline.values()) clearTimeout(t);
       economy.stop();
       for (const p of world.players.values()) {
         economy.flushManifest(p);

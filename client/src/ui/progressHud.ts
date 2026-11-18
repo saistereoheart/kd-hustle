@@ -78,11 +78,26 @@ export class ProgressHud {
       const pct = Math.min(100, (g.progress.cur / Math.max(1e-9, g.progress.target)) * 100);
       const bar = el('div', { class: 'progress goal-progress' }, el('i', {}));
       (bar.firstChild as HTMLElement).style.width = `${pct}%`;
+      // Where: a "📍 Show me" line when the goal happens somewhere (toggles the guide arrow).
+      const where = app.guide?.goalTarget();
+      const whereLine: HTMLElement[] = [];
+      if (where) {
+        const pos = app.town?.debugSelf();
+        const m = pos ? app.guide!.goalDistance(pos.x, pos.y) : null;
+        const on = app.guide!.following;
+        const w = el('span', { class: `goal-where${on ? ' on' : ''}`, role: 'button', 'data-testid': 'goal-where' }, `${on ? '🧭 Following' : '📍 Show me'}: ${where.icon} ${where.label}${m !== null ? ` · ${m} m` : ''}`);
+        w.addEventListener('click', (e) => {
+          e.stopPropagation();
+          app.guide?.toggleGoal();
+        });
+        whereLine.push(w);
+      }
       this.goal.replaceChildren(
         el('div', { class: 'goal-head' }, el('span', { class: 'goal-label' }, '🎯 Next goal'), el('span', { class: 'goal-count' }, progressLabel(g.progress))),
         el('div', { class: 'goal-text' }, g.text),
         bar,
-        ...(this.expanded && g.hint ? [el('div', { class: 'goal-hint' }, g.hint, el('span', { class: 'goal-more' }, ' Tap again for the full path →'))] : []),
+        ...whereLine,
+        ...(this.expanded && g.hint ? [el('div', { class: 'goal-hint' }, `💡 How: ${g.hint}`, el('span', { class: 'goal-more' }, ' Tap again for the full path →'))] : []),
       );
       this.goal.classList.remove('hidden');
     } else this.goal.classList.add('hidden');
@@ -96,6 +111,12 @@ export class ProgressHud {
       });
       chips.push(b);
     };
+    const er = st.errand;
+    if (er) {
+      chip('errand-chip', `🧺 ${er.stage === 'go' ? `Errand: go to ${er.place.name}` : `Errand: back to ${er.npcName}`} · ${mmss(er.expiresAt - st.serverNow())}`, () => {
+        if (confirm(`Give up ${er.npcName}'s errand?`)) app.cancelErrand();
+      }, 'errand-chip');
+    }
     if (pr.daily.canClaim) chip('pulse gift', `🎁 Day ${pr.daily.nextDay} reward`, () => app.openPhone('daily'), 'daily-chip');
     if (pr.quests.length) {
       let ready = 0;

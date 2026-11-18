@@ -16,7 +16,7 @@
     },
     {
       "tier": 3, "id": "kopitiam", "name": "Kopitiam", "icon": "🏪",
-      "desc": "A shoplot kopitiam next to the Jobs Board. Opens 6 AM – 2 AM, the best prices.",
+      "desc": "A shoplot kopitiam in Dataran Sunway. Opens 6 AM – 2 AM, the best prices.",
       "priceSen": 25000000, "requires": { "stage": 3 }, "hours": [6, 2], "priceMult": 6,
       "customersPerMin": 6.5, "patienceSec": [60, 100], "queueBase": 6, "staffMax": 4,
       "hireSen": 2000000, "wagePerDaySen": 240000, "upgradeCostMult": 30
@@ -29,7 +29,7 @@
     "supplier": { "name": "Supplier contract", "icon": "📦", "desc": "−5% ingredient prices per level.", "maxLevel": 8, "baseCostSen": 20000, "costGrowth": 1.6, "perLevel": 0.05 },
     "training": { "name": "Staff training", "icon": "🎓", "desc": "Your cooks work 10% faster per level.", "maxLevel": 10, "baseCostSen": 30000, "costGrowth": 1.6, "perLevel": 0.1 }
   },
-  "staff": { "cookSec": 18, "passiveRate": 0.5 },
+  "staff": { "cookSec": 14, "passiveRate": 0.6 },
   "reputation": {
     "start": 50, "max": 100,
     "perQuality": { "perfect": 2, "great": 1, "good": 0, "ok": -1, "burnt": -4 },

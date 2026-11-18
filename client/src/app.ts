@@ -1,8 +1,9 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
 import {
-  buildMap, buildSnapshot, computeMods, EQUIP_SLOTS, randomAppearance,
-  type Appearance, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
+  buildMap, buildSnapshot, computeMods, EQUIP_SLOTS, formatMoney, randomAppearance,
+  buildListings, roomStyleOf, type Unit,
+  type Appearance, type BuiltBuilding, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
   type ProgCfg, type ProgressSnapshot, type PublicConfig,
 } from '@kh/shared';
 import { celebrate } from './ui/celebrate';
@@ -41,6 +42,16 @@ import { Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
 import { openSettings } from './ui/settings';
 import { TownScene } from './world/townScene';
+import { InteriorScene } from './world/interiorScene';
+import { Guide } from './ui/guide';
+import { VoteBanner } from './ui/voteBanner';
+import { rememberLook, showTitleScreen } from './ui/titleScreen';
+import { openErrandOffer } from './ui/errand';
+import { HomeScene } from './world/homeScene';
+import { openPropertyPanel } from './ui/property/propertyPanel';
+import { openFurnitureStore } from './ui/property/furnitureStore';
+import { showWelcomeBack } from './ui/property/welcome';
+import { setFurnitureCatalog } from './items/furnitureArt';
 
 export class App {
   cfg!: PublicConfig;
@@ -56,6 +67,9 @@ export class App {
   crates = new Map<string, CrateDef>();
   cratesOfItem = new Map<string, CrateDef>();
   jobHud: DeliveryHud | null = null;
+  /** Guide arrow to goals/places + random hints. */
+  guide: Guide | null = null;
+  voteBanner: VoteBanner | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -70,6 +84,13 @@ export class App {
   /** Canvas pixels per CSS pixel (see renderDpr). */
   dpr = 1;
   town: TownScene | null = null;
+  /** The building we're inside (its interior scene runs over the town), or null. */
+  interior: InteriorScene | null = null;
+  /** Inside one of our own homes (its scene runs over the town), or null. */
+  home: HomeScene | null = null;
+  /** Every home for sale on the map (computed from the map + properties.json). */
+  listings: Unit[] = [];
+  private townBlur: Phaser.FX.Blur | null = null;
   lastInit: InitPayload | null = null;
   lastSavedAt: number | null = null;
   private kicked = false;
@@ -91,6 +112,8 @@ export class App {
       return;
     }
     this.map = buildMap(this.cfg.map, this.cfg.terrain);
+    this.listings = buildListings(this.map, this.cfg.properties);
+    setFurnitureCatalog(this.cfg.furniture);
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) for (const id of c.pool) this.cratesOfItem.set(id, c);
@@ -129,6 +152,8 @@ export class App {
       style.width = `${innerWidth}px`;
       style.height = `${innerHeight}px`;
       this.town?.onViewportResize(w, h);
+      this.interior?.fit();
+      this.home?.fit();
     };
     const queueFit = () => {
       if (!pending) pending = requestAnimationFrame(fit);
@@ -136,12 +161,43 @@ export class App {
     addEventListener('resize', queueFit);
     document.addEventListener('fullscreenchange', queueFit);
     this.game.scene.add('town', TownScene, false);
+    this.game.scene.add('interior', InteriorScene, false);
+    this.game.scene.add('home', HomeScene, false);
     this.bindKeys();
     loading.remove();
 
-    const token = loadToken();
-    if (token) this.connect(token);
-    else showAuthScreen(this.cfg, (t) => this.connect(t));
+    this.showTitle();
+  }
+
+  /** The start screen (every page load, and after losing the connection for good). */
+  showTitle(notice?: string) {
+    showTitleScreen(this.cfg, {
+      notice,
+      loggedIn: !!loadToken(),
+      onStart: () => {
+        const token = loadToken();
+        if (token) this.connect(token);
+        else showAuthScreen(this.cfg, (t) => this.connect(t));
+      },
+      onLogout: () => {
+        clearToken();
+        location.reload();
+      },
+    });
+  }
+
+  /** The connection is gone for good: back to the start screen. */
+  private dropToTitle(notice: string) {
+    const sock = this.socket;
+    if (sock) {
+      sock.io.opts.reconnection = false;
+      sock.removeAllListeners();
+      sock.disconnect();
+    }
+    this.socket = null;
+    this.setReconnecting(false);
+    this.leaveTown();
+    this.showTitle(notice);
   }
 
   /** Our live bonuses (luck, XP, job pay, walk speed...), computed like the server does. */
@@ -192,7 +248,7 @@ export class App {
     this.keyboard.onPress('KeyQ', () => inTown() && this.emotes?.toggle());
     this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
     this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
-    this.keyboard.onPress('KeyE', () => inTown() && this.town?.interact());
+    this.keyboard.onPress('KeyE', () => inTown() && !isPanelOpen() && this.interact());
     // Tab or P: the HustlePhone (spec §16). Settings live in the phone and behind the ⚙️ button.
     this.keyboard.onPress('Tab', (e) => {
       if (!inTown()) return;
@@ -203,6 +259,8 @@ export class App {
     this.keyboard.onPress('KeyB', () => inTown() && !isPanelOpen() && openInventoryPanel(this));
     this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && this.openPhone());
     this.keyboard.onPress('Escape', () => {
+      if (this.interior && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen) this.interior.leave();
+      else if (this.home && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen && !document.querySelector('.modal-backdrop')) this.home.leave();
       this.emotes?.close();
       this.minimap?.closeFull();
     });
@@ -295,6 +353,7 @@ export class App {
     const socket = connectSocket(token);
     this.socket = socket;
     socket.on('connect', () => this.setReconnecting(false));
+    socket.io.on('reconnect_attempt', () => this.setReconnecting(true));
     socket.on('connect_error', (err) => {
       if (err.message === 'unauthorized') {
         clearToken();
@@ -335,6 +394,19 @@ export class App {
     });
     socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
     socket.on('stalls', ({ stalls }) => this.store.setStalls(stalls));
+    socket.on('props', ({ props }) => this.store.setProps(props));
+    socket.on('props:self', ({ props }) => {
+      this.store.myProps = props;
+      this.store.emit();
+    });
+    socket.on('prop:event', (ev) => toast(ev.text, ev.kind, 5000));
+    socket.on('welcome', (w) => showWelcomeBack(this, w));
+    socket.on('time:vote', (v) => {
+      const started = v.active && !this.store.vote?.active;
+      this.store.vote = v;
+      this.store.emit();
+      if (started) sfx.chime();
+    });
     socket.on('time:offset', ({ offsetGameMinutes }) => {
       this.cfg.time.offsetGameMinutes = offsetGameMinutes;
       this.store.emit();
@@ -360,27 +432,52 @@ export class App {
     });
   }
 
+  private reconnectTimer = 0;
+
+  /**
+   * A dropped connection: keep playing on screen (a small banner counts down) while the socket
+   * reconnects. Back within the grace period → carry on as if nothing happened. Still gone →
+   * back to the start screen.
+   */
   private setReconnecting(on: boolean) {
     if (on && !this.reconnecting) {
-      this.reconnecting = messageOverlay('Reconnecting…', 'Lost connection to the server. Trying again.');
+      const grace = this.cfg.net.reconnectGraceMs;
+      const until = Date.now() + grace;
+      const text = el('span', {}, '📶 Reconnecting…');
+      this.reconnecting = el('div', { class: 'reconnect-banner', 'data-testid': 'reconnecting' }, text);
+      uiRoot().append(this.reconnecting);
+      this.reconnectTimer = window.setInterval(() => {
+        const left = Math.ceil((until - Date.now()) / 1000);
+        text.textContent = `📶 Reconnecting… ${Math.max(0, left)}s`;
+        if (left <= 0) this.dropToTitle('Lost connection to the server. Press START GAME to join again.');
+      }, 500);
     } else if (!on && this.reconnecting) {
+      clearInterval(this.reconnectTimer);
       this.reconnecting.remove();
       this.reconnecting = null;
     }
   }
 
   private onInit(p: InitPayload) {
+    const resume = !!this.town && !p.needsCharacter && this.lastInit?.you.id === p.you.id && document.body.dataset.state === 'town';
     this.lastInit = p;
+    if (p.you.appearance) rememberLook(p.you.appearance);
     // A ride ends if we were disconnected (the server drops us off where we were).
     this.rideHud?.destroy();
     this.rideHud = null;
     this.store.load(p.you);
     this.store.clockOffset = p.serverTime - Date.now();
     this.store.setStalls(p.stalls, true);
+    this.store.setProps(p.props ?? []);
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {
       this.leaveTown();
       this.openCreator(true);
+    } else if (resume) {
+      // Back after a short drop-out: keep the scene, just catch up with the world.
+      this.town!.resync(p);
+      this.store.emit();
+      if (this.interior) this.socket?.emit('interior', { building: this.interior.building.id }, () => {});
     } else {
       this.enterTown(p);
     }
@@ -419,6 +516,14 @@ export class App {
   }
 
   private enterTown(p: InitPayload) {
+    if (this.interior || this.home) {
+      if (this.interior) this.game.scene.stop('interior');
+      if (this.home) this.game.scene.stop('home');
+      this.interior = null;
+      this.home = null;
+      this.townBlur = null;
+      delete document.body.dataset.inside;
+    }
     if (this.game.scene.isActive('town') || this.game.scene.isPaused('town')) this.game.scene.stop('town');
     if (!this.hud) {
       this.hud = new Hud({
@@ -429,7 +534,7 @@ export class App {
         onEmote: () => this.emotes?.toggle(),
         onMap: () => this.minimap?.openFull(),
         onSettings: () => this.openSettings(),
-        onInteract: () => this.town?.interact(),
+        onInteract: () => this.interact(),
         onBag: () => openInventoryPanel(this),
         onPhone: () => this.openPhone(),
         attribution: this.map.attribution,
@@ -438,6 +543,9 @@ export class App {
       this.hotbar = new Hotbar(this);
       this.hud.setWallet(this.store.walletSen, this.store.shards);
       this.jobHud = new DeliveryHud(this);
+      this.guide = new Guide(this);
+      this.minimap?.setPois(this.guide.pois);
+      this.voteBanner = new VoteBanner(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
@@ -474,9 +582,142 @@ export class App {
     else this.socket.emit('emote', { emote: id });
   }
 
+  /** E / the interact button: inside a building it uses what you're at, outdoors the town decides. */
+  interact() {
+    if (this.interior) this.interior.interact();
+    else if (this.home) return;
+    else this.town?.interact();
+  }
+
+  /** What the prompt says at a building's door. */
+  doorPrompt(b: BuiltBuilding): string {
+    const units = this.listings.filter((u) => u.building === b.id);
+    if (units.length) {
+      const me = this.lastInit?.you.id;
+      const mine = units.filter((u) => this.store.props.get(u.id)?.owner === me).length;
+      const free = units.filter((u) => !this.store.props.has(u.id)).length;
+      const t = this.cfg.properties.types[units[0].type];
+      if (mine) return `🏠 Your ${units.length > 1 ? 'unit' : t.name.toLowerCase()} · go in`;
+      return free ? `🏷️ FOR SALE · ${free > 1 ? `${free} units` : t.name}` : `🔒 ${t.name} (owned)`;
+    }
+    const style = roomStyleOf(this.cfg.interiors, b);
+    const name = b.name ?? (style ? this.cfg.interiors.styles[style]?.label : null) ?? 'house';
+    if (!style) return `🔒 ${name}`;
+    const inside = this.map.interactables.filter((i) => i.building === b.id && i.name !== b.name).map((i) => i.name);
+    return `🚪 Enter ${name}${inside.length ? ` · ${inside.join(', ')}` : ''}`;
+  }
+
+  // ------------------------------------------------------------------ NPCs and errands
+  /** Talk to a wandering NPC: a line of chat, sometimes a little job. */
+  talkTo(npc: number) {
+    const e = this.store.errand;
+    if (e && e.npc === npc && e.stage === 'return') return this.progressErrand();
+    this.socket?.timeout(5000).emit('npc:talk', { npc }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.town?.npcs.say(npc, res.line);
+      if (res.offer) openErrandOffer(this, npc, res.offer);
+    });
+  }
+
+  private errandPending = false;
+  /** At the errand's place, or back at the NPC: the server checks and moves it on. */
+  progressErrand() {
+    if (this.errandPending) return;
+    this.errandPending = true;
+    this.socket?.timeout(5000).emit('npc:progress', (err, res) => {
+      this.errandPending = false;
+      if (err) return;
+      if (!res.ok) {
+        if (/gave up/.test(res.error)) {
+          this.store.errand = null;
+          this.store.emit();
+          toast(res.error, 'bad');
+        }
+        return;
+      }
+      const npc = this.store.errand?.npc;
+      this.store.errand = res.errand;
+      this.store.emit();
+      if (res.paidSen !== undefined) {
+        sfx.coin();
+        if (npc !== undefined && res.text) this.town?.npcs.say(npc, res.text);
+        toast(`🧺 Errand done! +${formatMoney(res.paidSen)}`, 'good', 4000);
+      } else if (res.text) {
+        sfx.click();
+        toast(res.text, 'info', 4500);
+      }
+    });
+  }
+
+  cancelErrand() {
+    this.socket?.timeout(5000).emit('npc:cancel', () => {
+      this.store.errand = null;
+      this.store.emit();
+    });
+  }
+
+  /** Go into a building through the door we're standing at. */
+  enterBuilding(b: BuiltBuilding) {
+    if (this.interior || this.home) return;
+    // Homes: the sale / ownership panel (your own unit: straight in).
+    if (this.listings.some((u) => u.building === b.id)) return void openPropertyPanel(this, b);
+    const styleId = roomStyleOf(this.cfg.interiors, b);
+    const style = styleId ? this.cfg.interiors.styles[styleId] : undefined;
+    if (!style) return void toast(this.cfg.interiors.lockedMessage);
+    if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
+    this.socket?.timeout(5000).emit('interior', { building: b.id }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      if (this.interior || !this.town) return;
+      sfx.door();
+      this.game.scene.run('interior', { app: this, building: b, style });
+      this.interior = this.game.scene.getScene('interior') as InteriorScene;
+      document.body.dataset.inside = b.id;
+      // Blur the town behind the room (WebGL only; the dark overlay alone works everywhere).
+      try {
+        this.townBlur = this.town.cameras.main.postFX?.addBlur(1, 2, 2, 1.2) ?? null;
+      } catch {
+        this.townBlur = null;
+      }
+    });
+  }
+
+  /** Go into one of our own homes (from its door). */
+  enterHome(unit: string) {
+    if (this.interior || this.home || !this.town) return;
+    const u = this.listings.find((x) => x.id === unit);
+    if (!u) return;
+    if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
+    this.socket?.emit('interior', { building: u.building }, () => {});
+    sfx.door();
+    this.game.scene.run('home', { app: this, unit });
+    this.home = this.game.scene.getScene('home') as HomeScene;
+    this.hud?.setPrompt(null, this.touch);
+    document.body.dataset.inside = u.building;
+    try {
+      this.townBlur = this.town.cameras.main.postFX?.addBlur(1, 2, 2, 1.2) ?? null;
+    } catch {
+      this.townBlur = null;
+    }
+  }
+
+  exitBuilding() {
+    if (!this.interior && !this.home) return;
+    this.socket?.emit('interior', { building: null }, () => {});
+    if (this.interior) this.game.scene.stop('interior');
+    if (this.home) this.game.scene.stop('home');
+    this.interior = null;
+    this.home = null;
+    delete document.body.dataset.inside;
+    if (this.townBlur) this.town?.cameras.main.postFX?.remove(this.townBlur);
+    this.townBlur = null;
+    this.hud?.setPrompt(null, this.touch);
+    this.town?.refreshPrompt();
+  }
+
   /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
-  openInteractable(it: { type: 'crate' | 'jobs' | 'pawn' | 'carwash' | 'market'; crate?: string }) {
+  openInteractable(it: { type: import('@kh/shared').InteractType; crate?: string }) {
     if (it.type === 'market') openMarketPanel(this);
+    else if (it.type === 'furniture') openFurnitureStore(this);
     else if (it.type === 'crate' && it.crate) openCratePanel(this, it.crate);
     else if (it.type === 'jobs') openJobsPanel(this);
     else if (it.type === 'pawn') openPawnPanel(this);
@@ -493,6 +734,11 @@ export class App {
   }
 
   private leaveTown() {
+    if (this.interior) this.game.scene.stop('interior');
+    if (this.home) this.game.scene.stop('home');
+    this.interior = null;
+    this.home = null;
+    this.townBlur = null;
     if (this.game?.scene.isActive('town')) this.game.scene.stop('town');
     this.town = null;
     this.settings?.close();
@@ -500,6 +746,10 @@ export class App {
     closePanel();
     this.jobHud?.destroy();
     this.jobHud = null;
+    this.guide?.destroy();
+    this.guide = null;
+    this.voteBanner?.destroy();
+    this.voteBanner = null;
     this.progressHud?.destroy();
     this.progressHud = null;
     this.hud?.destroy();

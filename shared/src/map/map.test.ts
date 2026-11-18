@@ -100,7 +100,7 @@ describe('town map v2 (OSM, real scale)', () => {
       const i = gridIndexAt(map, it.x * map.tileSize, it.y * map.tileSize);
       expect(seen[i], it.id).toBe(1);
     }
-    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'gergasi', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
+    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'gergasi', 'ikeja', 'jobsboard', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter']);
   });
 
   it('puts every stall plot, and its queue, on reachable ground', () => {

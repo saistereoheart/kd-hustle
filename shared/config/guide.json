@@ -1,0 +1,281 @@
+{
+  "pois": [
+    {
+      "id": "jobs",
+      "label": "JOBS BOARD",
+      "sub": "Deliveries · start here",
+      "icon": "📋",
+      "kind": "work",
+      "interactable": "jobsboard"
+    },
+    {
+      "id": "carwash",
+      "label": "CAR WASH JOBS",
+      "sub": "Kilat Car Wash",
+      "icon": "🧽",
+      "kind": "work",
+      "building": "w1275938577"
+    },
+    {
+      "id": "capsule",
+      "label": "CAPSULE MACHINE",
+      "sub": "Pak Abu's shop · RM 20",
+      "icon": "🎰",
+      "kind": "crate",
+      "building": "w1275938588"
+    },
+    {
+      "id": "pawn",
+      "label": "SELL ITEMS",
+      "sub": "Kedai Pajak Untung",
+      "icon": "🏷️",
+      "kind": "shop",
+      "building": "w1275938587"
+    },
+    {
+      "id": "stock",
+      "label": "BUY STOCK",
+      "sub": "Gergasi Hypermarket",
+      "icon": "🛒",
+      "kind": "shop",
+      "building": "w366614388"
+    },
+    {
+      "id": "pasar",
+      "label": "PASAR MALAM STALLS",
+      "sub": "Opens at night · tier 1",
+      "icon": "🍢",
+      "kind": "stall",
+      "stallTier": 1
+    },
+    {
+      "id": "trucks",
+      "label": "FOOD TRUCK SPOTS",
+      "sub": "Tier 2",
+      "icon": "🚚",
+      "kind": "stall",
+      "stallTier": 2
+    },
+    {
+      "id": "kopitiam",
+      "label": "KOPITIAM SHOPLOTS",
+      "sub": "Tier 3",
+      "icon": "☕",
+      "kind": "stall",
+      "stallTier": 3
+    },
+    {
+      "id": "ikeja",
+      "label": "FURNITURE",
+      "sub": "IKEJA · for your Airbnb",
+      "icon": "🛋️",
+      "kind": "shop",
+      "building": "w1509727667"
+    },
+    {
+      "id": "homes",
+      "label": "HOMES FOR SALE",
+      "sub": "Ant Palms condos",
+      "icon": "🏙️",
+      "kind": "shop",
+      "building": "w607053390"
+    },
+    {
+      "id": "luckybag",
+      "label": "LUCKY BAG",
+      "sub": "Pasar malam · RM 150",
+      "icon": "🧧",
+      "kind": "crate",
+      "interactable": "luckybag_stall"
+    },
+    {
+      "id": "mallbox",
+      "label": "MYSTERY BOX",
+      "sub": "Piramid Mall · RM 1,500",
+      "icon": "🎁",
+      "kind": "crate",
+      "building": "w366614398"
+    },
+    {
+      "id": "bank",
+      "label": "BANK KOTA",
+      "sub": "Loans · coming soon",
+      "icon": "🏦",
+      "kind": "soon",
+      "building": "w1275938527"
+    },
+    {
+      "id": "casino",
+      "label": "CASINO",
+      "sub": "Coming soon",
+      "icon": "🎲",
+      "kind": "soon",
+      "building": "w467995024"
+    }
+  ],
+  "targets": {
+    "goal:first_job": "jobs",
+    "goal:first_roll": "capsule",
+    "goal:jobs5": "jobs",
+    "goal:jobs10": "jobs",
+    "goal:jobs50": "jobs",
+    "goal:jobs75": "jobs",
+    "goal:jobs100": "jobs",
+    "goal:luckybag": "luckybag",
+    "goal:stall1": "pasar",
+    "goal:dish1": "mystall",
+    "goal:perfect3": "mystall",
+    "goal:tehtarik": "mystall",
+    "goal:dishes50": "mystall",
+    "goal:perfect5": "carwash",
+    "goal:earn5k": "jobs",
+    "goal:stock1": "stock",
+    "goal:mallbox": "mallbox",
+    "goal:truck": "trucks",
+    "quest:roll": "capsule",
+    "quest:jobs": "jobs",
+    "quest:deliveries": "jobs",
+    "quest:carwash": "carwash",
+    "quest:perfect_wash": "carwash",
+    "quest:earn_jobs": "jobs",
+    "quest:spend_crates": "capsule",
+    "quest:epic_pull": "capsule",
+    "quest:pawn": "pawn",
+    "quest:cook": "mystall",
+    "quest:perfect_dishes": "mystall",
+    "quest:stall_earn": "mystall"
+  },
+  "hintEveryMs": 180000,
+  "hints": [
+    "Press E (or the round button) at a door to go inside. Machines and counters are used from inside.",
+    "The Jobs Board in Dataran Sunway Square is the quickest way to your first ringgit.",
+    "Deliveries pay more the further they go. Ride your bicycle (key 1) to finish them faster.",
+    "Car washes pay a bonus for a fast AND perfect wash. Soap every spot before you rinse.",
+    "Every 5 jobs of one kind raises your job level, and the pay goes up with it.",
+    "Manifest with the − key while you take a break: you earn a little every second.",
+    "Your 📱 HustlePhone (P or Tab) has Daily rewards, Quests, Skills, Titles and the Handbook.",
+    "Claim your Daily reward every day: the streak gets better each day you come back.",
+    "Hustle Harder (📱 → Skills) makes every job pay more. Buy it early.",
+    "Kopi Kaw gives +50% job pay for 10 minutes. Drink it before a long job run.",
+    "Drink a Luck Potion before rolling an expensive crate, not a cheap one.",
+    "Net worth counts your cash AND what your items would sell for at Kedai Pajak.",
+    "Sell duplicate items at Kedai Pajak Untung, or scrap them for shards.",
+    "Each crate has its own Item Index page. Finishing a page pays 50× the crate price.",
+    "The pasar malam opens in the evening (5 PM – 2 AM in-game). Buy a stall there for RM 300.",
+    "Perfect dishes pay 1.8×, and every Perfect in a row adds to your combo.",
+    "Watch for the food blogger at your stall: a perfect dish for them pays 5×.",
+    "Ingredients are 20% cheaper in person at Gergasi Hypermarket than ordered by phone.",
+    "Hire a cook (📱 → Business → Staff) and your stall keeps selling while you do jobs.",
+    "Book a 🛵 Ronda ride from your phone to get across town fast.",
+    "Sidewalks are as fast as roads on a motorbike. Grass slows you down a bit.",
+    "Footbridges cross the big highway to PJU 3 and Ant Palms. Look for the white bridges.",
+    "Press M for the big map. The big signs show where to work, shop and set up a stall.",
+    "Tap the 🎯 Next Goal card to point an arrow at where to go next.",
+    "Nights too long? Open the 📱 → Clock and vote to skip to morning.",
+    "Wear a title (📱 → Titles) and it shows over your head for everyone.",
+    "Chat with Enter. Emotes are on Q; sit, sleep or dance to hang out.",
+    "People wandering around town sometimes need a hand. Talk to them for small jobs.",
+    "Your game saves every minute and whenever you log out.",
+    "Buy a home (look for 🏷️ FOR SALE), then rent it out or run an Airbnb from 📱 → Properties.",
+    "Airbnb stars come from comfort, matching themes, rare furniture, amenities and cleanliness. Decorate mode shows what to add next.",
+    "Your homes keep earning while you're logged out (at half speed, up to 8 hours)."
+  ],
+  "handbook": [
+    {
+      "id": "start",
+      "icon": "👋",
+      "title": "Getting started",
+      "steps": [
+        "Move with WASD / arrow keys, or the joystick on a phone.",
+        "Press E (or tap the round action button) to use things and go through doors.",
+        "Your 🎯 Next Goal card (top left) always says what to do next. Tap it for an arrow pointing the way.",
+        "Open the 📱 HustlePhone with P or Tab. Claim your 🎁 Daily reward first.",
+        "Press M for the map. Big signs mark jobs, shops and stall spots."
+      ]
+    },
+    {
+      "id": "money",
+      "icon": "💵",
+      "title": "Your first money: jobs",
+      "steps": [
+        "Go to the 📋 Jobs Board in Dataran Sunway Square (where you start).",
+        "Pick Delivery: collect food at the shop with the yellow marker, then drop it at the house.",
+        "Or go into Kilat Car Wash (east along the street) and wash cars: soap, rinse, buff.",
+        "Every 5 jobs of a kind levels the job up and it pays more.",
+        "Buy Hustle Harder in 📱 → Skills so every job pays more."
+      ]
+    },
+    {
+      "id": "crates",
+      "icon": "🎰",
+      "title": "Crates and items",
+      "steps": [
+        "Go into Kedai Runcit Pak Abu and use the Capsule Machine (RM 20 a roll).",
+        "Items have rarities, from Common up to Mythic and beyond. Rarer = worth more.",
+        "Wear hats, glasses and backpacks from your 🎒 Bag (B).",
+        "Sell or scrap what you don't want inside Kedai Pajak Untung.",
+        "Later: the Lucky Bag at the pasar malam and the Mystery Box in Piramid Mall."
+      ]
+    },
+    {
+      "id": "stall",
+      "icon": "🍢",
+      "title": "Running a food stall",
+      "steps": [
+        "Reach the Hustler stage (RM 2,000 net worth), then buy a pasar malam spot (📱 → Business).",
+        "Buy ingredients: cheapest in person at Gergasi Hypermarket (BUY STOCK on the map).",
+        "Open your stall in the evening; customers queue up.",
+        "Press E at your stall to cook: each step is a quick mini-game. Perfect pays the most.",
+        "Hire a cook so it keeps selling while you're away; upgrade to a food truck and kopitiam later."
+      ]
+    },
+    {
+      "id": "property",
+      "icon": "🏠",
+      "title": "Homes, rent and Airbnb",
+      "steps": [
+        "From Towkay Kecil you can afford a studio in the Ant Palms condos (HOMES FOR SALE on the map).",
+        "Walk to the door, press E, and buy a unit.",
+        "📱 → Properties: rent it to a tenant (steady daily rent) or run it as an Airbnb (more money, more work).",
+        "Airbnb: go inside and press 🛠️ Decorate. Every essential (bed, toilet, shower, kitchen, aircond, wifi) is needed for a good rating.",
+        "Buy furniture at IKEJA; rare themed pieces come from the Mall Mystery Box. Clean after guests, or hire a cleaner.",
+        "Homes keep earning while you're offline. Welcome back with a Lucky Spin to double it!"
+      ]
+    },
+    {
+      "id": "grow",
+      "icon": "📈",
+      "title": "Levels, skills and stages",
+      "steps": [
+        "Everything you do gives XP. Levels unlock new crates, jobs and stall tiers.",
+        "Your wealth stage goes up with net worth: Budak Baru → Hustler → Towkay Kecil → ...",
+        "Spend money on Hustle Skills (📱 → Skills) for permanent bonuses.",
+        "Do the 3 daily quests (📱 → Quests) for big bonuses every day.",
+        "Potions (Kopi Kaw, Luck Potion) give short boosts. Time them well."
+      ]
+    },
+    {
+      "id": "town",
+      "icon": "🗺️",
+      "title": "Getting around",
+      "steps": [
+        "Your bicycle is on hotbar key 1. Hop on and off any time.",
+        "Order a motorbike from 📱 → Ronda when you can afford it, or book a ride.",
+        "Roads and sidewalks are fastest; grass slows vehicles a little.",
+        "Footbridges cross the highway to the east side (PJU 3, Ant Palms).",
+        "Under a flyover the road above turns see-through so you can see yourself."
+      ]
+    },
+    {
+      "id": "together",
+      "icon": "👥",
+      "title": "Playing together",
+      "steps": [
+        "Everyone on the same WiFi joins the same town.",
+        "Chat with Enter; emotes on Q.",
+        "When it's night, anyone can start a vote to skip to morning (📱 → Clock). Most players online must agree.",
+        "Players who go into a building disappear outside. Go in too and you'll see them inside."
+      ]
+    }
+  ]
+}

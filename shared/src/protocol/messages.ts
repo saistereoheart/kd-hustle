@@ -7,6 +7,8 @@ import type { PityState } from '../luck';
 import type { ActiveBuff, QuestState } from '../progression/progression';
 import { STALL_UPGRADES, type StallState } from '../cooking/stall';
 import type { StepParams } from '../cooking/cooking';
+import type { Placed, PropertyMode } from '../property/schemas';
+import type { Rating, Suggestion } from '../property/rating';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -19,6 +21,24 @@ export const C2S = {
   }),
   chatSend: z.object({ text: z.string().min(1).max(500) }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
+  // --- property (Phase 5) ---
+  propUnit: z.object({ unit: z.string().min(3).max(40) }),
+  propMode: z.object({ unit: z.string().min(3).max(40), mode: z.enum(['none', 'rent', 'airbnb', 'home']) }),
+  propPrices: z.object({ unit: z.string().min(3).max(40), rentSen: z.number().int().positive().max(1e12).optional(), nightSen: z.number().int().positive().max(1e12).optional() }),
+  propStaff: z.object({ unit: z.string().min(3).max(40), role: z.enum(['manager', 'cleaner']), on: z.boolean() }),
+  propLayout: z.object({
+    unit: z.string().min(3).max(40),
+    layout: z.array(z.object({ iid: z.number().int().positive(), item: z.string().max(40), x: z.number().int().min(0).max(40), y: z.number().int().min(0).max(40), rot: z.number().int().min(0).max(3) })).max(80),
+  }),
+  propFix: z.object({ unit: z.string().min(3).max(40), req: z.number().int().positive(), how: z.enum(['contractor', 'diy-start', 'diy-finish']) }),
+  propClean: z.object({ unit: z.string().min(3).max(40), phase: z.enum(['start', 'finish']) }),
+  furnitureBuy: z.object({ item: z.string().max(40), qty: z.number().int().min(1).max(50) }),
+  /** Talk to / take an errand from a wandering NPC (by id). */
+  npc: z.object({ npc: z.number().int().nonnegative().max(1000) }),
+  /** Vote to skip the night (a yes starts a vote if none is running). */
+  timeVote: z.object({ yes: z.boolean() }),
+  /** Go into a building (its OSM id) or come back out (null). */
+  interior: z.object({ building: z.string().max(40).nullable() }),
   crateRoll: z.object({ crateId: z.string().max(32), count: z.union([z.literal(1), z.literal(5), z.literal(10)]) }),
   equip: z.object({ iid: z.number().int().positive() }),
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
@@ -220,6 +240,72 @@ export interface ServeResult {
   rep: number;
 }
 
+/** Who owns a home (what everyone sees). */
+export interface PropPublic {
+  unit: string;
+  owner: number;
+  ownerName: string;
+  mode: PropertyMode;
+  stars: number;
+}
+
+/** Your own home, everything about it. */
+export interface PropSelf {
+  unit: string;
+  type: string;
+  boughtSen: number;
+  mode: PropertyMode;
+  rentSen: number;
+  tenant: { kind: string; since: number; owed: number } | null;
+  condition: number;
+  requests: Array<{ id: number; text: string; day: number }>;
+  nightSen: number;
+  cleanliness: number;
+  layout: Placed[];
+  guest: { until: number; paySen: number; vip: boolean } | null;
+  reviews: Array<{ stars: number; text: string; day: number }>;
+  fiveStars: number;
+  superhost: boolean;
+  manager: boolean;
+  cleaner: boolean;
+  earnedSen: number;
+  work: { kind: 'diy' | 'clean'; req?: number; at: number } | null;
+  rating: Rating;
+  fairNightSen: number;
+  fairRentSen: number;
+  happiness: number | null;
+  suggestions: Suggestion[];
+  loc: number;
+}
+
+/** An errand for a wandering NPC: go to a place, then back to them. */
+export interface ErrandState {
+  npc: number;
+  npcName: string;
+  stage: 'go' | 'return';
+  place: { x: number; y: number; name: string };
+  rewardSen: number;
+  xp: number;
+  expiresAt: number;
+  /** Shown when you reach the place ("Now bring it back to..."). */
+  pickupText: string;
+}
+
+/** The skip-the-night vote, as everyone sees it. */
+export interface SkipVoteState {
+  active: boolean;
+  yes: number;
+  no: number;
+  /** Yes votes needed to pass with this many players online. */
+  needed: number;
+  online: number;
+  endsAt: number;
+  startedBy: string | null;
+  /** Can a new vote start right now? (it's night and not cooling down) */
+  canStart: boolean;
+  cooldownUntil: number;
+}
+
 export interface PlayerPublic {
   id: number;
   name: string;
@@ -235,6 +321,8 @@ export interface PlayerPublic {
   cosmetics: Cosmetics;
   /** Vehicle being ridden (e.g. 'motorbike'), or null. */
   vehicle: string | null;
+  /** Inside this building (hidden outdoors, shown in its interior), or null. */
+  interior: string | null;
 }
 
 export interface SelfState extends PlayerPublic {
@@ -260,6 +348,8 @@ export interface SelfState extends PlayerPublic {
   progress: ProgressState;
   /** Your food stall, or null if you don't own one. */
   stall: StallSelf | null;
+  /** An NPC errand in progress (kept while you're online). */
+  errand: ErrandState | null;
 }
 
 export interface ChatMsg {
@@ -279,6 +369,8 @@ export interface InitPayload {
   serverTime: number;
   /** Every food stall on the map (owners' names, open or not, queues). */
   stalls: StallPublic[];
+  /** Who owns which home. */
+  props: PropPublic[];
 }
 
 /** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)] */
@@ -317,6 +409,22 @@ export interface ClientToServerEvents {
   'chat:send': (msg: { text: string }, ack: Ack<SimpleResult>) => void;
   emote: (msg: { emote: string }) => void;
   'emote:stop': () => void;
+  interior: (msg: { building: string | null }, ack: Ack<SimpleResult>) => void;
+  'time:vote': (msg: { yes: boolean }, ack: Ack<SimpleResult>) => void;
+  'npc:talk': (msg: { npc: number }, ack: Ack<Result<{ line: string; offer?: { text: string; rewardSen: number; xp: number } }>>) => void;
+  'npc:accept': (msg: { npc: number }, ack: Ack<Result<{ errand: ErrandState }>>) => void;
+  'npc:progress': (ack: Ack<Result<{ errand: ErrandState | null; text?: string; paidSen?: number }>>) => void;
+  'npc:cancel': (ack: Ack<SimpleResult>) => void;
+  'prop:buy': (msg: { unit: string }, ack: Ack<SimpleResult>) => void;
+  'prop:sell': (msg: { unit: string }, ack: Ack<Result<{ gainedSen: number }>>) => void;
+  'prop:mode': (msg: { unit: string; mode: PropertyMode }, ack: Ack<SimpleResult>) => void;
+  'prop:prices': (msg: { unit: string; rentSen?: number; nightSen?: number }, ack: Ack<SimpleResult>) => void;
+  'prop:staff': (msg: { unit: string; role: 'manager' | 'cleaner'; on: boolean }, ack: Ack<SimpleResult>) => void;
+  'prop:layout': (msg: { unit: string; layout: Placed[] }, ack: Ack<Result<{ stars: number }>>) => void;
+  'prop:fix': (msg: { unit: string; req: number; how: 'contractor' | 'diy-start' | 'diy-finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
+  'prop:clean': (msg: { unit: string; phase: 'start' | 'finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
+  'furniture:buy': (msg: { item: string; qty: number }, ack: Ack<Result<{ items: InventoryItem[] }>>) => void;
+  'welcome:spin': (ack: Ack<Result<{ bonusSen: number }>>) => void;
   'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number } }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
   'inv:unequip': (msg: { slot: EquipSlot }, ack: Ack<SimpleResult>) => void;
@@ -360,7 +468,7 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */
@@ -375,6 +483,14 @@ export interface ServerToClientEvents {
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;
   'emote:played': (p: { id: number; emote: string }) => void;
+  'time:vote': (s: SkipVoteState) => void;
+  /** Who owns which home (everyone). */
+  props: (p: { props: PropPublic[] }) => void;
+  /** Your own homes, with ratings and suggestions. */
+  'props:self': (p: { props: PropSelf[] }) => void;
+  'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
+  /** "While you were away…" (offline income). */
+  welcome: (w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number }> }) => void;
   'emote:stopped': (p: { id: number }) => void;
   saved: (p: { at: number }) => void;
   kicked: (p: { reason: string }) => void;

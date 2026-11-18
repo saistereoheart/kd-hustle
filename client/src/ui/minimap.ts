@@ -2,9 +2,12 @@
 // Both are painted from the real map geometry (see mapPaint.ts), so they stay smooth when
 // zoomed in. The minimap uses a pre-painted image at BASE_SCALE px per tile; the full map
 // repaints the visible part whenever you zoom or pan.
-import type { BuiltMap } from '@kh/shared';
+import type { BuiltMap, Poi } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { paintMap } from './mapPaint';
+
+const POI_COLOR: Record<string, string> = { work: '#2f9e44', crate: '#7048e8', shop: '#1c7ed6', stall: '#e8590c', soon: '#868e96' };
+const POI_TEXT: Record<string, string> = { work: '#8ce99a', crate: '#d0bfff', shop: '#a5d8ff', stall: '#ffc078', soon: '#ced4da' };
 
 /** Pixels per tile of the pre-painted base image. */
 const BASE_SCALE = 2;
@@ -37,6 +40,8 @@ export class Minimap {
   private readonly size = { w: 168, h: 126 };
   private readonly zoom = 1.25; // px per tile in the minimap (≈ 270 m across)
   private lastDots: Dot[] = [];
+  /** Signposted places (jobs, shops, stall spots), drawn as icons. */
+  private pois: Poi[] = [];
 
   constructor(private map: BuiltMap) {
     this.base = document.createElement('canvas');
@@ -49,6 +54,10 @@ export class Minimap {
     this.canvas.style.height = `${this.size.h}px`;
     this.canvas.addEventListener('click', () => this.openFull());
     uiRoot().append(this.canvas);
+  }
+
+  setPois(pois: Poi[]) {
+    this.pois = pois;
   }
 
   toggle() {
@@ -81,6 +90,22 @@ export class Minimap {
     const ox = cx - viewW / 2;
     const oy = cy - viewH / 2;
     ctx.drawImage(this.base, ox * BASE_SCALE, oy * BASE_SCALE, viewW * BASE_SCALE, viewH * BASE_SCALE, 0, 0, this.size.w, this.size.h);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const p of this.pois) {
+      const px = (p.x - this.map.originTx - ox) * this.zoom;
+      const py = (p.y - this.map.originTy - oy) * this.zoom;
+      if (px < -8 || py < -8 || px > this.size.w + 8 || py > this.size.h + 8) continue;
+      ctx.beginPath();
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.fillStyle = POI_COLOR[p.kind] ?? '#495057';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.fillText(p.icon, px, py + 0.5);
+    }
     for (const d of dots) {
       const [dx, dy] = this.toBase(d.x, d.y);
       const px = (dx - ox) * this.zoom;
@@ -373,12 +398,21 @@ export class Minimap {
       const [lx, ly] = at((b.bbox.x0 + b.bbox.x1) / 2, (b.bbox.y0 + b.bbox.y1) / 2);
       label(b.name, lx, ly, `600 ${Math.round(Math.min(15, 10 + zoomedIn))}px system-ui, sans-serif`, '#ffffff');
     }
-    // Interactables
-    if (zoomedIn > 1.5) {
-      for (const it of this.map.interactables) {
-        const [lx, ly] = at(it.x, it.y);
-        label(it.type === 'jobs' ? '📋' : it.type === 'pawn' ? '🏪' : it.type === 'carwash' ? '🚿' : '🎰', lx, ly, '16px system-ui, sans-serif', '#ffe066', 0);
-      }
+    // Signposted places: a coloured pin with the icon, and the big label (JOBS BOARD, BUY STOCK...).
+    for (const p of this.pois) {
+      const [lx, ly] = at(p.x, p.y);
+      if (lx < -100 || ly < -60 || lx > r.width + 100 || ly > r.height + 60) continue;
+      ctx.beginPath();
+      ctx.arc(lx, ly, 11, 0, Math.PI * 2);
+      ctx.fillStyle = POI_COLOR[p.kind] ?? '#495057';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(p.icon, lx, ly + 1);
+      if (zoomedIn > 1.15 || p.kind !== 'soon') label(p.label, lx, ly - 20, `900 ${Math.round(Math.min(14, 10 + zoomedIn))}px system-ui, sans-serif`, POI_TEXT[p.kind] ?? '#ffffff', 4);
     }
     // Players and job targets
     for (const d of this.lastDots) {

@@ -12,6 +12,16 @@ export const timeConfigSchema = z.object({
   phases: z.object({ dawn: z.tuple([z.number(), z.number()]), day: z.tuple([z.number(), z.number()]), dusk: z.tuple([z.number(), z.number()]) }),
   /** Meal times: more customers and better prices at stalls. */
   rushHours: z.array(z.object({ name: z.string(), from: z.number(), to: z.number() })),
+  /** Players can vote to skip the night (more than half of those online must agree). */
+  skipVote: z
+    .object({
+      allowedHours: z.tuple([z.number().min(0).max(24), z.number().min(0).max(24)]),
+      skipToHour: z.number().min(0).max(23),
+      durationMs: z.number().int().positive(),
+      cooldownMs: z.number().int().nonnegative(),
+      majority: z.number().min(0).max(1),
+    })
+    .default({ allowedHours: [20, 5], skipToHour: 7, durationMs: 30_000, cooldownMs: 120_000, majority: 0.5 }),
 });
 export type TimeConfig = z.infer<typeof timeConfigSchema>;
 

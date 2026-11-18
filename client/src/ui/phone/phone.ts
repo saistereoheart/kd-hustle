@@ -15,6 +15,9 @@ import { renderQuests } from './quests';
 import { renderRides } from './rides';
 import { renderSkills } from './skills';
 import { renderTitles } from './titles';
+import { renderHandbook } from './handbook';
+import { renderClock } from './clock';
+import { renderProperties } from './properties';
 
 export interface PhoneCtx {
   app: App;
@@ -55,6 +58,11 @@ const APPS: PhoneApp[] = [
     },
   },
   { id: 'path', name: 'Hustle Path', icon: '🎯', color: '#40c057', render: renderPath },
+  { id: 'handbook', name: 'Handbook', icon: '📘', color: '#1971c2', render: renderHandbook },
+  {
+    id: 'clock', name: 'Clock', icon: '🕰️', color: '#5f3dc4', render: renderClock,
+    badge: (app) => (app.store.vote?.active ? '🗳' : null),
+  },
   { id: 'skills', name: 'Skills', icon: '⬆️', color: '#7048e8', render: renderSkills },
   { id: 'titles', name: 'Titles', icon: '🏷️', color: '#1c7ed6', render: renderTitles },
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
@@ -62,7 +70,10 @@ const APPS: PhoneApp[] = [
   { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0) },
   { id: 'index', name: 'Index', icon: '📖', color: '#5f3dc4', open: (app) => openInventoryPanel(app, 1) },
   { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
-  { id: 'properties', name: 'Properties', icon: '🏠', color: '#868e96', soon: 'Buy rooms, flats and condos, rent them out or run an Airbnb. Coming with Phase 5.' },
+  {
+    id: 'properties', name: 'Properties', icon: '🏠', color: '#0b7285', render: renderProperties,
+    badge: (app) => (app.store.myProps.some((p) => p.requests.length) ? '!' : null),
+  },
   {
     id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
     badge: (app) => (app.store.stall && Object.values(app.store.stall.stock).every((b) => !b.reduce((a, x) => a + x.qty, 0)) ? '!' : null),

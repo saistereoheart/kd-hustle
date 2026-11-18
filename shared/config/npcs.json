@@ -1,0 +1,72 @@
+{
+  "speedTilesPerSec": 1.6,
+  "dwellMs": 5000,
+  "talkRadiusTiles": 2.2,
+  "area": [-330, 60, -120, 260],
+  "errandChance": 0.6,
+  "errandCooldownMs": 240000,
+  "errandExpiresMs": 480000,
+  "errandMaxTiles": 140,
+  "people": [
+    { "name": "Mak Cik Rosnah" },
+    { "name": "Uncle Lim" },
+    { "name": "Ah Boy" },
+    { "name": "Kak Yah" },
+    { "name": "Raju" },
+    { "name": "Auntie Mei" },
+    { "name": "Pak Long" },
+    { "name": "Siti" },
+    { "name": "Daniel" },
+    { "name": "Aiman" },
+    { "name": "Priya" },
+    { "name": "Encik Hafiz" },
+    { "name": "Tok Wan" },
+    { "name": "Mei Ling" }
+  ],
+  "lines": [
+    "Hot today, ah? Should've brought an umbrella.",
+    "You new around here? Kota Damansara is the best lah.",
+    "The pasar malam opens tonight. Their satay is shiok!",
+    "My cousin got a Mythic from the Capsule Machine. Lucky fella.",
+    "Traffic on the highway again... better to cycle, I tell you.",
+    "Gergasi is having a sale. Cheaper than ordering online!",
+    "Kilat Car Wash is always looking for helpers. Easy money.",
+    "Have you eaten? Makan dulu, then hustle.",
+    "They say the Lucky Strand Casino opens soon. Wah, exciting.",
+    "Saving up for a condo at Ant Palms. One day, one day...",
+    "If you see someone selling nasi lemak at night, buy one for me!",
+    "The footbridge over the highway saves so much time.",
+    "Don't forget to claim your daily reward, ah.",
+    "I heard the Mall Mystery Box gives wings. Wings!",
+    "Walk under the flyover, it's nice and shady."
+  ],
+  "errands": [
+    {
+      "id": "parcel",
+      "ask": "Aiyo, my parcel is waiting at {place}. Can you collect it for me? I'll pay you {reward}!",
+      "pickup": "📦 Picked up the parcel. Now bring it back to {npc}.",
+      "thanks": "Wah, my parcel! Terima kasih banyak. Here, for your trouble."
+    },
+    {
+      "id": "umbrella",
+      "ask": "I left my umbrella at {place}! Could you go get it? {reward} for you.",
+      "pickup": "☂️ Found the umbrella. Take it back to {npc}.",
+      "thanks": "My umbrella! You're a lifesaver. Ambil ni."
+    },
+    {
+      "id": "kopi",
+      "ask": "I'm dying for a teh tarik... can you ask them at {place} to pack one for me? I'll pay {reward}.",
+      "pickup": "🥤 Got the teh tarik. Bring it to {npc} before it gets cold!",
+      "thanks": "Ahhh, perfect. Still warm some more. Thank you!"
+    },
+    {
+      "id": "flyers",
+      "ask": "Help me drop these flyers at {place}, boleh? Then come tell me. {reward}!",
+      "pickup": "📄 Flyers dropped off. Go tell {npc}.",
+      "thanks": "Done already? Fast! Here's your pay."
+    }
+  ],
+  "places": ["w1275938588", "w1275938587", "w1275938577", "w1275938527", "w366614398", "w366614388", "w405821357", "w782818185", "w328914587", "w467995024"],
+  "rewardSenByStage": [4000, 15000, 100000, 800000, 6000000, 50000000],
+  "rewardXp": 25
+}

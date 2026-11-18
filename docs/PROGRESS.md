@@ -1,23 +1,132 @@
 # Kota Hustle: Progress
 
-_Last updated: 2026-11-17_
-
 ## Status
+
+_Last updated: 2026-11-18 (overnight run)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
-**Phase 3 (progression): done.** XP + levels, wealth stages, titles, the Hustle Skills tree, potions with buff timers,
-the daily login streak, daily quests, the next-goal tracker (Hustle Path), the HustlePhone and the balance simulator.
-**Phase 4 (food stalls and cooking) is next.**
+**Phase 3 (progression): done.**
+**Phase 4 (food stalls and cooking): done.** The acceptance check passes in `npm run sim:stall` (see below).
+**Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
+**Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 122 unit tests (Phase 3 adds 35: XP curve, levels + rewards, net worth + stages, skill costs + locks, how luck/XP/pay bonuses stack, potions + stacking + pausing offline, login streak across days/months, quests, Hustle Path order, titles, the migration backfill) |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ Phase 1, 2 and 3 specs pass |
-| `npm run sim` | ✅ Stage 2 in 24 min (target 20), a clear Hustle Path (27 goals in the first 2 h, never more than 16 min to the next one) |
-| Server boots, binds `0.0.0.0` and prints the LAN URL | ✅ |
+| `npm test` (Vitest) | ✅ all unit tests (see the count in the latest commit message) |
+| `npm run e2e` (Playwright: desktop + phone) | see "Browser tests" below |
+| `npm run sim:stall` | ✅ Perfect cooking 14× passive mode; sloppy cooking still beats passive; passive makes money |
 | Real phone on the LAN | ⏳ needs you |
+
+### ☀️ Morning notes for you
+- **Nothing outside `kd-hustle` was touched.** No firewall, network, service, port or system settings were changed,
+  nothing was installed globally, and the PC was not restarted. The game still uses **port 3003** on this PC
+  (unchanged). The browser tests use their own throwaway server on port 3101 with a database under `test-results/`.
+- **Nothing needs your permission** to keep the PC reachable over WiFi/ZeroTier.
+- **Commits are local only** (not pushed).
+- **Rebuild before you play:** `npm run build` then `npm start` (or `npm run dev`).
+- **Database:** two new tables are added automatically on first start (migration 9 `properties`). Existing players
+  keep everything. Old saves that stood exactly where the car wash bay used to be are fine (it was just a picture).
+- **Your old Claude memory note** (outside the repo) still lists the feedback items as "to do"; they're done. I didn't
+  edit it because you asked me not to touch anything outside `kd-hustle`.
+
+---
+
+## Phase 5: property and Airbnb
+
+### How to test it
+1. Get rich quickly (admin chat): `/give me money 5000000` and `/setstage me 4`.
+2. **📱 → Handbook → Homes, rent and Airbnb** explains the loop. The map has two new signposts: **HOMES FOR SALE**
+   (Ant Palms condos) and **FURNITURE** (IKEJA, near Surian MRT).
+3. Walk to an **Ant Palms** door (yellow 🏷️ FOR SALE sign), press **E**: a list of 12 units (studios, 2- and
+   3-bedroom condos) with prices. Buy one. Terraces and semi-Ds around town are for sale too.
+4. **IKEJA**: go in, use the counter: beds, bathroom, kitchen, appliances, sofas... each shows its stats
+   (essential/amenity, theme, comfort, style, size). Buy the 6 essentials (bed, toilet, shower, kitchenette,
+   aircond, wifi router).
+5. Back at your condo: **E → 🚪 Go in → 🛠️ Decorate**. Tap a piece, tap the floor to place it (green = OK,
+   red = not allowed), **R** rotates, tap a placed piece to pick it up, **Del** puts it back, Undo/Redo, **Save**.
+   The panel shows the stars, a bar per factor and the **top 3 suggestions with the predicted gain**
+   ("Add a wifi router (missing essential) → +0.8★, +RM 90/night").
+6. **📱 → Properties**: choose **Rent out**, **Airbnb**, **Live in it** or Empty. Rent: set the daily rent against the
+   fair range, wait for a tenant (happiness, maintenance requests: pay a contractor or fix it yourself inside).
+   Airbnb: set the nightly price against the recommended range; guests book (1 in-game day = 24 real minutes),
+   check out, pay and leave reviews; clean the unit inside (🧽) or hire a cleaner. 5 five-star reviews = Superhost.
+7. **Offline income**: log out, come back later: "Welcome back! While you were away you earned…" (50%, up to 8 h),
+   with a 10-second **Lucky Spin** that doubles it.
+8. Placed furniture can't be sold at the pawn shop (it says why); selling a home gives 85% back, furniture stays yours.
+
+### What was built
+- **Config:** `furniture.json` (42 pieces: stats, themes, essentials, amenities, store prices), `properties.json`
+  (unit types, prices, rent/Airbnb rules, review templates, rating weights). 37 new furniture items in `items.json`;
+  6 rare themed pieces (Gamer Neon, Cyberpunk, Luxury Gold) added to the Mall Mystery Box.
+- **Shared maths** (`shared/src/property/`): the star rating (§9.3: essentials cap, comfort per m², theme sets
+  3/5/8, rarity, amenities, cleanliness, space + blocked walkway), layout rules, suggestions (each one is a real
+  "what if" re-rating, so the predicted gain is exact), fair night price, booking chance, fair rent, tenant happiness,
+  listings (unit ids `<OSM building id>#<n>`, location pricing near the MRT, The Strand and Dataran Sunway).
+- **Server** (`server/src/systems/property/`): buy/sell, modes, prices, staff, layouts (only furniture you own and
+  haven't placed elsewhere), DIY repairs and cleaning (timed, at the unit), per-hour tenant applications, per-day
+  rent/maintenance/costs/bookings/reviews/events, offline catch-up + Lucky Spin. Migration 9 adds `properties`.
+  Property counts towards net worth (90% of the price).
+- **Client:** FOR SALE / owner signs on home doors, the unit list at the door, the IKEJA store, the home scene with
+  Decorate mode (`client/src/world/homeScene.ts`), furniture drawn in code (`client/src/items/furnitureArt.ts`),
+  📱 Properties, the welcome-back screen.
+- **Tests:** 10 shared tests (rating, suggestions, layouts, pricing, listings), 8 server tests (buying, rent,
+  happiness/move-out, layouts, Airbnb income vs decoration, cleaning, offline income + spin).
+
+### Not yet (later in Phase 5 / next round)
+- Wall paint / wallpaper / flooring choices, renovation levels, security, smart-lock auto check-in.
+- Guests walking in with luggage (NPCs) and the Best Airbnb leaderboard (Phase 7 does leaderboards).
+- "Live in it" is a showroom only: no spawn point or storage yet.
+
+---
+
+## Phase 4.1: your feedback round
+
+| Your remark | What I did |
+|---|---|
+| Grass slows vehicles too much | Grass/park/field 0.4 → 0.7, forest 0.45, construction 0.5 (`terrain.json`). |
+| Sidewalks should count as road | Sidewalk vehicle speed 0.6 → 1.0. |
+| Widen small roads slightly | `minRoadWidthMeters`: back lanes 3.5 → 5 m, streets 7 → 8 m. |
+| Rework roads / straight lines / shortcuts | Measured walking detours from spawn across the whole map (`scripts/_detour` method, now `npm run map-inspect` shows unreachable ground in red): 235 sample spots needed > 1.5× the straight-line distance. Added **4 footbridges over the north-south highway** (to PJU 3 and Ant Palms) and turned the Dataran Sunway multi-storey car park into an open **Dataran Sunway Square**. Now 7 spots, all map-edge or median strips. |
+| Moving above elevated roads | Flyovers and the MRT viaduct are drawn on their own layer **above** characters and fade to see-through while you walk under them; motorbikes on a flyover draw on top of it. |
+| Parking lines / cars over the line / straight cars on angled lots | Bays are laid out along each car park's own angle (2.5 × 5 m, aisles between double rows); cars are drawn inside a bay, rotated with it. |
+| Quest pointers (where/what/how) | 🎯 card now has **📍 Show me: JOBS BOARD · 52 m**; tap it for a guide arrow around your character plus a bouncing pin over the spot. Tapping the card shows **💡 How**. Quests have 📍 buttons. Errands point the arrow too. |
+| Rework/simplify the map | Footbridges + the square above; spawn moved into the square next to the Jobs Board. |
+| Random hints | A 💡 tip every 3 minutes (shuffled, no repeats), can be turned off in Settings. |
+| Big pointers: BUY STOCKS, STALL LOCATIONS, WORK LOCATIONS | Colour-coded signposts in the world (green = work, blue = shops, orange = stalls, purple = crates, grey = coming soon) and on the minimap/full map. |
+| Handbook | 📱 → **Handbook**: 7 step-by-step chapters, "Take me to…" buttons, and every tip. Also on the start screen (HINTS). |
+| Skip night vote | 📱 → **Clock**: start a vote between 8 PM and 5 AM; a banner lets everyone vote; passes when **more than half** of the players online say yes; jumps to 7 AM. 30 s vote, 2 min cooldown. |
+| Gergasi accessible from multiple points | Malls, the hypermarket, station, hospital and casino get a door on every side that faces a road. Gergasi has 4. |
+| Interaction distance (Pak Abu from across the road) | Interact range 8 → 3 tiles, and machines are now used **inside** buildings. |
+| Interiors like Pokémon | Every shop-type building can be entered: the town blurs and darkens behind a small room. Machines and counters are inside; shopkeepers greet you; other players inside show up. Homes are locked unless you own them. **Spec updated** (§3, §4). |
+| Kilat Car Wash by the road | It's now a corner shoplot ("Kilat Car Wash") with a wash bay inside. Capsule Machine, pawn shop, Mystery Box and Gergasi are inside their buildings too. |
+| Font colours/size for interactive places | Building names: **gold + 🚪 + bold** for places you can use, white/lighter for landmarks, italic for areas. |
+| Wandering NPCs with chat and tasks | 14 townsfolk walk around Dataran Sunway (same positions on every screen). E to chat; some ask for an errand (go somewhere, come back) for money + XP. |
+| START GAME screen every refresh; reconnect buffer | Every page load shows the start screen (START GAME / HINTS / SETTINGS) over an animated dusk scene with **your** character leaning on a car. A dropped connection shows "📶 Reconnecting… 20s" while you keep playing; the server keeps you in the world for 20 s; after that, back to the start screen. |
+| Lighting and shadows | See "Lighting" in the next section (done after this table was written). |
+
+---
+
+## Phase 4: food stalls and cooking
+
+### How to test it
+1. `/setstage me 2` (stalls need the Hustler stage), `/time 18`.
+2. 📱 → **Business** → buy a pasar malam stall (PASAR MALAM STALLS on the map). Walk there at night.
+3. Customers queue; press **E** at your stall and cook: hold / timing / rhythm / sequence / path mini-games.
+4. Buy stock in person inside Gergasi (BUY STOCK), or by phone with a delivery fee.
+5. Hire a cook (📱 → Business → Staff) and go do jobs: the stall keeps selling at the passive rate.
+
+### Acceptance check (`npm run sim:stall`, real StallSystem, 4 nights)
+| Mode | RM per real hour |
+|---|---|
+| Perfect cooking | ~RM 12.5K (37 dishes a night) |
+| Sloppy cooking (mixed grades) | ~RM 4.8K |
+| Hired cook, owner away (passive) | ~RM 880 (on top of whatever you do meanwhile) |
+| Jobs (for comparison) | ~RM 6.7K |
+
+Perfect cooking earns **14× passive mode** and about **2× jobs**; passive mode makes money while you do other
+things. Tuning from the sim: the hired cook went from 50% price / 18 s per dish to 60% / 14 s (it barely paid).
 
 ---
 
@@ -395,6 +504,39 @@ npm start
 
 Simple options picked where the spec was open, per CLAUDE.md:
 
+**Phase 5**
+- **Which homes are for sale:** every condo building (12 units: studio / 2-bedroom / studio / 3-bedroom),
+  terrace and semi-D on the map. The OSM data has no flats or bungalows here, so those types exist in config but
+  aren't on sale. Unit ids are `<OSM building id>#<n>` (survive map changes, per rule 10).
+- **Interiors are 1 m cells** (a studio is 7 × 6 m) so furniture sizes read naturally; they're not tied to the
+  outside footprint.
+- **Missing essentials** also subtract 0.5★ each (besides the 2.5★ cap), so adding one always shows a gain in the
+  suggestions. The comfort target is 0.9 per m² (the six essentials alone shouldn't max comfort).
+- **Rent and bookings run per in-game day** (24 real minutes); tenants apply per in-game hour. Running costs (tax +
+  maintenance, 0.1% of the price a day) are never allowed to push your wallet below zero.
+- **Store furniture isn't a collectible** (no Item Index page) and sells back at 50% like everything else; gacha
+  furniture stays collectible.
+- **Offline income** covers homes only for now (stalls close when you leave, as before). Lucky Spin always doubles
+  it (spec: "watch a 10 s Lucky Spin to double it").
+- **IKEJA** is the unnamed mall building `w1509727667` near Surian MRT.
+
+**Phase 4.1 (feedback round)**
+- **Interiors are a view, not a teleport:** while you're inside, your position in the town stays at the door (the
+  server checks distances from there). Other players see you disappear and see you inside if they go in too.
+  Shoplots without a business show an "empty unit" room; homes are locked unless you own them.
+- **Outdoor things stay outdoors:** the Jobs Board (a noticeboard in the new square), the pasar malam stalls and the
+  Lucky Bag stall.
+- **NPC positions are a function of time** (shared route maths), so the server can check you're next to someone
+  without streaming 14 NPCs. Errands aren't saved (dropped when you log out); one per NPC per 4 minutes.
+- **Reconnect grace = 20 s** (`net.json`): the server saves at once on a drop but keeps you in the world; logging
+  out still removes you immediately.
+- **Night-skip vote:** "more than half" of players online (2 of 2, 2 of 3, 3 of 4); a lone player skips at once.
+  The clock offset isn't saved across server restarts (same as `/time`).
+- **Spawn** moved into Dataran Sunway Square (next to the Jobs Board). Spawn isn't a stable id, so that's allowed.
+
+**Phase 4**
+- See "Phase 4" above for the sim-driven tuning (hired cook 60% / 14 s).
+
 **Phase 3**
 - **Net worth = cash + what your items would fetch at the pawn shop** (50% of value), not the full value: rolling
   crates can't inflate net worth. Debt and property join it in later phases.
@@ -523,6 +665,13 @@ Simple options picked where the spec was open, per CLAUDE.md:
 
 ## Known issues / limitations
 
+- **Phase 5:** furniture art is simple top-down shapes; decorate mode uses taps/clicks (no drag). On a phone, the
+  decorate panel covers the lower part of the room; scroll it or tap ✅ Done to see the whole room.
+- **Phase 4.1:** NPCs walk through each other and through players (no NPC collision). Their names are always shown.
+- **Phase 4.1:** the title-screen character is your last-used look on this device (stored in the browser); a new
+  device shows a default hustler until you log in once.
+- **Phase 4.1:** the deck (flyover) layer fades as a whole while you're under any part of it.
+
 - **Phase 3:** jobs alone take ~7–8 h to reach Stage 3 (target 2 h). Expected until stalls/property arrive; the sim
   flags it as ⏳ rather than a failure.
 - **Phase 3:** the HUD luck readout and crate odds refresh when something changes (and every second for the HUD), so
@@ -561,11 +710,9 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
-## Next: Phase 4 (food stalls and cooking)
+## Next: Phase 6 (shops, businesses and loans)
 
-From the spec (§20): the pasar malam stall → food truck → kopitiam path, 3 recipes first (Nasi Lemak, Teh Tarik,
-Roti Canai) with step-by-step mini-games and quality scoring, NPC customers with queues and patience,
-combos/tips/food blogger, passive mode with staff, ingredients/stock, stall upgrades, and the day/night cycle (the
-pasar malam opens at night). The Business skill branch and the Customer Rush / Perfect Cook Token potions come with it,
-and the simulator gets stall income so Stage 3 can hit its 2-hour target.
-**Done when:** cooking Perfect clearly earns more than passive mode, and both feel worth doing.
+From the spec (§20): the retail shop (pricing, shelves, the cashier mini-game), the player-item boutique, the other
+businesses (levels, milestones, managers), Bank Kota (credit score, loans, repayment, repossession), the Ah Long and
+debt collectors, and money sinks (tax, wages, maintenance).
+**Done when:** players can choose different money-making strategies and loans add real risk/reward.

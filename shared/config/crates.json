@@ -41,6 +41,7 @@
       "pity": { "epic": 40, "legendary": 250 },
       "pool": [
         "rattan_chair", "potted_monstera", "bean_bag",
+        "rgb_desk", "neon_sign", "velvet_sofa", "cyber_lamp", "gold_chandelier", "holo_bed",
         "graduation_cap", "monocle", "backpack",
         "viking_helmet", "heart_aura", "gold_name",
         "jetpack", "antenna_bopper",

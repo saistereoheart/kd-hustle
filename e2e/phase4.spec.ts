@@ -16,12 +16,22 @@ type KH = {
 };
 const kh = <T>(p: Page, fn: (k: KH) => T) => p.evaluate((src) => new Function('k', `return (${src})(k)`)((window as unknown as { __kh: KH }).__kh), fn.toString()) as Promise<T>;
 
+/** Teleport (admin /tp) to where an interactable is used: its spot, or its building's door. */
+async function goTo(p: Page, id: string) {
+  const s = await p.evaluate((i) => (window as unknown as { __kh: { spotOf: (i: string) => { x: number; y: number } } }).__kh.spotOf(i), id);
+  await p.keyboard.press('Enter');
+  await p.fill('#chat-input', `/tp ${s.x} ${s.y}`);
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(800);
+}
+
 async function player(browser: Browser, name: string, mobile: boolean, errors: string[]) {
   const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1600, height: 900 } });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`));
   await page.goto('/');
+  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
@@ -177,7 +187,7 @@ test('phase 4: a pasar malam stall, customers, cooking and stock', async ({ brow
   await A.page.keyboard.press('Escape');
 
   // --- Buy stock in person at Gergasi Hypermarket ---
-  await chat(A.page, '/tp -36 -97');
+  await goTo(A.page, 'gergasi');
   const stockBefore = (await kh(A.page, (k) => k.stall()))!.stock.nasi_lemak?.reduce((a, b) => a + b.qty, 0) ?? 0;
   await kh(A.page, (k) => k.open('gergasi'));
   await A.page.waitForSelector('[data-testid=market-panel]');
@@ -194,6 +204,7 @@ test('phase 4: a pasar malam stall, customers, cooking and stock', async ({ brow
 
   // --- Survives a reload ---
   await A.page.reload();
+  await A.page.click('[data-testid=title-start]');
   await A.page.waitForFunction(() => document.body.dataset.state === 'town');
   expect((await kh(A.page, (k) => k.stall()))?.tier).toBe(1);
   expect((await kh(A.page, (k) => k.stall()))?.perfectTokens).toBe(9);

@@ -11,6 +11,15 @@ type KH = {
   remotes: () => Array<{ name: string; cosmetics: Record<string, { itemId: string; variant: string }>; vehicle: string | null }>;
 };
 const kh = <T>(p: Page, fn: (k: KH) => T) => p.evaluate((src) => new Function('k', `return (${src})(k)`)((window as unknown as { __kh: KH }).__kh), fn.toString()) as Promise<T>;
+
+/** Teleport (admin /tp) to where an interactable is used: its spot, or its building's door. */
+async function goTo(p: Page, id: string) {
+  const s = await p.evaluate((i) => (window as unknown as { __kh: { spotOf: (i: string) => { x: number; y: number } } }).__kh.spotOf(i), id);
+  await p.keyboard.press('Enter');
+  await p.fill('#chat-input', `/tp ${s.x} ${s.y}`);
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(800);
+}
 const wallet = (p: Page) => kh(p, (k) => k.wallet());
 
 async function player(browser: Browser, name: string, mobile: boolean, errors: string[]) {
@@ -19,6 +28,7 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
   page.on('pageerror', (e) => errors.push(`[${name}] ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`[${name}] ${m.text()}`));
   await page.goto('/');
+  await page.click('[data-testid=title-start]'); // the start screen
   await page.waitForSelector('#auth');
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'secret123');
@@ -42,6 +52,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await expect(A.page.getByTestId('wallet')).toHaveText('RM 300');
 
   // --- Capsule Machine: ×1 reel, then ×10 grid ---
+  await goTo(A.page, 'capsule_machine');
   await kh(A.page, (k) => k.open('capsule_machine'));
   await A.page.waitForSelector('[data-testid=crate-panel]');
   await A.page.screenshot({ path: `${SHOTS}/p2-1-crate-panel.png` });
@@ -49,15 +60,15 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await A.page.waitForSelector('[data-testid=reveal]');
   await A.page.waitForTimeout(1500);
   await A.page.screenshot({ path: `${SHOTS}/p2-2-reel-spinning.png` });
-  await A.page.click('[data-action=skip]');
+  await A.page.locator('[data-action=skip]').click({ timeout: 3000 }).catch(() => {}); // may have stopped already
   await A.page.waitForSelector('[data-action=reveal-ok]');
   await A.page.screenshot({ path: `${SHOTS}/p2-3-reel-result.png` });
   await A.page.click('[data-action=reveal-ok]');
   expect((await wallet(A.page)).sen).toBeGreaterThanOrEqual(28000 - 1); // RM 20 spent (+ maybe a page reward)
   await A.page.click('[data-roll="10"]');
-  await A.page.waitForSelector('[data-action=skip]');
+  await A.page.waitForSelector('[data-testid=reveal]');
   await A.page.waitForTimeout(1200);
-  await A.page.click('[data-action=skip]');
+  await A.page.locator('[data-action=skip]').click({ timeout: 3000 }).catch(() => {}); // may have stopped already
   await A.page.waitForSelector('[data-action=reveal-ok]');
   await A.page.screenshot({ path: `${SHOTS}/p2-4-grid.png` });
   await A.page.click('[data-action=reveal-ok]');
@@ -82,6 +93,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
 
   // --- Kedai Pajak: sell one item ---
   const beforeSell = (await wallet(A.page)).sen;
+  await goTo(A.page, 'kedai_pajak');
   await kh(A.page, (k) => k.open('kedai_pajak'));
   await A.page.waitForSelector('[data-testid=pawn-panel]');
   await A.page.click('[data-action=sell-one] >> nth=0');
@@ -96,10 +108,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await expect.poll(async () => (await kh(B.page, (k) => k.remotes()))[0]?.vehicle, { timeout: 10_000 }).toBeNull();
 
   // --- Car wash job at Kilat Car Wash: play all three stages ---
-  await A.page.keyboard.press('Enter');
-  await A.page.fill('#chat-input', '/tp -199 117');
-  await A.page.keyboard.press('Enter');
-  await A.page.waitForTimeout(800);
+  await goTo(A.page, 'carwash');
   const beforeWash = (await wallet(A.page)).sen;
   await kh(A.page, (k) => k.open('carwash'));
   await A.page.click('[data-job=carwash]');
@@ -146,10 +155,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   await expect(A.page.getByTestId('carwash')).toHaveCount(0, { timeout: 10_000 });
 
   // --- Delivery job: done on the bicycle (no free motorbike) ---
-  await A.page.keyboard.press('Enter');
-  await A.page.fill('#chat-input', '/tp -231 119');
-  await A.page.keyboard.press('Enter');
-  await A.page.waitForTimeout(800);
+  await goTo(A.page, 'jobsboard');
   await kh(A.page, (k) => k.open('jobsboard'));
   await A.page.click('[data-job=delivery]');
   await A.page.waitForSelector('[data-testid=job-hud]:not(.hidden)');
@@ -221,6 +227,7 @@ test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
   // Money survives a reload (it lives on the server).
   const w = await wallet(A.page);
   await A.page.reload();
+  await A.page.click('[data-testid=title-start]');
   await A.page.waitForFunction(() => document.body.dataset.state === 'town');
   expect(await wallet(A.page)).toEqual(w);
 

@@ -22,9 +22,9 @@ function jobCard(app: App, kind: JobKind, icon: string, desc: string, pay: strin
   start.addEventListener('click', () => {
     if (startHere) startJob(app, kind);
     else {
-      toast('🚿 Kilat Car Wash is about 60 m east of the Jobs Board, on the same side of the road. Look for the blue canopy.', 'info', 5000);
+      toast('🧽 Car washes happen inside Kilat Car Wash, north-east of the square. Follow the arrow!', 'info', 5000);
       closePanel();
-      app.minimap?.openFull();
+      app.guide?.point('carwash');
     }
   });
   const toNext = j.levelUpEvery - (done % j.levelUpEvery);
