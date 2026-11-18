@@ -105,6 +105,8 @@ export function createVentures(d: VentureDeps) {
   return {
     biz,
     register,
+    /** Items on your Butik shelf (rebirth needs an empty shelf). */
+    shelfCount: (p: OnlinePlayer) => boutique.listedOf(p).length,
     /** Send the state after login. */
     sendSelf: (p: OnlinePlayer) => {
       d.socketOf(p)?.emit('ventures:self', { ventures: biz.of(p) });

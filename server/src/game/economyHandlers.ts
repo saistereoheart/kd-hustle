@@ -295,22 +295,44 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   marketRef = social.market;
   // --- rebirth (Phase 8) -------------------------------------------------------------------------
   rebirth = createRebirth({
-    cfg, repos, econ, io, socketOf, pushWallet,
-    netWorth: (p) => netWorthSen(cfg.prog, p.walletSen, p.inventory, assetsOf(p)),
-    heldBids: (p) => marketRef?.heldOf(p).bidsSen ?? 0,
+    cfg, repos, io, socketOf,
+    blocker: (p) => {
+      const held = marketRef?.heldOf(p);
+      if (held?.bidsSen) return 'Settle your Pasar Online bids first.';
+      if (held?.items.length) return 'Take your items off Pasar Online first.';
+      if (ventures.shelfCount(p)) return 'Take your items off the Butik shelf first.';
+      return null;
+    },
     wipe: (p) => {
       stalls.remove(p);
       for (const s of propSys.ownedBy(p)) propSys.repossess(p, s.unit);
       ventures.biz.resetAll(p);
       finance.loans.clearAll(p);
     },
+    resetSelf: (p, startSen) => {
+      if (p.job) jobs.cancel(p);
+      p.errand = null;
+      flushManifest(p);
+      const before = { sen: p.walletSen, shards: p.shards };
+      repos.accounts.rebirthReset(p.id, startSen);
+      repos.econ.logTx(p.id, startSen - before.sen, startSen, -before.shards, 'rebirth', `#${p.rebirths ?? 0}`);
+      // XP and level stay; the rest of progress starts over (daily streak and today's quests too stay).
+      const pr = p.prog;
+      pr.stage = 1;
+      pr.title = null;
+      pr.titles = [];
+      pr.stats = { rebirths: (pr.stats.rebirths ?? 0) + 1 };
+      pr.goalsDone = [];
+      pr.buffs = [];
+      prog.save(p);
+      loadInto(p);
+      if (econ.refreshCosmetics(p)) broadcastCosmetics(p);
+    },
     announce: (text) => {
       repos.announcements.add(text, 'legendary');
       io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
       io.emit('announce', { text, tier: 'legendary', takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
     },
-    check: (p) => prog.check(p),
-    progress: (p) => socketOf(p)?.emit('progress', { progress: prog.state(p), events: [] }),
   });
   // --- the shared radio ---------------------------------------------------------------------
   const radio = createMusic({ cfg, io, world });

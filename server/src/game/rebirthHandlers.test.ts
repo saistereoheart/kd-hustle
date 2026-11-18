@@ -1,11 +1,10 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { perkCost, rebirthTokens } from '@kh/shared';
+import { rebirthCashMult } from '@kh/shared';
 import { loadConfig } from '../config/loadConfig';
 import { openDatabase } from '../db/db';
 import { createRepos } from '../db/repos';
 import { ROOT } from '../paths';
-import { Economy } from '../systems/economy/economy';
 import { emptyProgress } from '../systems/progression/progression';
 import type { GameIO } from './gameServer';
 import { createRebirth } from './rebirthHandlers';
@@ -13,22 +12,29 @@ import type { OnlinePlayer } from './world';
 
 const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
 const rc = cfg.rebirth;
-const RM_1B = 100_000_000_000;
 
-function setup(netWorth: number) {
+function setup() {
   const repos = createRepos(openDatabase(':memory:'));
-  const econ = new Economy(repos, cfg);
-  const id = repos.accounts.create('tansri', 'h', false, { x: 0, y: 0 }, 2, netWorth);
-  const p = { id, name: 'tansri', scene: 'town', hasCharacter: true, walletSen: netWorth, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set(), pages: new Set(), pity: {}, jobs: {}, skills: {}, prog: emptyProgress() } as unknown as OnlinePlayer;
+  const id = repos.accounts.create('tansri', 'h', false, { x: 0, y: 0 }, 2, 500_000_000_00);
+  const p = { id, name: 'tansri', scene: 'town', hasCharacter: true, walletSen: 500_000_000_00, prog: emptyProgress() } as unknown as OnlinePlayer;
   p.prog.stage = 6;
   let wiped = 0;
+  let reset = 0;
+  let blocker: string | null = null;
   const said: string[] = [];
   const io = { to: () => ({ emit: () => {} }) } as unknown as GameIO;
   const rb = createRebirth({
-    cfg, repos, econ, io, socketOf: () => undefined, pushWallet: () => {}, netWorth: (pl) => pl.walletSen, heldBids: () => 0,
-    wipe: () => void wiped++, announce: (t) => said.push(t), check: () => {}, progress: () => {},
+    cfg, repos, io, socketOf: () => undefined,
+    blocker: () => blocker,
+    wipe: () => void wiped++,
+    resetSelf: (pl, start) => {
+      reset++;
+      pl.walletSen = start;
+      pl.prog.stage = 1;
+    },
+    announce: (t) => said.push(t),
   });
-  return { p, rb, repos, wiped: () => wiped, said, sock: (handlers: Map<string, (a: unknown) => unknown>) => handlers };
+  return { p, rb, repos, wiped: () => wiped, reset: () => reset, said, block: (b: string | null) => (blocker = b) };
 }
 
 /** Run a registered handler like the socket would. */
@@ -44,51 +50,56 @@ function handlers(rb: ReturnType<typeof createRebirth>, p: OnlinePlayer) {
 }
 
 describe('rebirth', () => {
-  it('tokens grow with net worth (√), with a minimum', () => {
-    expect(rebirthTokens(rc, RM_1B)).toBe(rc.tokens.base);
-    expect(rebirthTokens(rc, 4 * RM_1B)).toBe(rc.tokens.base * 2);
-    expect(rebirthTokens(rc, 0)).toBe(rc.tokens.min);
+  it('the cash multiplier doubles per rebirth', () => {
+    expect(rebirthCashMult(rc, 0)).toBe(1);
+    expect(rebirthCashMult(rc, 1)).toBe(2);
+    expect(rebirthCashMult(rc, 3)).toBe(8);
   });
 
-  it('needs stage 6 and a typed REBIRTH; resets cash and stage, wipes assets, keeps going with tokens', () => {
-    const s = setup(4 * RM_1B);
+  it('needs stage 6, no listings out and a typed REBIRTH; wipes and resets; income ×2', () => {
+    const s = setup();
     const h = handlers(s.rb, s.p);
     s.p.prog.stage = 5;
     expect(() => h.get('rebirth:do')!({ confirm: 'REBIRTH' })).toThrow(/stage 6/);
     s.p.prog.stage = 6;
+    s.block('Take your items off Pasar Online first.');
+    expect(() => h.get('rebirth:do')!({ confirm: 'REBIRTH' })).toThrow(/Pasar Online/);
+    s.block(null);
     expect(() => h.get('rebirth:do')!({ confirm: 'yes' })).toThrow(/bad request/);
-    const r = h.get('rebirth:do')!({ confirm: 'REBIRTH' }) as { tokens: number };
-    expect(r.tokens).toBe(20);
+    const r = h.get('rebirth:do')!({ confirm: 'REBIRTH' }) as { count: number; mult: number };
+    expect(r).toEqual({ count: 1, mult: 2 });
     expect(s.wiped()).toBe(1);
+    expect(s.reset()).toBe(1);
     expect(s.p.walletSen).toBe(cfg.economy.startingWalletSen);
-    expect(s.p.prog.stage).toBe(1);
     expect(s.p.rebirths).toBe(1);
+    expect(s.rb.mods(s.p)).toEqual({ luck: 1, income: 2 });
     expect(s.said[0]).toMatch(/was reborn/);
     // The new life must be earned again.
     expect(() => h.get('rebirth:do')!({ confirm: 'REBIRTH' })).toThrow(/stage 6/);
-  });
-
-  it('perks cost tokens and change luck, income, starting cash and offline income', () => {
-    const s = setup(4 * RM_1B);
-    const h = handlers(s.rb, s.p);
-    h.get('rebirth:do')!({ confirm: 'REBIRTH' }); // 20 tokens
-    expect(s.rb.mods(s.p)).toEqual({ luck: 1, income: 1 });
-    h.get('rebirth:buy')!({ perk: 'luck' });
-    h.get('rebirth:buy')!({ perk: 'income' });
-    h.get('rebirth:buy')!({ perk: 'offlineCap' });
-    expect(s.rb.mods(s.p).luck).toBeCloseTo(1.1);
-    expect(s.rb.mods(s.p).income).toBeCloseTo(1.1);
-    expect(s.rb.offlineFor(s.p).capHours).toBe(cfg.economy.offline.capHours + 2);
-    // Out of tokens eventually.
-    let spent = perkCost(rc, 'luck', 0) + perkCost(rc, 'income', 0) + perkCost(rc, 'offlineCap', 0);
-    let lv = 0;
-    while (spent + perkCost(rc, 'startCash', lv) <= 20) spent += perkCost(rc, 'startCash', lv++);
-    for (let i = 0; i < lv; i++) h.get('rebirth:buy')!({ perk: 'startCash' });
-    expect(() => h.get('rebirth:buy')!({ perk: 'startCash' })).toThrow(/Rebirth Tokens/);
-    // Next life starts with Trust Fund cash.
     s.p.prog.stage = 6;
     h.get('rebirth:do')!({ confirm: 'REBIRTH' });
-    expect(s.p.walletSen).toBe(cfg.economy.startingWalletSen + lv * 1_000_000);
-    expect(s.p.rebirths).toBe(2);
+    expect(s.rb.mods(s.p).income).toBe(4);
+    // The count survives a reload.
+    s.rb.unload(s.p);
+    expect(s.rb.mods(s.p).income).toBe(4);
+  });
+
+  it('the DB reset keeps XP and level but clears items, Index, shards, skills and stage', () => {
+    const { repos, p } = setup();
+    repos.inventory.insert(p.id, 'chef_mak_senah', 'normal', null);
+    repos.collection.add(p.id, 'chef_mak_senah');
+    repos.econ.setMoney(p.id, 123_456, 50);
+    repos.econ.setState(p.id, { equipped: { chef: 1 }, pity: {}, jobs: { delivery: { level: 5, xp: 10 } } as never, pages: ['a'], skills: { hustle_harder: 4 } });
+    const pr = { ...emptyProgress(), xp: 9_999, level: 12, stage: 6, title: 'boss' };
+    repos.progress.save(p.id, pr as never);
+    repos.accounts.rebirthReset(p.id, cfg.economy.startingWalletSen);
+    expect(repos.inventory.list(p.id)).toEqual([]);
+    expect(repos.collection.list(p.id)).toEqual([]);
+    const e = repos.econ.load(p.id);
+    expect(e).toMatchObject({ walletSen: cfg.economy.startingWalletSen, shards: 0, equipped: {}, jobs: {}, pages: [], skills: {} });
+    const after = repos.progress.load(p.id);
+    expect(after.xp).toBe(9_999);
+    expect(after.level).toBe(12);
+    expect(after.stage).toBe(1);
   });
 });

@@ -241,7 +241,7 @@ export class App {
     const now = performance.now();
     if (this.modsCache && now - this.modsCache.at < 250) return this.modsCache.v;
     const st = this.store;
-    const v = computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory), rebirth: rebirthMods(this.cfg.rebirth, st.rebirth ?? { shop: {} }) });
+    const v = computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory), rebirth: rebirthMods(this.cfg.rebirth, { count: st.rebirth?.count ?? this.lastInit?.you.rebirths ?? 0 }) });
     this.modsCache = { at: now, v };
     return v;
   }

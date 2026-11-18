@@ -15,7 +15,7 @@ import type { MusicView } from '../music/music';
 import type { BoardEntry, TradeView } from '../social/social';
 import type { ActiveEvent } from '../events/events';
 import type { MarketListing, MarketSale } from '../market/market';
-import type { RebirthPerk, RebirthView } from '../rebirth/rebirth';
+import type { RebirthView } from '../rebirth/rebirth';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -560,8 +560,7 @@ export interface ClientToServerEvents {
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
   'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
   /** Start a new life (you type REBIRTH to confirm). */
-  'rebirth:do': (msg: { confirm: 'REBIRTH' }, ack: Ack<Result<{ tokens: number }>>) => void;
-  'rebirth:buy': (msg: { perk: RebirthPerk }, ack: Ack<SimpleResult>) => void;
+  'rebirth:do': (msg: { confirm: 'REBIRTH' }, ack: Ack<Result<{ count: number; mult: number }>>) => void;
   'market:list': (msg: { iid: number; kind: 'fixed' | 'auction'; priceSen: number; hours?: number }, ack: Ack<Result<{ removed: number }>>) => void;
   'market:cancel': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
   'market:buy': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
@@ -638,7 +637,7 @@ export interface ServerToClientEvents {
   'ventures:self': (p: { ventures: Ventures }) => void;
   /** A server event started or ended (null = none running). */
   event: (p: { event: ActiveEvent | null }) => void;
-  /** Your rebirth state (tokens, perks). */
+  /** Your rebirth state (count, cash multiplier). */
   'rebirth:self': (p: { view: RebirthView }) => void;
   /** Pasar Online listings changed. */
   market: (p: { listings: MarketListing[] }) => void;

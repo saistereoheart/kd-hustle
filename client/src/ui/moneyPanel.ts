@@ -89,9 +89,9 @@ function factors(app: App, kind: IncomeKind): Factor[] {
   const gear = gearBonuses(cfg.grades, gearOf({ itemById: app.items }, st.equipped, st.inventory));
   const potions = (b: BuffKind) => st.buffs().filter((x) => x.kind === b && x.leftMs > 0).reduce((a, x) => a * x.mult, 1) - 1;
   const title = st.progress.title ? cfg.titles.titles.find((t) => t.id === st.progress.title) : undefined;
-  const rb = rebirthMods(cfg.rebirth, st.rebirth ?? { shop: {} });
+  const rb = rebirthMods(cfg.rebirth, { count: st.rebirth?.count ?? app.lastInit?.you.rebirths ?? 0 });
   const part = (label: string, add: number | undefined) => (add && add > 1e-9 ? [{ label, add }] : []);
-  const rebirth: Factor = part(`Rebirth ×${rb.income.toFixed(2).replace(/\.?0+$/, '')}`, rb.income - 1);
+  const rebirth: Factor = part(`Rebirth ×${rb.income}`, rb.income - 1);
   const passive: Factor[] = [[...part(skillName('passiveIncome'), sk('passiveIncome')), ...part('Potions', potions('passive')), ...part('Gear', gear.passive)], rebirth];
   switch (kind) {
     case 'jobs':
@@ -104,7 +104,8 @@ function factors(app: App, kind: IncomeKind): Factor[] {
       const chefName = chef ? (app.items.get(chef.id)?.name ?? 'Head chef') : '';
       return [
         part(`Stall level`, s ? stallLevelMult(cfg.stalls, s) - 1 : 0),
-        [...part(skillName('dishPrice'), sk('dishPrice')), ...part('Gear', gear.dishPrice), ...part(`${chefName} (flavour)`, chef?.stats.flavour), ...rebirth],
+        [...part(skillName('dishPrice'), sk('dishPrice')), ...part('Gear', gear.dishPrice), ...part(`${chefName} (flavour)`, chef?.stats.flavour)],
+        rebirth,
       ];
     }
     case 'rent':

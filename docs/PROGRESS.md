@@ -72,12 +72,11 @@ Compared with the spec's content checklist (§19):
   Mall), **Towkay Crate** (RM 500K, stage 4, in the casino), **Tycoon Vault** (RM 10M, stage 5) and **Tan Sri Diamond
   Vault** (RM 250M, stage 6), both in Menara Mitraland. Also in 📱 Quick Rolls. New hats, shades, capes, wings, auras
   and name colours in new palettes; the vault has the second Secret item (the Menara Mitraland Halo).
-- **📱 → ⭐ Rebirth** (wealth stage 6): **Be reborn** (type REBIRTH). You lose cash, homes, businesses and the shop,
-  your stall and loans, and go back to stage 1 with the starting cash. You keep every item, the Item Index, titles,
-  level, skills and perks. You get **Rebirth Tokens** (10 at RM 1B net worth, 20 at RM 4B, 100 at RM 100B: √).
-- **Rebirth Shop** (permanent): Born Lucky (+10% luck/level), Old Money (+10% jobs, stall prices, passive income),
-  Trust Fund (+RM 10,000 starting cash), Night Owl (+2 h offline cap, up to 24 h), Autopilot (+5% offline rate, up
-  to 100%).
+- **📱 → ⭐ Rebirth** (wealth stage 6; reworked 2026-11-19): **Be reborn** (type REBIRTH). **Everything resets**
+  (cash to the starting wallet, items, Item Index, shards, skills, titles, job levels, homes, businesses, stall, loans,
+  wealth stage) **except XP and level**. Each rebirth doubles your cash income (×2, ×4, ×8...: jobs, stall prices,
+  manifesting, ventures, rent, Airbnb). The old Rebirth Tokens / Rebirth Shop were removed. You can't rebirth with
+  Pasar Online bids or listings or Butik items out. The client reloads after a rebirth.
 - Your rebirths show as **⭐ by your name** for everyone (⭐×n past 5). Testing: `/give me money 500000000`,
   `/setstage me 6`.
 

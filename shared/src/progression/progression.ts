@@ -245,7 +245,8 @@ export function computeMods(
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
     stall: {
       // Your chef: + stall prices and faster cooks.
-      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0) + (rb.income - 1),
+      // Rebirth's cash multiplier multiplies on top: (1 + bonuses) × rebirth − 1.
+      dishPrice: (1 + sv('dishPrice') + (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0)) * rb.income - 1,
       customers: sv('customers') + (chef?.stats.charm ?? 0),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),

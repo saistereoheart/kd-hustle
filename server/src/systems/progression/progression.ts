@@ -50,7 +50,7 @@ export function emptyProgress(): ServerProgress {
 export interface ProgressionHooks {
   /** Buffs everyone has right now (a server event like Lucky Hour). */
   extraBuffs?: () => ActiveBuff[];
-  /** Rebirth Shop perks (luck, income multipliers). */
+  /** Rebirth: the cash multiplier (×2 per rebirth); luck stays 1. */
   rebirthMods?: (p: OnlinePlayer) => { luck: number; income: number };
   /** Wallet/shards changed by `delta` sen. */
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;

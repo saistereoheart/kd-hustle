@@ -293,6 +293,15 @@ export function createRepos(db: DB) {
        * Admin /resetplayer (applied at server start, before anything is loaded): back to a new
        * player. Keeps the account, the character's look and their position.
        */
+      /** Rebirth: wipe everything but XP / level (and the rebirth count, in player_data). */
+      rebirthReset: (id: number, walletSen: number) =>
+        db.transaction(() => {
+          for (const sql of [
+            'DELETE FROM inventory_items WHERE account_id = ?',
+            'DELETE FROM collection_index WHERE account_id = ?',
+          ]) db.prepare(sql).run(id);
+          db.prepare("UPDATE players SET wallet_sen = ?, shards = 0, equipped_json = '{}', pity_json = '{}', jobs_json = '{}', pages_json = '[]', skills_json = '{}', hotbar_json = NULL, stage = 1, title = NULL WHERE account_id = ?").run(walletSen, id);
+        })(),
       resetProgress: (id: number, walletSen: number) =>
         db.transaction(() => {
           for (const sql of [
