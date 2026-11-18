@@ -28,6 +28,7 @@ import { createVentures } from './ventureHandlers';
 import { createLoans } from './loanHandlers';
 import { createCasino } from './casinoHandlers';
 import { createMusic } from './musicHandlers';
+import { createSocial } from './socialHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -250,6 +251,17 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     biz: () => ventures.biz,
     check: (p) => prog.check(p),
   });
+  // --- trading, gifting, leaderboards (Phase 7) ----------------------------------------------
+  const social = createSocial({
+    cfg, repos, econ, world, io, socketOf, pushWallet,
+    lockedIids: (p) => propSys.lockedIids(p),
+    assetsOf,
+    bestAirbnb: (p) => Math.max(0, ...propSys.selfOf(p).filter((s) => s.mode === 'airbnb').map((s) => s.rating.stars)),
+    cosmeticsChanged: (p) => {
+      if (econ.refreshCosmetics(p)) broadcastCosmetics(p);
+    },
+    check: (p) => prog.check(p),
+  });
   // --- the shared radio ---------------------------------------------------------------------
   const radio = createMusic({ cfg, io, world });
   // --- the Lucky Strand Casino (Phase 7) --------------------------------------------------------
@@ -375,6 +387,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     finance.register(socket, me, handle);
     casino.register(socket, me, handle);
     radio.register(socket, me, handle);
+    social.register(socket, me, handle);
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -772,6 +785,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       prog.save(p);
       ventures.save(p);
       finance.save(p);
+      social.snapshot(p); // leaderboards keep you while you're offline
     },
     stallsPublic: () => stalls.all(),
     /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
@@ -782,6 +796,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       finance.unload(p);
       casino.leave(p);
       radio.leave(p);
+      social.leave(p);
     },
     chatCommand,
     moveRules,
@@ -813,6 +828,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       finance.stop();
       casino.stop(); // hands back undecided bets (before everyone is saved)
       radio.stop();
+      social.stop();
       stalls.saveDirty(true);
     },
   };

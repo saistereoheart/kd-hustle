@@ -121,6 +121,7 @@ export function createRepos(db: DB) {
     bqAll: db.prepare('SELECT b.*, a.username FROM boutique_listings b JOIN accounts a ON a.id = b.seller_id ORDER BY b.id'),
     bqInsert: db.prepare('INSERT INTO boutique_listings (seller_id, item_id, variant, grade, serial, price_sen, listed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     bqDelete: db.prepare('DELETE FROM boutique_listings WHERE id = ?'),
+    pdAll: db.prepare('SELECT account_id, data_json FROM player_data WHERE kind = ?'),
     pdGet: db.prepare('SELECT data_json FROM player_data WHERE account_id = ? AND kind = ?'),
     pdUpsert: db.prepare(
       `INSERT INTO player_data (account_id, kind, data_json, updated_at) VALUES (?, ?, ?, ?)
@@ -197,6 +198,9 @@ export function createRepos(db: DB) {
         return r ? parseJson<T | null>(r.data_json, null) : null;
       },
       save: (accountId: number, kind: string, data: unknown) => s.pdUpsert.run(accountId, kind, JSON.stringify(data), Date.now()),
+      /** Every player's blob of this kind (leaderboards). */
+      all: <T>(kind: string): Array<{ id: number; data: T }> =>
+        (s.pdAll.all(kind) as Array<{ account_id: number; data_json: string }>).map((r) => ({ id: r.account_id, data: parseJson<T>(r.data_json, {} as T) })),
     },
     progress: {
       load: (accountId: number): ProgressRecord => {

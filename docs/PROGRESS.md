@@ -12,8 +12,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
-income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (the Lucky Strand Casino + the daily free spin) is done; next
-7b (trading, gifting, PvP coinflip, the Pasar Online marketplace, leaderboards, server events).
+income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (the Lucky Strand Casino + the daily free spin) and 7b-1
+(trading, gifting, leaderboards) are done; next 7b-2 (PvP coinflip, the Pasar Online marketplace, server events).
 
 | Check | Result |
 |---|---|
@@ -31,6 +31,20 @@ income for stalls). **Phase 7 (casino and social economy): in progress.** 7a (th
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 7b-1: trading, gifting and leaderboards
+
+### How to test it (two players)
+- **📱 → 👥 Players:** everyone online, with **🤝 Trade**, **🎁 RM** and **🎁 Item** (each gift asks you to confirm).
+- **Trading:** the other player gets a request (Trade / No thanks). In the trade window, each side adds items
+  (➕ Add items, tap to take one out) and/or money, with an estimated value for each side. **Lock**, then **Confirm**
+  once both are locked. **Any change to an offer unlocks both sides**, so nobody can swap something at the last
+  second. The server checks everything again and swaps it all in one transaction: if anything is off (someone spent
+  the money, an item was put on), nothing changes for anyone. Worn items and furniture placed in a home can't be
+  traded. Leaving cancels the trade.
+- **📱 → 🏆 Leaderboards:** net worth, rarest pull, collection %, best Airbnb rating, Perfect dishes, biggest casino
+  win and loss, level. Everyone who has played is on them (offline players with their numbers from their last visit,
+  refreshed every minute while online).
 
 ## The shared radio (your request)
 

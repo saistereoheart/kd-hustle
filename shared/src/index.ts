@@ -25,3 +25,4 @@ export * from './business/business';
 export * from './business/loans';
 export * from './casino/casino';
 export * from './music/music';
+export * from './social/social';

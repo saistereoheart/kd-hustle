@@ -13,6 +13,8 @@ import { renderBank } from './bank';
 import { renderBoutique } from './boutique';
 import { renderSpin } from './spin';
 import { renderRadio } from './radio';
+import { renderPlayers } from './players';
+import { renderBoards } from './boards';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -94,6 +96,8 @@ const APPS: PhoneApp[] = [
     id: 'ventures', name: 'Ventures', icon: '🏢', color: '#5c940d', render: renderVentures,
     badge: (app) => (Object.values(app.store.ventures.businesses).some((b) => b.level && !b.manager && b.stored) ? '💰' : null),
   },
+  { id: 'players', name: 'Players', icon: '👥', color: '#3b5bdb', render: renderPlayers },
+  { id: 'boards', name: 'Leaderboards', icon: '🏆', color: '#e67700', render: renderBoards },
   { id: 'radio', name: 'Radio', icon: '📻', color: '#0c8599', render: renderRadio },
   { id: 'spin', name: 'Lucky Spin', icon: '🎡', color: '#f08c00', render: renderSpin, badge: (app) => (app.store.canSpin ? '!' : null) },
   { id: 'boutique', name: 'Butik', icon: '👜', color: '#c2255c', render: renderBoutique },

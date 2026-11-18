@@ -49,6 +49,7 @@ import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
 import { Radio } from './ui/radio';
+import { showTrade, showTradeRequest } from './ui/trade';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
 import { openErrandOffer } from './ui/errand';
 import { HomeScene } from './world/homeScene';
@@ -436,6 +437,15 @@ export class App {
     socket.on('ventures:self', ({ ventures }) => {
       this.store.ventures = ventures;
       this.store.emit();
+    });
+    socket.on('notice', (n) => toast(n.text, n.kind, 5000));
+    socket.on('inv:removed', ({ iids }) => this.store.removeItems(iids));
+    socket.on('trade:request', ({ from, name }) => showTradeRequest(this, from, name));
+    socket.on('trade', ({ trade, done, reason }) => {
+      this.store.trade = trade;
+      showTrade(this, trade);
+      if (reason) toast(reason, done ? 'good' : 'info', 4000);
+      if (done) sfx.reveal(3);
     });
     socket.on('music', (v) => {
       this.store.music = v;

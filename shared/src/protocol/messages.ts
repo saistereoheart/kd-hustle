@@ -12,6 +12,7 @@ import type { Rating, Suggestion } from '../property/rating';
 import type { BoutiqueSelf, Checkout, Listing, Ventures } from '../business/business';
 import type { BankView, Loan } from '../business/loans';
 import type { MusicView } from '../music/music';
+import type { BoardEntry, TradeView } from '../social/social';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -34,6 +35,11 @@ export const C2S = {
   shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
   shopCashier: z.object({ on: z.boolean() }),
   checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
+  // --- trading and gifting (Phase 7) ---
+  playerId: z.object({ to: z.number().int().positive() }),
+  tradeRespond: z.object({ from: z.number().int().positive(), accept: z.boolean() }),
+  tradeOffer: z.object({ items: z.array(z.number().int().positive()).max(30), sen: z.number().int().min(0).max(1e15) }),
+  gift: z.object({ to: z.number().int().positive(), sen: z.number().int().min(0).max(1e15), items: z.array(z.number().int().positive()).max(30) }),
   // --- the shared radio ---
   musicGenre: z.object({ genre: z.string().min(1).max(64) }),
   musicDuration: z.object({ track: z.string().min(1).max(400), ms: z.number().int().positive().max(86_400_000) }),
@@ -520,6 +526,17 @@ export interface ClientToServerEvents {
   /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
   'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
   'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
+  // --- trading, gifting, leaderboards (Phase 7) ---
+  /** Who's online (for the Players app). */
+  'players:list': (ack: Ack<Result<{ players: Array<{ id: number; name: string; level: number; title: string | null }> }>>) => void;
+  'trade:request': (msg: { to: number }, ack: Ack<SimpleResult>) => void;
+  'trade:respond': (msg: { from: number; accept: boolean }, ack: Ack<SimpleResult>) => void;
+  'trade:offer': (msg: { items: number[]; sen: number }, ack: Ack<SimpleResult>) => void;
+  'trade:lock': (ack: Ack<SimpleResult>) => void;
+  'trade:confirm': (ack: Ack<SimpleResult>) => void;
+  'trade:cancel': (ack: Ack<SimpleResult>) => void;
+  'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
+  'board:view': (ack: Ack<Result<{ entries: BoardEntry[] }>>) => void;
   // --- the shared radio ---
   'music:view': (ack: Ack<Result<{ view: MusicView }>>) => void;
   /** Vote to skip the track (again to take the vote back). */
@@ -586,6 +603,14 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** Someone wants to trade with you. */
+  'trade:request': (p: { from: number; name: string }) => void;
+  /** Your trade window (null = closed). `done` when the swap went through. */
+  trade: (p: { trade: TradeView | null; done?: boolean; reason?: string }) => void;
+  /** A short note for a toast (gifts, trades...). */
+  notice: (p: { text: string; kind: 'good' | 'bad' | 'info' }) => void;
+  /** Items left your bag (traded or gifted away). */
+  'inv:removed': (p: { iids: number[] }) => void;
   /** The shared radio changed (new track, votes). */
   music: (v: MusicView) => void;
   /** A shared casino table changed (only while you watch it). */
