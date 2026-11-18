@@ -47,7 +47,9 @@ export function buildListings(map: Pick<BuiltMap, 'buildings'> & Partial<Pick<Bu
   for (const b of map.buildings) {
     const rule = cfg.byKind[b.kind];
     if (!rule || !b.door) continue;
-    if (b.kind === 'shoplot' && (b.name || busy.has(b.id))) continue;
+    // A building with a counter, machine or stall inside is a landmark, not a home (Menara
+    // Mitraland has the vaults). Named shoplots too.
+    if (busy.has(b.id) || (b.kind === 'shoplot' && b.name)) continue;
     const area = (b.bbox.x1 - b.bbox.x0) * (b.bbox.y1 - b.bbox.y0) * mpt * mpt;
     const units = rule.perM2 ? Math.max(1, Math.min(rule.units, Math.floor(area / rule.perM2))) : rule.units;
     const x = b.door.frontX + 0.5, y = b.door.frontY + 0.5;

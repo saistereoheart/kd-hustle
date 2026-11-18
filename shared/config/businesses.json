@@ -7,9 +7,11 @@
   "taxRate": 0.05,
   "rush": { "mult": 3, "durationMs": 20000, "cooldownMs": 180000, "taps": 12, "windowMs": 6000 },
   "types": [
+    { "id": "burger_bakar", "name": "Burger Bakar Abang Jo", "icon": "🍔", "requires": { "stage": 2 }, "baseCostSen": 300000, "cycleSec": 2, "revenueSen": 40, "rushName": "Flip the patties!" },
     { "id": "carwash", "name": "Buih Car Wash", "icon": "🚿", "requires": { "stage": 3 }, "baseCostSen": 1500000, "cycleSec": 3, "revenueSen": 200, "rushName": "Scrub!" },
     { "id": "dobi", "name": "Dobi Wangi", "icon": "🧺", "requires": { "stage": 3 }, "baseCostSen": 6000000, "cycleSec": 6, "revenueSen": 1200, "rushName": "Fold fast!" },
     { "id": "bubbletea", "name": "Boba Bunga", "icon": "🧋", "requires": { "stage": 4 }, "baseCostSen": 25000000, "cycleSec": 10, "revenueSen": 6000, "rushName": "Shake to order!" },
+    { "id": "mamak24", "name": "Mamak 24 Jam", "icon": "🫓", "requires": { "stage": 4 }, "baseCostSen": 50000000, "cycleSec": 15, "revenueSen": 14000, "rushName": "Late-night crowd!" },
     { "id": "tuition", "name": "Pusat Tuisyen Cemerlang", "icon": "📚", "requires": { "stage": 4 }, "baseCostSen": 100000000, "cycleSec": 20, "revenueSen": 30000, "rushName": "Exam season!" },
     { "id": "gym", "name": "Otot Gym", "icon": "🏋️", "requires": { "stage": 5 }, "baseCostSen": 500000000, "cycleSec": 40, "revenueSen": 200000, "rushName": "New year resolutions!" },
     { "id": "hotel", "name": "Hotel Damansara Inn", "icon": "🏨", "requires": { "stage": 5 }, "baseCostSen": 2500000000, "cycleSec": 80, "revenueSen": 1200000, "rushName": "Assign rooms!" },
