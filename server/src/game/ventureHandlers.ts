@@ -112,8 +112,7 @@ export function createVentures(d: VentureDeps) {
       d.socketOf(p)?.emit('boutique:self', { boutique: boutique.selfOf(p.id) });
     },
     /** Offline catch-up (managed businesses), for the welcome-back screen. */
-    offline: (p: OnlinePlayer, awayMs: number) => {
-      const o = d.cfg.economy.offline;
+    offline: (p: OnlinePlayer, awayMs: number, o: { capHours: number; efficiency: number } = d.cfg.economy.offline) => {
       const paid = biz.offline(p, awayMs, o.capHours, o.efficiency);
       const lines = d.cfg.businesses.types.filter((t) => paid[t.id]).map((t) => ({ label: `${t.icon} ${t.name}`, sen: paid[t.id], detail: `Lv ${biz.of(p).businesses[t.id]?.level ?? 0} · managed` }));
       return [...lines, ...boutiqueLines(p)];

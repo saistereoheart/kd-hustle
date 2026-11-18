@@ -1,7 +1,7 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
 import {
-  buildMap, buildSnapshot, computeMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
+  buildMap, buildSnapshot, computeMods, rebirthMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
   buildListings, roomStyleOf, type Unit,
   type Appearance, type BuiltBuilding, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
   type ProgCfg, type ProgressSnapshot, type PublicConfig,
@@ -239,7 +239,7 @@ export class App {
     const now = performance.now();
     if (this.modsCache && now - this.modsCache.at < 250) return this.modsCache.v;
     const st = this.store;
-    const v = computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory) });
+    const v = computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory), rebirth: rebirthMods(this.cfg.rebirth, st.rebirth ?? { shop: {} }) });
     this.modsCache = { at: now, v };
     return v;
   }
@@ -431,7 +431,14 @@ export class App {
       this.store.emit();
     });
     socket.on('announce', (a) => showAnnouncement(a, this.cfg.rarities));
-    socket.on('stalls', ({ stalls }) => this.store.setStalls(stalls));
+    socket.on('stalls', ({ stalls, removed }) => {
+      for (const plot of removed ?? []) this.store.stalls.delete(plot); // gone (rebirth)
+      this.store.setStalls(stalls);
+    });
+    socket.on('rebirth:self', ({ view }) => {
+      this.store.rebirth = view;
+      this.store.emit();
+    });
     socket.on('props', ({ props }) => this.store.setProps(props));
     socket.on('props:self', ({ props }) => {
       this.store.myProps = props;

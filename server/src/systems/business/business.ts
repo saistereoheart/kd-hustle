@@ -106,6 +106,15 @@ export class BusinessSystem {
     return value;
   }
 
+  /** Rebirth: every business and the shop are gone. */
+  resetAll(p: OnlinePlayer) {
+    const v = this.of(p);
+    v.businesses = {};
+    v.retail = null;
+    this.save(p);
+    this.hooks.changed(p);
+  }
+
   private requireUnlocked(p: OnlinePlayer, req: { stage?: number; level?: number }, name: string) {
     if (req.stage && p.prog.stage < req.stage) throw new GameError(`${name} needs wealth stage ${req.stage}.`);
     if (req.level && p.prog.level < req.level) throw new GameError(`${name} needs level ${req.level}.`);

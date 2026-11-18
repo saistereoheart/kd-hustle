@@ -61,6 +61,8 @@ export interface StallHooks {
   selfChanged: (p: OnlinePlayer, stall: StallSelf | null) => void;
   event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
+  /** A stall is gone from its plot (rebirth). */
+  removed?: (plot: string) => void;
 }
 
 const nextId = (() => {
@@ -727,6 +729,17 @@ export class StallSystem {
   /** Save stalls with unsaved changes (call every few seconds and on shutdown). */
   saveDirty(force = false) {
     for (const l of this.stalls.values()) if (l.dirtySave || force) this.save(l);
+  }
+
+  /** Rebirth: the stall is gone (its plot is free again). */
+  remove(p: OnlinePlayer) {
+    const l = this.stalls.get(p.id);
+    if (!l) return;
+    this.closeUp(p, l, false);
+    this.stalls.delete(p.id);
+    this.repos.stalls.delete(p.id);
+    this.hooks.removed?.(l.s.plot);
+    this.hooks.selfChanged(p, null);
   }
 
   /** The owner left: close up and save. */

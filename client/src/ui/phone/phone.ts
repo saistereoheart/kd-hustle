@@ -16,6 +16,7 @@ import { renderRadio } from './radio';
 import { renderPlayers } from './players';
 import { renderBoards } from './boards';
 import { renderMarket } from './market';
+import { renderRebirth } from './rebirth';
 import { renderDaily } from './daily';
 import { renderPath } from './path';
 import { renderProfile } from './profile';
@@ -107,6 +108,7 @@ const APPS: PhoneApp[] = [
     id: 'bank', name: 'Bank', icon: '🏦', color: '#1864ab', render: renderBank,
     badge: (app) => (app.store.bank?.owesAhLong ? '🦈' : app.store.bank?.loans.some((l) => l.missed) ? '!' : null),
   },
+  { id: 'rebirth', name: 'Rebirth', icon: '⭐', color: '#5f3dc4', render: renderRebirth, badge: (app) => (app.store.rebirth?.can ? '⭐' : null) },
   { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings() },
 ];
 

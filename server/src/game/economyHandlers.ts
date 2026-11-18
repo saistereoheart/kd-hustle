@@ -30,6 +30,7 @@ import { createCasino } from './casinoHandlers';
 import { createMusic } from './musicHandlers';
 import { createSocial } from './socialHandlers';
 import { createEvents } from './eventHandlers';
+import { createRebirth } from './rebirthHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -157,6 +158,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   let props: PropertySystem | null = null;
   // eslint-disable-next-line prefer-const
   let finance: ReturnType<typeof createLoans>;
+  // eslint-disable-next-line prefer-const
+  let rebirth: ReturnType<typeof createRebirth>;
   /** Set once the Pasar Online is up (net worth counts what you have listed or bid). */
   let marketRef: import('../systems/market/market').MarketSystem | null = null;
   /** Homes, stalls and businesses, minus what you owe (loans count against net worth). */
@@ -187,6 +190,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     },
     assetsOf,
     extraBuffs: () => events.buffs(),
+    rebirthMods: (p) => rebirth?.mods(p) ?? { luck: 1, income: 1 },
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
@@ -198,6 +202,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     selfChanged: (p, stall) => socketOf(p)?.emit('stall:self', { stall }),
     event: (p, ev) => socketOf(p)?.emit('stall:event', ev),
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+    removed: (plot) => {
+      io.emit('stalls', { stalls: [], removed: [plot] });
+      syncStallBoxes();
+    },
   });
   world.stallOf = (p) => stalls.selfOf(p);
   /**
@@ -285,6 +293,25 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     },
   });
   marketRef = social.market;
+  // --- rebirth (Phase 8) -------------------------------------------------------------------------
+  rebirth = createRebirth({
+    cfg, repos, econ, io, socketOf, pushWallet,
+    netWorth: (p) => netWorthSen(cfg.prog, p.walletSen, p.inventory, assetsOf(p)),
+    heldBids: (p) => marketRef?.heldOf(p).bidsSen ?? 0,
+    wipe: (p) => {
+      stalls.remove(p);
+      for (const s of propSys.ownedBy(p)) propSys.repossess(p, s.unit);
+      ventures.biz.resetAll(p);
+      finance.loans.clearAll(p);
+    },
+    announce: (text) => {
+      repos.announcements.add(text, 'legendary');
+      io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
+      io.emit('announce', { text, tier: 'legendary', takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
+    },
+    check: (p) => prog.check(p),
+    progress: (p) => socketOf(p)?.emit('progress', { progress: prog.state(p), events: [] }),
+  });
   // --- the shared radio ---------------------------------------------------------------------
   const radio = createMusic({ cfg, io, world });
   // --- the Lucky Strand Casino (Phase 7) --------------------------------------------------------
@@ -412,6 +439,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     casino.register(socket, me, handle);
     radio.register(socket, me, handle);
     social.register(socket, me, handle);
+    rebirth.register(socket, me, handle);
     handle(socket, 'event:view', null, () => ({ event: events.view() }));
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
@@ -723,6 +751,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   /** Load a player's economy state from the DB when they connect. */
   function loadInto(p: OnlinePlayer) {
     finance.loans.of(p); // loads loans and sets the Ah Long tag before anyone sees the player
+    rebirth.load(p); // the stars by the name
     const e = repos.econ.load(p.id);
     p.walletSen = e.walletSen;
     p.shards = e.shards;
@@ -800,18 +829,19 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const mk = social.market.collect(p);
       if (mk.sen || mk.notes.length) extra.push({ label: `🛒 ${cfg.market.name}`, sen: mk.sen, detail: mk.notes.slice(-4).join(' · ') });
       if (awayMs > 0) {
-        const o = cfg.economy.offline;
+        const o = rebirth.offlineFor(p); // Night Owl / Autopilot perks
         const st = stalls.offline(p, awayMs, o.capHours, o.efficiency);
         const tier = st && stalls.get(p.id) ? cfg.stalls.tiers.find((t) => t.tier === stalls.get(p.id)!.s.tier) : undefined;
         if (st && (st.sen || st.dishes)) {
           extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.soldOut ? ' · ⚠️ SOLD OUT: restock in 📱 → Business, or no customers will come' : ''}` });
         }
-        extra.push(...ventures.offline(p, awayMs));
+        extra.push(...ventures.offline(p, awayMs, o));
       }
-      const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline, extra);
+      const away = propSys.welcomeBack(p, awayMs, rebirth.offlineFor(p), extra);
       socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
       ventures.sendSelf(p);
       finance.sendSelf(p);
+      rebirth.push(p);
       const won = casino.collect(p);
       if (won) socketOf(p)?.emit('loan:event', { text: `🎰 Winnings from the casino while you were away: +${formatMoney(won)}`, kind: 'good' });
       if (away) {
@@ -839,6 +869,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       casino.leave(p);
       radio.leave(p);
       social.leave(p);
+      rebirth.unload(p);
     },
     chatCommand,
     moveRules,

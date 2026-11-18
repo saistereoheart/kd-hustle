@@ -50,6 +50,8 @@ export function emptyProgress(): ServerProgress {
 export interface ProgressionHooks {
   /** Buffs everyone has right now (a server event like Lucky Hour). */
   extraBuffs?: () => ActiveBuff[];
+  /** Rebirth Shop perks (luck, income multipliers). */
+  rebirthMods?: (p: OnlinePlayer) => { luck: number; income: number };
   /** Wallet/shards changed by `delta` sen. */
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   items: (p: OnlinePlayer, items: InventoryItem[]) => void;
@@ -147,7 +149,7 @@ export class ProgressionSystem {
   }
 
   mods(p: OnlinePlayer): Mods {
-    return computeMods(this.cfg.prog, { skills: p.skills, title: p.prog.title, buffs: this.activeBuffs(p), gear: gearOf(this.cfg.prog, p.equipped, p.inventory) });
+    return computeMods(this.cfg.prog, { skills: p.skills, title: p.prog.title, buffs: this.activeBuffs(p), gear: gearOf(this.cfg.prog, p.equipped, p.inventory), rebirth: this.hooks.rebirthMods?.(p) });
   }
 
   /** The crate with this player's Pity Pact applied. */

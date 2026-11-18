@@ -107,6 +107,7 @@ export function createRepos(db: DB) {
     rollCountItem: db.prepare('SELECT COUNT(*) AS n FROM roll_log WHERE item_id = ?'),
     txInsert: db.prepare('INSERT INTO transactions (account_id, delta_sen, balance_sen, delta_shards, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     announceInsert: db.prepare('INSERT INTO announcements (text, tier, at) VALUES (?, ?, ?)'),
+    stallDelete: db.prepare('DELETE FROM stalls WHERE account_id = ?'),
     stallsAll: db.prepare('SELECT s.account_id, s.tier, s.plot, s.data_json, a.username FROM stalls s JOIN accounts a ON a.id = s.account_id'),
     stallUpsert: db.prepare(
       `INSERT INTO stalls (account_id, tier, plot, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
@@ -173,6 +174,7 @@ export function createRepos(db: DB) {
           data: parseJson<Record<string, unknown>>(r.data_json, {}),
         })),
       save: (accountId: number, tier: number, plot: string, data: unknown) => s.stallUpsert.run(accountId, tier, plot, JSON.stringify(data), Date.now()),
+      delete: (accountId: number) => s.stallDelete.run(accountId),
     },
     properties: {
       all: () =>

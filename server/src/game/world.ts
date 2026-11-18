@@ -34,6 +34,8 @@ export interface OnlinePlayer {
   interior: string | null;
   /** Late paying the Ah Long (set by the loan system; shown to everyone). */
   owesAhLong?: boolean;
+  /** Times reborn (stars by the name). */
+  rebirths?: number;
 
   // --- economy (Phase 2) ---
   walletSen: number;
@@ -125,6 +127,7 @@ export class World {
       vehicle: p.vehicle,
       interior: p.interior,
       owesAhLong: !!p.owesAhLong,
+      rebirths: p.rebirths ?? 0,
     };
   }
 

@@ -15,6 +15,7 @@ import type { MusicView } from '../music/music';
 import type { BoardEntry, TradeView } from '../social/social';
 import type { ActiveEvent } from '../events/events';
 import type { MarketListing, MarketSale } from '../market/market';
+import type { RebirthPerk, RebirthView } from '../rebirth/rebirth';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 export const C2S = {
@@ -378,6 +379,8 @@ export interface PlayerPublic {
   interior: string | null;
   /** Late on an Ah Long loan: a red "OWES AH LONG" tag and debt collectors follow them around. */
   owesAhLong?: boolean;
+  /** Times reborn (stars by the name). */
+  rebirths?: number;
 }
 
 export interface SelfState extends PlayerPublic {
@@ -545,6 +548,10 @@ export interface ClientToServerEvents {
   'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
   'coinflip:challenge': (msg: { to: number; sen: number }, ack: Ack<SimpleResult>) => void;
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
+  'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
+  /** Start a new life (you type REBIRTH to confirm). */
+  'rebirth:do': (msg: { confirm: 'REBIRTH' }, ack: Ack<Result<{ tokens: number }>>) => void;
+  'rebirth:buy': (msg: { perk: RebirthPerk }, ack: Ack<SimpleResult>) => void;
   'market:list': (msg: { iid: number; kind: 'fixed' | 'auction'; priceSen: number; hours?: number }, ack: Ack<Result<{ removed: number }>>) => void;
   'market:cancel': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
   'market:buy': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
@@ -596,7 +603,7 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */
@@ -621,6 +628,8 @@ export interface ServerToClientEvents {
   'ventures:self': (p: { ventures: Ventures }) => void;
   /** A server event started or ended (null = none running). */
   event: (p: { event: ActiveEvent | null }) => void;
+  /** Your rebirth state (tokens, perks). */
+  'rebirth:self': (p: { view: RebirthView }) => void;
   /** Pasar Online listings changed. */
   market: (p: { listings: MarketListing[] }) => void;
   /** Someone challenged you to a coinflip. */

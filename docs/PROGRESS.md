@@ -13,7 +13,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
 income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
-Online). Plus the shared radio. Next: Phase 8 (end game and polish).
+Online). Plus the shared radio.
+**Phase 8 (end game and polish): in progress.** 8a (the higher crates, rebirth + the Rebirth Shop) is done.
 
 | Check | Result |
 |---|---|
@@ -31,6 +32,22 @@ Online). Plus the shared radio. Next: Phase 8 (end game and polish).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 8a: the higher crates and rebirth
+
+### How to test it
+- **Four new crates** (14 items each, 158 items in total): **Strand Premium Crate** (RM 25K, stage 3, inside The Strand
+  Mall), **Towkay Crate** (RM 500K, stage 4, in the casino), **Tycoon Vault** (RM 10M, stage 5) and **Tan Sri Diamond
+  Vault** (RM 250M, stage 6), both in Menara Mitraland. Also in 📱 Quick Rolls. New hats, shades, capes, wings, auras
+  and name colours in new palettes; the vault has the second Secret item (the Menara Mitraland Halo).
+- **📱 → ⭐ Rebirth** (wealth stage 6): **Be reborn** (type REBIRTH). You lose cash, homes, businesses and the shop,
+  your stall and loans, and go back to stage 1 with the starting cash. You keep every item, the Item Index, titles,
+  level, skills and perks. You get **Rebirth Tokens** (10 at RM 1B net worth, 20 at RM 4B, 100 at RM 100B: √).
+- **Rebirth Shop** (permanent): Born Lucky (+10% luck/level), Old Money (+10% jobs, stall prices, passive income),
+  Trust Fund (+RM 10,000 starting cash), Night Owl (+2 h offline cap, up to 24 h), Autopilot (+5% offline rate, up
+  to 100%).
+- Your rebirths show as **⭐ by your name** for everyone (⭐×n past 5). Testing: `/give me money 500000000`,
+  `/setstage me 6`.
 
 ## Phase 7b-2: server events, PvP coinflip, Pasar Online
 
@@ -968,6 +985,13 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 8a**
+- **Skills stay after rebirth** (the spec lists what resets; Hustle Skills aren't on it). The Butik stays open (its items
+  are yours). You can't rebirth with Pasar Online bids out (that money would survive the reset).
+- **New crate items reuse the existing drawn shapes** in new colours (they work on characters right away). Vehicles
+  as crate prizes and exclusive rebirth crates are not in yet.
+- Climbing the wealth stages again pays the stage rewards again.
 
 **Phase 7b-2**
 - **Coinflip stakes are RM only** (not items) and both stakes are taken at accept.

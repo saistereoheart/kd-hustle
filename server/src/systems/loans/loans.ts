@@ -214,6 +214,16 @@ export class LoanSystem {
     }
   }
 
+  /** Rebirth: a fresh start (no loans, the Ah Long forgets you). The credit score stays. */
+  clearAll(p: OnlinePlayer) {
+    const f = this.of(p);
+    f.loans = [];
+    f.dayMs = 0;
+    this.refreshFlag(p, f);
+    this.save(p);
+    this.hooks.changed(p);
+  }
+
   // ---------------------------------------------------------------- the clock
   /** Every second for online players: bank play time; a full in-game day runs the loan day. */
   tick(p: OnlinePlayer, dtMs: number) {

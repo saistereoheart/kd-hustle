@@ -155,6 +155,7 @@ export class TownScene extends Phaser.Scene {
     this.stalls = new StallLayer(this, this.app);
     this.npcs = new NpcLayer(this, this.app);
     this.collectors = new Collectors(this, this.app);
+    if (you.rebirths) this.me.setRebirths(you.rebirths);
     if (you.owesAhLong) {
       this.me.setDebt(true);
       this.collectors.set(you.id, true, you.x, you.y);
@@ -196,9 +197,10 @@ export class TownScene extends Phaser.Scene {
       this.remotes.delete(id);
       this.collectors.set(id, false, 0, 0);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior, owesAhLong }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior, owesAhLong, rebirths }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      if (rebirths !== undefined) av.setRebirths(rebirths);
       if (owesAhLong !== undefined) {
         av.setDebt(owesAhLong);
         this.collectors.set(id, owesAhLong, av.x, av.y);
@@ -288,6 +290,7 @@ export class TownScene extends Phaser.Scene {
     const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
     if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
     if (p.interior) avatar.container.setVisible(false);
+    if (p.rebirths) avatar.setRebirths(p.rebirths);
     if (p.owesAhLong) {
       avatar.setDebt(true);
       this.collectors.set(p.id, true, p.x, p.y);

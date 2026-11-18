@@ -240,6 +240,18 @@ export class Avatar {
     this.titleText.setColor(t.color).setStroke(dark ? '#f1f3f9' : '#11131f', 3);
   }
 
+  private baseName = '';
+  /** Rebirth stars before the name: ⭐ (1), ⭐⭐ … up to 5, then ⭐×n. */
+  setRebirths(n: number) {
+    if (!this.baseName) this.baseName = this.nameText.text;
+    const stars = n <= 0 ? '' : n <= 5 ? '⭐'.repeat(n) + ' ' : `⭐×${n} `;
+    const text = stars + this.baseName;
+    if (this.nameText.text !== text) {
+      this.nameText.setText(text);
+      this.layoutNameplate();
+    }
+  }
+
   private debtTag: Phaser.GameObjects.Text | null = null;
   /** Late on an Ah Long loan: a red "OWES AH LONG" tag over the head (everyone sees it). */
   setDebt(on: boolean) {

@@ -200,7 +200,7 @@ export function combineMults(sources: Array<{ type: string; mult: number }>): nu
 
 export function computeMods(
   cfg: Pick<ProgCfg, 'upgrades' | 'titles' | 'rarities'> & Partial<Pick<ProgCfg, 'grades'>>,
-  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff>; gear?: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }> },
+  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff>; gear?: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }>; rebirth?: { luck: number; income: number } },
 ): Mods {
   // Equipped items: each slot boosts one stat (rarity × tier × variant).
   const gear = cfg.grades && state.gear ? gearBonuses(cfg.grades, state.gear) : {};
@@ -221,8 +221,10 @@ export function computeMods(
   for (const b of buffs('luck')) luckSources.push({ type: 'potion', mult: b.mult, label: b.item.replace(/^event:/, '') });
   if (title?.bonus?.luck) luckSources.push({ type: 'title', mult: title.bonus.luck, label: title.name });
   if (gear.luck) luckSources.push({ type: 'gear', mult: 1 + gear.luck, label: 'Your gear' });
+  const rb = state.rebirth ?? { luck: 1, income: 1 };
+  if (rb.luck > 1) luckSources.push({ type: 'rebirth', mult: rb.luck, label: 'Rebirth: Born Lucky' });
 
-  const passive = mult('passiveIncome', 'passive', undefined, gear.passive);
+  const passive = mult('passiveIncome', 'passive', undefined, gear.passive) * rb.income;
   return {
     luck: totalLuck(luckSources, cfg.rarities.maxLuck),
     luckSources,
@@ -230,7 +232,7 @@ export function computeMods(
     pityMult: Math.max(0.3, 1 - sv('pity')),
     potionDuration: 1 + sv('potionDuration'),
     xp: mult('xp', 'xp', title?.bonus?.xp, gear.xp),
-    jobPay: mult('jobPay', 'jobPay', title?.bonus?.jobPay, gear.jobPay),
+    jobPay: mult('jobPay', 'jobPay', title?.bonus?.jobPay, gear.jobPay) * rb.income,
     passive,
     walk: 1 + sv('walkSpeed'),
     carwashExtraSec: sv('carwashSeconds'),
@@ -238,7 +240,7 @@ export function computeMods(
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
     stall: {
       // Your chef: + stall prices and faster cooks.
-      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (gear.chef ?? 0),
+      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (gear.chef ?? 0) + (rb.income - 1),
       customers: sv('customers'),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
