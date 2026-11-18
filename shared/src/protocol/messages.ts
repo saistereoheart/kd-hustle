@@ -547,6 +547,8 @@ export interface ClientToServerEvents {
   'trade:cancel': (ack: Ack<SimpleResult>) => void;
   'gift:send': (msg: { to: number; sen: number; items: number[] }, ack: Ack<SimpleResult>) => void;
   'coinflip:challenge': (msg: { to: number; sen: number }, ack: Ack<SimpleResult>) => void;
+  /** Round-trip time check (the debug overlay). */
+  'net:ping': (ack: Ack<SimpleResult>) => void;
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
   'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
   /** Start a new life (you type REBIRTH to confirm). */

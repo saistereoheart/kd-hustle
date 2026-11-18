@@ -286,6 +286,23 @@ export function createRepos(db: DB) {
       count: () => (s.countAccounts.get() as { n: number }).n,
       byName: (username: string) => s.accountByName.get(username) as AccountRow | undefined,
       byId: (id: number) => s.accountById.get(id) as AccountRow | undefined,
+      /**
+       * Admin /resetplayer (applied at server start, before anything is loaded): back to a new
+       * player. Keeps the account, the character's look and their position.
+       */
+      resetProgress: (id: number, walletSen: number) =>
+        db.transaction(() => {
+          for (const sql of [
+            'DELETE FROM inventory_items WHERE account_id = ?',
+            'DELETE FROM collection_index WHERE account_id = ?',
+            'DELETE FROM stalls WHERE account_id = ?',
+            'DELETE FROM properties WHERE account_id = ?',
+            'DELETE FROM player_data WHERE account_id = ?',
+            'DELETE FROM boutique_listings WHERE seller_id = ?',
+            'DELETE FROM market_listings WHERE seller_id = ?',
+          ]) db.prepare(sql).run(id);
+          db.prepare("UPDATE players SET wallet_sen = ?, shards = 0, equipped_json = '{}', pity_json = '{}', jobs_json = '{}', pages_json = '[]', skills_json = '{}', hotbar_json = NULL, xp = 0, level = 1, stage = 1, title = NULL, progress_json = NULL WHERE account_id = ?").run(walletSen, id);
+        })(),
       /** Creates the account and its player row atomically. */
       create: (username: string, passwordHash: string, isAdmin: boolean, spawn: { x: number; y: number }, mapVersion = 0, walletSen = 30000) => {
         const now = Date.now();

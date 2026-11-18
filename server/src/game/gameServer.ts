@@ -34,6 +34,8 @@ export interface GameDeps {
   repos: Repos;
   world: World;
   saves: SaveManager;
+  /** /reloadconfig (throws if a file is invalid). */
+  reloadConfig?: () => void;
 }
 
 export function attachGame(io: GameIO, deps: GameDeps) {
@@ -235,6 +237,47 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     });
 
     // --- chat + emotes ----------------------------------------------------------------
+    /** Server-wide admin commands (spec §17); the rest are in economyHandlers. */
+    const adminCommand = (text: string): string | null => {
+      if (!text.startsWith('/') || !me.isAdmin) return null;
+      const [cmd, ...rest] = text.slice(1).split(/s+/);
+      const arg = rest.join(' ');
+      if (cmd === 'announce') {
+        if (!arg) return 'Usage: /announce <message>';
+        const m = chat.add({ fromId: null, fromName: 'Server', text: `📢 ${arg}`, system: true });
+        io.emit('chat:msg', m);
+        io.emit('announce', { text: `📢 ${arg}`, tier: 'legendary', takeover: false, playerName: '', itemId: '', variant: 'normal', oneIn: 0 });
+        return 'Announced.';
+      }
+      if (cmd === 'kick') {
+        const p = world.byName(rest[0] ?? '');
+        if (!p) return `No online player called "${rest[0] ?? ''}".`;
+        saves.saveNow(p);
+        kickSocket(p.socketId, rest.slice(1).join(' ') || 'An admin kicked you. You can log in again.');
+        return `Kicked ${p.name}.`;
+      }
+      if (cmd === 'saveall') return `Saved ${saves.saveAll()} players.`;
+      if (cmd === 'reloadconfig') {
+        try {
+          deps.reloadConfig?.();
+          return 'Balance config reloaded. Players should refresh the page to see new numbers in menus. Map and network settings need a restart.';
+        } catch (e) {
+          return `Not reloaded: ${(e as Error).message}`;
+        }
+      }
+      if (cmd === 'resetplayer') {
+        const acc = repos.accounts.byName(rest[0] ?? '');
+        if (!acc) return 'Usage: /resetplayer <name> confirm (starts them over as a new player at the next server restart)';
+        if (rest[1] !== 'confirm') return `This wipes ${acc.username}'s money, items, homes, stall, businesses and progress (not the account). Type /resetplayer ${acc.username} confirm`;
+        repos.playerData.save(acc.id, 'reset', { at: Date.now(), by: me.name });
+        const p = world.get(acc.id);
+        if (p) kickSocket(p.socketId, 'Your progress is being reset. Log in again after the server restarts.');
+        return `${acc.username} will be reset when the server restarts (Ctrl+C, then npm start).`;
+      }
+      if (cmd === 'help') return 'Admin: /announce <text> · /kick <name> [reason] · /saveall · /reloadconfig · /resetplayer <name> confirm · /time · /event · /music rescan · /loanday · /give · /setlevel · /setstage · /tp';
+      return null;
+    };
+
     socket.on('chat:send', (msg, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};
       if (!me.hasCharacter) return reply({ ok: false, error: 'Create your character first' });
@@ -243,7 +286,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       if (!chatLimiter.hit(String(me.id))) return reply({ ok: false, error: 'Slow down a bit!' });
       const text = sanitizeChat(parsed.data.text, cfg.chat.maxLength);
       if (!text) return reply({ ok: false, error: 'Empty message' });
-      const commandReply = economy.chatCommand(me, text);
+      const commandReply = adminCommand(text) ?? economy.chatCommand(me, text);
       if (commandReply !== null) {
         socket.emit('chat:msg', { id: -Date.now(), fromId: null, fromName: 'Server', text: commandReply, t: Date.now(), system: true });
         return reply({ ok: true });
@@ -252,6 +295,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       io.to(me.scene).emit('chat:msg', m);
       reply({ ok: true });
     });
+
+    socket.on('net:ping', (ack) => typeof ack === 'function' && ack({ ok: true }));
 
     socket.on('emote', (msg) => {
       if (!me.hasCharacter) return;

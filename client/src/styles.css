@@ -1010,3 +1010,5 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 .coin.spin-tails { animation: coin-tails 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
 @keyframes coin-heads { from { transform: rotateY(0); } to { transform: rotateY(1800deg); } }
 @keyframes coin-tails { from { transform: rotateY(0); } to { transform: rotateY(1980deg); } }
+.debug-overlay { position: absolute; top: calc(200px + var(--safe-t, 0px)); right: 10px; z-index: 50; margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.75); color: #8ce99a; font: 12px/1.4 ui-monospace, Consolas, monospace; pointer-events: none; white-space: pre; }
+.debug-overlay.hidden { display: none; }

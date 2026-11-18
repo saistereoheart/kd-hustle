@@ -209,3 +209,28 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     rebirth: cfg.rebirth,
   };
 }
+
+/**
+ * /reloadconfig: re-read every balance file and copy the new values INTO the running config
+ * objects (systems keep references to them, so they see the change). Lookup maps are rebuilt in
+ * place. The map and the server/network settings need a restart. Throws if a file is invalid
+ * (nothing is changed then).
+ */
+export function reloadBalance(cfg: ServerConfig, configDir: string, mapDir: string): string[] {
+  const fresh = loadConfig(configDir, mapDir);
+  const keys = [
+    'rarities', 'items', 'crates', 'economy', 'jobs', 'vehicles', 'rides', 'upgrades', 'levels', 'stages', 'titles', 'quests', 'goals',
+    'time', 'recipes', 'stalls', 'interiors', 'guide', 'npcs', 'furniture', 'properties', 'businesses', 'loans', 'casino', 'music', 'events', 'market', 'rebirth',
+  ] as const;
+  for (const k of keys) Object.assign(cfg[k] as object, fresh[k]);
+  if (cfg.prog.grades && fresh.prog.grades) Object.assign(cfg.prog.grades, fresh.prog.grades);
+  const refill = <K, V>(m: Map<K, V>, from: Map<K, V>) => {
+    m.clear();
+    for (const [k, v] of from) m.set(k, v);
+  };
+  refill(cfg.itemById, fresh.itemById);
+  refill(cfg.crateById, fresh.crateById);
+  refill(cfg.crateOfItem, fresh.crateOfItem);
+  refill(cfg.recipeById, fresh.recipeById);
+  return [...keys];
+}

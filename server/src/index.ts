@@ -6,7 +6,7 @@ import express from 'express';
 import { Server } from 'socket.io';
 import { AuthService } from './auth/authService';
 import { backupDatabase } from './backup/backup';
-import { loadConfig, toPublicConfig } from './config/loadConfig';
+import { loadConfig, reloadBalance, toPublicConfig } from './config/loadConfig';
 import { musicDirOf } from './game/musicHandlers';
 import { openDatabase } from './db/db';
 import { createRepos } from './db/repos';
@@ -29,6 +29,11 @@ async function main() {
   const dbFile = path.join(paths.dataDir, 'game.db');
   const db = openDatabase(dbFile);
   const repos = createRepos(db);
+  // Admin /resetplayer: applied now, before any system loads player data.
+  for (const r of repos.playerData.all<{ by?: string }>('reset')) {
+    repos.accounts.resetProgress(r.id, cfg.economy.startingWalletSen);
+    log.info(`Reset player #${r.id} (asked by ${r.data?.by ?? 'an admin'})`);
+  }
 
   // Backup on start (and every N hours below).
   try {
@@ -52,7 +57,7 @@ async function main() {
   app.use('/music', express.static(musicDirOf(cfg), { maxAge: '1h', fallthrough: false }));
   const server = http.createServer(app);
   const io: GameIO = new Server(server, { serveClient: false, destroyUpgrade: false });
-  const game = attachGame(io, { cfg, auth, repos, world, saves });
+  const game = attachGame(io, { cfg, auth, repos, world, saves, reloadConfig: () => void reloadBalance(cfg, paths.sharedConfig, paths.mapDir) });
 
   // Client: Vite middleware in dev (one port, HMR works from phones), static build in prod.
   let closeVite: (() => Promise<void>) | undefined;

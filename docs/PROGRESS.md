@@ -14,7 +14,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
 income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
 Online). Plus the shared radio.
-**Phase 8 (end game and polish): in progress.** 8a (the higher crates, rebirth + the Rebirth Shop) is done.
+**Phase 8 (end game and polish): in progress.** 8a (the higher crates, rebirth + the Rebirth Shop) and 8b (admin
+commands, the debug overlay) are done.
 
 | Check | Result |
 |---|---|
@@ -32,6 +33,16 @@ Online). Plus the shared radio.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 8b: admin tools
+
+### How to test it (as the admin)
+- **/help** lists everything. New: **/announce <text>** (a banner and chat line for everyone), **/kick <name>
+  [reason]**, **/saveall**, **/reloadconfig** (re-reads every balance JSON and applies it to the running game; an
+  invalid file is reported and nothing changes; players refresh the page to see new numbers in menus; map and
+  network settings still need a restart), **/resetplayer <name> confirm** (they're kicked and start over as a new
+  player when the server next starts; the account and their look stay).
+- **F3**: a debug overlay with FPS, ping, position (tiles), map chunks, drawn objects and players nearby.
 
 ## Phase 8a: the higher crates and rebirth
 

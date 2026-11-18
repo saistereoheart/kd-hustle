@@ -50,6 +50,7 @@ import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
 import { Radio } from './ui/radio';
 import { EventBanner } from './ui/eventBanner';
+import { DebugOverlay } from './ui/debugOverlay';
 import { showTrade, showTradeRequest } from './ui/trade';
 import { showCoinflipChallenge, showCoinflipResult } from './ui/coinflip';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
@@ -80,6 +81,7 @@ export class App {
   phoneBtn: PhoneButton | null = null;
   radio: Radio | null = null;
   eventBanner: EventBanner | null = null;
+  debugOverlay: DebugOverlay | null = null;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -655,6 +657,7 @@ export class App {
       this.phoneBtn = new PhoneButton(this);
       this.radio ??= new Radio(this);
       this.eventBanner ??= new EventBanner(this);
+      this.debugOverlay ??= new DebugOverlay(this);
       this.chat = new Chat(
         (text) =>
           new Promise((resolve) => {
