@@ -47,12 +47,15 @@ export class Gacha {
     const base = this.cfg.crateById.get(crateId);
     if (!base) throw new GameError('Unknown crate.');
     const crate = mods.pity ? { ...base, pity: mods.pity } : base;
-    const total = mods.free ? 0 : crate.priceSen * count;
+    // Most crates cost RM; the Chef Search costs shards.
+    const shardCost = mods.free || !crate.priceShards ? 0 : crate.priceShards * count;
+    const total = mods.free || crate.priceShards ? 0 : crate.priceSen * count;
     if (p.walletSen < total) throw new GameError(`You need RM ${(total / 100).toLocaleString('en-US')} for ${count}× ${crate.name}.`);
+    if (p.shards < shardCost) throw new GameError(`You need ${shardCost} 💎 shards for ${count}× ${crate.name}.`);
     const luck = mods.luck ?? 1;
     const counts = new Map(this.limitedCount);
     const batch = this.econ.run(p, () => {
-      if (total > 0) this.econ.change(p, -total, 0, 'crate', `${crate.id}x${count}`);
+      if (total > 0 || shardCost > 0) this.econ.change(p, -total, -shardCost, 'crate', `${crate.id}x${count}`);
       const results: RollResult[] = [];
       let pity = p.pity[crate.id] ?? { sinceEpic: 0, sinceLegendary: 0 };
       for (let i = 0; i < count; i++) {

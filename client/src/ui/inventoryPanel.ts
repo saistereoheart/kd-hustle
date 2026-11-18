@@ -84,7 +84,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
             b.addEventListener('click', () => unequip(slot));
             actions.append(b);
           } else {
-            const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'equip' }, `Wear (${slot})`);
+            const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'equip' }, slot === 'chef' ? '👨‍🍳 Make head chef' : `Wear (${slot})`);
             b.addEventListener('click', () => equip(s.items[0].iid));
             actions.append(b);
           }

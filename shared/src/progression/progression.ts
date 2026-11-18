@@ -234,11 +234,12 @@ export function computeMods(
     rollSpeed: 1 + sv('rollSpeed'),
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
     stall: {
-      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0),
+      // Your chef: + stall prices and faster cooks.
+      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0) + (gear.chef ?? 0),
       customers: sv('customers'),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
-      staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1),
+      staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1) * (1 + (gear.chef ?? 0)),
     },
   };
 }

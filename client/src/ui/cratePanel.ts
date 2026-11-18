@@ -12,7 +12,10 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
   if (!crate) return;
   const rar = app.cfg.rarities;
   const remote = !!opts.remote;
-  const feeMult = remote ? 1 + app.cfg.economy.phoneRollFee : 1;
+  const shardPrice = crate.priceShards ?? 0; // the Chef Search costs 💎 shards
+  const feeMult = remote && !shardPrice ? 1 + app.cfg.economy.phoneRollFee : 1;
+  const priceText = (n: number) => (shardPrice ? `${shardPrice * n} 💎` : formatMoney(Math.round(crate.priceSen * n * feeMult)));
+  const canAfford = (n: number) => (shardPrice ? app.store.shards >= shardPrice * n : app.store.walletSen >= Math.round(crate.priceSen * n * feeMult));
   const panel = openPanel(`${remote ? '📱 ' : ''}${crate.name}`, { wide: true, testId: 'crate-panel' });
   let busy = false;
   /** Auto-Roll (a Hustle Skill): keep rolling the same count until stopped. */
@@ -38,7 +41,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
       'div',
       { class: 'crate-head' },
       el('div', { class: 'crate-art' }, el('span', {}, crate.id === 'capsule' ? '🎰' : crate.id === 'luckybag' ? '🧧' : '🎁')),
-      el('div', {}, el('div', { class: 'crate-price' }, `${formatMoney(Math.round(crate.priceSen * feeMult))} per roll`), remote ? el('div', { class: 'muted small' }, `📱 Phone roll: +${Math.round(app.cfg.economy.phoneRollFee * 100)}% fee (free at the machine)`) : null, el('div', { class: 'muted' }, `You have ${formatMoney(st.walletSen)}`)),
+      el('div', {}, el('div', { class: 'crate-price' }, `${priceText(1)} per roll`), remote && !shardPrice ? el('div', { class: 'muted small' }, `📱 Phone roll: +${Math.round(app.cfg.economy.phoneRollFee * 100)}% fee (free at the machine)`) : null, el('div', { class: 'muted' }, `You have ${formatMoney(st.walletSen)}`)),
     );
     head.querySelector<HTMLElement>('.crate-art')!.style.setProperty('--crate', crate.color);
 
@@ -67,8 +70,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
     }
     const actions = el('div', { class: 'crate-actions' });
     for (const n of [1, 5, 10] as const) {
-      const cost = Math.round(crate.priceSen * n * feeMult);
-      const b = el('button', { class: `btn ${n === 1 ? 'primary' : ''}`, type: 'button', 'data-roll': String(n), disabled: busy || !!lock || st.walletSen < cost }, `Roll ×${n}`, el('small', {}, formatMoney(cost)));
+      const b = el('button', { class: `btn ${n === 1 ? 'primary' : ''}`, type: 'button', 'data-roll': String(n), disabled: busy || !!lock || !canAfford(n) }, `Roll ×${n}`, el('small', {}, priceText(n)));
       b.addEventListener('click', () => roll(n));
       actions.append(b);
     }
@@ -96,6 +98,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
       }
       const st = app.store;
       st.walletSen = res.walletSen;
+      if (shardPrice) st.shards = Math.max(0, st.shards - shardPrice * count);
       st.pity = { ...st.pity, [crateId]: res.pity };
       const now = Date.now();
       const items: InventoryItem[] = res.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, grade: r.grade, serial: r.serial, obtainedAt: now }));
@@ -111,7 +114,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
         results: res.results,
         luck: mods.luck,
         speed: mods.rollSpeed,
-        auto: auto ? { isOn: () => auto && app.store.walletSen >= crate.priceSen * count * feeMult && !lockReason(), stop: () => (auto = false) } : undefined,
+        auto: auto ? { isOn: () => auto && canAfford(count) && !lockReason(), stop: () => (auto = false) } : undefined,
         shake: (i) => app.town?.shake(i),
         onDone: (again) => {
           panel.root.classList.remove('hidden');

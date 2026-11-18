@@ -5,12 +5,25 @@
       "name": "Capsule Machine",
       "priceSen": 2000,
       "color": "#ff6b6b",
-      "pity": { "epic": 50, "legendary": 300 },
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
       "pool": [
-        "kopi_keychain", "plastic_chair", "rubber_duck", "party_hat", "paper_crown",
-        "bucket_hat", "star_shades", "mini_fan", "lucky_coin",
-        "propeller_cap", "nerd_glasses", "glow_aura",
-        "cat_ears", "bubble_aura",
+        "kopi_keychain",
+        "plastic_chair",
+        "rubber_duck",
+        "party_hat",
+        "paper_crown",
+        "bucket_hat",
+        "star_shades",
+        "mini_fan",
+        "lucky_coin",
+        "propeller_cap",
+        "nerd_glasses",
+        "glow_aura",
+        "cat_ears",
+        "bubble_aura",
         "golden_crown",
         "halo"
       ]
@@ -19,15 +32,29 @@
       "id": "luckybag",
       "name": "Lucky Bag",
       "priceSen": 15000,
-      "requires": { "stage": 2 },
+      "requires": {
+        "stage": 2
+      },
       "color": "#f59f00",
-      "pity": { "epic": 50, "legendary": 300 },
+      "pity": {
+        "epic": 50,
+        "legendary": 300
+      },
       "pool": [
-        "straw_hat", "speed_tonic", "teh_tarik_mug", "beret",
-        "chef_hat", "cowboy_hat", "heart_glasses",
-        "bunny_ears", "red_cape", "neon_name",
-        "bat_wings", "flame_aura",
-        "top_hat", "angel_wings",
+        "straw_hat",
+        "speed_tonic",
+        "teh_tarik_mug",
+        "beret",
+        "chef_hat",
+        "cowboy_hat",
+        "heart_glasses",
+        "bunny_ears",
+        "red_cape",
+        "neon_name",
+        "bat_wings",
+        "flame_aura",
+        "top_hat",
+        "angel_wings",
         "naga_aura",
         "rainbow_name"
       ]
@@ -36,20 +63,65 @@
       "id": "mallbox",
       "name": "Mall Mystery Box",
       "priceSen": 150000,
-      "requires": { "stage": 2, "level": 5 },
+      "requires": {
+        "stage": 2,
+        "level": 5
+      },
       "color": "#7048e8",
-      "pity": { "epic": 40, "legendary": 250 },
+      "pity": {
+        "epic": 40,
+        "legendary": 250
+      },
       "pool": [
-        "rattan_chair", "potted_monstera", "bean_bag",
-        "rgb_desk", "neon_sign", "velvet_sofa", "cyber_lamp", "gold_chandelier", "holo_bed",
-        "graduation_cap", "monocle", "backpack",
-        "viking_helmet", "heart_aura", "gold_name",
-        "jetpack", "antenna_bopper",
-        "diamond_shades", "sparkle_aura",
+        "rattan_chair",
+        "potted_monstera",
+        "bean_bag",
+        "rgb_desk",
+        "neon_sign",
+        "velvet_sofa",
+        "cyber_lamp",
+        "gold_chandelier",
+        "holo_bed",
+        "graduation_cap",
+        "monocle",
+        "backpack",
+        "viking_helmet",
+        "heart_aura",
+        "gold_name",
+        "jetpack",
+        "antenna_bopper",
+        "diamond_shades",
+        "sparkle_aura",
         "phoenix_wings",
         "durian_crown",
         "tan_sri_songkok"
       ]
+    },
+    {
+      "id": "chefs",
+      "name": "Chef Search",
+      "priceSen": 150000,
+      "priceShards": 60,
+      "color": "#e8590c",
+      "pity": {
+        "epic": 25,
+        "legendary": 120
+      },
+      "pool": [
+        "chef_mak_senah",
+        "chef_pak_hamid",
+        "chef_abang_jaya",
+        "chef_kak_ros",
+        "chef_ah_lim",
+        "chef_auntie_wong",
+        "chef_tuan_rashid",
+        "chef_master_raju",
+        "chef_sambal_sultan",
+        "chef_grandmaster_teh"
+      ],
+      "requires": {
+        "stage": 2
+      }
     }
   ]
 }

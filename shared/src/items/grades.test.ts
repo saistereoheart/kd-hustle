@@ -48,6 +48,13 @@ describe('gear buffs', () => {
     expect(b.xp).toBeCloseTo(0.04 * 1.5 * 1.5);
   });
 
+  it('chefs use their own, stronger table', () => {
+    const c = gearBuff(cfg, { type: 'chef', rarity: 'epic', grade: 'B', variant: 'golden' })!;
+    expect(c.stat).toBe('chef');
+    expect(c.value).toBeCloseTo(cfg.buffs.chefByRarity.epic * gradeMult(cfg, 'B') * cfg.buffs.variantMult.golden);
+    expect(cfg.buffs.chefByRarity.common).toBeGreaterThan(cfg.buffs.byRarity.common);
+  });
+
   it('a merged item keeps the best variant of its inputs', () => {
     const order = ['normal', 'shiny', 'golden', 'rainbow'];
     expect(bestVariant(order, ['normal', 'normal', 'golden', 'shiny', 'normal'])).toBe('golden');

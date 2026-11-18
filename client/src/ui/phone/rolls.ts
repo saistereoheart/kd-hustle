@@ -20,8 +20,8 @@ export function renderRolls({ app }: PhoneCtx): HTMLElement[] {
     return el(
       'div',
       { class: 'job-card' },
-      el('div', { class: 'job-icon' }, c.id === 'capsule' ? '🎰' : c.id === 'luckybag' ? '🧧' : '🎁'),
-      el('div', { class: 'job-info' }, el('h4', {}, c.name), el('p', {}, lock ? `Opens at ${lock}` : `${formatMoney(Math.round(c.priceSen * (1 + fee)))} a roll · ${found}/${c.pool.length} found`)),
+      el('div', { class: 'job-icon' }, c.id === 'capsule' ? '🎰' : c.id === 'luckybag' ? '🧧' : c.id === 'chefs' ? '👨‍🍳' : '🎁'),
+      el('div', { class: 'job-info' }, el('h4', {}, c.name), el('p', {}, lock ? `Opens at ${lock}` : `${c.priceShards ? `${c.priceShards} 💎` : formatMoney(Math.round(c.priceSen * (1 + fee)))} a roll · ${found}/${c.pool.length} found`)),
       open,
     );
   });

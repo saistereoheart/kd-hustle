@@ -31,7 +31,7 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 
 ---
 
-## Phase 5.7: item tiers (D..S), gear buffs, merging, shard rerolls
+## Phase 5.7: item tiers (D..S), gear buffs, merging, shard rerolls, chef gacha
 
 ### How to test it
 - **Tiers:**
@@ -54,6 +54,16 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
 - Database: migration 10 adds the tier column (existing items become tier D).
 
 All tier numbers are in `shared/config/grades.json`.
+
+### Chef gacha
+- **📱 → Quick Rolls → Chef Search** (wealth stage 2): 60 💎 a roll, paid in shards (no RM, no phone fee).
+- 10 fictional chefs, common to mythic (Mak Senah, Pak Hamid … The Sambal Sultan, Grandmaster Teh), each drawn as
+  a portrait.
+- Chefs roll a tier and variation like any item. You can merge and reroll them, and they go in the bag's
+  **👨‍🍳 Chefs** group.
+- **👨‍🍳 Make head chef** puts one in the chef slot: + stall prices AND faster cooks. The base is stronger than
+  gear: common 5%, uncommon 8%, rare 12%, epic 18%, legendary 28%, mythic 40%, then × tier × variation.
+- The head chef isn't drawn on your character (it's a stall buff).
 
 ---
 

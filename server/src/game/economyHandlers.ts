@@ -229,13 +229,14 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const lock = prog.crateLock(me, crate);
       if (lock) throw new GameError(lock);
       // A quick roll from the phone: the same roll, plus a small fee (charged first, so it can't be dodged).
-      const fee = remote ? Math.round(crate.priceSen * count * cfg.economy.phoneRollFee) : 0;
+      const fee = remote && !crate.priceShards ? Math.round(crate.priceSen * count * cfg.economy.phoneRollFee) : 0;
       if (fee && me.walletSen < crate.priceSen * count + fee) throw new GameError(`That's ${formatMoney(crate.priceSen * count + fee)} with the phone fee.`);
       if (fee) econ.run(me, () => econ.change(me, -fee, 0, 'crate-phone-fee', `${crateId}x${count}`));
       const batch = gacha.roll(me, crateId, count, rollMods(me, crateId));
       for (const r of batch.announce) announce(me, r);
-      pushWallet(me, -crate.priceSen * count - fee + (batch.pageReward?.sen ?? 0), 'crate');
-      prog.onRolls(me, crate, batch.results, crate.priceSen * count);
+      const spentSen = crate.priceShards ? 0 : crate.priceSen * count; // the Chef Search is paid in shards
+      pushWallet(me, -spentSen - fee + (batch.pageReward?.sen ?? 0), 'crate');
+      prog.onRolls(me, crate, batch.results, spentSen);
       return { results: batch.results, walletSen: me.walletSen, pity: me.pity[crateId], pageReward: batch.pageReward };
     });
 

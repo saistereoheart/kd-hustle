@@ -15,7 +15,9 @@ export const gradesConfigSchema = z.object({
     /** An equipped item's buff before grade and variant (a share: 0.04 = +4%). */
     byRarity: z.record(z.string(), z.number().nonnegative()),
     /** Which stat each equipment slot boosts. */
-    bySlot: z.record(z.string(), z.enum(['luck', 'xp', 'jobPay', 'passive', 'dishPrice'])),
+    bySlot: z.record(z.string(), z.enum(['luck', 'xp', 'jobPay', 'passive', 'dishPrice', 'chef'])),
+    /** Chefs are stronger: their base buff by rarity (stall prices AND how fast your cooks work). */
+    chefByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
     variantMult: z.record(z.string(), z.number().positive()),
   }),
   shards: z.object({ rerollGrade: z.record(z.string(), z.number().int().positive()), rerollVariant: z.record(z.string(), z.number().int().positive()) }),
@@ -61,7 +63,7 @@ export function rerollGrade(cfg: GradesConfig, current: string | undefined, rand
 export function gearBuff(cfg: GradesConfig, item: { type: string; rarity: string; grade?: string; variant: string }): { stat: GearStat; value: number } | null {
   const stat = cfg.buffs.bySlot[item.type];
   if (!stat) return null;
-  const base = cfg.buffs.byRarity[item.rarity] ?? 0;
+  const base = (item.type === 'chef' ? cfg.buffs.chefByRarity : cfg.buffs.byRarity)[item.rarity] ?? 0;
   return { stat, value: base * gradeMult(cfg, item.grade) * (cfg.buffs.variantMult[item.variant] ?? 1) };
 }
 

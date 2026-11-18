@@ -1,96 +1,992 @@
 {
   "items": [
-    { "id": "kopi_keychain", "name": "Kopi Cup Keychain", "type": "trinket", "rarity": "common", "shape": "cup", "color": "#8d5a33" },
-    { "id": "plastic_chair", "name": "Red Plastic Chair", "type": "furniture", "rarity": "common", "shape": "chair", "color": "#e03131" },
-    { "id": "rubber_duck", "name": "Rubber Duck", "type": "trinket", "rarity": "common", "shape": "duck", "color": "#ffd43b" },
-    { "id": "party_hat", "name": "Party Hat", "type": "hat", "rarity": "common", "shape": "party", "color": "#4dabf7", "color2": "#ffd43b" },
-    { "id": "paper_crown", "name": "Paper Crown", "type": "hat", "rarity": "common", "shape": "crown", "color": "#ffec99", "color2": "#f08c00" },
-    { "id": "bucket_hat", "name": "Bucket Hat", "type": "hat", "rarity": "uncommon", "shape": "bucket", "color": "#94d82d" },
-    { "id": "star_shades", "name": "Star Shades", "type": "face", "rarity": "uncommon", "shape": "star_shades", "color": "#f783ac" },
-    { "id": "mini_fan", "name": "Mini Desk Fan", "type": "furniture", "rarity": "uncommon", "shape": "fan", "color": "#74c0fc" },
-    { "id": "lucky_coin", "name": "Lucky Coin", "type": "trinket", "rarity": "uncommon", "shape": "coin", "color": "#fcc419" },
-    { "id": "propeller_cap", "name": "Propeller Cap", "type": "hat", "rarity": "rare", "shape": "propeller", "color": "#f03e3e", "color2": "#ffd43b" },
-    { "id": "nerd_glasses", "name": "Big Nerd Glasses", "type": "face", "rarity": "rare", "shape": "nerd", "color": "#212529" },
-    { "id": "glow_aura", "name": "Mint Glow Aura", "type": "aura", "rarity": "rare", "shape": "glow", "color": "#63e6be" },
-    { "id": "cat_ears", "name": "Cat Ears", "type": "hat", "rarity": "epic", "shape": "cat_ears", "color": "#343a40", "color2": "#ffa8c5" },
-    { "id": "bubble_aura", "name": "Bubble Aura", "type": "aura", "rarity": "epic", "shape": "bubbles", "color": "#74c0fc" },
-    { "id": "golden_crown", "name": "Golden Crown", "type": "hat", "rarity": "legendary", "shape": "crown", "color": "#fcc419", "color2": "#e03131" },
-    { "id": "halo", "name": "Halo", "type": "hat", "rarity": "mythic", "shape": "halo", "color": "#fff3bf" },
-    { "id": "straw_hat", "name": "Straw Hat", "type": "hat", "rarity": "common", "shape": "straw", "color": "#e9c46a", "color2": "#e03131" },
-    { "id": "speed_tonic", "name": "Speed Tonic", "type": "booster", "rarity": "common", "shape": "bottle", "color": "#4dabf7", "desc": "A stall booster: your cooks work 50% faster for 10 minutes.", "effect": {"buff": "staffSpeed", "mult": 1.5, "durationSec": 600} },
-    { "id": "teh_tarik_mug", "name": "Teh Tarik Mug", "type": "trinket", "rarity": "common", "shape": "cup", "color": "#c9a87c" },
-    { "id": "beret", "name": "Beret", "type": "hat", "rarity": "common", "shape": "beret", "color": "#c92a2a" },
-    { "id": "chef_hat", "name": "Chef Hat", "type": "hat", "rarity": "uncommon", "shape": "chef", "color": "#f8f9fa" },
-    { "id": "cowboy_hat", "name": "Cowboy Hat", "type": "hat", "rarity": "uncommon", "shape": "cowboy", "color": "#a0522d" },
-    { "id": "heart_glasses", "name": "Heart Glasses", "type": "face", "rarity": "uncommon", "shape": "heart_glasses", "color": "#e64980" },
-    { "id": "bunny_ears", "name": "Bunny Ears", "type": "hat", "rarity": "rare", "shape": "bunny", "color": "#f8f9fa", "color2": "#ffa8c5" },
-    { "id": "red_cape", "name": "Hero Cape", "type": "back", "rarity": "rare", "shape": "cape", "color": "#e03131" },
-    { "id": "neon_name", "name": "Neon Pink Name", "type": "namecolor", "rarity": "rare", "shape": "name", "color": "#ff4fd8" },
-    { "id": "bat_wings", "name": "Bat Wings", "type": "back", "rarity": "epic", "shape": "bat_wings", "color": "#5f3dc4" },
-    { "id": "flame_aura", "name": "Flame Aura", "type": "aura", "rarity": "epic", "shape": "flame", "color": "#ff922b" },
-    { "id": "top_hat", "name": "Towkay Top Hat", "type": "hat", "rarity": "legendary", "shape": "tophat", "color": "#212529", "color2": "#fcc419" },
-    { "id": "angel_wings", "name": "Angel Wings", "type": "back", "rarity": "legendary", "shape": "angel_wings", "color": "#f8f9fa" },
-    { "id": "naga_aura", "name": "Naga Aura", "type": "aura", "rarity": "mythic", "shape": "naga", "color": "#20c997", "color2": "#fcc419" },
-    { "id": "rainbow_name", "name": "Rainbow Name", "type": "namecolor", "rarity": "divine", "shape": "name", "color": "#ff6b6b", "limit": 10 },
-    { "id": "rattan_chair", "name": "Rattan Chair", "type": "furniture", "rarity": "common", "shape": "chair", "color": "#c49a6c", "desc": "Airbnb furniture: place it in your property." },
-    { "id": "potted_monstera", "name": "Potted Monstera", "type": "furniture", "rarity": "common", "shape": "plant", "color": "#2f9e44", "desc": "Airbnb furniture: place it in your property." },
-    { "id": "bean_bag", "name": "Bean Bag", "type": "furniture", "rarity": "common", "shape": "beanbag", "color": "#7950f2", "desc": "Airbnb furniture: place it in your property." },
-    { "id": "graduation_cap", "name": "Graduation Cap", "type": "hat", "rarity": "uncommon", "shape": "graduation", "color": "#212529", "color2": "#fcc419" },
-    { "id": "monocle", "name": "Towkay Monocle", "type": "face", "rarity": "uncommon", "shape": "monocle", "color": "#fcc419" },
-    { "id": "backpack", "name": "Adventure Backpack", "type": "back", "rarity": "uncommon", "shape": "backpack", "color": "#f76707" },
-    { "id": "viking_helmet", "name": "Viking Helmet", "type": "hat", "rarity": "rare", "shape": "viking", "color": "#868e96", "color2": "#f8f9fa" },
-    { "id": "heart_aura", "name": "Love Aura", "type": "aura", "rarity": "rare", "shape": "hearts", "color": "#ff6b9a" },
-    { "id": "gold_name", "name": "Gold Name", "type": "namecolor", "rarity": "rare", "shape": "name", "color": "#fcc419" },
-    { "id": "jetpack", "name": "Jetpack", "type": "back", "rarity": "epic", "shape": "jetpack", "color": "#adb5bd", "color2": "#ff922b" },
-    { "id": "antenna_bopper", "name": "Antenna Boppers", "type": "hat", "rarity": "epic", "shape": "antenna", "color": "#e64980", "color2": "#ffd43b" },
-    { "id": "diamond_shades", "name": "Diamond Shades", "type": "face", "rarity": "legendary", "shape": "diamond_shades", "color": "#99e9f2" },
-    { "id": "sparkle_aura", "name": "Starlight Aura", "type": "aura", "rarity": "legendary", "shape": "sparkle", "color": "#fff3bf" },
-    { "id": "phoenix_wings", "name": "Phoenix Wings", "type": "back", "rarity": "mythic", "shape": "phoenix_wings", "color": "#ff6b6b", "color2": "#fcc419" },
-    { "id": "durian_crown", "name": "Durian King Crown", "type": "hat", "rarity": "divine", "shape": "durian", "color": "#94d82d", "color2": "#fcc419", "limit": 5 },
-    { "id": "tan_sri_songkok", "name": "Tan Sri's Songkok", "type": "hat", "rarity": "secret", "shape": "songkok", "color": "#141414", "color2": "#fcc419", "limit": 1 },
-    { "id": "kopi_kaw", "name": "Kopi Kaw", "type": "potion", "rarity": "common", "shape": "kopi", "color": "#7a4a2a", "desc": "Extra-thick kopi. +50% pay from jobs for 10 minutes.", "effect": {"buff": "jobPay", "mult": 1.5, "durationSec": 600}, "valueSen": 5000, "shardPrice": 20 },
-    { "id": "luck_potion", "name": "Luck Potion", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#40c057", "desc": "2× luck on every crate for 10 minutes.", "effect": {"buff": "luck", "mult": 2, "durationSec": 600}, "valueSen": 10000, "shardPrice": 40 },
-    { "id": "income_booster", "name": "Income Booster", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#fcc419", "desc": "2× passive income (Manifesting) for 30 minutes.", "effect": {"buff": "passive", "mult": 2, "durationSec": 1800}, "valueSen": 10000, "shardPrice": 40 },
-    { "id": "xp_booster", "name": "XP Booster", "type": "potion", "rarity": "rare", "shape": "potion", "color": "#339af0", "desc": "2× XP from everything for 15 minutes.", "effect": {"buff": "xp", "mult": 2, "durationSec": 900}, "valueSen": 15000, "shardPrice": 60 },
-    { "id": "mega_luck_potion", "name": "Mega Luck Potion", "type": "potion", "rarity": "epic", "shape": "potion", "color": "#cc5de8", "desc": "5× luck on every crate for 3 minutes. Save it for a big crate.", "effect": {"buff": "luck", "mult": 5, "durationSec": 180}, "valueSen": 50000, "shardPrice": 200 },
-    { "id": "customer_rush", "name": "Customer Rush", "type": "potion", "rarity": "uncommon", "shape": "potion", "color": "#ff922b", "desc": "2× customers at your stall for 5 minutes.", "effect": {"buff": "customers", "mult": 2, "durationSec": 300}, "valueSen": 15000, "shardPrice": 50 },
-    { "id": "perfect_token", "name": "Perfect Cook Token", "type": "potion", "rarity": "rare", "shape": "coin", "color": "#ffd43b", "desc": "Your next 10 dishes are auto-Perfect (no mini-game).", "effect": {"buff": "perfectCook", "mult": 1, "charges": 10}, "valueSen": 30000, "shardPrice": 90 },
-    { "id": "basic_bed", "name": "Basic Single Bed", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 120000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "queen_bed", "name": "Queen Bed", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#c9b79c", "valueSen": 380000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "tatami_bed", "name": "Tatami Platform Bed", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#c9b79c", "valueSen": 750000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "steel_bunk", "name": "Steel Bunk Bed", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#495057", "valueSen": 160000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "toilet", "name": "Toilet", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 45000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "shower", "name": "Shower Stall", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 60000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "bathtub", "name": "Clawfoot Bathtub", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#fcc419", "valueSen": 420000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "kitchenette", "name": "Kitchenette", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 140000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "island_kitchen", "name": "Island Kitchen", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#495057", "valueSen": 520000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "aircond", "name": "Aircond", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 160000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "wifi_router", "name": "Wifi Router", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 30000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "smart_tv", "name": "Smart TV", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 180000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "washer", "name": "Washing Machine", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 150000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "coffee_machine", "name": "Coffee Machine", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#495057", "valueSen": 90000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "smart_lock", "name": "Smart Lock", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#adb5bd", "valueSen": 70000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "balcony_set", "name": "Balcony Set", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#c49a6c", "valueSen": 230000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "scandi_sofa", "name": "Scandi Sofa", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#e9ecef", "valueSen": 260000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "japandi_sofa", "name": "Japandi Sofa", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#c9b79c", "valueSen": 310000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "leather_sofa", "name": "Leather Sofa", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#495057", "valueSen": 360000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "rattan_sofa", "name": "Rattan Sofa", "type": "furniture", "rarity": "uncommon", "shape": "furn", "color": "#c49a6c", "valueSen": 240000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "dining_set", "name": "Dining Set", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 160000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "low_table", "name": "Low Tea Table", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#c9b79c", "valueSen": 90000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "pipe_desk", "name": "Pipe Desk", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#495057", "valueSen": 110000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "wardrobe", "name": "Wardrobe", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 130000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "bamboo_shelf", "name": "Bamboo Shelf", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#c49a6c", "valueSen": 80000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "floor_lamp", "name": "Floor Lamp", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 40000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "paper_lantern", "name": "Paper Lantern", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#c9b79c", "valueSen": 45000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "edison_lamp", "name": "Edison Lamp", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#495057", "valueSen": 50000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "big_rug", "name": "Big Rug", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#e9ecef", "valueSen": 70000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "batik_painting", "name": "Batik Painting", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#c49a6c", "valueSen": 85000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "bonsai", "name": "Bonsai", "type": "furniture", "rarity": "common", "shape": "furn", "color": "#c9b79c", "valueSen": 60000, "desc": "Airbnb furniture from IKEJA." },
-    { "id": "gold_chandelier", "name": "Gold Chandelier", "type": "furniture", "rarity": "legendary", "shape": "furn", "color": "#fcc419", "desc": "Rare Airbnb furniture." },
-    { "id": "velvet_sofa", "name": "Velvet Sofa", "type": "furniture", "rarity": "epic", "shape": "furn", "color": "#fcc419", "desc": "Rare Airbnb furniture." },
-    { "id": "rgb_desk", "name": "RGB Gaming Desk", "type": "furniture", "rarity": "rare", "shape": "furn", "color": "#be4bdb", "desc": "Rare Airbnb furniture." },
-    { "id": "neon_sign", "name": "Neon Sign", "type": "furniture", "rarity": "rare", "shape": "furn", "color": "#be4bdb", "desc": "Rare Airbnb furniture." },
-    { "id": "holo_bed", "name": "Holo Bed", "type": "furniture", "rarity": "mythic", "shape": "furn", "color": "#22b8cf", "desc": "Rare Airbnb furniture." },
-    { "id": "cyber_lamp", "name": "Cyber Lamp", "type": "furniture", "rarity": "epic", "shape": "furn", "color": "#22b8cf", "desc": "Rare Airbnb furniture." }
+    {
+      "id": "kopi_keychain",
+      "name": "Kopi Cup Keychain",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "cup",
+      "color": "#8d5a33"
+    },
+    {
+      "id": "plastic_chair",
+      "name": "Red Plastic Chair",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "chair",
+      "color": "#e03131"
+    },
+    {
+      "id": "rubber_duck",
+      "name": "Rubber Duck",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "duck",
+      "color": "#ffd43b"
+    },
+    {
+      "id": "party_hat",
+      "name": "Party Hat",
+      "type": "hat",
+      "rarity": "common",
+      "shape": "party",
+      "color": "#4dabf7",
+      "color2": "#ffd43b"
+    },
+    {
+      "id": "paper_crown",
+      "name": "Paper Crown",
+      "type": "hat",
+      "rarity": "common",
+      "shape": "crown",
+      "color": "#ffec99",
+      "color2": "#f08c00"
+    },
+    {
+      "id": "bucket_hat",
+      "name": "Bucket Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "bucket",
+      "color": "#94d82d"
+    },
+    {
+      "id": "star_shades",
+      "name": "Star Shades",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "star_shades",
+      "color": "#f783ac"
+    },
+    {
+      "id": "mini_fan",
+      "name": "Mini Desk Fan",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "fan",
+      "color": "#74c0fc"
+    },
+    {
+      "id": "lucky_coin",
+      "name": "Lucky Coin",
+      "type": "trinket",
+      "rarity": "uncommon",
+      "shape": "coin",
+      "color": "#fcc419"
+    },
+    {
+      "id": "propeller_cap",
+      "name": "Propeller Cap",
+      "type": "hat",
+      "rarity": "rare",
+      "shape": "propeller",
+      "color": "#f03e3e",
+      "color2": "#ffd43b"
+    },
+    {
+      "id": "nerd_glasses",
+      "name": "Big Nerd Glasses",
+      "type": "face",
+      "rarity": "rare",
+      "shape": "nerd",
+      "color": "#212529"
+    },
+    {
+      "id": "glow_aura",
+      "name": "Mint Glow Aura",
+      "type": "aura",
+      "rarity": "rare",
+      "shape": "glow",
+      "color": "#63e6be"
+    },
+    {
+      "id": "cat_ears",
+      "name": "Cat Ears",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "cat_ears",
+      "color": "#343a40",
+      "color2": "#ffa8c5"
+    },
+    {
+      "id": "bubble_aura",
+      "name": "Bubble Aura",
+      "type": "aura",
+      "rarity": "epic",
+      "shape": "bubbles",
+      "color": "#74c0fc"
+    },
+    {
+      "id": "golden_crown",
+      "name": "Golden Crown",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "crown",
+      "color": "#fcc419",
+      "color2": "#e03131"
+    },
+    {
+      "id": "halo",
+      "name": "Halo",
+      "type": "hat",
+      "rarity": "mythic",
+      "shape": "halo",
+      "color": "#fff3bf"
+    },
+    {
+      "id": "straw_hat",
+      "name": "Straw Hat",
+      "type": "hat",
+      "rarity": "common",
+      "shape": "straw",
+      "color": "#e9c46a",
+      "color2": "#e03131"
+    },
+    {
+      "id": "speed_tonic",
+      "name": "Speed Tonic",
+      "type": "booster",
+      "rarity": "common",
+      "shape": "bottle",
+      "color": "#4dabf7",
+      "desc": "A stall booster: your cooks work 50% faster for 10 minutes.",
+      "effect": {
+        "buff": "staffSpeed",
+        "mult": 1.5,
+        "durationSec": 600
+      }
+    },
+    {
+      "id": "teh_tarik_mug",
+      "name": "Teh Tarik Mug",
+      "type": "trinket",
+      "rarity": "common",
+      "shape": "cup",
+      "color": "#c9a87c"
+    },
+    {
+      "id": "beret",
+      "name": "Beret",
+      "type": "hat",
+      "rarity": "common",
+      "shape": "beret",
+      "color": "#c92a2a"
+    },
+    {
+      "id": "chef_hat",
+      "name": "Chef Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "chef",
+      "color": "#f8f9fa"
+    },
+    {
+      "id": "cowboy_hat",
+      "name": "Cowboy Hat",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "cowboy",
+      "color": "#a0522d"
+    },
+    {
+      "id": "heart_glasses",
+      "name": "Heart Glasses",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "heart_glasses",
+      "color": "#e64980"
+    },
+    {
+      "id": "bunny_ears",
+      "name": "Bunny Ears",
+      "type": "hat",
+      "rarity": "rare",
+      "shape": "bunny",
+      "color": "#f8f9fa",
+      "color2": "#ffa8c5"
+    },
+    {
+      "id": "red_cape",
+      "name": "Hero Cape",
+      "type": "back",
+      "rarity": "rare",
+      "shape": "cape",
+      "color": "#e03131"
+    },
+    {
+      "id": "neon_name",
+      "name": "Neon Pink Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#ff4fd8"
+    },
+    {
+      "id": "bat_wings",
+      "name": "Bat Wings",
+      "type": "back",
+      "rarity": "epic",
+      "shape": "bat_wings",
+      "color": "#5f3dc4"
+    },
+    {
+      "id": "flame_aura",
+      "name": "Flame Aura",
+      "type": "aura",
+      "rarity": "epic",
+      "shape": "flame",
+      "color": "#ff922b"
+    },
+    {
+      "id": "top_hat",
+      "name": "Towkay Top Hat",
+      "type": "hat",
+      "rarity": "legendary",
+      "shape": "tophat",
+      "color": "#212529",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "angel_wings",
+      "name": "Angel Wings",
+      "type": "back",
+      "rarity": "legendary",
+      "shape": "angel_wings",
+      "color": "#f8f9fa"
+    },
+    {
+      "id": "naga_aura",
+      "name": "Naga Aura",
+      "type": "aura",
+      "rarity": "mythic",
+      "shape": "naga",
+      "color": "#20c997",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "rainbow_name",
+      "name": "Rainbow Name",
+      "type": "namecolor",
+      "rarity": "divine",
+      "shape": "name",
+      "color": "#ff6b6b",
+      "limit": 10
+    },
+    {
+      "id": "rattan_chair",
+      "name": "Rattan Chair",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "chair",
+      "color": "#c49a6c",
+      "desc": "Airbnb furniture: place it in your property."
+    },
+    {
+      "id": "potted_monstera",
+      "name": "Potted Monstera",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "plant",
+      "color": "#2f9e44",
+      "desc": "Airbnb furniture: place it in your property."
+    },
+    {
+      "id": "bean_bag",
+      "name": "Bean Bag",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "beanbag",
+      "color": "#7950f2",
+      "desc": "Airbnb furniture: place it in your property."
+    },
+    {
+      "id": "graduation_cap",
+      "name": "Graduation Cap",
+      "type": "hat",
+      "rarity": "uncommon",
+      "shape": "graduation",
+      "color": "#212529",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "monocle",
+      "name": "Towkay Monocle",
+      "type": "face",
+      "rarity": "uncommon",
+      "shape": "monocle",
+      "color": "#fcc419"
+    },
+    {
+      "id": "backpack",
+      "name": "Adventure Backpack",
+      "type": "back",
+      "rarity": "uncommon",
+      "shape": "backpack",
+      "color": "#f76707"
+    },
+    {
+      "id": "viking_helmet",
+      "name": "Viking Helmet",
+      "type": "hat",
+      "rarity": "rare",
+      "shape": "viking",
+      "color": "#868e96",
+      "color2": "#f8f9fa"
+    },
+    {
+      "id": "heart_aura",
+      "name": "Love Aura",
+      "type": "aura",
+      "rarity": "rare",
+      "shape": "hearts",
+      "color": "#ff6b9a"
+    },
+    {
+      "id": "gold_name",
+      "name": "Gold Name",
+      "type": "namecolor",
+      "rarity": "rare",
+      "shape": "name",
+      "color": "#fcc419"
+    },
+    {
+      "id": "jetpack",
+      "name": "Jetpack",
+      "type": "back",
+      "rarity": "epic",
+      "shape": "jetpack",
+      "color": "#adb5bd",
+      "color2": "#ff922b"
+    },
+    {
+      "id": "antenna_bopper",
+      "name": "Antenna Boppers",
+      "type": "hat",
+      "rarity": "epic",
+      "shape": "antenna",
+      "color": "#e64980",
+      "color2": "#ffd43b"
+    },
+    {
+      "id": "diamond_shades",
+      "name": "Diamond Shades",
+      "type": "face",
+      "rarity": "legendary",
+      "shape": "diamond_shades",
+      "color": "#99e9f2"
+    },
+    {
+      "id": "sparkle_aura",
+      "name": "Starlight Aura",
+      "type": "aura",
+      "rarity": "legendary",
+      "shape": "sparkle",
+      "color": "#fff3bf"
+    },
+    {
+      "id": "phoenix_wings",
+      "name": "Phoenix Wings",
+      "type": "back",
+      "rarity": "mythic",
+      "shape": "phoenix_wings",
+      "color": "#ff6b6b",
+      "color2": "#fcc419"
+    },
+    {
+      "id": "durian_crown",
+      "name": "Durian King Crown",
+      "type": "hat",
+      "rarity": "divine",
+      "shape": "durian",
+      "color": "#94d82d",
+      "color2": "#fcc419",
+      "limit": 5
+    },
+    {
+      "id": "tan_sri_songkok",
+      "name": "Tan Sri's Songkok",
+      "type": "hat",
+      "rarity": "secret",
+      "shape": "songkok",
+      "color": "#141414",
+      "color2": "#fcc419",
+      "limit": 1
+    },
+    {
+      "id": "kopi_kaw",
+      "name": "Kopi Kaw",
+      "type": "potion",
+      "rarity": "common",
+      "shape": "kopi",
+      "color": "#7a4a2a",
+      "desc": "Extra-thick kopi. +50% pay from jobs for 10 minutes.",
+      "effect": {
+        "buff": "jobPay",
+        "mult": 1.5,
+        "durationSec": 600
+      },
+      "valueSen": 5000,
+      "shardPrice": 20
+    },
+    {
+      "id": "luck_potion",
+      "name": "Luck Potion",
+      "type": "potion",
+      "rarity": "uncommon",
+      "shape": "potion",
+      "color": "#40c057",
+      "desc": "2× luck on every crate for 10 minutes.",
+      "effect": {
+        "buff": "luck",
+        "mult": 2,
+        "durationSec": 600
+      },
+      "valueSen": 10000,
+      "shardPrice": 40
+    },
+    {
+      "id": "income_booster",
+      "name": "Income Booster",
+      "type": "potion",
+      "rarity": "uncommon",
+      "shape": "potion",
+      "color": "#fcc419",
+      "desc": "2× passive income (Manifesting) for 30 minutes.",
+      "effect": {
+        "buff": "passive",
+        "mult": 2,
+        "durationSec": 1800
+      },
+      "valueSen": 10000,
+      "shardPrice": 40
+    },
+    {
+      "id": "xp_booster",
+      "name": "XP Booster",
+      "type": "potion",
+      "rarity": "rare",
+      "shape": "potion",
+      "color": "#339af0",
+      "desc": "2× XP from everything for 15 minutes.",
+      "effect": {
+        "buff": "xp",
+        "mult": 2,
+        "durationSec": 900
+      },
+      "valueSen": 15000,
+      "shardPrice": 60
+    },
+    {
+      "id": "mega_luck_potion",
+      "name": "Mega Luck Potion",
+      "type": "potion",
+      "rarity": "epic",
+      "shape": "potion",
+      "color": "#cc5de8",
+      "desc": "5× luck on every crate for 3 minutes. Save it for a big crate.",
+      "effect": {
+        "buff": "luck",
+        "mult": 5,
+        "durationSec": 180
+      },
+      "valueSen": 50000,
+      "shardPrice": 200
+    },
+    {
+      "id": "customer_rush",
+      "name": "Customer Rush",
+      "type": "potion",
+      "rarity": "uncommon",
+      "shape": "potion",
+      "color": "#ff922b",
+      "desc": "2× customers at your stall for 5 minutes.",
+      "effect": {
+        "buff": "customers",
+        "mult": 2,
+        "durationSec": 300
+      },
+      "valueSen": 15000,
+      "shardPrice": 50
+    },
+    {
+      "id": "perfect_token",
+      "name": "Perfect Cook Token",
+      "type": "potion",
+      "rarity": "rare",
+      "shape": "coin",
+      "color": "#ffd43b",
+      "desc": "Your next 10 dishes are auto-Perfect (no mini-game).",
+      "effect": {
+        "buff": "perfectCook",
+        "mult": 1,
+        "charges": 10
+      },
+      "valueSen": 30000,
+      "shardPrice": 90
+    },
+    {
+      "id": "basic_bed",
+      "name": "Basic Single Bed",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 120000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "queen_bed",
+      "name": "Queen Bed",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 380000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "tatami_bed",
+      "name": "Tatami Platform Bed",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 750000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "steel_bunk",
+      "name": "Steel Bunk Bed",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 160000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "toilet",
+      "name": "Toilet",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 45000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "shower",
+      "name": "Shower Stall",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 60000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "bathtub",
+      "name": "Clawfoot Bathtub",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 420000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "kitchenette",
+      "name": "Kitchenette",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 140000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "island_kitchen",
+      "name": "Island Kitchen",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 520000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "aircond",
+      "name": "Aircond",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 160000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "wifi_router",
+      "name": "Wifi Router",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 30000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "smart_tv",
+      "name": "Smart TV",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 180000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "washer",
+      "name": "Washing Machine",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 150000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "coffee_machine",
+      "name": "Coffee Machine",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 90000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "smart_lock",
+      "name": "Smart Lock",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 70000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "balcony_set",
+      "name": "Balcony Set",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c49a6c",
+      "valueSen": 230000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "scandi_sofa",
+      "name": "Scandi Sofa",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 260000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "japandi_sofa",
+      "name": "Japandi Sofa",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 310000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "leather_sofa",
+      "name": "Leather Sofa",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 360000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "rattan_sofa",
+      "name": "Rattan Sofa",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c49a6c",
+      "valueSen": 240000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "dining_set",
+      "name": "Dining Set",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 160000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "low_table",
+      "name": "Low Tea Table",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 90000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "pipe_desk",
+      "name": "Pipe Desk",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 110000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "wardrobe",
+      "name": "Wardrobe",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 130000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "bamboo_shelf",
+      "name": "Bamboo Shelf",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c49a6c",
+      "valueSen": 80000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "floor_lamp",
+      "name": "Floor Lamp",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 40000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "paper_lantern",
+      "name": "Paper Lantern",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 45000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "edison_lamp",
+      "name": "Edison Lamp",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 50000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "big_rug",
+      "name": "Big Rug",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 70000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "batik_painting",
+      "name": "Batik Painting",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c49a6c",
+      "valueSen": 85000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "bonsai",
+      "name": "Bonsai",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 60000,
+      "desc": "Airbnb furniture from IKEJA."
+    },
+    {
+      "id": "gold_chandelier",
+      "name": "Gold Chandelier",
+      "type": "furniture",
+      "rarity": "legendary",
+      "shape": "furn",
+      "color": "#fcc419",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "velvet_sofa",
+      "name": "Velvet Sofa",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#fcc419",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "rgb_desk",
+      "name": "RGB Gaming Desk",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "neon_sign",
+      "name": "Neon Sign",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "holo_bed",
+      "name": "Holo Bed",
+      "type": "furniture",
+      "rarity": "mythic",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "cyber_lamp",
+      "name": "Cyber Lamp",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "desc": "Rare Airbnb furniture."
+    },
+    {
+      "id": "chef_mak_senah",
+      "name": "Mak Senah",
+      "type": "chef",
+      "rarity": "common",
+      "shape": "bun",
+      "color": "#e64980",
+      "color2": "#c68642",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_pak_hamid",
+      "name": "Pak Hamid",
+      "type": "chef",
+      "rarity": "common",
+      "shape": "moustache",
+      "color": "#1c7ed6",
+      "color2": "#8d5524",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_abang_jaya",
+      "name": "Abang Jaya",
+      "type": "chef",
+      "rarity": "uncommon",
+      "shape": "plain",
+      "color": "#2f9e44",
+      "color2": "#a0522d",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_kak_ros",
+      "name": "Kak Ros",
+      "type": "chef",
+      "rarity": "uncommon",
+      "shape": "glasses",
+      "color": "#ae3ec9",
+      "color2": "#e0ac69",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_ah_lim",
+      "name": "Chef Ah Lim",
+      "type": "chef",
+      "rarity": "rare",
+      "shape": "glasses",
+      "color": "#f59f00",
+      "color2": "#f1c27d",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_auntie_wong",
+      "name": "Auntie Wong",
+      "type": "chef",
+      "rarity": "rare",
+      "shape": "bun",
+      "color": "#e03131",
+      "color2": "#ffdbac",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_tuan_rashid",
+      "name": "Tuan Rashid",
+      "type": "chef",
+      "rarity": "epic",
+      "shape": "beard",
+      "color": "#0b7285",
+      "color2": "#8d5524",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_master_raju",
+      "name": "Master Raju",
+      "type": "chef",
+      "rarity": "epic",
+      "shape": "moustache",
+      "color": "#d9480f",
+      "color2": "#6b4226",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_sambal_sultan",
+      "name": "The Sambal Sultan",
+      "type": "chef",
+      "rarity": "legendary",
+      "shape": "beard",
+      "color": "#c92a2a",
+      "color2": "#a0522d",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    },
+    {
+      "id": "chef_grandmaster_teh",
+      "name": "Grandmaster Teh",
+      "type": "chef",
+      "rarity": "mythic",
+      "shape": "glasses",
+      "color": "#ffd43b",
+      "color2": "#ffdbac",
+      "desc": "Equip as your stall's head chef: higher stall prices and faster cooks."
+    }
   ]
 }

@@ -87,7 +87,10 @@ export class Economy {
       const iid = p.equipped[slot];
       const inst = iid !== undefined ? p.inventory.find((i) => i.iid === iid) : undefined;
       const def = inst ? this.cfg.itemById.get(inst.itemId) : undefined;
-      if (inst && def && def.type === slot) next[slot] = { itemId: inst.itemId, variant: inst.variant };
+      // The head chef is a stall buff, not something you wear (others don't need to see it).
+      if (inst && def && def.type === slot) {
+        if (slot !== 'chef') next[slot] = { itemId: inst.itemId, variant: inst.variant };
+      }
       else delete p.equipped[slot];
     }
     const changed = JSON.stringify(next) !== JSON.stringify(p.cosmetics);

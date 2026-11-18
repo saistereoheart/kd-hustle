@@ -30,13 +30,13 @@ export const raritiesConfigSchema = z.object({
 });
 export type RaritiesConfig = z.infer<typeof raritiesConfigSchema>;
 
-export const ITEM_TYPES = ['hat', 'face', 'aura', 'back', 'namecolor', 'trinket', 'furniture', 'booster', 'potion'] as const;
+export const ITEM_TYPES = ['hat', 'face', 'aura', 'back', 'namecolor', 'trinket', 'furniture', 'booster', 'potion', 'chef'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 /** What a potion does when used: multiplies one kind of buff for a while. */
 export const BUFF_KINDS = ['luck', 'xp', 'passive', 'jobPay', 'customers', 'staffSpeed', 'perfectCook'] as const;
 export type BuffKind = (typeof BUFF_KINDS)[number];
 /** Item types that can be equipped, and the slot they go into. */
-export const EQUIP_SLOTS = ['hat', 'face', 'aura', 'back', 'namecolor'] as const;
+export const EQUIP_SLOTS = ['hat', 'face', 'aura', 'back', 'namecolor', 'chef'] as const;
 export type EquipSlot = (typeof EQUIP_SLOTS)[number];
 
 export const itemsConfigSchema = z.object({
@@ -71,6 +71,8 @@ export const cratesConfigSchema = z.object({
       id: z.string(),
       name: z.string(),
       priceSen: z.number().int().positive(),
+      /** Paid in 💎 shards instead of RM (the Chef Search); `priceSen` then only sets item values. */
+      priceShards: z.number().int().positive().optional(),
       color: hex,
       /** Guaranteed tier after this many rolls without it (e.g. Epic+ every 50). */
       pity: z.object({ epic: z.number().int().positive(), legendary: z.number().int().positive() }),

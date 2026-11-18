@@ -141,6 +141,17 @@ describe('inventory, pawn shop and shards', () => {
     expect(() => inv.shardBuy(p, 'halo')).toThrow(GameError); // mythic isn't sold
   });
 
+  it('the Chef Search costs shards, not RM, and chefs are stall buffs', () => {
+    const { p, gacha } = setup(500_000);
+    expect(() => gacha.roll(p, 'chefs', 1)).toThrow(/shards/);
+    p.shards = 200;
+    const before = p.walletSen;
+    const r = gacha.roll(p, 'chefs', 1);
+    expect(p.walletSen).toBe(before);
+    expect(p.shards).toBe(200 - cfg.crateById.get('chefs')!.priceShards!);
+    expect(cfg.itemById.get(r.results[0].itemId)!.type).toBe('chef');
+  });
+
   it('merging 5 copies at one tier makes 1 at the next, keeping the best variant', () => {
     const { p, econ, inv } = setup(0);
     econ.run(p, () => {

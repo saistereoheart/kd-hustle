@@ -866,6 +866,72 @@ function drawGeneric(ctx: Ctx, def: ItemDef, paint: Paint) {
   }
 }
 
+/** A head chef's portrait: whites, a neckerchief in the item colour, a face and a toque. */
+function drawChefPortrait(ctx: Ctx, shape: string, paint: Paint, skin: string) {
+  // shoulders in chef whites with double buttons
+  ctx.fillStyle = '#f8f9fa';
+  ctx.beginPath();
+  ctx.ellipse(0, 15, 14, 8, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = '#ced4da';
+  for (const [x, y] of [[-3, 11], [3, 11], [-3, 14], [3, 14]]) ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+  ctx.fillStyle = paint.c1;
+  ctx.beginPath();
+  ctx.moveTo(-6, 7);
+  ctx.lineTo(6, 7);
+  ctx.lineTo(0, 12);
+  ctx.closePath();
+  ctx.fill();
+  // face
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 8, 8.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (shape === 'bun') {
+    ctx.fillStyle = '#343a40';
+    ctx.beginPath();
+    ctx.ellipse(0, -5, 8.4, 4, 0, Math.PI, 0);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#212529';
+  ctx.beginPath();
+  ctx.arc(-3, -0.5, 1.1, 0, Math.PI * 2);
+  ctx.arc(3, -0.5, 1.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#212529';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 2.5, 3, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+  if (shape === 'moustache') {
+    ctx.fillStyle = '#343a40';
+    ctx.beginPath();
+    ctx.ellipse(-2.2, 2.6, 2.6, 1.1, -0.3, 0, Math.PI * 2);
+    ctx.ellipse(2.2, 2.6, 2.6, 1.1, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape === 'beard') {
+    ctx.fillStyle = '#495057';
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 6, 4, 0, 0, Math.PI);
+    ctx.fill();
+  } else if (shape === 'glasses') {
+    ctx.strokeStyle = '#212529';
+    ctx.lineWidth = 0.9;
+    ctx.strokeRect(-5.4, -2.4, 4.4, 3.4);
+    ctx.strokeRect(1, -2.4, 4.4, 3.4);
+    ctx.beginPath();
+    ctx.moveTo(-1, -1);
+    ctx.lineTo(1, -1);
+    ctx.stroke();
+  }
+  // the toque
+  ctx.save();
+  ctx.translate(0, -4);
+  ctx.scale(0.7, 0.7);
+  drawHat(ctx, 'chef', { c1: '#ffffff', c2: '#dee2e6', variant: paint.variant });
+  ctx.restore();
+}
+
 /** Draws an item icon centred in a size×size box (for inventory, reel, index). */
 export function drawItemIcon(ctx: Ctx, def: ItemDef, variant: string, size: number, silhouette = false) {
   const paint: Paint = { c1: def.color, c2: def.color2 ?? shadeHex(def.color, -0.3), variant };
@@ -879,6 +945,8 @@ export function drawItemIcon(ctx: Ctx, def: ItemDef, variant: string, size: numb
   } else if (def.type === 'face') {
     ctx.scale(1.5, 1.5);
     drawFace(ctx, def.shape, paint, 'front');
+  } else if (def.type === 'chef') {
+    drawChefPortrait(ctx, def.shape, paint, def.color2 ?? '#c68642');
   } else if (def.type === 'back') {
     ctx.translate(0, -6);
     ctx.scale(0.7, 0.7);
