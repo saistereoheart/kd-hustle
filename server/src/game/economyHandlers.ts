@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 // Phase 2 socket handlers: crates, inventory, pawn shop, jobs, vehicles and admin /give.
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
@@ -244,6 +245,16 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       prog.onEquip(me);
       return {};
     });
+    handle(socket, 'inv:merge', C2S.invMerge, ({ itemId, grade }) => {
+      const r = inv.merge(me, itemId, grade);
+      return { removed: r.removed, item: r.item };
+    });
+    handle(socket, 'inv:reroll', C2S.invReroll, ({ iid, what }) => {
+      const r = inv.reroll(me, iid, what, (max) => crypto.randomInt(Math.max(1, max)));
+      if (r.cosmeticsChanged) broadcastCosmetics(me);
+      pushWallet(me, 0, 'reroll');
+      return { item: r.item, improved: r.improved, shards: me.shards };
+    });
     handle(socket, 'item:use', C2S.itemUse, ({ iid }) => {
       const r = prog.useItem(me, iid);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
@@ -363,17 +374,17 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     const atPawn = () => {
       if (!nearInteractable(me, 'pawn')) throw new GameError('Go inside Kedai Pajak Untung to sell or scrap items.');
     };
-    handle(socket, 'pawn:sell', C2S.stack, ({ itemId, variant, count }) => {
+    handle(socket, 'pawn:sell', C2S.stack, ({ itemId, variant, count, grade }) => {
       atPawn();
-      const r = inv.sell(me, itemId, variant, count);
+      const r = inv.sell(me, itemId, variant, count, grade);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, r.gainedSen, 'pawn');
       prog.onSell(me, r.removed.length);
       return { removed: r.removed, gainedSen: r.gainedSen };
     });
-    handle(socket, 'pawn:scrap', C2S.stack, ({ itemId, variant, count }) => {
+    handle(socket, 'pawn:scrap', C2S.stack, ({ itemId, variant, count, grade }) => {
       atPawn();
-      const r = inv.scrap(me, itemId, variant, count);
+      const r = inv.scrap(me, itemId, variant, count, grade);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, 0, 'scrap');
       prog.onScrap(me, r.removed.length);

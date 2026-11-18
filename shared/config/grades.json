@@ -1,0 +1,19 @@
+{
+  "grades": [
+    { "id": "D", "name": "Tier D", "mult": 1, "weight": 700, "color": "#adb5bd" },
+    { "id": "C", "name": "Tier C", "mult": 1.5, "weight": 200, "color": "#69db7c" },
+    { "id": "B", "name": "Tier B", "mult": 2.2, "weight": 70, "color": "#4dabf7" },
+    { "id": "A", "name": "Tier A", "mult": 3.3, "weight": 25, "color": "#da77f2" },
+    { "id": "S", "name": "Tier S", "mult": 5, "weight": 5, "color": "#ffd43b" }
+  ],
+  "mergeCount": 5,
+  "buffs": {
+    "byRarity": { "common": 0.01, "uncommon": 0.02, "rare": 0.04, "epic": 0.07, "legendary": 0.12, "mythic": 0.2, "divine": 0.3, "secret": 0.45 },
+    "bySlot": { "hat": "luck", "face": "xp", "back": "jobPay", "aura": "passive", "namecolor": "dishPrice" },
+    "variantMult": { "normal": 1, "shiny": 1.5, "golden": 2.5, "rainbow": 4 }
+  },
+  "shards": {
+    "rerollGrade": { "common": 10, "uncommon": 20, "rare": 40, "epic": 80, "legendary": 160, "mythic": 320, "divine": 640, "secret": 1000 },
+    "rerollVariant": { "common": 15, "uncommon": 30, "rare": 60, "epic": 120, "legendary": 240, "mythic": 480, "divine": 960, "secret": 1500 }
+  }
+}

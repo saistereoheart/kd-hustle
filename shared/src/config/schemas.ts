@@ -1,3 +1,4 @@
+import type { GradesConfig } from '../items/grades';
 // Zod schemas for every JSON file in /shared/config. The server validates config at
 // startup and refuses to boot if a balance file is malformed.
 import { z } from 'zod';
@@ -133,6 +134,7 @@ export interface PublicConfig {
   rarities: RaritiesConfig;
   items: ItemsConfig;
   crates: CratesConfig;
+  grades: GradesConfig;
   economy: EconomyConfig;
   jobs: JobsConfig;
   vehicles: VehiclesConfig;

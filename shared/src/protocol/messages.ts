@@ -43,7 +43,11 @@ export const C2S = {
   crateRoll: z.object({ crateId: z.string().max(32), count: z.union([z.literal(1), z.literal(5), z.literal(10)]), remote: z.boolean().optional() }),
   equip: z.object({ iid: z.number().int().positive() }),
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
-  stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), count: z.number().int().min(1).max(10000) }),
+  stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
+  /** Merge N copies of an item at one tier into one at the next tier. */
+  invMerge: z.object({ itemId: z.string().max(40), grade: z.string().max(2) }),
+  /** Spend shards on a chance at a better tier or variant for one item. */
+  invReroll: z.object({ iid: z.number().int().positive(), what: z.enum(['grade', 'variant']) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
   /** `remote`: a delivery taken from the phone instead of a Jobs Board. */
   jobStart: z.object({ kind: z.enum(['delivery', 'carwash']), remote: z.boolean().optional() }),
@@ -111,6 +115,8 @@ export interface InventoryItem {
   iid: number;
   itemId: string;
   variant: string;
+  /** Tier D..S (old items: D). */
+  grade: string;
   serial: number | null;
   obtainedAt: number;
 }
@@ -120,6 +126,7 @@ export interface RollResult {
   itemId: string;
   tier: string;
   variant: string;
+  grade: string;
   serial: number | null;
   oneIn: number;
   pity: boolean;
@@ -431,9 +438,11 @@ export interface ClientToServerEvents {
   'welcome:spin': (ack: Ack<Result<{ bonusSen: number }>>) => void;
   'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number } }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
+  'inv:merge': (msg: { itemId: string; grade: string }, ack: Ack<Result<{ removed: number[]; item: InventoryItem }>>) => void;
+  'inv:reroll': (msg: { iid: number; what: 'grade' | 'variant' }, ack: Ack<Result<{ item: InventoryItem; improved: boolean; shards: number }>>) => void;
   'inv:unequip': (msg: { slot: EquipSlot }, ack: Ack<SimpleResult>) => void;
-  'pawn:sell': (msg: { itemId: string; variant: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
-  'pawn:scrap': (msg: { itemId: string; variant: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
+  'pawn:sell': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
+  'pawn:scrap': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
   'shard:buy': (msg: { itemId: string }, ack: Ack<Result<{ item: InventoryItem; isNew: boolean }>>) => void;
   'job:start': (msg: { kind: 'delivery' | 'carwash'; remote?: boolean }, ack: Ack<Result<{ job: JobState }>>) => void;
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;

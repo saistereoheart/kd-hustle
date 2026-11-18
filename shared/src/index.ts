@@ -20,3 +20,4 @@ export * from './world/npcs';
 export * from './property/schemas';
 export * from './property/rating';
 export * from './property/listings';
+export * from './items/grades';

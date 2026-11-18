@@ -53,14 +53,19 @@ export class Economy {
   }
 
   /** Adds an item to the inventory and (collectibles only, not potions) the Item Index. Call inside run(). */
-  grant(p: OnlinePlayer, itemId: string, variant: string, serial: number | null): { item: InventoryItem; isNew: boolean } {
-    const item = this.repos.inventory.insert(p.id, itemId, variant, serial);
+  grant(p: OnlinePlayer, itemId: string, variant: string, serial: number | null, grade = 'D'): { item: InventoryItem; isNew: boolean } {
+    const item = this.repos.inventory.insert(p.id, itemId, variant, serial, grade);
     p.inventory.push(item);
     const def = this.cfg.itemById.get(itemId);
     if (def && !isCollectible(def)) return { item, isNew: false };
     const isNew = this.repos.collection.add(p.id, itemId);
     p.index.add(itemId);
     return { item, isNew };
+  }
+
+  /** Changes an item's tier/variant (call inside run()). */
+  setLook(p: OnlinePlayer, iid: number, grade: string, variant: string) {
+    if (!this.repos.inventory.setLook(p.id, iid, grade, variant)) throw new GameError('You no longer have that item.');
   }
 
   /** Removes an item instance (call inside run()). Unequips it if needed. */

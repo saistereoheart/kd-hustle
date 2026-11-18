@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (queue items)_
+_Last updated: 2026-11-18 (item tiers)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -28,6 +28,32 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.7: item tiers (D..S), gear buffs, merging, shard rerolls
+
+### How to test it
+- **Tiers:**
+  - Every item rolled from a crate now has a **tier** (D, C, B, A, S: mostly D, S is about 1 in 200), shown as a
+    badge on the card (and in the reveal).
+  - Tier multiplies an item's value: ×1, ×1.5, ×2.2, ×3.3, ×5.
+  - Variation (shiny ×1.5, golden ×2.5, rainbow ×4 for buffs; its own value multiplier as before) multiplies on
+    top. Old items are tier D.
+- **Gear buffs:**
+  - What you wear boosts a stat: hat → luck, face → XP, back → job pay, aura → passive income, name colour →
+    stall prices.
+  - Base by rarity: common +1%, uncommon 2%, rare 4%, epic 7%, legendary 12%, mythic 20%, divine 30%, secret 45%,
+    then × tier × variation.
+  - The bag's item details show "When worn: +X% …". Luck from gear shows in the crate odds as "Your gear".
+- **Merge:** in the bag, **⬆️ Merge 5 → Tier C** turns 5 copies of the same item at one tier (not worn) into 1 at
+  the next tier. It keeps the best variation among them (one golden input gives a golden result).
+- **Shard rerolls:** **🎲 Tier reroll** / **🎲 Variant reroll** cost shards (by rarity) for a chance at better. It
+  never makes the item worse.
+- **Pawn shop:** sells and scraps per tier, and pays for the tier.
+- Database: migration 10 adds the tier column (existing items become tier D).
+
+All tier numbers are in `shared/config/grades.json`.
 
 ---
 

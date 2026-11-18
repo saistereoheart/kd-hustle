@@ -97,8 +97,9 @@ export function createRepos(db: DB) {
     setHotbar: db.prepare('UPDATE players SET hotbar_json = ? WHERE account_id = ?'),
     setMoney: db.prepare('UPDATE players SET wallet_sen = ?, shards = ? WHERE account_id = ?'),
     setEconState: db.prepare('UPDATE players SET equipped_json = ?, pity_json = ?, jobs_json = ?, pages_json = ?, skills_json = ? WHERE account_id = ?'),
-    invList: db.prepare('SELECT iid, item_id, variant, serial, obtained_at FROM inventory_items WHERE account_id = ? ORDER BY iid'),
-    invInsert: db.prepare('INSERT INTO inventory_items (account_id, item_id, variant, serial, obtained_at) VALUES (?, ?, ?, ?, ?)'),
+    invList: db.prepare('SELECT iid, item_id, variant, grade, serial, obtained_at FROM inventory_items WHERE account_id = ? ORDER BY iid'),
+    invInsert: db.prepare('INSERT INTO inventory_items (account_id, item_id, variant, grade, serial, obtained_at) VALUES (?, ?, ?, ?, ?, ?)'),
+    invUpdateLook: db.prepare('UPDATE inventory_items SET grade = ?, variant = ? WHERE iid = ? AND account_id = ?'),
     invDelete: db.prepare('DELETE FROM inventory_items WHERE iid = ? AND account_id = ?'),
     indexList: db.prepare('SELECT item_id FROM collection_index WHERE account_id = ?'),
     indexAdd: db.prepare('INSERT OR IGNORE INTO collection_index (account_id, item_id, first_found_at) VALUES (?, ?, ?)'),
@@ -197,18 +198,21 @@ export function createRepos(db: DB) {
     },
     inventory: {
       list: (accountId: number): InventoryItem[] =>
-        (s.invList.all(accountId) as Array<{ iid: number; item_id: string; variant: string; serial: number | null; obtained_at: number }>).map((r) => ({
+        (s.invList.all(accountId) as Array<{ iid: number; item_id: string; variant: string; grade: string; serial: number | null; obtained_at: number }>).map((r) => ({
           iid: r.iid,
           itemId: r.item_id,
           variant: r.variant,
+          grade: r.grade,
           serial: r.serial,
           obtainedAt: r.obtained_at,
         })),
-      insert: (accountId: number, itemId: string, variant: string, serial: number | null): InventoryItem => {
+      insert: (accountId: number, itemId: string, variant: string, serial: number | null, grade = 'D'): InventoryItem => {
         const at = Date.now();
-        const info = s.invInsert.run(accountId, itemId, variant, serial, at);
-        return { iid: Number(info.lastInsertRowid), itemId, variant, serial, obtainedAt: at };
+        const info = s.invInsert.run(accountId, itemId, variant, grade, serial, at);
+        return { iid: Number(info.lastInsertRowid), itemId, variant, grade, serial, obtainedAt: at };
       },
+      /** Change an item's tier and/or variant (merging, shard rerolls). */
+      setLook: (accountId: number, iid: number, grade: string, variant: string) => s.invUpdateLook.run(grade, variant, iid, accountId).changes === 1,
       delete: (accountId: number, iid: number) => s.invDelete.run(iid, accountId).changes === 1,
     },
     collection: {

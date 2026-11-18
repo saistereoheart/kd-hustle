@@ -14,7 +14,7 @@
 //   it can't drop).
 import type { CrateDef, ItemDef, RaritiesConfig } from './economy/schemas';
 
-export const LUCK_SOURCE_TYPES = ['upgrade', 'potion', 'item', 'title', 'rebirth', 'event', 'index'] as const;
+export const LUCK_SOURCE_TYPES = ['upgrade', 'potion', 'item', 'title', 'rebirth', 'event', 'index', 'gear'] as const;
 export type LuckSourceType = (typeof LUCK_SOURCE_TYPES)[number];
 export interface LuckSource {
   type: LuckSourceType;
@@ -176,14 +176,15 @@ export function variantMult(rar: RaritiesConfig, variant: string): number {
 
 /** An item's value in sen: crate price × rarity factor × variant multiplier (or its fixed
  *  `valueSen` if it doesn't come from a crate, e.g. potions). */
-export function itemValueSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string): number {
-  if (!crate) return Math.round((item.valueSen ?? 0) * variantMult(rar, variant));
+export function itemValueSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string, gradeMult = 1): number {
+  if (!crate) return Math.round((item.valueSen ?? 0) * variantMult(rar, variant) * gradeMult);
   const tier = rar.tiers.find((t) => t.id === item.rarity)!;
-  return Math.round(crate.priceSen * tier.valueFactor * variantMult(rar, variant));
+  return Math.round(crate.priceSen * tier.valueFactor * variantMult(rar, variant) * gradeMult);
 }
 
-export function pawnPriceSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string, pawnRate: number): number {
-  return Math.max(1, Math.floor(itemValueSen(rar, item, crate, variant) * pawnRate));
+/** `gradeMult`: the item's tier (Tier D ×1 … Tier S ×5) multiplies its value too. */
+export function pawnPriceSen(rar: RaritiesConfig, item: ItemDef, crate: CrateDef | undefined, variant: string, pawnRate: number, gradeMult = 1): number {
+  return Math.max(1, Math.floor(itemValueSen(rar, item, crate, variant, gradeMult) * pawnRate));
 }
 
 export function scrapShards(rar: RaritiesConfig, item: ItemDef, variant: string): number {

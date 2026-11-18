@@ -121,11 +121,12 @@ export class Store {
   }
 
   /** Inventory grouped into stacks of identical item + variant (serials stay separate). */
-  stacks(): Array<{ itemId: string; variant: string; serial: number | null; items: InventoryItem[] }> {
-    const map = new Map<string, { itemId: string; variant: string; serial: number | null; items: InventoryItem[] }>();
+  stacks(): Array<{ itemId: string; variant: string; grade: string; serial: number | null; items: InventoryItem[] }> {
+    const map = new Map<string, { itemId: string; variant: string; grade: string; serial: number | null; items: InventoryItem[] }>();
     for (const i of this.inventory) {
-      const key = `${i.itemId}|${i.variant}|${i.serial ?? ''}`;
-      const s = map.get(key) ?? { itemId: i.itemId, variant: i.variant, serial: i.serial, items: [] };
+      const grade = i.grade ?? 'D';
+      const key = `${i.itemId}|${i.variant}|${grade}|${i.serial ?? ''}`;
+      const s = map.get(key) ?? { itemId: i.itemId, variant: i.variant, grade, serial: i.serial, items: [] };
       s.items.push(i);
       map.set(key, s);
     }

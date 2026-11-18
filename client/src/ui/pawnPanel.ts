@@ -1,5 +1,5 @@
 // Kedai Pajak Untung: sell items for RM, scrap them into shards, or buy specific items with shards.
-import { formatMoney, isCollectible, pawnPriceSen, scrapShards } from '@kh/shared';
+import { formatMoney, isCollectible, pawnPriceSen, scrapShards, gradeDef, gradeMult } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
@@ -20,18 +20,18 @@ export function openPawnPanel(app: App) {
     sfx.error();
     toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
   };
-  const doStack = (event: 'pawn:sell' | 'pawn:scrap', itemId: string, variant: string, count: number) => {
+  const doStack = (event: 'pawn:sell' | 'pawn:scrap', itemId: string, variant: string, count: number, grade?: string) => {
     const sock = app.socket?.timeout(6000);
     if (!sock) return;
     if (event === 'pawn:sell') {
-      sock.emit('pawn:sell', { itemId, variant, count }, (err, res) => {
+      sock.emit('pawn:sell', { itemId, variant, count, grade }, (err, res) => {
         if (err || !res.ok) return fail(err, res);
         sfx.coin();
         app.store.removeItems(res.removed);
         toast(`Sold for ${formatMoney(res.gainedSen)}`, 'good');
       });
     } else {
-      sock.emit('pawn:scrap', { itemId, variant, count }, (err, res) => {
+      sock.emit('pawn:scrap', { itemId, variant, count, grade }, (err, res) => {
         if (err || !res.ok) return fail(err, res);
         sfx.coin();
         app.store.removeItems(res.removed);
@@ -53,14 +53,15 @@ export function openPawnPanel(app: App) {
     for (const s of stacks) {
       const def = app.items.get(s.itemId)!;
       const crate = app.cratesOfItem.get(def.id);
-      const each = mode === 'sell' ? pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate) : scrapShards(rar, def, s.variant);
+      const gm = gradeMult(app.cfg.grades, s.grade);
+      const each = mode === 'sell' ? pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gm) : Math.round(scrapShards(rar, def, s.variant) * gm);
       const label = (n: number) => (mode === 'sell' ? formatMoney(each * n) : `${each * n} 💎`);
       const one = el('button', { class: 'btn', type: 'button', 'data-action': `${mode}-one` }, `${mode === 'sell' ? 'Sell' : 'Scrap'} 1`, el('small', {}, label(1)));
-      one.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, 1));
-      const row = el('div', { class: 'stack-row' }, itemCard(rar, def, s.variant, { count: s.items.length, size: 48 }), el('div', { class: 'stack-btns' }, one));
+      one.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, 1, s.grade));
+      const row = el('div', { class: 'stack-row' }, itemCard(rar, def, s.variant, { count: s.items.length, size: 48, grade: s.grade, gradeColor: gradeDef(app.cfg.grades, s.grade).color }), el('div', { class: 'stack-btns' }, one));
       if (s.items.length > 1) {
         const all = el('button', { class: 'btn', type: 'button' }, `All ×${s.items.length}`, el('small', {}, label(s.items.length)));
-        all.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, s.items.length));
+        all.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, s.items.length, s.grade));
         row.lastElementChild!.append(all);
       }
       rows.set(s, row);

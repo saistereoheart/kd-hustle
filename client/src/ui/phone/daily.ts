@@ -52,11 +52,11 @@ export function renderDaily({ app, rerender }: PhoneCtx): HTMLElement[] {
         // Day 7: a free crate roll, played with the normal reel.
         const crate = app.crates.get(res.roll.crateId);
         const now = Date.now();
-        const items: InventoryItem[] = res.roll.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, serial: r.serial, obtainedAt: now }));
+        const items: InventoryItem[] = res.roll.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, grade: r.grade, serial: r.serial, obtainedAt: now }));
         app.store.addItems(items);
         if (crate) {
           closePanel();
-          playReveal({ rar: app.cfg.rarities, items: app.items, crate, results: res.roll.results, shake: (i) => app.town?.shake(i), onDone: () => {}, luck: app.mods().luck });
+          playReveal({ rar: app.cfg.rarities, grades: app.cfg.grades, items: app.items, crate, results: res.roll.results, shake: (i) => app.town?.shake(i), onDone: () => {}, luck: app.mods().luck });
         }
       }
     });

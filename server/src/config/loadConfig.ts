@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ZodType } from 'zod';
 import {
-  authConfigSchema, buildMap, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
+  authConfigSchema, buildMap, gradesConfigSchema, characterConfigSchema, chatConfigSchema, movementConfigSchema, netConfigSchema,
   osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
   cratesConfigSchema, economyConfigSchema, itemsConfigSchema, jobsConfigSchema, raritiesConfigSchema, validateEconomyConfigs,
   vehiclesConfigSchema, ridesConfigSchema, type RidesConfig,
@@ -93,7 +93,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
   const economy = readJson(j('economy.json'), economyConfigSchema);
   const itemById = new Map(items.items.map((i) => [i.id, i]));
   const prog: ProgCfg = {
-    rarities, items, itemById, crates, crateOfItem, pawnRate: economy.pawnRate,
+    rarities, items, itemById, crates, crateOfItem, pawnRate: economy.pawnRate, grades: readJson(j('grades.json'), gradesConfigSchema),
     levels: readJson(j('levels.json'), levelsConfigSchema),
     stages: readJson(j('stages.json'), stagesConfigSchema),
     titles: readJson(j('titles.json'), titlesConfigSchema),
@@ -154,6 +154,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
 
 export function toPublicConfig(cfg: ServerConfig): PublicConfig {
   return {
+    grades: cfg.prog.grades,
     character: cfg.character,
     movement: cfg.movement,
     net: cfg.net,

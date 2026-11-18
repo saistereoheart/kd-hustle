@@ -203,6 +203,14 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX properties_owner ON properties(account_id);
     `,
   },
+  {
+    id: 10,
+    name: 'item grades',
+    // Item tiers (Tier D..S, "grade" in code). Existing items are tier D.
+    sql: `
+      ALTER TABLE inventory_items ADD COLUMN grade TEXT NOT NULL DEFAULT 'D';
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

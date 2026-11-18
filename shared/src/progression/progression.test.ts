@@ -1,3 +1,5 @@
+import gradesJson from '../../config/grades.json';
+import { gradesConfigSchema } from '../items/grades';
 import { describe, expect, it } from 'vitest';
 import cratesJson from '../../config/crates.json';
 import economyJson from '../../config/economy.json';
@@ -24,7 +26,7 @@ const itemById = new Map(items.items.map((i) => [i.id, i]));
 const crateOfItem = new Map<string, CrateDef>();
 for (const c of crates.crates) for (const id of c.pool) crateOfItem.set(id, c);
 const cfg: ProgCfg = {
-  rarities, items, itemById, crates, crateOfItem, pawnRate: economyConfigSchema.parse(economyJson).pawnRate,
+  rarities, items, itemById, crates, crateOfItem, pawnRate: economyConfigSchema.parse(economyJson).pawnRate, grades: gradesConfigSchema.parse(gradesJson),
   levels: levelsConfigSchema.parse(levelsJson),
   stages: stagesConfigSchema.parse(stagesJson),
   titles: titlesConfigSchema.parse(titlesJson),

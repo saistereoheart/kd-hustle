@@ -141,6 +141,39 @@ describe('inventory, pawn shop and shards', () => {
     expect(() => inv.shardBuy(p, 'halo')).toThrow(GameError); // mythic isn't sold
   });
 
+  it('merging 5 copies at one tier makes 1 at the next, keeping the best variant', () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => {
+      for (let i = 0; i < 4; i++) econ.grant(p, 'rubber_duck', 'normal', null, 'D');
+      econ.grant(p, 'rubber_duck', 'golden', null, 'D');
+      econ.grant(p, 'rubber_duck', 'normal', null, 'C'); // a different tier: not used
+    });
+    const r = inv.merge(p, 'rubber_duck', 'D');
+    expect(r.removed).toHaveLength(5);
+    expect(r.item).toMatchObject({ itemId: 'rubber_duck', grade: 'C', variant: 'golden' });
+    expect(p.inventory.filter((i) => i.itemId === 'rubber_duck')).toHaveLength(2);
+    expect(() => inv.merge(p, 'rubber_duck', 'D')).toThrow(/need 5/);
+  });
+
+  it('a tier multiplies what the pawn shop pays; rerolls cost shards and never make it worse', () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => {
+      econ.grant(p, 'rubber_duck', 'normal', null, 'D');
+      econ.grant(p, 'rubber_duck', 'normal', null, 'S');
+    });
+    const d = inv.sell(p, 'rubber_duck', 'normal', 1, 'D').gainedSen;
+    const s5 = inv.sell(p, 'rubber_duck', 'normal', 1, 'S').gainedSen;
+    expect(s5).toBeGreaterThanOrEqual(d * 4); // tier S is ×5 (rounding aside)
+    const { item } = econ.run(p, () => econ.grant(p, 'rubber_duck', 'shiny', null, 'B'));
+    expect(() => inv.reroll(p, item.iid, 'grade', () => 0)).toThrow(/shards/);
+    p.shards = 1000;
+    for (let k = 0; k < 20; k++) {
+      const r = inv.reroll(p, item.iid, 'grade', (max) => Math.floor(Math.random() * max));
+      expect(['B', 'A', 'S']).toContain(r.item.grade);
+    }
+    expect(p.shards).toBe(1000 - 20 * cfg.prog.grades.shards.rerollGrade.common);
+  });
+
   it("can't sell more than you have", () => {
     const { p, econ, inv } = setup(0);
     econ.run(p, () => econ.grant(p, 'rubber_duck', 'normal', null));

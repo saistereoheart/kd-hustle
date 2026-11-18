@@ -1,5 +1,7 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
-import { EQUIP_SLOTS, formatMoney, isCollectible, itemValueSen, pawnPriceSen, type EquipSlot } from '@kh/shared';
+import { EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
+
+const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
@@ -54,9 +56,10 @@ export function openInventoryPanel(app: App, startTab = 0) {
     let detail: HTMLElement | null = null;
     for (const s of stacks) {
       const def = app.items.get(s.itemId)!;
-      const key = `${s.itemId}|${s.variant}|${s.serial ?? ''}`;
+      const key = `${s.itemId}|${s.variant}|${s.grade}|${s.serial ?? ''}`;
       const worn = s.items.some((i) => equippedIids.has(i.iid));
-      const card = itemCard(rar, def, s.variant, { count: s.items.length, equipped: worn, serial: s.serial });
+      const gcfg = app.cfg.grades;
+      const card = itemCard(rar, def, s.variant, { count: s.items.length, equipped: worn, serial: s.serial, grade: s.grade, gradeColor: gradeDef(gcfg, s.grade).color });
       card.dataset.item = s.itemId;
       card.tabIndex = 0;
       if (selected === key) card.classList.add('selected');
@@ -98,6 +101,46 @@ export function openInventoryPanel(app: App, startTab = 0) {
           toast(`${def.name} → hotbar slot ${(free + 1) % 10}`, 'good');
         });
         actions.append(hb);
+        // Tiers: merge copies up a tier; shards for a chance at a better tier or variant.
+        const fromCrate = !!crate && s.serial === null;
+        const next = nextGrade(gcfg, s.grade);
+        const sameTier = st.inventory.filter((i) => i.itemId === s.itemId && (i.grade ?? 'D') === s.grade && i.serial === null && !equippedIids.has(i.iid)).length;
+        if (fromCrate && next) {
+          const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', disabled: sameTier < gcfg.mergeCount, title: `${gcfg.mergeCount} × Tier ${s.grade} → 1 × Tier ${next} (keeps the best variant)` }, `⬆️ Merge ${gcfg.mergeCount} → Tier ${next}`, el('small', {}, `${sameTier}/${gcfg.mergeCount} (not worn)`));
+          m.addEventListener('click', () =>
+            app.socket?.timeout(5000).emit('inv:merge', { itemId: s.itemId, grade: s.grade }, (err, res) => {
+              if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+              sfx.reveal(3);
+              app.store.removeItems(res.removed);
+              app.store.addItems([res.item]);
+              toast(`⬆️ ${def.name} is now Tier ${res.item.grade}${res.item.variant !== 'normal' ? ` (${res.item.variant})` : ''}!`, 'good');
+              selected = null;
+              render();
+            }),
+          );
+          actions.append(m);
+        }
+        if (fromCrate) {
+          for (const what of ['grade', 'variant'] as const) {
+            const cost = (what === 'grade' ? gcfg.shards.rerollGrade : gcfg.shards.rerollVariant)[def.rarity] ?? 100;
+            const top = what === 'grade' ? !next : s.variant === rar.variants[rar.variants.length - 1].id;
+            const b = el('button', { class: 'btn small', type: 'button', 'data-action': `reroll-${what}`, disabled: top || st.shards < cost }, `🎲 ${what === 'grade' ? 'Tier' : 'Variant'} reroll`, el('small', {}, `${cost} 💎`));
+            b.addEventListener('click', () =>
+              app.socket?.timeout(5000).emit('inv:reroll', { iid: s.items.find((i) => !equippedIids.has(i.iid))?.iid ?? s.items[0].iid, what }, (err, res) => {
+                if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+                app.store.shards = res.shards;
+                app.store.inventory = app.store.inventory.map((i) => (i.iid === res.item.iid ? res.item : i));
+                if (res.improved) sfx.reveal(4);
+                else sfx.click();
+                toast(res.improved ? `✨ Better! Tier ${res.item.grade}${res.item.variant !== 'normal' ? ` · ${res.item.variant}` : ''}` : 'No luck this time (it stays the same).', res.improved ? 'good' : 'info');
+                selected = null;
+                app.store.emit();
+              }),
+            );
+            actions.append(b);
+          }
+        }
+        const buff = gearBuff(gcfg, { type: def.type, rarity: def.rarity, grade: s.grade, variant: s.variant });
         const nameEl = el('h4', {}, def.name);
         nameEl.style.color = tier.color;
         detail = el(
@@ -108,9 +151,10 @@ export function openInventoryPanel(app: App, startTab = 0) {
             'div',
             {},
             nameEl,
-            el('div', { class: 'muted' }, `${tier.name}${s.variant !== 'normal' ? ` · ${s.variant}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
+            el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${s.variant}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
             def.desc ? el('p', {}, def.desc) : null,
-            el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate))}`),
+            buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
+            el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant, gradeMult(gcfg, s.grade)))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gradeMult(gcfg, s.grade)))}`),
             el('div', { class: 'muted' }, 'Sell or scrap at Kedai Pajak Untung (next to Kedai Runcit).'),
             actions,
           ),

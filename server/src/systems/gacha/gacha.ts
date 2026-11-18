@@ -1,7 +1,7 @@
 // Server-side crate rolls. The client only says "roll crate X, N times"; everything else (odds,
 // luck, pity, variants, limited serials, payment) happens here with crypto-grade randomness.
 import crypto from 'node:crypto';
-import { formatOneIn, nextPity, rollCrate, type RandInt, type RollResult } from '@kh/shared';
+import { formatOneIn, nextPity, rollCrate, rollGrade, type RandInt, type RollResult } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -68,10 +68,12 @@ export class Gacha {
           serial = (counts.get(def.id) ?? 0) + 1;
           counts.set(def.id, serial);
         }
-        const { item, isNew } = this.econ.grant(p, o.itemId, o.variant, serial);
+        // Every rolled item also rolls a tier (mostly D); limited items stay D (they can't merge).
+        const grade = def.limit ? 'D' : rollGrade(this.cfg.prog.grades, this.rand);
+        const { item, isNew } = this.econ.grant(p, o.itemId, o.variant, serial, grade);
         this.repos.rolls.log(p.id, crate.id, o.itemId, o.tier, o.variant, serial);
         pity = nextPity(this.cfg.rarities, pity, o.tierIndex);
-        results.push({ iid: item.iid, itemId: o.itemId, tier: o.tier, variant: o.variant, serial, oneIn: o.oneIn, pity: o.pity, isNew });
+        results.push({ iid: item.iid, itemId: o.itemId, tier: o.tier, variant: o.variant, grade, serial, oneIn: o.oneIn, pity: o.pity, isNew });
       }
       p.pity = { ...p.pity, [crate.id]: pity };
 

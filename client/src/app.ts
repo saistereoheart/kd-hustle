@@ -1,7 +1,7 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
 import Phaser from 'phaser';
 import {
-  buildMap, buildSnapshot, computeMods, EQUIP_SLOTS, formatMoney, randomAppearance,
+  buildMap, buildSnapshot, computeMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
   buildListings, roomStyleOf, type Unit,
   type Appearance, type BuiltBuilding, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
   type ProgCfg, type ProgressSnapshot, type PublicConfig,
@@ -123,7 +123,7 @@ export class App {
     const c = this.cfg;
     this.prog = {
       rarities: c.rarities, items: c.items, itemById: this.items, crates: c.crates, crateOfItem: this.cratesOfItem, pawnRate: c.economy.pawnRate,
-      levels: c.levels, stages: c.stages, titles: c.titles, upgrades: c.upgrades, quests: c.quests, goals: c.goals,
+      levels: c.levels, stages: c.stages, titles: c.titles, upgrades: c.upgrades, quests: c.quests, goals: c.goals, grades: c.grades,
     };
     this.store.on(() => this.hud?.setWallet(this.store.walletSen, this.store.shards));
     // Render in DEVICE pixels (the canvas is shrunk back with CSS) so phones and high-DPI
@@ -227,7 +227,7 @@ export class App {
   /** Our live bonuses (luck, XP, job pay, walk speed...), computed like the server does. */
   mods(): Mods {
     const st = this.store;
-    return computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs() });
+    return computeMods(this.prog, { skills: st.skills, title: st.progress.title, buffs: st.buffs(), gear: gearOf(this.prog, st.equipped, st.inventory) });
   }
 
   snapshot(): ProgressSnapshot {

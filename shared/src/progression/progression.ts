@@ -1,3 +1,4 @@
+import { gearBonuses, gradeMult, type GradesConfig } from '../items/grades';
 // Progression maths (Phase 3), shared by the server (which owns the real numbers) and the client
 // (which shows progress bars, live odds and the next goal). Pure functions only.
 //
@@ -34,6 +35,7 @@ export interface ProgCfg {
   upgrades: UpgradesConfig;
   quests: QuestsConfig;
   goals: GoalsConfig;
+  grades: GradesConfig;
 }
 
 // ------------------------------------------------------------------ levels
@@ -85,13 +87,28 @@ export function levelUpReward(cfg: LevelsConfig, level: number): Reward {
 }
 
 // ------------------------------------------------------------------ net worth + stages
-export function netWorthSen(cfg: Pick<ProgCfg, 'rarities' | 'itemById' | 'crateOfItem' | 'pawnRate'>, walletSen: number, inventory: ReadonlyArray<{ itemId: string; variant: string }>, assetsSen = 0): number {
+export function netWorthSen(cfg: Pick<ProgCfg, 'rarities' | 'itemById' | 'crateOfItem' | 'pawnRate'> & Partial<Pick<ProgCfg, 'grades'>>, walletSen: number, inventory: ReadonlyArray<{ itemId: string; variant: string; grade?: string }>, assetsSen = 0): number {
   let sum = walletSen + assetsSen;
   for (const i of inventory) {
     const def = cfg.itemById.get(i.itemId);
-    if (def) sum += pawnPriceSen(cfg.rarities, def, cfg.crateOfItem.get(def.id), i.variant, cfg.pawnRate);
+    if (def) sum += pawnPriceSen(cfg.rarities, def, cfg.crateOfItem.get(def.id), i.variant, cfg.pawnRate, cfg.grades ? gradeMult(cfg.grades, i.grade) : 1);
   }
   return sum;
+}
+
+/** The equipped items, as the gear-buff maths wants them (type, rarity, tier, variant). */
+export function gearOf(
+  cfg: Pick<ProgCfg, 'itemById'>,
+  equipped: Partial<Record<string, number>>,
+  inventory: ReadonlyArray<{ iid: number; itemId: string; variant: string; grade?: string }>,
+): Array<{ type: string; rarity: string; grade?: string; variant: string }> {
+  const out: Array<{ type: string; rarity: string; grade?: string; variant: string }> = [];
+  for (const iid of Object.values(equipped)) {
+    const inst = inventory.find((i) => i.iid === iid);
+    const def = inst && cfg.itemById.get(inst.itemId);
+    if (inst && def) out.push({ type: def.type, rarity: def.rarity, grade: inst.grade, variant: inst.variant });
+  }
+  return out;
 }
 
 /** The stage a net worth qualifies for (1 = Budak Baru). */
@@ -180,17 +197,20 @@ export function combineMults(sources: Array<{ type: string; mult: number }>): nu
 }
 
 export function computeMods(
-  cfg: Pick<ProgCfg, 'upgrades' | 'titles' | 'rarities'>,
-  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff> },
+  cfg: Pick<ProgCfg, 'upgrades' | 'titles' | 'rarities'> & Partial<Pick<ProgCfg, 'grades'>>,
+  state: { skills: Record<string, number>; title: string | null; buffs: ReadonlyArray<ActiveBuff>; gear?: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }> },
 ): Mods {
+  // Equipped items: each slot boosts one stat (rarity × tier × variant).
+  const gear = cfg.grades && state.gear ? gearBonuses(cfg.grades, state.gear) : {};
   const sv = (k: SkillEffect) => skillValue(cfg.upgrades, state.skills, k);
   const title = state.title ? cfg.titles.titles.find((t) => t.id === state.title) : undefined;
   const buffs = (kind: BuffKind) => state.buffs.filter((b) => b.kind === kind && b.leftMs > 0);
-  const mult = (skill: SkillEffect, buff: BuffKind, titleBonus: number | undefined) =>
+  const mult = (skill: SkillEffect, buff: BuffKind, titleBonus: number | undefined, gearBonus = 0) =>
     combineMults([
       { type: 'upgrade', mult: 1 + sv(skill) },
       ...buffs(buff).map((b) => ({ type: 'potion', mult: b.mult })),
       ...(titleBonus ? [{ type: 'title', mult: titleBonus }] : []),
+      ...(gearBonus ? [{ type: 'gear', mult: 1 + gearBonus }] : []),
     ]);
 
   const luckSources: LuckSource[] = [];
@@ -198,6 +218,7 @@ export function computeMods(
   if (luckSkill > 0) luckSources.push({ type: 'upgrade', mult: 1 + luckSkill, label: 'Lucky Charm' });
   for (const b of buffs('luck')) luckSources.push({ type: 'potion', mult: b.mult, label: b.item });
   if (title?.bonus?.luck) luckSources.push({ type: 'title', mult: title.bonus.luck, label: title.name });
+  if (gear.luck) luckSources.push({ type: 'gear', mult: 1 + gear.luck, label: 'Your gear' });
 
   return {
     luck: totalLuck(luckSources, cfg.rarities.maxLuck),
@@ -205,15 +226,15 @@ export function computeMods(
     variantChance: 1 + sv('variantChance'),
     pityMult: Math.max(0.3, 1 - sv('pity')),
     potionDuration: 1 + sv('potionDuration'),
-    xp: mult('xp', 'xp', title?.bonus?.xp),
-    jobPay: mult('jobPay', 'jobPay', title?.bonus?.jobPay),
-    passive: mult('passiveIncome', 'passive', undefined),
+    xp: mult('xp', 'xp', title?.bonus?.xp, gear.xp),
+    jobPay: mult('jobPay', 'jobPay', title?.bonus?.jobPay, gear.jobPay),
+    passive: mult('passiveIncome', 'passive', undefined, gear.passive),
     walk: 1 + sv('walkSpeed'),
     carwashExtraSec: sv('carwashSeconds'),
     rollSpeed: 1 + sv('rollSpeed'),
     autoRoll: Object.entries(cfg.upgrades.skills).some(([id, d]) => d.effect.kind === 'unlock' && id === 'auto_roll' && skillLevel(cfg.upgrades, state.skills, id) > 0),
     stall: {
-      dishPrice: sv('dishPrice'),
+      dishPrice: sv('dishPrice') + (gear.dishPrice ?? 0),
       customers: sv('customers'),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),

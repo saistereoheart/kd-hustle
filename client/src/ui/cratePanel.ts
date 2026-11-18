@@ -98,13 +98,14 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
       st.walletSen = res.walletSen;
       st.pity = { ...st.pity, [crateId]: res.pity };
       const now = Date.now();
-      const items: InventoryItem[] = res.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, serial: r.serial, obtainedAt: now }));
+      const items: InventoryItem[] = res.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, grade: r.grade, serial: r.serial, obtainedAt: now }));
       st.addItems(items);
       if (res.pageReward) st.pages.add(res.pageReward.crateId);
       panel.root.classList.add('hidden');
       const mods = app.mods();
       playReveal({
         rar,
+        grades: app.cfg.grades,
         items: app.items,
         crate,
         results: res.results,

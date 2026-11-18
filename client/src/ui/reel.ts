@@ -1,12 +1,14 @@
 // The roll experience (spec §7.5). The result is already decided by the server; this just
 // makes it feel amazing. ×1 → CS:GO-style reel; ×5/×10 → a grid of cards that flip over.
-import { crateOdds, formatOneIn, type CrateDef, type ItemDef, type RaritiesConfig, type RollResult } from '@kh/shared';
+import { crateOdds, formatOneIn, gradeDef, type CrateDef, type GradesConfig, type ItemDef, type RaritiesConfig, type RollResult } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { itemCard } from './panel';
 import { sfx } from './sound';
 
 export interface RevealOpts {
   rar: RaritiesConfig;
+  /** Item tiers (for the badge on each card). */
+  grades?: GradesConfig;
   items: Map<string, ItemDef>;
   crate: CrateDef;
   results: RollResult[];
@@ -193,7 +195,7 @@ function grid(o: RevealOpts) {
   const gridEl = el('div', { class: `flip-grid n${o.results.length}` });
   const flippers = o.results.map((r) => {
     const def = o.items.get(r.itemId)!;
-    const front = itemCard(o.rar, def, r.variant, { size: 56, serial: r.serial });
+    const front = itemCard(o.rar, def, r.variant, { size: 56, serial: r.serial, grade: r.grade, gradeColor: o.grades ? gradeDef(o.grades, r.grade).color : undefined });
     if (r.isNew) front.append(el('span', { class: 'new-badge small' }, 'NEW'));
     const back = el('div', { class: 'card-back' }, '?');
     back.style.setProperty('--crate', o.crate.color);

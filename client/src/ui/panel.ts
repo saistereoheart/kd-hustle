@@ -90,7 +90,7 @@ export function itemCard(
   rar: RaritiesConfig,
   def: ItemDef,
   variant: string,
-  opts: { count?: number; caption?: string; silhouette?: boolean; equipped?: boolean; serial?: number | null; size?: number } = {},
+  opts: { count?: number; caption?: string; silhouette?: boolean; equipped?: boolean; serial?: number | null; size?: number; grade?: string; gradeColor?: string } = {},
 ) {
   const { tier } = tierOf(rar, def.rarity);
   const img = el('img', { src: iconUrl(def, variant, opts.size ?? 72, opts.silhouette), alt: opts.silhouette ? '???' : def.name, draggable: 'false' });
@@ -104,7 +104,9 @@ export function itemCard(
     variant !== 'normal' && !opts.silhouette ? el('span', { class: 'item-variant' }, variant) : null,
     opts.serial ? el('span', { class: 'item-serial' }, `#${opts.serial}`) : null,
     opts.equipped ? el('span', { class: 'item-equipped' }, '✓ worn') : null,
+    opts.grade && !opts.silhouette ? el('span', { class: `item-grade g-${opts.grade}`, title: `Tier ${opts.grade}` }, opts.grade) : null,
   );
+  if (opts.gradeColor) card.querySelector<HTMLElement>('.item-grade')?.style.setProperty('--grade', opts.gradeColor);
   card.style.setProperty('--tier', tier?.color ?? '#adb5bd');
   return card;
 }

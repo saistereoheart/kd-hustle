@@ -11,7 +11,7 @@
 //  - The client gets the whole progress state back after every change (it's small).
 import {
   newlyDoneGoals, currentGoalIndex, buildSnapshot, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward,
-  loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
+  gearOf, loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
   stageForNetWorth, formatMoney,
   type ActiveBuff, type BuffKind, type CrateDef, type InventoryItem, type Mods, type ProgressEvent, type ProgressState,
   type RandInt, type Reward, type RollResult, type ItemDef,
@@ -144,7 +144,7 @@ export class ProgressionSystem {
   }
 
   mods(p: OnlinePlayer): Mods {
-    return computeMods(this.cfg.prog, { skills: p.skills, title: p.prog.title, buffs: this.activeBuffs(p) });
+    return computeMods(this.cfg.prog, { skills: p.skills, title: p.prog.title, buffs: this.activeBuffs(p), gear: gearOf(this.cfg.prog, p.equipped, p.inventory) });
   }
 
   /** The crate with this player's Pity Pact applied. */

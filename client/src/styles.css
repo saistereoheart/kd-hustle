@@ -872,3 +872,8 @@ body.touch .phone-btn-label kbd { display: none; }
 .tarik-rail { position: absolute; left: 50%; top: 18px; bottom: 18px; width: 8px; margin-left: -4px; border-radius: 4px; background: linear-gradient(#ffd43b, #b5651d); opacity: 0.6; }
 .tarik-thumb { position: absolute; left: 50%; width: 52px; height: 44px; margin-left: -26px; border-radius: 14px; background: linear-gradient(#f1f3f5, #adb5bd); border: 3px solid #ffd43b; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 22px; pointer-events: none; }
 .cook-box.track { width: min(680px, calc(100vw - 16px)); }
+
+/* ---- item tiers (D..S) ---- */
+.item-grade { position: absolute; top: 3px; left: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 6px; background: var(--grade, #adb5bd); color: #11131f; font: 900 12px/18px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+.item-grade.g-S { box-shadow: 0 0 8px 2px rgba(255, 212, 59, 0.8); }
+.item-buff { color: #8ce99a; font-weight: 700; }
