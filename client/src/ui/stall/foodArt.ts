@@ -365,6 +365,36 @@ export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, 
       ellipse(ctx, cx - rx * 0.3, cy - ry * 0.4, rx * 0.25, ry * 0.1, -0.3, 'rgba(255,255,255,0.6)');
       break;
     }
+    case 'susu_segar':
+    case 'susu_oat':
+    case 'susu_badam': {
+      // fresh / oat / almond milk: a carton's worth poured in the tray, with a few oats or almond slices
+      const col = id === 'susu_segar' ? '#ffffff' : id === 'susu_oat' ? '#efe2c4' : '#f1dfc8';
+      ellipse(ctx, cx, cy, rx * 0.92, ry * 0.86, 0, col);
+      ellipse(ctx, cx - rx * 0.3, cy - ry * 0.35, rx * 0.25, ry * 0.09, -0.3, 'rgba(255,255,255,0.85)');
+      if (id !== 'susu_segar')
+        for (let i = 0; i < n(7); i++) {
+          const [px, py] = spot();
+          ellipse(ctx, px, py, id === 'susu_oat' ? 2.2 : 3, id === 'susu_oat' ? 1.4 : 1.6, r() * 3, id === 'susu_oat' ? '#c8a165' : '#b07a45');
+        }
+      // a little carton
+      const cw = Math.min(w, h) * 0.26;
+      ctx.fillStyle = id === 'susu_segar' ? '#1c7ed6' : id === 'susu_oat' ? '#f59f00' : '#8d5a33';
+      ctx.fillRect(cx + rx * 0.45 - cw / 2, cy - cw * 0.7, cw, cw * 1.3);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cx + rx * 0.45 - cw / 2 + 2, cy - cw * 0.2, cw - 4, cw * 0.4);
+      break;
+    }
+    case 'cup_panas': {
+      // a hot mug (empty), seen from the side
+      drawGlass(ctx, cx - w * 0.2, y + h * 0.18, w * 0.38, h * 0.62, 0, 0, '#000', true);
+      break;
+    }
+    case 'cup_ais': {
+      // a tall iced-drink glass (empty)
+      drawGlass(ctx, cx - w * 0.15, y + h * 0.06, w * 0.3, h * 0.8, 0, 0, '#000', false);
+      break;
+    }
     case 'susu_cair': {
       // evaporated milk: thin, pale and smooth, a little splash
       ellipse(ctx, cx, cy, rx * 0.92, ry * 0.86, 0, '#fbf7ee');
@@ -575,17 +605,18 @@ export function drawGriddle(ctx: Ctx, cx: number, cy: number, rad: number) {
 }
 
 /** A clear glass mug of teh tarik (`fill` 0..1 tea level, `foam` 0..1 froth on top, `col` tea colour). */
-export function drawGlass(ctx: Ctx, x: number, y: number, w: number, h: number, fill: number, foam: number, col: string) {
+export function drawGlass(ctx: Ctx, x: number, y: number, w: number, h: number, fill: number, foam: number, col: string, handle = true) {
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath();
   ctx.ellipse(x + w / 2 + 3, y + h + 4, w * 0.55, 7, 0, 0, Math.PI * 2);
   ctx.fill();
-  // handle
-  ctx.strokeStyle = 'rgba(230, 240, 250, 0.75)';
-  ctx.lineWidth = 7;
-  ctx.beginPath();
-  ctx.arc(x + w + 2, y + h * 0.45, h * 0.2, -Math.PI / 2, Math.PI / 2);
-  ctx.stroke();
+  if (handle) {
+    ctx.strokeStyle = 'rgba(230, 240, 250, 0.75)';
+    ctx.lineWidth = Math.max(3, w * 0.07);
+    ctx.beginPath();
+    ctx.arc(x + w + 2, y + h * 0.45, h * 0.2, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+  }
   const tea = h * Math.max(0, Math.min(1, fill));
   const foamH = h * 0.4 * Math.max(0, Math.min(1, foam));
   ctx.fillStyle = col;

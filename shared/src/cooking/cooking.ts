@@ -16,7 +16,14 @@ import { z } from 'zod';
 import type { RandInt } from '../luck';
 
 const range = z.tuple([z.number(), z.number()]);
-const base = { label: z.string(), hint: z.string(), art: z.string() };
+/** Every step: `only` = include it only if the order (an earlier assemble step) has this id
+ *  (e.g. the teh tarik "tarik" step only for a hot cup). */
+const base = { label: z.string(), hint: z.string(), art: z.string(), only: z.string().optional() };
+const option = z.object({
+  id: z.string(), name: z.string(), icon: z.string(),
+  /** Labels for how many the order asks for (ice: ["less", "regular", "more"]). */
+  countLabels: z.array(z.string()).optional(),
+});
 
 export const stepTemplateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('hold'), ...base, fillMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range }),
@@ -28,16 +35,31 @@ export const stepTemplateSchema = z.discriminatedUnion('kind', [
     pick: z.number().int().positive(),
   }),
   z.object({ kind: z.literal('path'), ...base, shape: z.enum(['spiral', 'fold', 'corners']), points: z.number().int().min(2), radius: z.number().positive() }),
-  z.object({ kind: z.literal('meter'), ...base, durationMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range, rise: z.number().positive(), fall: z.number().positive() }),
+  z.object({
+    kind: z.literal('meter'), ...base, durationMs: z.number().positive(), zoneWidth: z.number().positive(), zoneCenter: range, rise: z.number().positive(), fall: z.number().positive(),
+    /** The green zone moves up and down (amp = how far, as a share of the meter; period in ms). */
+    wave: z.object({ amp: z.number().min(0).max(0.5), periodMs: z.number().positive() }).optional(),
+  }),
   z.object({
     kind: z.literal('assemble'), ...base,
     /** The base sides (part of the dish's own stock). The recipe's add-ons are added as boxes too. */
-    options: z.array(z.object({ id: z.string(), name: z.string(), icon: z.string() })).min(2),
+    options: z.array(option).min(2),
     /** How many base sides an order asks for [min, max]. */
     pick: z.tuple([z.number().int().positive(), z.number().int().positive()]),
     /** Instead of `pick`: the order takes this many from each group, in turn (e.g. teh tarik:
      *  one tea, one milk, then hot OR iced). Ids are from `options`. */
-    groups: z.array(z.object({ ids: z.array(z.string()).min(1), pick: z.tuple([z.number().int().nonnegative(), z.number().int().positive()]) })).optional(),
+    groups: z
+      .array(
+        z.object({
+          ids: z.array(z.string()).min(1),
+          pick: z.tuple([z.number().int().nonnegative(), z.number().int().positive()]),
+          /** Each picked one is wanted this many times (ice level, spoons...). */
+          count: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
+          /** Only if the order already has this id (ice only in an iced cup). */
+          if: z.string().optional(),
+        }),
+      )
+      .optional(),
     /** All correct within this long = Perfect (slower = Great). */
     fastMs: z.number().positive(),
     maxMs: z.number().positive(),
@@ -60,7 +82,14 @@ export const recipesConfigSchema = z.object({
       steps: z.array(stepTemplateSchema).min(1),
       /** Paid extras a customer may ask for (separate stock, bought like a dish's ingredients). */
       addons: z
-        .array(z.object({ id: z.string().regex(/^[a-z0-9_]+$/), name: z.string(), icon: z.string(), basePriceSen: z.number().int().positive(), ingredientCostSen: z.number().int().positive() }))
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9_]+$/), name: z.string(), icon: z.string(), basePriceSen: z.number().int().positive(), ingredientCostSen: z.number().int().positive(),
+            /** Wanted this many times in the order (spoons of condensed milk); still 1 stock a drink. */
+            count: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
+            countLabels: z.array(z.string()).optional(),
+          }),
+        )
         .default([]),
       /** Chance a customer adds each add-on that's in stock, and the most per order. */
       addonChance: z.number().min(0).max(1).default(0.45),
@@ -96,8 +125,8 @@ export type StepParams =
   | (Base & { kind: 'rhythm'; beats: number[] })
   | (Base & { kind: 'sequence'; options: Array<{ id: string; name: string; icon: string }>; order: string[] })
   | (Base & { kind: 'path'; points: Array<[number, number]>; radius: number })
-  | (Base & { kind: 'meter'; durationMs: number; zone: [number, number]; rise: number; fall: number })
-  | (Base & { kind: 'assemble'; options: Array<{ id: string; name: string; icon: string; addon?: boolean }>; want: string[]; fastMs: number });
+  | (Base & { kind: 'meter'; durationMs: number; zone: [number, number]; rise: number; fall: number; wave?: { amp: number; periodMs: number; phase: number } })
+  | (Base & { kind: 'assemble'; options: Array<{ id: string; name: string; icon: string; addon?: boolean; countLabels?: string[] }>; want: string[]; fastMs: number });
 
 /** What the player did in one step. `startMs` is when the step began (ms since the dish began);
  *  `ev` times are ms since the step began:
@@ -142,8 +171,16 @@ function pathPoints(shape: 'spiral' | 'fold' | 'corners', n: number, rand: RandI
 /** Builds one dish's steps (zones, targets, beats, the customer's order...). `addons`: the paid
  *  extras this customer ordered (they go into the assemble step's order). */
 export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []): StepParams[] {
-  return recipe.steps.map((s): StepParams => {
+  /** Everything the order has so far (for `only` steps and `if` groups). */
+  const ordered = new Set<string>();
+  // In order: an `only` step is decided after the steps before it have built the order.
+  return recipe.steps.flatMap((s): StepParams[] => {
+    if (s.only && !ordered.has(s.only)) return [];
     const b = { label: s.label, hint: s.hint, art: s.art };
+    return [build(s, b)];
+  });
+
+  function build(s: RecipeDef['steps'][number], b: { label: string; hint: string; art: string }): StepParams {
     switch (s.kind) {
       case 'hold': {
         const c = between(rand, s.zoneCenter);
@@ -169,28 +206,44 @@ export function makeDish(recipe: RecipeDef, rand: RandInt, addons: string[] = []
         return { ...b, kind: 'path', points: pathPoints(s.shape, s.points, rand), radius: s.radius, maxMs: 9000 };
       case 'meter': {
         const c = between(rand, s.zoneCenter);
-        return { ...b, kind: 'meter', durationMs: s.durationMs, zone: [c - s.zoneWidth / 2, c + s.zoneWidth / 2], rise: s.rise, fall: s.fall, maxMs: s.durationMs + 2500 };
+        const wave = s.wave ? { amp: s.wave.amp, periodMs: s.wave.periodMs, phase: Math.round(between(rand, [0, 6283])) / 1000 } : undefined;
+        return { ...b, kind: 'meter', durationMs: s.durationMs, zone: [c - s.zoneWidth / 2, c + s.zoneWidth / 2], rise: s.rise, fall: s.fall, ...(wave ? { wave } : {}), maxMs: s.durationMs + 2500 };
       }
       case 'assemble': {
         // The customer wants some of the base sides (e.g. "no timun") plus their add-ons.
+        // `want` can repeat an id: that's how many (ice level, spoons of condensed milk).
         const want: string[] = [];
-        const takeFrom = (ids: string[], range: [number, number]) => {
+        const many = (id: string, count?: [number, number]) => {
+          const n = count ? count[0] + rand(Math.max(1, count[1] - count[0] + 1)) : 1;
+          for (let k = 0; k < n; k++) want.push(id);
+        };
+        const takeFrom = (ids: string[], range: [number, number], count?: [number, number]) => {
           const pool = ids.filter((id) => s.options.some((o) => o.id === id));
           const [lo, hi] = [Math.min(range[0], pool.length), Math.min(range[1], pool.length)];
           const n = lo + rand(Math.max(1, hi - lo + 1));
-          for (let k = 0; k < n; k++) want.push(pool.splice(rand(pool.length), 1)[0]);
+          for (let k = 0; k < n; k++) many(pool.splice(rand(pool.length), 1)[0], count);
         };
-        if (s.groups?.length) for (const g of s.groups) takeFrom(g.ids, g.pick);
+        if (s.groups?.length) for (const g of s.groups) (!g.if || want.includes(g.if)) && takeFrom(g.ids, g.pick, g.count);
         else takeFrom(s.options.map((o) => o.id), s.pick);
-        const known = new Set(recipe.addons.map((a) => a.id));
-        for (const a of addons) if (known.has(a) && !want.includes(a)) want.push(a);
-        const options = [...s.options, ...recipe.addons.map((a) => ({ id: a.id, name: a.name, icon: a.icon, addon: true }))];
+        for (const a of addons) {
+          const def = recipe.addons.find((x) => x.id === a);
+          if (def && !want.includes(a)) many(a, def.count);
+        }
+        for (const id of want) ordered.add(id);
+        const options = [...s.options, ...recipe.addons.map((a) => ({ id: a.id, name: a.name, icon: a.icon, addon: true, ...(a.countLabels ? { countLabels: a.countLabels } : {}) }))];
         // The ticket lists things in the order the trays stand (base sides first, then add-ons).
         want.sort((x, y) => options.findIndex((o) => o.id === x) - options.findIndex((o) => o.id === y));
         return { ...b, kind: 'assemble', options, want, fastMs: s.fastMs, maxMs: s.maxMs };
       }
     }
-  });
+  }
+}
+
+/** Where a meter step's green zone is at `t` ms (it may move up and down). */
+export function meterZoneAt(step: Extract<StepParams, { kind: 'meter' }>, t: number): [number, number] {
+  if (!step.wave) return step.zone;
+  const d = step.wave.amp * Math.sin((t / step.wave.periodMs) * Math.PI * 2 + step.wave.phase);
+  return [step.zone[0] + d, step.zone[1] + d];
 }
 
 // ------------------------------------------------------------------ grading
@@ -275,17 +328,20 @@ export function gradeStep(cfg: RecipesConfig, step: StepParams, ev: number[], wi
     }
     case 'assemble': {
       // Right boxes count, wrong (or repeated) boxes count against you; all right and quick = Perfect.
-      const want = new Set(step.want);
-      const got = new Set<string>();
-      let wrong = 0, lastT = 0;
+      // Counts matter (2 spoons means 2 taps): every tap fills one wanted slot or is wrong.
+      const left = new Map<string, number>();
+      for (const id of step.want) left.set(id, (left.get(id) ?? 0) + 1);
+      let got = 0, wrong = 0, lastT = 0;
       for (let i = 0; i + 1 < ev.length; i += 2) {
         const id = step.options[ev[i]]?.id;
         lastT = Math.max(lastT, ev[i + 1]);
-        if (id && want.has(id) && !got.has(id)) got.add(id);
-        else wrong++;
+        if (id && (left.get(id) ?? 0) > 0) {
+          left.set(id, left.get(id)! - 1);
+          got++;
+        } else wrong++;
       }
-      const share = Math.max(0, (got.size - wrong) / Math.max(1, want.size));
-      const all = got.size === want.size && wrong === 0;
+      const share = Math.max(0, (got - wrong) / Math.max(1, step.want.length));
+      const all = got === step.want.length && wrong === 0;
       const grade: Grade = all ? (lastT <= step.fastMs * windowMult ? 'perfect' : 'great') : share >= 0.6 ? 'good' : 'miss';
       return { grade, accuracy: share };
     }
@@ -300,11 +356,12 @@ export function gradeStep(cfg: RecipesConfig, step: StepParams, ev: number[], wi
       return { grade: byShare(share, w.share), accuracy: share };
     }
     case 'meter': {
-      // Replay the meter from the presses and count the time spent in the (widened) zone, from the
-      // earliest moment it could have got there (the climb up from empty doesn't count against you).
-      const c = (step.zone[0] + step.zone[1]) / 2;
+      // Replay the meter from the presses and count the time spent in the (widened) zone, which
+      // may be moving, from the earliest moment it could have got there (the climb up from empty
+      // doesn't count against you).
+      const c0 = (step.zone[0] + step.zone[1]) / 2;
       const half = ((step.zone[1] - step.zone[0]) / 2) * windowMult;
-      const leadMs = (Math.max(0, c - half - 0.15) / step.rise) * 1000;
+      const leadMs = (Math.max(0, c0 + (step.wave?.amp ?? 0) - half - 0.15) / step.rise) * 1000;
       let inZone = 0, n = 0;
       let v = 0.15;
       const dt = 20;
@@ -314,7 +371,8 @@ export function gradeStep(cfg: RecipesConfig, step: StepParams, ev: number[], wi
         const holding = k < ev.length && t >= ev[k] && t < (ev[k + 1] ?? Infinity);
         v = Math.max(0, Math.min(1, v + ((holding ? step.rise : -step.fall) * dt) / 1000));
         if (t < leadMs) continue;
-        if (Math.abs(v - c) <= half) inZone++;
+        const z = meterZoneAt(step, t);
+        if (Math.abs(v - (z[0] + z[1]) / 2) <= half) inZone++;
         n++;
       }
       const share = inZone / Math.max(1, n);

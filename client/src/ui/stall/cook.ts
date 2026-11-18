@@ -2,7 +2,7 @@
 // We record raw inputs (press/release times, taps, pointer paths) relative to each step's start
 // and send them all at the end; the server grades them. The "PERFECT!" popups here use the same
 // shared grader, so what you see matches what you're paid for.
-import { gradeStep, meterLevel, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
+import { gradeStep, meterLevel, meterZoneAt, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
 import { drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas } from './foodArt';
@@ -205,7 +205,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       box.classList.toggle('assemble', s.kind === 'assemble');
       if (s.kind !== 'assemble' && (W !== W0 || H !== H0)) sizeCanvas(W0, H0);
       action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path');
-      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : 'Hold to pour';
+      action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? (s.art === 'boxes' ? '✅ Bungkus! (serve)' : '✅ Serve') : s.art === 'kole' ? 'Hold to lift' : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
       if (s.kind === 'assemble') setupAssemble(s);
       if (s.kind === 'path') setupPath(s);
@@ -263,13 +263,14 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           if (finishedStep) return;
           ev.push(i, now());
           picked.push(o.id);
-          const right = s.want.includes(o.id) && picked.filter((x) => x === o.id).length === 1;
+          // Right while you haven't put in more of it than the order asks for (spoons, ice).
+          const right = picked.filter((x) => x === o.id).length <= s.want.filter((x) => x === o.id).length;
           b.classList.remove('right', 'wrong');
           void b.offsetWidth;
           b.classList.add(right ? 'right' : 'wrong');
           if (right) sfx.click();
           else sfx.error();
-          if (s.want.every((w) => picked.includes(w))) finish();
+          if (s.want.every((w) => picked.filter((x) => x === w).length >= s.want.filter((x) => x === w).length)) finish();
         });
         (o.addon && sideW ? side : options).append(b);
         return b;
@@ -471,21 +472,28 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       } else if (s.kind === 'assemble') {
         // The order ticket: a big picture of each thing with its name, in tray order; the base
         // items, then a divider and the add-ons. ✓ once it's on the plate.
-        const baseIds = s.want.filter((id) => !s.options.find((o) => o.id === id)?.addon);
-        const addIds = s.want.filter((id) => s.options.find((o) => o.id === id)?.addon);
+        // One cell per thing; repeats show how many ("2 sudu", "more ice", ×2).
+        const uniq = [...new Set(s.want)];
+        const need = (id: string) => s.want.filter((x) => x === id).length;
+        const have = (id: string) => picked.filter((x) => x === id).length;
+        const baseIds = uniq.filter((id) => !s.options.find((o) => o.id === id)?.addon);
+        const addIds = uniq.filter((id) => s.options.find((o) => o.id === id)?.addon);
         const sepW = addIds.length && baseIds.length ? 26 : 0;
-        const cell = Math.min(96, (W - 30 - sepW) / Math.max(1, s.want.length));
-        const tw = cell * s.want.length + 20 + sepW, tx0 = cx - tw / 2;
+        const cell = Math.min(96, (W - 30 - sepW) / Math.max(1, uniq.length));
+        const tw = cell * uniq.length + 20 + sepW, tx0 = cx - tw / 2;
         ctx.fillStyle = '#fff9db';
         ctx.beginPath();
         ctx.roundRect(tx0, 8, tw, cell * 0.95 + 26, 8);
         ctx.fill();
         ctx.fillStyle = '#868e96';
         ctx.font = 'bold 11px system-ui';
-        ctx.fillText('ORDER', tx0 + 10 + (baseIds.length * cell) / 2, 18);
+        let title = 'ORDER';
+        if (s.art === 'drink') title = `${s.want.some((id) => id.startsWith('susu_')) ? 'TEH TARIK' : 'TEH O'} ${s.want.includes('cup_ais') ? 'AIS' : 'PANAS'}`;
+        ctx.fillText(title, tx0 + 10 + (baseIds.length * cell) / 2, 18);
         const item = (id: string, x: number) => {
           const o = s.options.find((q) => q.id === id)!;
-          const got = picked.includes(id);
+          const n = need(id), h = have(id);
+          const got = h >= n;
           ctx.globalAlpha = got ? 0.4 : 1;
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
@@ -496,6 +504,11 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.fillStyle = '#212529';
           ctx.font = `bold ${cell < 70 ? 10 : 12}px system-ui`;
           ctx.fillText(o.name, x + cell / 2, 26 + cell * 0.72, cell - 4);
+          if (n > 1 || o.countLabels) {
+            ctx.fillStyle = '#c92a2a';
+            ctx.font = `bold ${cell < 70 ? 10 : 12}px system-ui`;
+            ctx.fillText(`${o.countLabels?.[n - 1] ?? `×${n}`}${h && !got ? ` (${h}/${n})` : ''}`, x + cell / 2, 26 + cell * 0.86, cell - 2);
+          }
           if (got) {
             ctx.fillStyle = '#2f9e44';
             ctx.font = 'bold 26px system-ui';
@@ -526,25 +539,47 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         const pcy = top + (H - top) / 2;
         const prx = Math.min(W * 0.4, (H - top) * 0.78), pry = Math.min(prx * 0.62, (H - top) / 2 - 4);
         if (s.art === 'drink') {
-          // The glass fills as you go: tea, then milk lightens it, then steam or ice on top.
+          // The cup you picked fills as you go: tea, milk lightens it, ice cubes or steam.
           const has = (id: string) => picked.includes(id);
-          const milk = has('susu_pekat') || has('susu_cair');
-          const fill = (has('teh') ? 0.5 : 0) + (milk ? 0.22 : 0) + (has('panas') ? 0.12 : 0) + (has('ais') ? 0.08 : 0);
-          const col = has('teh') ? (milk ? (has('susu_pekat') ? '#c98b4e' : '#d29a62') : '#6b2f0c') : milk ? '#f4ecdb' : '#bfe0f5';
-          const gh = Math.min(H - top - 16, 220), gw = gh * 0.72;
-          const gx = cx - gw / 2, gy = top + (H - top - gh) / 2;
-          drawGlass(ctx, gx, gy, gw, gh, fill, 0, col);
-          if (has('ais')) for (let k = 0; k < 4; k++) drawFood(ctx, 'ais', gx + 8 + (k % 2) * gw * 0.42, gy + gh * (1 - fill) - 6 + Math.floor(k / 2) * 18, gw * 0.4, 22, 0.3);
-          if (has('panas')) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.lineWidth = 3;
-            for (let k = 0; k < 3; k++) {
-              const sx = gx + gw * (0.25 + k * 0.25), ph = t / 400 + k;
-              ctx.beginPath();
-              ctx.moveTo(sx, gy - 6);
-              ctx.bezierCurveTo(sx + Math.sin(ph) * 8, gy - 22, sx - Math.sin(ph) * 8, gy - 34, sx, gy - 46);
-              ctx.stroke();
+          const iced = has('cup_ais'), hot = has('cup_panas');
+          const milkN = picked.filter((id) => id.startsWith('susu_')).length;
+          const ice = picked.filter((id) => id === 'ais').length;
+          const fill = (has('teh') ? 0.55 : 0) + Math.min(0.25, milkN * 0.09) + ice * 0.04;
+          const col = has('teh') ? (milkN ? (has('susu_pekat') ? '#c98b4e' : '#d29a62') : '#6b2f0c') : milkN ? '#f4ecdb' : '#bfe0f5';
+          if (hot || iced) {
+            const gh = Math.min(H - top - 16, iced ? 240 : 190), gw = gh * (iced ? 0.5 : 0.72);
+            const gx = cx - gw / 2, gy = top + (H - top - gh) / 2;
+            drawGlass(ctx, gx, gy, gw, gh, fill, 0, col, hot);
+            // Ice cubes floating in the top of the drink: 2 per tap of ice.
+            for (let k = 0; k < ice * 2; k++) {
+              const cs = gw * 0.3, ix = gx + 8 + (k % 2) * gw * 0.42 + (k % 3) * 3, iy = gy + gh * (1 - fill) - cs * 0.3 + Math.floor(k / 2) * cs * 0.7;
+              ctx.save();
+              ctx.translate(ix + cs / 2, iy + cs / 2);
+              ctx.rotate(((k * 37) % 20) / 40 - 0.25);
+              ctx.fillStyle = 'rgba(220, 240, 255, 0.85)';
+              ctx.fillRect(-cs / 2, -cs / 2, cs, cs);
+              ctx.strokeStyle = 'rgba(116, 192, 252, 0.95)';
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(-cs / 2, -cs / 2, cs, cs);
+              ctx.fillStyle = 'rgba(255,255,255,0.9)';
+              ctx.fillRect(-cs / 2 + 3, -cs / 2 + 3, cs * 0.35, cs * 0.15);
+              ctx.restore();
             }
+            if (hot && has('teh')) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+              ctx.lineWidth = 3;
+              for (let k = 0; k < 3; k++) {
+                const sx = gx + gw * (0.25 + k * 0.25), ph = t / 400 + k;
+                ctx.beginPath();
+                ctx.moveTo(sx, gy - 6);
+                ctx.bezierCurveTo(sx + Math.sin(ph) * 8, gy - 22, sx - Math.sin(ph) * 8, gy - 34, sx, gy - 46);
+                ctx.stroke();
+              }
+            }
+          } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = 'bold 16px system-ui';
+            ctx.fillText('Pick a cup first', cx, top + (H - top) / 2);
           }
         } else if (s.art === 'curry') {
           // Roti canai on a plate, the curries in little bowls beside it.
@@ -615,18 +650,40 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         if (t > s.maxMs) finish();
       } else if (s.kind === 'meter') {
         const v = meterLevel(s, holding ? [...ev] : ev, Math.min(t, s.durationMs));
-        // A glass of teh tarik: the higher you pour, the thicker the froth.
-        const gw = Math.min(W * 0.26, 140), gh = Math.min(H * 0.66, gw * 1.35);
-        drawGlass(ctx, cx - gw / 2 - 20, cy - gh / 2 + 4, gw, gh, 0.6, v, '#b5651d');
-        if (holding) {
+        const zone = meterZoneAt(s, Math.min(t, s.durationMs));
+        if (s.art === 'kole') {
+          // Tarik: the kole (pouring jug) rises while you hold and drops when you let go; the tea
+          // stream stretches down into the mug. Keep the jug's height in the moving green zone.
+          const mw = Math.min(W * 0.2, 110), mh = mw * 1.05;
+          const mugX = cx - 40, mugY = H - mh - 30;
+          const koleY = mugY - 30 - v * (mugY - 70);
+          drawSteelMug(ctx, cx - 40 - mw * 0.9, koleY, mw * 0.8, mw * 0.85, 0.85);
+          drawGlass(ctx, mugX - mw / 2, mugY, mw, mh, 0.55, 0.25, '#b5651d', true);
           ctx.strokeStyle = '#b5651d';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 6;
+          ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.moveTo(cx - 20, 6);
-          ctx.lineTo(cx - 20, cy - gh / 2 + 10);
+          ctx.moveTo(cx - 40 - mw * 0.25, koleY + mw * 0.2);
+          ctx.quadraticCurveTo(mugX - 6, (koleY + mugY) / 2, mugX, mugY + 6);
           ctx.stroke();
+          const inZone = Math.abs(v - (zone[0] + zone[1]) / 2) <= (zone[1] - zone[0]) / 2;
+          ctx.fillStyle = inZone ? '#69db7c' : '#ff8787';
+          ctx.font = 'bold 15px system-ui';
+          ctx.fillText(inZone ? 'TARIK! 👍' : v < zone[0] ? '▲ higher' : '▼ lower', cx + 70, 30);
+        } else {
+          // A glass of teh tarik: the higher you pour, the thicker the froth.
+          const gw = Math.min(W * 0.26, 140), gh = Math.min(H * 0.66, gw * 1.35);
+          drawGlass(ctx, cx - gw / 2 - 20, cy - gh / 2 + 4, gw, gh, 0.6, v, '#b5651d');
+          if (holding) {
+            ctx.strokeStyle = '#b5651d';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, 6);
+            ctx.lineTo(cx - 20, cy - gh / 2 + 10);
+            ctx.stroke();
+          }
         }
-        meter(W - 50, H * 0.1, 26, H * 0.8, v, s.zone);
+        meter(W - 50, H * 0.1, 26, H * 0.8, v, zone);
         ctx.fillStyle = '#adb5bd';
         ctx.font = 'bold 14px system-ui';
         ctx.fillText(`${Math.max(0, (s.durationMs - t) / 1000).toFixed(1)} s`, cx, H - 16);

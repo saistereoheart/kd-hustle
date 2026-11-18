@@ -9,7 +9,7 @@
 //   npm run sim:stall -- --nights=5 --tier=1
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deliveryPay, carwashPay, formatMoney, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { deliveryPay, carwashPay, formatMoney, meterZoneAt, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../server/src/config/loadConfig';
 import { openDatabase } from '../server/src/db/db';
 import { createRepos } from '../server/src/db/repos';
@@ -61,11 +61,19 @@ function inputs(steps: StepParams[], jitter: number, rand: RandInt): StepInput[]
       if (jitter > 100 && rand(3) === 0) picks.splice(1, 0, (picks[0] + 1) % s.options.length);
       ev = picks.flatMap((o, i) => [o, 700 * (i + 1) + Math.abs(j())]);
     } else if (s.kind === 'meter') {
-      const c = (s.zone[0] + s.zone[1]) / 2 + j() / 2000;
-      const up = ((c - 0.15) / s.rise) * 1000;
-      ev = [0, up];
-      const f = s.fall / (s.rise + s.fall);
-      for (let t = up + 100; t < s.durationMs; t += 200) ev.push(t, t + 200 * f);
+      // Follow the (maybe moving) zone: hold while under its middle; a sloppy player aims off.
+      const off = j() / 2000;
+      let v = 0.15, holding = false;
+      for (let t = 0; t < s.durationMs; t += 20) {
+        const z = meterZoneAt(s, t);
+        const want = v < (z[0] + z[1]) / 2 + off;
+        if (want !== holding) {
+          ev.push(t);
+          holding = want;
+        }
+        v = Math.max(0, Math.min(1, v + ((holding ? s.rise : -s.fall) * 20) / 1000));
+      }
+      if (holding) ev.push(s.durationMs);
     }
     const inp = { startMs: start, ev };
     // How long the step really took: its last input + a beat to read the next one.

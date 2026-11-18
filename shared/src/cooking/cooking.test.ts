@@ -3,7 +3,7 @@ import recipesJson from '../../config/recipes.json';
 import stallsJson from '../../config/stalls.json';
 import timeJson from '../../config/time.json';
 import { darkness, dayPhase, gameTime, inHours, rushHour, timeConfigSchema } from '../time/clock';
-import { dishQuality, gradeStep, makeDish, recipesConfigSchema, validateDishInputs, type StepParams } from './cooking';
+import { dishQuality, gradeStep, makeDish, meterZoneAt, recipesConfigSchema, validateDishInputs, type StepParams } from './cooking';
 import {
   ageStock, customerRate, dishBaseSen, dishPay, masteryLevel, menuRecipes, NO_BONUS, orderBaseSen, queueCapacity, stallOpenNow, stallsConfigSchema,
   stockItems, stockPriceSen, takeStock, upgradeCostSen, wagePerHourSen, type StallState,
@@ -66,15 +66,60 @@ describe('building a dish', () => {
     expect(box.want).not.toContain('not_a_thing');
   });
 
-  it('teh tarik: one tea, one milk, then hot OR iced, in that order', () => {
+  it('teh tarik: a cup, the tea, ice only when iced (1-3), the milk with its spoons; tarik only when hot', () => {
     const teh = recipes.recipes.find((r) => r.id === 'teh_tarik')!;
-    for (let i = 0; i < 30; i++) {
-      const box = makeDish(teh, rand).find((s) => s.kind === 'assemble') as Extract<StepParams, { kind: 'assemble' }>;
-      expect(box.want).toHaveLength(3);
-      expect(box.want[0]).toBe('teh');
-      expect(['susu_pekat', 'susu_cair']).toContain(box.want[1]);
-      expect(['panas', 'ais']).toContain(box.want[2]);
+    let sawHot = false, sawIced = false;
+    for (let i = 0; i < 40; i++) {
+      const steps = makeDish(teh, rand, ['susu_pekat']);
+      const box = steps[0] as Extract<StepParams, { kind: 'assemble' }>;
+      const hot = box.want.includes('cup_panas');
+      expect(hot !== box.want.includes('cup_ais')).toBe(true);
+      expect(box.want.filter((x) => x === 'teh')).toHaveLength(1);
+      const ice = box.want.filter((x) => x === 'ais').length;
+      expect(hot ? ice === 0 : ice >= 1 && ice <= 3).toBe(true);
+      const spoons = box.want.filter((x) => x === 'susu_pekat').length;
+      expect(spoons).toBeGreaterThanOrEqual(1);
+      expect(spoons).toBeLessThanOrEqual(3);
+      expect(steps.some((s) => s.art === 'kole')).toBe(hot);
+      if (hot) sawHot = true;
+      else sawIced = true;
     }
+    expect(sawHot && sawIced).toBe(true);
+  });
+
+  it('counts matter: 2 spoons need exactly 2 taps', () => {
+    const box: StepParams = {
+      kind: 'assemble', label: '', hint: '', art: '', maxMs: 15000, fastMs: 6000,
+      options: [{ id: 'teh', name: 'T', icon: '' }, { id: 'pekat', name: 'P', icon: '', addon: true }],
+      want: ['teh', 'pekat', 'pekat'],
+    };
+    expect(gradeStep(recipes, box, [0, 300, 1, 600, 1, 900]).grade).toBe('perfect');
+    expect(gradeStep(recipes, box, [0, 300, 1, 600]).grade).toBe('good'); // a spoon short
+    expect(gradeStep(recipes, box, [0, 300, 1, 600, 1, 900, 1, 1200]).grade).toBe('good'); // a spoon too many
+  });
+
+  it('a moving zone has to be followed', () => {
+    const m: Extract<StepParams, { kind: 'meter' }> = {
+      kind: 'meter', label: '', hint: '', art: 'kole', maxMs: 7000, durationMs: 5000, zone: [0.4, 0.64], rise: 0.75, fall: 0.6, wave: { amp: 0.2, periodMs: 2300, phase: 0 },
+    };
+    // Follow it: hold whenever the level is under the zone's middle (20 ms steps, like the grader).
+    const follow: number[] = [];
+    let v = 0.15, holding = false;
+    for (let t = 0; t < m.durationMs; t += 20) {
+      const z = meterZoneAt(m, t);
+      const want = v < (z[0] + z[1]) / 2;
+      if (want !== holding) {
+        follow.push(t);
+        holding = want;
+      }
+      v = Math.max(0, Math.min(1, v + ((holding ? m.rise : -m.fall) * 20) / 1000));
+    }
+    if (holding) follow.push(m.durationMs);
+    expect(gradeStep(recipes, m, follow).grade).toBe('perfect');
+    // Holding at the zone's starting height (ignoring the movement) isn't enough.
+    const still: number[] = [0, 500];
+    for (let t = 600; t < m.durationMs; t += 200) still.push(t, t + 89);
+    expect(['good', 'miss']).toContain(gradeStep(recipes, m, still).grade);
   });
 
   it('lists the order in tray order: base sides first, then add-ons', () => {

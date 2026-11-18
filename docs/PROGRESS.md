@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (stall levels, stock icons, phone button)_
+_Last updated: 2026-11-18 (teh tarik custom orders)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -28,6 +28,30 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.5: teh tarik custom orders
+
+### How to test it
+(Teh tarik unlocks at nasi lemak mastery 1. Buy milks in 📱 → Business → Stock or at Gergasi.)
+1. **Make the drink:** tap the trays as the ticket says ("TEH TARIK AIS", "TEH O PANAS"...).
+   - The cup: hot mug or iced glass.
+   - Then the brewed tea.
+   - For iced, the ice: 1, 2 or 3 taps = less, regular or more ice.
+   - Then the milk the customer ordered, one of the add-on milks: susu pekat (1–3 spoons, each spoon one tap,
+     graded exactly), susu cair, fresh milk, oat milk or almond milk.
+   - About 1 in 5 customers want teh O (no milk). Milks are cheap stock, and each drink uses 1 stock.
+   - The cup fills as you go, with ice cubes or steam.
+2. **Tarik! (hot drinks only):** hold to lift the kole, let go to lower it. Keep the stream in the green zone,
+   which moves up and down; "▲ higher" / "▼ lower" tells you which way.
+3. **Froth it up:** as before, for both.
+
+### What changed
+- An order can ask for the same thing more than once (`count`), groups can depend on an earlier pick (`if`),
+  and a step can be skipped unless the order has something (`only`): the tarik step is for hot cups only.
+- Grading counts taps, so 2 spoons need exactly 2.
+- Meter steps can have a moving zone (`wave`); the server grades against where the zone was at each moment.
 
 ---
 

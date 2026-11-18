@@ -20,12 +20,20 @@
       "id": "teh_tarik", "name": "Teh Tarik", "icon": "☕", "basePriceSen": 1000, "ingredientCostSen": 250,
       "unlock": { "recipe": "nasi_lemak", "mastery": 1 },
       "steps": [
-        { "kind": "assemble", "label": "Make the drink", "hint": "Tea, then the milk, then hot or iced, as ordered", "art": "drink", "pick": [3, 3], "fastMs": 4500, "maxMs": 12000,
-          "options": [ { "id": "teh", "name": "Teh (brewed)", "icon": "☕" }, { "id": "susu_pekat", "name": "Susu pekat", "icon": "🥛" }, { "id": "susu_cair", "name": "Susu cair", "icon": "🥛" }, { "id": "panas", "name": "Panas (hot)", "icon": "♨️" }, { "id": "ais", "name": "Ais (iced)", "icon": "🧊" } ],
-          "groups": [ { "ids": ["teh"], "pick": [1, 1] }, { "ids": ["susu_pekat", "susu_cair"], "pick": [1, 1] }, { "ids": ["panas", "ais"], "pick": [1, 1] } ] },
-        { "kind": "rhythm", "label": "Tarik!", "hint": "Pull on every beat", "art": "pull", "beats": 6, "intervalMs": [480, 620], "leadMs": 900 },
+        { "kind": "assemble", "label": "Make the drink", "hint": "The cup, the tea, the ice (iced only), then the milk, as ordered", "art": "drink", "pick": [1, 1], "fastMs": 6500, "maxMs": 16000,
+          "options": [ { "id": "cup_panas", "name": "Hot mug", "icon": "☕" }, { "id": "cup_ais", "name": "Iced glass", "icon": "🥤" }, { "id": "teh", "name": "Teh (brewed)", "icon": "🫖" }, { "id": "ais", "name": "Ais", "icon": "🧊", "countLabels": ["less ice", "regular ice", "more ice"] } ],
+          "groups": [ { "ids": ["cup_panas", "cup_ais"], "pick": [1, 1] }, { "ids": ["teh"], "pick": [1, 1] }, { "ids": ["ais"], "pick": [1, 1], "count": [1, 3], "if": "cup_ais" } ] },
+        { "kind": "meter", "label": "Tarik!", "hint": "Hold to lift the kole, let go to lower it: keep the stream in the moving green zone", "art": "kole", "only": "cup_panas", "durationMs": 5000, "zoneWidth": 0.24, "zoneCenter": [0.45, 0.58], "rise": 0.75, "fall": 0.6, "wave": { "amp": 0.2, "periodMs": 2300 } },
         { "kind": "meter", "label": "Froth it up", "hint": "Hold to pour higher; keep the foam in the zone", "art": "foam", "durationMs": 3500, "zoneWidth": 0.22, "zoneCenter": [0.45, 0.7], "rise": 0.55, "fall": 0.4 }
-      ]
+      ],
+      "addons": [
+        { "id": "susu_pekat", "name": "Susu pekat", "icon": "🥫", "basePriceSen": 120, "ingredientCostSen": 20, "count": [1, 3], "countLabels": ["1 sudu", "2 sudu", "3 sudu"] },
+        { "id": "susu_cair", "name": "Susu cair", "icon": "🥛", "basePriceSen": 120, "ingredientCostSen": 20 },
+        { "id": "susu_segar", "name": "Fresh milk", "icon": "🍼", "basePriceSen": 180, "ingredientCostSen": 35 },
+        { "id": "susu_oat", "name": "Oat milk", "icon": "🌾", "basePriceSen": 280, "ingredientCostSen": 60 },
+        { "id": "susu_badam", "name": "Almond milk", "icon": "🌰", "basePriceSen": 280, "ingredientCostSen": 60 }
+      ],
+      "addonChance": 0.8, "maxAddons": 1
     },
     {
       "id": "roti_canai", "name": "Roti Canai", "icon": "🥞", "basePriceSen": 1500, "ingredientCostSen": 375,
