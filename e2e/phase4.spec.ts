@@ -85,7 +85,7 @@ async function playDish(p: Page) {
       } else if (s.kind === 'assemble') {
         // Tap each ingredient box the order asks for (any order); the last one serves it.
         for (const id of s.want!) {
-          (document.querySelector(`.cook-boxes [data-opt="${id}"]`) as HTMLButtonElement).click();
+          (document.querySelector(`[data-testid=cook] [data-opt="${id}"]`) as HTMLButtonElement).click();
           await sleep(150);
         }
       } else if (s.kind === 'path') {

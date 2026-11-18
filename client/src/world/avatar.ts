@@ -1,7 +1,7 @@
 // A character in the world: baked spritesheet + nameplate + speech bubble + emotes.
 import Phaser from 'phaser';
 import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
-import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, walkFrames } from '../character/sheet';
+import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
 
@@ -38,6 +38,7 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
   for (const view of ['front', 'back', 'side'] as View[]) {
     mk(`idle_${view}`, idleFrames(view), 2);
     mk(`walk_${view}`, walkFrames(view), 9);
+    mk(`ride_${view}`, rideFrames(view), 1);
   }
   const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
   for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, EMOTE_FPS[id] ?? 5);
@@ -305,15 +306,18 @@ export class Avatar {
   private applyAnim(force = false) {
     let key: string;
     if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
-    // On a bike the legs don't walk: use the idle frames for the riding pose.
-    else key = `${this.texKey}:${this.moving && !this.vehicle ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
+    // On a bike: the riding pose (hands on the handlebar, or holding on to the Ronda rider).
+    else if (this.vehicle) key = `${this.texKey}:ride_${VIEW_OF[this.dir]}`;
+    else key = `${this.texKey}:${this.moving ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
     this.sprite.setFlipX(!this.emoteUntil && this.dir === 'right');
     if (this.bike) {
       const view = VIEW_OF[this.dir];
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       this.bike.setFlipX(this.dir === 'right');
-      // Seen from behind, the bike is in front of the rider.
-      this.layer(this.bike, view === 'back' ? this.container.getIndex(this.sprite) + 1 : this.auraGlow ? 1 : 0);
+      // From the side the bike is under the rider; from the front (handlebar, basket, front
+      // wheel) and from behind (rear wheel, plate) it's drawn over them.
+      if (view === 'side') this.layer(this.bike, this.auraGlow ? 1 : 0);
+      else this.container.moveAbove(this.bike, this.sprite);
     }
     if (this.driver) {
       // Passenger on the back: behind the rider (side view), peeking over them (front view),
@@ -321,7 +325,7 @@ export class Avatar {
       const view = VIEW_OF[this.dir];
       const face = this.dir === 'right' ? 1 : -1;
       this.driver.setFlipX(this.dir === 'right');
-      this.driver.play(`${this.driverTex}:idle_${view}`, true);
+      this.driver.play(`${this.driverTex}:ride_${view}`, true);
       if (view === 'side') {
         this.driver.setPosition(face * 6, -9);
         this.sprite.setPosition(-face * 7, -11);
@@ -332,11 +336,16 @@ export class Avatar {
         this.driver.setPosition(0, -14);
         this.sprite.setPosition(0, -9);
       }
-      // Draw order: the one nearer the camera goes on top.
+      // Draw order: the one nearer the camera goes on top. The passenger sits BEHIND the rider,
+      // so they're under the rider in the side and front views and only on top from behind.
       const front = view === 'back' ? this.sprite : this.driver;
       const behind = front === this.sprite ? this.driver : this.sprite;
-      this.layer(behind, this.container.getIndex(front));
-      if (view === 'back' && this.bike) this.layer(this.bike, this.container.getIndex(this.sprite) + 1);
+      this.container.moveBelow(behind, front);
+      // The bike: under both from the side; over both from the front and from behind.
+      if (this.bike) {
+        if (view === 'side') this.container.moveBelow(this.bike, behind);
+        else this.container.moveAbove(this.bike, front);
+      }
     }
     if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
   }

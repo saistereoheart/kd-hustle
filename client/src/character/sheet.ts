@@ -2,6 +2,7 @@
 // Frame layout:
 //   0-5   front: idle0 idle1 walk0..3      6-11 back      12-17 side (faces left)
 //   18+   emotes (front view), 4 frames each, in EMOTE_ORDER
+//   then  riding: front, back, side (hands forward on the handlebar / holding the rider)
 import type { Appearance, CharacterConfig } from '@kh/shared';
 import { drawCharacter, FRAME_H, FRAME_W, type Pose, type View, type WornCosmetics } from './draw';
 
@@ -87,7 +88,15 @@ const EMOTE_POSES: Record<string, Pose[]> = {
   ],
 };
 export const EMOTE_ORDER = Object.keys(EMOTE_POSES);
-export const FRAME_COUNT = 18 + EMOTE_ORDER.length * 4;
+const RIDE_BASE = 18 + EMOTE_ORDER.length * 4;
+/** On a bike: both hands reach forward to the handlebar (side view: arms forward, elbows bent a
+ *  little; front/back: arms out to the grips either side, forearms angled in). */
+const RIDE_POSES: Record<View, Pose> = {
+  front: { view: 'front', armL: 0.38, armR: 0.38, bendL: -0.35, bendR: -0.35 },
+  back: { view: 'back', armL: 0.38, armR: 0.38, bendL: -0.35, bendR: -0.35 },
+  side: { view: 'side', armL: 0.95, bendL: 0.45, armR: -0.95, bendR: -0.45 },
+};
+export const FRAME_COUNT = RIDE_BASE + 3;
 export const EMOTE_FRAMES: Record<string, number[]> = Object.fromEntries(
   EMOTE_ORDER.map((id, e) => [id, [0, 1, 2, 3].map((k) => 18 + e * 4 + k)]),
 );
@@ -97,6 +106,7 @@ export function viewIndex(view: View) {
 }
 export const idleFrames = (view: View) => [viewIndex(view) * 6, viewIndex(view) * 6 + 1];
 export const walkFrames = (view: View) => [2, 3, 4, 5].map((k) => viewIndex(view) * 6 + k);
+export const rideFrames = (view: View) => [RIDE_BASE + viewIndex(view)];
 
 export function poseForFrame(i: number): Pose {
   if (i < 18) {
@@ -108,6 +118,7 @@ export function poseForFrame(i: number): Pose {
     if (view === 'side') return { view, bob, legL: s, legR: -s, armL: -0.55 * s, armR: 0.55 * s };
     return { view, bob, legL: Math.max(0, s), legR: Math.max(0, -s), armL: 0.12 * s, armR: -0.12 * s };
   }
+  if (i >= RIDE_BASE) return RIDE_POSES[VIEWS[i - RIDE_BASE]] ?? { view: 'front' };
   const e = Math.floor((i - 18) / 4);
   return EMOTE_POSES[EMOTE_ORDER[e]]?.[(i - 18) % 4] ?? { view: 'front' };
 }

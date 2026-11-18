@@ -5,6 +5,7 @@
 import { gradeStep, meterLevel, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
+import { drawFood, drawPlate, drawRice, trayCanvas } from './foodArt';
 
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
 const GRADE_COLOR: Record<Grade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#74c0fc', miss: '#ff6b6b' };
@@ -18,21 +19,30 @@ export interface CookStock {
 /** Plays a dish. Resolves with the inputs to send (or null if the player gave up). */
 export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void, stock?: () => CookStock | null): Promise<StepInput[] | null> {
   return new Promise((resolve) => {
-    const W = Math.min(innerWidth - 28, 520);
-    const H = Math.round(Math.min(W * 0.72, innerHeight * 0.48));
+    const W0 = Math.min(innerWidth - 28, 520);
+    const H0 = Math.round(Math.min(W0 * 0.72, innerHeight * 0.48));
+    let W = W0, H = H0;
     const dpr = Math.min(3, devicePixelRatio || 1);
     const canvas = el('canvas', { class: 'cook-canvas', 'data-testid': 'cook-canvas' });
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = `${W}px`;
-    canvas.style.height = `${H}px`;
+    /** (Re)size the drawing area (the "pack the order" step gets a much bigger one). */
+    const sizeCanvas = (w: number, h: number) => {
+      W = Math.round(w);
+      H = Math.round(h);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      canvas.getContext('2d')!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    sizeCanvas(W0, H0);
     const ctx = canvas.getContext('2d')!;
-    ctx.scale(dpr, dpr);
     const stepPills = dish.steps.map((s, i) => el('span', { class: `cw-stage${i === 0 ? ' active' : ''}`, 'data-step': String(i) }, `${i + 1}. ${s.label}`));
     const label = el('div', { class: 'cook-label' });
     const hint = el('div', { class: 'muted cook-hint' });
     const action = el('button', { class: 'btn primary cook-action', type: 'button', 'data-action': 'cook-action' });
     const options = el('div', { class: 'cook-options' });
+    /** The add-on trays, beside the plate on a wide screen. */
+    const side = el('div', { class: 'cook-side hidden' });
     const quit = el('button', { class: 'btn small', type: 'button', 'data-action': 'cook-quit' }, 'Give up');
     // Stock, big and always visible: portions left and every add-on.
     const stockBar = el('div', { class: 'cook-stock', 'data-testid': 'cook-stock' });
@@ -53,7 +63,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       el('div', { class: 'cw-stages' }, ...stepPills),
       label,
       hint,
-      canvas,
+      el('div', { class: 'cook-stage' }, canvas, side),
       options,
       el('div', { class: 'cw-foot' }, action, quit),
     );
@@ -94,7 +104,8 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         e.preventDefault();
         press();
       } else if (/^Digit[1-9]$/.test(e.code)) {
-        const b = options.querySelectorAll('button')[Number(e.code.slice(5)) - 1] as HTMLButtonElement | undefined;
+        const n = Number(e.code.slice(5)) - 1;
+        const b = (trays.length ? trays[n] : (options.querySelectorAll('button')[n] as HTMLButtonElement | undefined)) ?? undefined;
         b?.click();
       }
     };
@@ -183,6 +194,11 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       finishedStep = false;
       stepStart = performance.now();
       options.replaceChildren();
+      side.replaceChildren();
+      side.classList.add('hidden');
+      trays = [];
+      box.classList.toggle('assemble', s.kind === 'assemble');
+      if (s.kind !== 'assemble' && (W !== W0 || H !== H0)) sizeCanvas(W0, H0);
       action.classList.toggle('hidden', s.kind === 'sequence' || s.kind === 'path');
       action.textContent = s.kind === 'hold' ? 'Hold' : s.kind === 'timing' ? 'Now!' : s.kind === 'rhythm' ? 'Tap!' : s.kind === 'assemble' ? '✅ Bungkus! (serve)' : 'Hold to pour';
       if (s.kind === 'sequence') setupSequence(s);
@@ -204,33 +220,54 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       });
     }
 
-    // ---------------------------------------------------------------- assemble (ingredient boxes)
+    // ---------------------------------------------------------------- assemble (ingredient trays)
+    // Big steel trays of food drawn in code: the base sides in a row under the plate, the paid
+    // add-ons in a column beside it (stacked under on a narrow screen), so nothing scrolls.
     let picked: string[] = [];
+    let trays: HTMLButtonElement[] = [];
     function setupAssemble(s: Extract<StepParams, { kind: 'assemble' }>) {
       picked = [];
+      const wide = innerWidth >= 760;
+      const boxW = Math.min(innerWidth - 16, 1100);
+      const tw = wide ? Math.min(124, Math.max(92, Math.round((innerHeight - 330) / 3.6))) : Math.max(60, Math.min(110, Math.floor((boxW - 44) / 4) - 18)); // phone: 4 per row
+      const th = Math.round(tw * 0.68);
+      const addons = s.options.filter((o) => o.addon).length;
+      const sideW = wide && addons ? 2 * (tw + 16) + 10 : 0; // two columns of trays
+      // Room for: the header (title, stock, steps, hint ~210), the tray row(s), the footer (~80).
+      const rows = wide ? 1 : Math.ceil(s.options.length / 4);
+      const spare = innerHeight - 210 - rows * (th + 36) - 80;
+      const cw = boxW - 32 - sideW;
+      sizeCanvas(cw, Math.max(170, Math.min(cw * 0.6, spare, wide && addons ? 3 * (th + 36) + 10 : Infinity)));
+      side.classList.toggle('hidden', !sideW);
+      side.style.width = sideW ? `${sideW}px` : '';
       options.classList.add('cook-boxes');
       stepCleanup.push(() => options.classList.remove('cook-boxes'));
       const counts = new Map((stock?.()?.addons ?? []).map((a) => [a.id, a.qty]));
-      s.options.forEach((o, i) => {
+      trays = s.options.map((o, i) => {
         const qty = o.addon ? counts.get(o.id) : undefined;
         const b = el(
           'button',
-          { class: `cook-box-btn${o.addon ? ' addon' : ''}${qty === 0 ? ' empty' : ''}`, type: 'button', 'data-opt': o.id },
-          el('span', { class: 'cook-box-icon' }, o.icon),
-          el('span', { class: 'cook-box-name' }, `${i < 9 ? `${i + 1}. ` : ''}${o.name}`),
+          { class: `cook-tray${o.addon ? ' addon' : ''}${qty === 0 ? ' empty' : ''}`, type: 'button', 'data-opt': o.id, 'data-name': o.name, title: o.name, 'aria-label': o.name },
+          trayCanvas(o.id, tw, th),
+          el('span', { class: 'cook-tray-name' }, `${i < 9 ? `${i + 1} · ` : ''}${o.name}`),
           o.addon ? el('span', { class: 'cook-box-qty' }, qty === undefined ? '' : `×${qty}`) : null,
-        );
+          o.addon ? el('span', { class: 'cook-tray-tag' }, '+ ADD-ON') : null,
+        ) as HTMLButtonElement;
+        b.style.width = `${tw + 14}px`;
         b.addEventListener('click', () => {
           if (finishedStep) return;
           ev.push(i, now());
           picked.push(o.id);
           const right = s.want.includes(o.id) && picked.filter((x) => x === o.id).length === 1;
+          b.classList.remove('right', 'wrong');
+          void b.offsetWidth;
           b.classList.add(right ? 'right' : 'wrong');
           if (right) sfx.click();
           else sfx.error();
           if (s.want.every((w) => picked.includes(w))) finish();
         });
-        options.append(b);
+        (o.addon && sideW ? side : options).append(b);
+        return b;
       });
     }
 
@@ -313,16 +350,10 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
 
       if (s.kind === 'hold') {
         const v = ev.length ? ((holding ? t : ev[1]) - ev[0]) / s.fillMs : 0;
-        // A plate with a mound of rice that grows while you hold.
-        ctx.fillStyle = '#e9ecef';
-        ctx.beginPath();
-        ctx.ellipse(cx - 30, cy + H * 0.22, W * 0.28, H * 0.09, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        const r = Math.min(1.2, v) * H * 0.28;
-        ctx.beginPath();
-        ctx.ellipse(cx - 30, cy + H * 0.2, r * 1.3, r, 0, Math.PI, 0);
-        ctx.fill();
+        // A banana leaf on a plate, with a mound of rice that grows while you hold.
+        drawPlate(ctx, cx - 30, cy + H * 0.12, W * 0.32, H * 0.3);
+        const r = Math.min(1.2, v) * H * 0.26;
+        if (r > 1) drawRice(ctx, cx - 30, cy + H * 0.14, r * 1.3, r);
         meter(W - 50, H * 0.1, 26, H * 0.8, Math.min(1.2, v) / 1.2, [s.zone[0] / 1.2, s.zone[1] / 1.2]);
         if (!ev.length && t > s.maxMs) finish();
         if (holding && v > 2.2) release();
@@ -413,51 +444,56 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
         });
         if (t > s.maxMs) finish();
       } else if (s.kind === 'assemble') {
-        // The order ticket (what the customer asked for), and the open banana leaf filling up.
+        // The order ticket: a big picture of each thing with its name; ✓ once it's on the plate.
+        const cell = Math.min(96, (W - 30) / Math.max(1, s.want.length));
+        const tw = cell * s.want.length + 20, tx0 = cx - tw / 2;
         ctx.fillStyle = '#fff9db';
-        const tw = Math.min(W - 24, 64 + s.want.length * 54);
-        ctx.fillRect(cx - tw / 2, 8, tw, 64);
-        ctx.fillStyle = '#495057';
-        ctx.font = 'bold 12px system-ui';
-        ctx.fillText('ORDER', cx, 20);
+        ctx.beginPath();
+        ctx.roundRect(tx0, 8, tw, cell * 0.95 + 26, 8);
+        ctx.fill();
+        ctx.fillStyle = '#868e96';
+        ctx.font = 'bold 11px system-ui';
+        ctx.fillText('ORDER', cx, 18);
         s.want.forEach((id, i) => {
           const o = s.options.find((x) => x.id === id)!;
-          const x = cx + (i - (s.want.length - 1) / 2) * 52;
+          const x = tx0 + 10 + i * cell;
           const got = picked.includes(id);
-          ctx.globalAlpha = got ? 0.35 : 1;
-          ctx.font = '26px system-ui';
-          ctx.fillText(o.icon, x, 44);
+          ctx.globalAlpha = got ? 0.4 : 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(x + cell / 2, 26 + cell * 0.32, cell * 0.42, cell * 0.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          drawFood(ctx, id, x + cell * 0.14, 26 + cell * 0.06, cell * 0.72, cell * 0.52, 0.6);
           ctx.globalAlpha = 1;
-          if (got) {
-            ctx.fillStyle = '#2f9e44';
-            ctx.font = 'bold 20px system-ui';
-            ctx.fillText('✓', x + 14, 54);
-          }
+          ctx.fillStyle = '#212529';
+          ctx.font = `bold ${cell < 70 ? 10 : 12}px system-ui`;
+          ctx.fillText(o.name, x + cell / 2, 26 + cell * 0.72, cell - 4);
           if (o.addon) {
             ctx.fillStyle = '#e8590c';
             ctx.font = 'bold 9px system-ui';
-            ctx.fillText('+ADD', x, 64);
+            ctx.fillText('+ ADD-ON', x + cell / 2, 26 + cell * 0.86);
           }
-          ctx.fillStyle = '#495057';
+          if (got) {
+            ctx.fillStyle = '#2f9e44';
+            ctx.font = 'bold 26px system-ui';
+            ctx.fillText('✓', x + cell * 0.78, 26 + cell * 0.2);
+          }
         });
-        ctx.fillStyle = '#2f9e44';
-        ctx.beginPath();
-        ctx.ellipse(cx, cy + H * 0.2, W * 0.34, H * 0.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.ellipse(cx - W * 0.06, cy + H * 0.2, W * 0.1, H * 0.1, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.font = '22px system-ui';
+        // The plate: banana leaf, the rice, and what you've added, each in its place.
+        const top = cell * 0.95 + 40;
+        const pcy = top + (H - top) / 2;
+        const prx = Math.min(W * 0.4, (H - top) * 0.78), pry = Math.min(prx * 0.62, (H - top) / 2 - 4);
+        drawPlate(ctx, cx, pcy, prx, pry);
+        drawRice(ctx, cx - prx * 0.12, pcy + pry * 0.05, prx * 0.3, pry * 0.42);
+        const slots: Array<[number, number]> = [[0.32, -0.42], [0.5, 0.05], [0.3, 0.45], [-0.05, 0.55], [-0.45, 0.42], [-0.55, -0.05], [-0.38, -0.48], [0.05, -0.6]];
         picked.forEach((id, i) => {
-          const o = s.options.find((x) => x.id === id);
-          if (!o) return;
-          const a = (i / Math.max(1, picked.length)) * Math.PI * 2;
-          ctx.fillText(o.icon, cx - W * 0.06 + Math.cos(a) * W * 0.17, cy + H * 0.2 + Math.sin(a) * H * 0.12);
+          const [sx, sy] = slots[i % slots.length];
+          const fw = prx * 0.5, fh = pry * 0.5;
+          drawFood(ctx, id, cx + sx * prx - fw / 2, pcy + sy * pry - fh / 2, fw, fh, 0.5);
         });
         ctx.fillStyle = t > s.fastMs * dish.windowMult ? '#ffa94d' : '#adb5bd';
-        ctx.font = 'bold 13px system-ui';
-        ctx.fillText(`${Math.max(0, (s.maxMs - t) / 1000).toFixed(1)} s`, W - 30, H - 14);
+        ctx.font = 'bold 14px system-ui';
+        ctx.fillText(`${Math.max(0, (s.maxMs - t) / 1000).toFixed(1)} s`, W - 34, H - 16);
         if (t > s.maxMs) finish();
       } else if (s.kind === 'path') {
         // A leaf / plate with numbered dots; your trail shows where you've been.

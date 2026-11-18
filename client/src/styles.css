@@ -811,3 +811,23 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 .item-group-title { margin: 0 0 6px; font-size: 15px; }
 .item-sub { margin: 8px 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 0.03em; color: #ffd8a8; text-transform: uppercase; }
 .item-group > .item-sub:first-of-type { margin-top: 2px; }
+
+/* ---- cooking: the "pack the order" step (big trays, add-ons beside the plate) ---- */
+.cook-stage { display: flex; gap: 10px; justify-content: center; align-items: flex-start; }
+.cook-side { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; justify-content: center; }
+.cook-box.assemble { width: min(1100px, calc(100vw - 16px)); }
+.cook-box.assemble .cook-options.cook-boxes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; grid-template-columns: none; }
+.cook-tray { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 4px 5px; border-radius: 12px; border: 2px solid #495057; background: linear-gradient(#343a40, #212529); color: #fff; font-weight: 700; font-size: 12px; touch-action: manipulation; transition: transform 0.1s, border-color 0.1s; }
+.cook-tray canvas { display: block; pointer-events: none; }
+.cook-tray:hover { transform: translateY(-2px); border-color: #ffd43b; }
+.cook-tray.addon { border-color: #e8590c; }
+.cook-tray.empty { opacity: 0.45; }
+.cook-tray.right { border-color: #69db7c; box-shadow: 0 0 0 3px rgba(105,219,124,0.5); }
+.cook-tray.wrong { border-color: #ff6b6b; animation: box-shake 0.25s; }
+.cook-tray-name { max-width: 100%; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+@media (max-width: 759px) { .cook-tray { font-size: 11px; } .cook-tray-tag { font-size: 7.5px; padding: 0 3px; } .cook-box-qty { font-size: 10px; } }
+.cook-tray-tag { position: absolute; top: 3px; left: 5px; font-size: 9px; background: #e8590c; border-radius: 5px; padding: 0 4px; }
+/* Hover: the name, big, above the tray. */
+.cook-tray::after { content: attr(data-name); position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; background: #11131f; color: #ffd43b; border: 1px solid #ffd43b; border-radius: 8px; padding: 4px 9px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 5; }
+.cook-tray:hover::after, .cook-tray:focus-visible::after { opacity: 1; }
+@media (max-width: 759px) { .cook-side { display: none; } }

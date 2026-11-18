@@ -382,7 +382,9 @@ export class StallLayer {
     // Day / night: tint the whole view (multiply), warmer at dusk and dawn.
     const cam = this.scene.cameras.main;
     const view = cam.worldView;
-    this.night.setPosition(view.x - 4, view.y - 4).setSize(view.width + 8, view.height + 8);
+    // Three views wide, centred on the view: the camera moves after this runs (and lerps behind
+    // fast vehicles), so a view-sized overlay would show a bright strip at the edge at speed.
+    this.night.setPosition(view.x - view.width, view.y - view.height).setSize(view.width * 3, view.height * 3);
     const t = gameTime(this.app.cfg.time, now);
     const dk = darkness(this.app.cfg.time, t.hourF);
     // Full night multiplies the town by time.json → lighting.nightTint (lighter = brighter nights).

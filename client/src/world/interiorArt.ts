@@ -25,10 +25,20 @@ export function stationSize(type: string): [number, number] {
   return type === 'carwash' ? [5, 2.6] : type === 'market' ? [3.4, 1.4] : type === 'crate' ? [1.8, 1.4] : [2.8, 1.3];
 }
 
-/** Floor, walls, the doorway and its mat. Returns nothing: it's one static Graphics. */
-export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle) {
+/** Where the doorway is: which wall, and its centre along that wall (px). */
+export interface RoomDoor {
+  side: 'top' | 'bottom' | 'left' | 'right';
+  pos: number;
+}
+
+/** Half the doorway's width (px). */
+export const DOOR_HALF = 1.2 * T;
+
+/** Floor, walls, the doorway (in any wall) and its mat. Returns nothing: it's one static Graphics. */
+export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: RoomDoor) {
   const W = s.w * T, H = s.h * T;
   const floor = hex(s.floor), floor2 = hex(s.floor2), wall = hex(s.wall), trim = hex(s.trim);
+  const d0 = door.pos - DOOR_HALF, d1 = door.pos + DOOR_HALF;
   // drop shadow under the whole room (it floats above the darkened town)
   g.fillStyle(0x000000, 0.45).fillRoundedRect(-14, -6, W + 28, H + 26, 18);
   // floor: checker tiles
@@ -38,23 +48,53 @@ export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle) {
   // soft light pool in the middle of the room, darker corners
   g.fillStyle(0xffffff, 0.06).fillEllipse(W / 2, H * 0.55, W * 0.8, H * 0.7);
   g.fillStyle(0x000000, 0.08).fillRect(0, 2 * T, T * 0.6, H - 2 * T).fillRect(W - T * 0.6, 2 * T, T * 0.6, H - 2 * T);
-  // back wall (2 tiles tall) with a skirting board and a top band
-  g.fillStyle(wall, 1).fillRect(0, 0, W, 2 * T);
-  g.fillStyle(shade(wall, 0.12), 1).fillRect(0, 0, W, 10);
-  g.fillStyle(trim, 1).fillRect(0, 2 * T - 8, W, 8);
-  // windows on the back wall
-  g.fillStyle(0xa5d8ff, 0.85);
-  for (let x = 1.2; x < s.w - 2; x += 4) g.fillRoundedRect(x * T, 16, 2 * T, 26, 4);
-  g.fillStyle(0xffffff, 0.35);
-  for (let x = 1.2; x < s.w - 2; x += 4) g.fillRect(x * T + 6, 20, 10, 18);
-  // side + front walls (thick borders), doorway gap in the front wall
+  // back wall (2 tiles tall) with a skirting board and a top band; a door in it cuts through
+  const backWall = (x0: number, x1: number) => {
+    if (x1 <= x0) return;
+    g.fillStyle(wall, 1).fillRect(x0, 0, x1 - x0, 2 * T);
+    g.fillStyle(shade(wall, 0.12), 1).fillRect(x0, 0, x1 - x0, 10);
+    g.fillStyle(trim, 1).fillRect(x0, 2 * T - 8, x1 - x0, 8);
+  };
+  if (door.side === 'top') {
+    backWall(0, d0);
+    backWall(d1, W);
+    // the passage through the wall: floor, with the frame's posts either side
+    g.fillStyle(floor2, 1).fillRect(d0, 0, d1 - d0, 2 * T);
+    g.fillStyle(shade(trim, -0.2), 1).fillRect(d0 - 5, 0, 5, 2 * T).fillRect(d1, 0, 5, 2 * T);
+  } else backWall(0, W);
+  // windows on the back wall (not where the door is)
+  for (let x = 1.2; x < s.w - 2; x += 4) {
+    const wx = x * T;
+    if (door.side === 'top' && wx + 2 * T > d0 - 6 && wx < d1 + 6) continue;
+    g.fillStyle(0xa5d8ff, 0.85).fillRoundedRect(wx, 16, 2 * T, 26, 4);
+    g.fillStyle(0xffffff, 0.35).fillRect(wx + 6, 20, 10, 18);
+  }
+  // outer walls (thick borders) with the doorway gap on the door's side
   const wallTop = shade(wall, -0.35);
-  g.fillStyle(wallTop, 1).fillRect(-10, -10, 10, H + 20).fillRect(W, -10, 10, H + 20).fillRect(-10, -10, W + 20, 10);
-  const gap0 = W / 2 - 1.2 * T, gap1 = W / 2 + 1.2 * T;
-  g.fillRect(-10, H, gap0 + 10, 10).fillRect(gap1, H, W - gap1 + 10, 10);
-  // door mat
-  g.fillStyle(0x8c5a3c, 1).fillRoundedRect(W / 2 - 1.1 * T, H - 0.75 * T, 2.2 * T, 0.75 * T, 4);
-  g.lineStyle(2, 0xd9a066, 1).strokeRoundedRect(W / 2 - 1.1 * T + 3, H - 0.75 * T + 3, 2.2 * T - 6, 0.75 * T - 6, 3);
+  g.fillStyle(wallTop, 1);
+  const hWall = (y: number, gap: boolean) => (gap ? g.fillRect(-10, y, d0 + 10, 10).fillRect(d1, y, W - d1 + 10, 10) : g.fillRect(-10, y, W + 20, 10));
+  const vWall = (x: number, gap: boolean) => (gap ? g.fillRect(x, -10, 10, d0 + 10).fillRect(x, d1, 10, H - d1 + 10) : g.fillRect(x, -10, 10, H + 20));
+  hWall(-10, door.side === 'top');
+  hWall(H, door.side === 'bottom');
+  vWall(-10, door.side === 'left');
+  vWall(W, door.side === 'right');
+  // door mat just inside
+  g.fillStyle(0x8c5a3c, 1);
+  const mat = (x: number, y: number, w: number, h: number) => {
+    g.fillStyle(0x8c5a3c, 1).fillRoundedRect(x, y, w, h, 4);
+    g.lineStyle(2, 0xd9a066, 1).strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, 3);
+  };
+  if (door.side === 'bottom') mat(door.pos - 1.1 * T, H - 0.75 * T, 2.2 * T, 0.75 * T);
+  else if (door.side === 'top') mat(door.pos - 1.1 * T, 2 * T, 2.2 * T, 0.75 * T);
+  else if (door.side === 'left') mat(0, door.pos - 1.1 * T, 0.75 * T, 2.2 * T);
+  else mat(W - 0.75 * T, door.pos - 1.1 * T, 0.75 * T, 2.2 * T);
+}
+
+/** A glowing spot under a counter / machine so it's obvious you can use it. */
+export function drawHighlight(g: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number, color: number) {
+  g.fillStyle(color, 0.18).fillEllipse(cx, cy + h * 0.15, w + 3.2 * T, h + 2.2 * T);
+  g.fillStyle(color, 0.28).fillEllipse(cx, cy + h * 0.15, w + 1.8 * T, h + 1.3 * T);
+  g.lineStyle(3, color, 0.9).strokeEllipse(cx, cy + h * 0.15, w + 1.8 * T, h + 1.3 * T);
 }
 
 /** One furniture piece, centred at (cx, cy) in px. */

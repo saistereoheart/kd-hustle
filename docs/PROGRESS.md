@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (second feedback round)_
+_Last updated: 2026-11-18 (touch-ups after the second feedback round)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -10,7 +10,7 @@ _Last updated: 2026-11-18 (second feedback round)_
 **Phase 4 (food stalls and cooking): done.** The acceptance check passes in `npm run sim:stall` (see below).
 **Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
-**Phase 5.1 (your second feedback round): done**, see below.
+**Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
 **Phase 6 (shops, businesses, loans): started, parked.** The half-done code is in `git stash` ("WIP Phase 6"), not in
 the working tree, so it doesn't break the typecheck. `git stash pop` brings it back.
 
@@ -28,6 +28,40 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## Phase 5.2: touch-ups (riders, lamps, night overlay, interiors, nasi lemak screen)
+
+### How to test it
+1. **Riding:** press **1** for the bicycle and ride in every direction: from the side the hands reach the
+   handlebar; from the front and back the hands hold the grips and the bike is drawn over the rider (front wheel,
+   basket). Book a **Ronda** ride: you sit **behind** the rider (under them from the side and front, on top only
+   from behind), and the rider holds the handlebar too.
+2. **Street lamps:** `/time 22` and look along any street: one lamp every ~22 m on alternating sides, on the
+   sidewalk, never on the asphalt and never two or three in one spot. Squares (Dataran Sunway Square) get a loose
+   grid of lamps.
+3. **Night overlay:** at night, ride a vehicle fast: the darkness no longer lags behind, so no bright strip
+   at the screen edge.
+4. **Interiors:** go into Gergasi through each of its doors: you appear at the side you came in from (north door →
+   top of the room, east door → right side...). Small rooms are centred on the screen; big halls follow you but
+   stay centred on the axis where they fit. Counters and machines are in the **middle** of the room on a glowing,
+   pulsing spot with a bouncing ▼ and a yellow label; you can use them from any side.
+5. **Nasi lemak "Pack the order":** bigger screen, nothing scrolls. Food is drawn in steel trays (thick glossy
+   sambal, peanuts with skins, ikan bilis, timun slices, egg halves, ayam goreng, paru, sambal kerang, telur mata,
+   rendang). Base sides in a row under the plate, add-ons in two columns beside it (on a phone: all trays, 4 per
+   row, under the plate). Hover a tray to see its name; the order ticket shows big pictures with names (and
+   "+ ADD-ON"); the plate is a banana leaf with a rice mound and the food you add.
+
+### What changed
+| Your remark | What I did |
+|---|---|
+| Hands should reach the handlebar | New riding pose in the character sheet (one frame per view); bikes and the Ronda rider use it. |
+| Passenger drawn in front of the Ronda rider | The draw-order code moved the passenger one layer too high; now uses Phaser's `moveBelow`/`moveAbove`. |
+| Lamps doubled/tripled, some on the road | Lamps are placed along each street's sidewalk (every 11 tiles, alternating sides), skipping junctions and anything within 0.3 tiles of asphalt, at least 5 tiles apart. 780 lamps, none closer than 4 tiles. |
+| Night overlay slower than the background on fast vehicles | The overlay is three screens wide around the view, so camera lag never shows its edge. |
+| Interior centred; enter from the door's side; counters in the middle with a strong highlight | `roomSize` now uses the footprint as it sits on the map; `doorSide` puts the doorway in the matching wall, where the door is along it. New `drawHighlight` + pulsing ring + glow + bouncing arrow. Camera bounds centre the room on any axis where it fits. |
+| Nasi lemak trays, realistic art, no scrolling, bigger, hover labels, bigger ticket icons with labels | New `client/src/ui/stall/foodArt.ts` (trays, food, plate, rice); the step resizes its canvas to the window. |
 
 ---
 
@@ -750,6 +784,10 @@ Simple options picked where the spec was open, per CLAUDE.md:
 16. **`?profile=<name>` URL param** keeps a separate login per tab (testing convenience).
 
 ## Known issues / limitations
+
+- **Phase 5.2:** the stock bar above the cooking screen still uses emoji; the trays and plate are drawn.
+- **Phase 5.2:** only the nasi lemak's "pack the order" step uses the drawn food; teh tarik and roti canai keep
+  their old screens.
 
 - **Phase 5.1:** lamp shadows near a map chunk's edge are cut off at the edge (chunks are drawn separately).
 - **Phase 5.1:** about a third of Ronda trips (mostly at the map's edges, where roads only connect outside the

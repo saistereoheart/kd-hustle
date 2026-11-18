@@ -414,6 +414,55 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
     const ii = idx(Math.floor(data.trees[i]), Math.floor(data.trees[i + 1]));
     if (ii >= 0 && !solid[ii] && !deck[ii] && terrain[ii] !== Tile.Road && terrain[ii] !== Tile.Crossing) decor[ii] = Decor.Tree;
   }
+  // Street lamps: along each street's sidewalk, one every LAMP_SPACING tiles, alternating sides,
+  // never on the asphalt, never near a junction (where the sidewalk meets another road), and
+  // never closer than LAMP_GAP tiles to another lamp (dual carriageways share the median).
+  const LAMP_SPACING = 11, LAMP_GAP = 5;
+  const lamps: Array<[number, number]> = [];
+  /** Is (x, y) on or right at the edge of any ground road's asphalt? (a lamp there would stand in the road) */
+  const onAsphalt = (x: number, y: number) =>
+    ground.some((q) => {
+      const bb = q.bbox;
+      if (x < bb.x0 || x > bb.x1 || y < bb.y0 || y > bb.y1) return false;
+      for (let j = 0; j + 3 < q.pts.length; j += 2) {
+        const ax = q.pts[j], ay = q.pts[j + 1], dx = q.pts[j + 2] - ax, dy = q.pts[j + 3] - ay;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+        if (Math.hypot(ax + dx * t - x, ay + dy * t - y) < q.width / 2 + 0.3) return true;
+      }
+      return false;
+    });
+  const lampNear = (x: number, y: number) => lamps.some(([lx, ly]) => Math.abs(lx - x) < LAMP_GAP && Math.abs(ly - y) < LAMP_GAP && Math.hypot(lx - x, ly - y) < LAMP_GAP);
+  for (const r of ground) {
+    if (r.sidewalk <= 0) continue;
+    const off = r.width / 2 + r.sidewalk / 2;
+    const ends: Array<[number, number]> = [[r.pts[0], r.pts[1]], [r.pts[r.pts.length - 2], r.pts[r.pts.length - 1]]];
+    const clear = r.width / 2 + r.sidewalk + 2.5;
+    let along = LAMP_SPACING / 2; // first lamp half a gap in
+    let k = 0;
+    for (let i = 0; i + 3 < r.pts.length; i += 2) {
+      const ax = r.pts[i], ay = r.pts[i + 1], bx = r.pts[i + 2], by = r.pts[i + 3];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 1e-6) continue;
+      const ux = (bx - ax) / len, uy = (by - ay) / len;
+      for (; along <= len; along += LAMP_SPACING, k++) {
+        const side = k % 2 === 0 ? 1 : -1;
+        // The middle of the sidewalk, or a little further out if that tile touches the asphalt.
+        for (const o of [off, off + 0.5]) {
+          const x = ax + ux * along - uy * o * side, y = ay + uy * along + ux * o * side;
+          if (ends.some(([ex, ey]) => Math.hypot(ex - x, ey - y) < clear)) break;
+          const ii = idx(Math.floor(x), Math.floor(y));
+          if (ii < 0 || terrain[ii] !== Tile.Sidewalk || solid[ii] || deck[ii] || decor[ii] || fronts.has(ii)) continue;
+          const cx = Math.floor(x) + 0.5, cy = Math.floor(y) + 0.5;
+          if (lampNear(cx, cy)) break;
+          if (onAsphalt(cx, cy)) continue;
+          lamps.push([cx, cy]);
+          decor[ii] = Decor.Lamp;
+          break;
+        }
+      }
+      along -= len;
+    }
+  }
   for (let gy = 0; gy < H; gy++) {
     for (let gx = 0; gx < W; gx++) {
       const i = gy * W + gx;
@@ -428,8 +477,11 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
       else if (t === Tile.Park) decor[i] = lattice && h < 0.25 ? (h < 0.17 ? Decor.Tree : Decor.Palm) : h < 0.012 ? Decor.Flowers : h < 0.02 ? Decor.Bench : 0;
       else if (t === Tile.Golf) decor[i] = lattice && h < 0.08 ? Decor.Tree : 0;
       else if (t === Tile.Grass) decor[i] = lattice && h < 0.07 ? Decor.Tree : h < 0.004 ? Decor.Bush : 0;
-      else if (t === Tile.Plaza) decor[i] = h < 0.012 ? Decor.Flowers : h < 0.022 ? Decor.Bench : lattice && h < 0.08 ? Decor.Palm : 0;
-      else if (t === Tile.Sidewalk) decor[i] = tx % 12 === 0 || ty % 12 === 0 ? (h < 0.22 ? Decor.Lamp : 0) : 0;
+      else if (t === Tile.Plaza && ((tx % 10) + 10) % 10 === 5 && ((ty % 10) + 10) % 10 === 5 && !lampNear(tx + 0.5, ty + 0.5)) {
+        // Squares get lamps on a loose grid too.
+        decor[i] = Decor.Lamp;
+        lamps.push([tx + 0.5, ty + 0.5]);
+      } else if (t === Tile.Plaza) decor[i] = h < 0.012 ? Decor.Flowers : h < 0.022 ? Decor.Bench : lattice && h < 0.08 ? Decor.Palm : 0;
     }
   }
   const DECOR_IDS: Record<string, number> = { fountain: Decor.Fountain, jobsboard: Decor.JobsBoard, lookout: Decor.Lookout, busstop: Decor.BusStop, stall: Decor.Stall };

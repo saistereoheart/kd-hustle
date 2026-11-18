@@ -53,6 +53,12 @@ window.__kh = {
   ...(import.meta.env.DEV
     ? {
         peek: (x: number, y: number) => app.town?.debugPeek(x, y),
+        /** Dev/tests: every door of a building (front tile centre + outward normal). */
+        doors: (id: string) => app.map?.buildings.find((b) => b.id === id)?.doors.map((d) => ({ x: d.frontX + 0.5, y: d.frontY + 0.5, nx: d.nx, ny: d.ny })) ?? [],
+        /** Dev/tests: zoom the town camera (1 = normal) for close-up screenshots. */
+        zoom: (z: number) => {
+          app.town?.cameras.main.setZoom(z * app.dpr);
+        },
         /** Dev/tests: send any socket message (the server still checks everything). */
         emit: (event: string, ...args: unknown[]) => (app.socket as unknown as { emit: (e: string, ...a: unknown[]) => void } | null)?.emit(event, ...args, () => {}),
         /** Dev/tests: show an errand's beacon without walking to an NPC (client-side only). */

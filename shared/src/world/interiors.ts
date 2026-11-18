@@ -58,36 +58,31 @@ export function roomStyleOf(cfg: InteriorsConfig, b: Pick<BuiltBuilding, 'id' | 
 }
 
 /**
- * Room size (tiles) for a building, from its footprint: the wall with the door you came in by
- * becomes the room's width (the doorway is at the bottom), the depth behind it the height. So a
- * deep shoplot is a long narrow room, and malls and hypermarkets are big halls.
+ * Room size (tiles) for a building, from its footprint as it sits on the map (east–west = the
+ * room's width, north–south = its height), so the doorway can be on the same side as the door
+ * you came in by. A deep shoplot is a long room, malls and hypermarkets are big halls. Never
+ * smaller in area than the style's own w × h.
  */
-export function roomSize(
-  cfg: InteriorsConfig,
-  style: Pick<RoomStyle, 'w' | 'h'>,
-  b: Pick<BuiltBuilding, 'poly' | 'bbox'>,
-  door: { nx: number; ny: number } | null,
-  metersPerTile: number,
-): { w: number; h: number } {
-  let wide: number, deep: number;
-  const l = door ? Math.hypot(door.nx, door.ny) : 0;
-  if (door && l > 0 && b.poly.length >= 6) {
-    const nx = door.nx / l, ny = door.ny / l;
-    let n0 = Infinity, n1 = -Infinity, t0 = Infinity, t1 = -Infinity;
-    for (let i = 0; i + 1 < b.poly.length; i += 2) {
-      const x = b.poly[i], y = b.poly[i + 1];
-      const n = x * nx + y * ny, t = -x * ny + y * nx;
-      n0 = Math.min(n0, n), n1 = Math.max(n1, n), t0 = Math.min(t0, t), t1 = Math.max(t1, t);
-    }
-    wide = t1 - t0;
-    deep = n1 - n0;
-  } else {
-    wide = b.bbox.x1 - b.bbox.x0;
-    deep = b.bbox.y1 - b.bbox.y0;
-  }
+export function roomSize(cfg: InteriorsConfig, style: Pick<RoomStyle, 'w' | 'h'>, b: Pick<BuiltBuilding, 'bbox'>, metersPerTile: number): { w: number; h: number } {
   const z = cfg.sizing;
-  const fit = (m: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), Math.round((m * metersPerTile) / z.metersPerRoomTile)));
-  return { w: fit(wide, style.w, z.maxW), h: fit(deep, style.h, z.maxH) };
+  const m = metersPerTile / z.metersPerRoomTile;
+  let w = Math.max(9, Math.round((b.bbox.x1 - b.bbox.x0) * m));
+  let h = Math.max(8, Math.round((b.bbox.y1 - b.bbox.y0) * m));
+  const need = style.w * style.h;
+  if (w * h < need) {
+    const k = Math.sqrt(need / (w * h));
+    w = Math.round(w * k);
+    h = Math.round(h * k);
+  }
+  return { w: Math.min(z.maxW, w), h: Math.min(z.maxH, h) };
+}
+
+/** Which wall of the room a door is in (its outward direction on the map), and where along it
+ *  (0..1 from the left / top), matching where the door is on the building. */
+export function doorSide(b: Pick<BuiltBuilding, 'bbox'>, d: { x: number; y: number; nx: number; ny: number }): { side: 'top' | 'bottom' | 'left' | 'right'; at: number } {
+  const bw = Math.max(1e-6, b.bbox.x1 - b.bbox.x0), bh = Math.max(1e-6, b.bbox.y1 - b.bbox.y0);
+  if (Math.abs(d.nx) > Math.abs(d.ny)) return { side: d.nx > 0 ? 'right' : 'left', at: Math.max(0, Math.min(1, (d.y - b.bbox.y0) / bh)) };
+  return { side: d.ny > 0 ? 'bottom' : 'top', at: Math.max(0, Math.min(1, (d.x - b.bbox.x0) / bw)) };
 }
 
 /** Is a player at tile (tx, ty) standing at one of this building's doors? (server check) */
