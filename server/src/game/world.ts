@@ -32,6 +32,8 @@ export interface OnlinePlayer {
   emote: string | null;
   /** Building the player is inside (they stand at its door; see interiors). */
   interior: string | null;
+  /** Late paying the Ah Long (set by the loan system; shown to everyone). */
+  owesAhLong?: boolean;
 
   // --- economy (Phase 2) ---
   walletSen: number;
@@ -122,6 +124,7 @@ export class World {
       cosmetics: p.cosmetics,
       vehicle: p.vehicle,
       interior: p.interior,
+      owesAhLong: !!p.owesAhLong,
     };
   }
 

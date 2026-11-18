@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -39,6 +39,8 @@ export class Store {
   stall: StallSelf | null = null;
   /** Your idle businesses and shop (Phase 6). */
   ventures: Ventures = { businesses: {}, retail: null };
+  /** Credit score and loans (null until the server sends them). */
+  bank: BankView | null = null;
   /** Every stall on the map, by plot id. */
   stalls = new Map<string, StallPublic>();
   /** Server clock − local clock (ms), so the game clock matches the server's. */

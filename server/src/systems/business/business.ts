@@ -84,6 +84,28 @@ export class BusinessSystem {
     return Math.round(sum);
   }
 
+  /** What the bank values a business at (half of what was spent on it), or null if you don't own it. */
+  valueOf(p: OnlinePlayer, typeId: string): number | null {
+    const b = this.of(p).businesses[typeId];
+    const t = this.bc.types.find((x) => x.id === typeId);
+    if (!b?.level || !t) return null;
+    return Math.round(levelCostSen(this.bc, t, 0, b.level) * 0.5 + (b.manager ? managerCostSen(this.bc, t) * 0.5 : 0));
+  }
+
+  /** Your businesses, for pledging as collateral. */
+  owned(p: OnlinePlayer): Array<{ id: string; name: string; valueSen: number }> {
+    return this.bc.types.filter((t) => this.of(p).businesses[t.id]?.level).map((t) => ({ id: t.id, name: `${t.icon} ${t.name}`, valueSen: this.valueOf(p, t.id) ?? 0 }));
+  }
+
+  /** The bank takes it (a defaulted business loan). Returns its value; the caller auctions it. */
+  repossess(p: OnlinePlayer, typeId: string): number {
+    const value = this.valueOf(p, typeId) ?? 0;
+    delete this.of(p).businesses[typeId];
+    this.save(p);
+    this.hooks.changed(p);
+    return value;
+  }
+
   private requireUnlocked(p: OnlinePlayer, req: { stage?: number; level?: number }, name: string) {
     if (req.stage && p.prog.stage < req.stage) throw new GameError(`${name} needs wealth stage ${req.stage}.`);
     if (req.level && p.prog.level < req.level) throw new GameError(`${name} needs level ${req.level}.`);

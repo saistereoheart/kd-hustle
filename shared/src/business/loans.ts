@@ -104,3 +104,59 @@ export function instalmentSen(principalSen: number, ratePerDay: number, termDays
 export function clampScore(cfg: LoansConfig, score: number): number {
   return Math.max(cfg.credit.min, Math.min(cfg.credit.max, Math.round(score)));
 }
+
+/** A player's finances (saved per player). Loan days pass while you're online (see LoanSystem). */
+export interface FinanceState {
+  /** Credit score before the net-worth bonus. */
+  score: number;
+  loans: Loan[];
+  nextId: number;
+  /** Online time banked towards the next loan day (ms). */
+  dayMs: number;
+  /** Loan days so far. */
+  day: number;
+}
+
+export function emptyFinance(cfg: LoansConfig): FinanceState {
+  return { score: cfg.credit.start, loans: [], nextId: 1, dayMs: 0, day: 0 };
+}
+
+/** The score the bank sees: your record plus a bonus for net worth (capped). */
+export function creditScore(cfg: LoansConfig, raw: number, netWorthSen: number): number {
+  const c = cfg.credit;
+  const bonus = Math.min(c.netWorthBonusMax, Math.max(0, Math.floor(netWorthSen / c.netWorthBonusPer)));
+  return clampScore(cfg, raw + bonus);
+}
+
+/** A word for a score (for the UI). */
+export function creditBand(score: number): string {
+  return score >= 760 ? 'Excellent' : score >= 700 ? 'Good' : score >= 640 ? 'Fair' : score >= 560 ? 'Poor' : 'Very poor';
+}
+
+/** An Ah Long loan past its due day that isn't paid off. */
+export function isAhLongLate(f: Pick<FinanceState, 'loans' | 'day'>): boolean {
+  return f.loans.some((l) => l.kind === 'ahlong' && l.owedSen > 0 && f.day > l.dueDay);
+}
+
+/** Everything you owe (counts against net worth). */
+export function totalOwedSen(f: Pick<FinanceState, 'loans'>): number {
+  return f.loans.reduce((a, l) => a + l.owedSen, 0);
+}
+
+/** What the Bank app shows (sent by the server). */
+export interface BankView {
+  score: number;
+  rawScore: number;
+  /** Loan days so far, and how far into the next one (0..1, play time). */
+  day: number;
+  dayProgress: number;
+  /** Bank Kota's interest per day at your score. */
+  ratePerDay: number;
+  limits: { personal: number; business: number; ahlong: number };
+  collateral: {
+    business: Array<{ id: string; name: string; valueSen: number }>;
+    property: Array<{ id: string; name: string; valueSen: number; maxSen: number }>;
+  };
+  loans: Loan[];
+  owesAhLong: boolean;
+}

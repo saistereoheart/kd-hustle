@@ -61,6 +61,8 @@ export interface PropertyHooks {
   event: (p: OnlinePlayer, ev: PropEvent) => void;
   /** The owner's Property skills (multipliers); none if left out. */
   mods?: (p: OnlinePlayer) => PropMods;
+  /** Pledged as loan collateral (can't be sold). */
+  isPledged?: (p: OnlinePlayer, unit: string) => boolean;
 }
 
 export interface PropMods {
@@ -243,6 +245,7 @@ export class PropertySystem {
 
   sell(p: OnlinePlayer, unitId: string) {
     const s = this.mine(p, unitId);
+    if (this.hooks.isPledged?.(p, unitId)) throw new GameError('It is collateral for a bank loan: pay the loan off first.');
     const back = Math.floor(s.boughtSen * this.cfg.properties.sellBackRate);
     this.econ.run(p, () => {
       this.econ.change(p, back, 0, 'property-sell', unitId);
@@ -253,6 +256,22 @@ export class PropertySystem {
     this.hooks.publicChanged();
     this.hooks.selfChanged(p);
     return { gainedSen: back };
+  }
+
+  /** What the bank values one of your homes at (its market price), or null if it isn't yours. */
+  valueOf(p: OnlinePlayer, unitId: string): number | null {
+    const s = this.props.get(unitId);
+    return s && s.owner === p.id ? (this.byUnit.get(unitId)?.priceSen ?? 0) : null;
+  }
+
+  /** The bank takes it (a defaulted property loan). Returns its value; the caller auctions it. */
+  repossess(p: OnlinePlayer, unitId: string): number {
+    const value = this.valueOf(p, unitId) ?? 0;
+    this.props.delete(unitId);
+    this.repos.properties.delete(unitId);
+    this.hooks.publicChanged();
+    this.hooks.selfChanged(p);
+    return value;
   }
 
   // ---------------------------------------------------------------- settings

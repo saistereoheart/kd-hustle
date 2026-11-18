@@ -11,8 +11,8 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
 **Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
 **Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
-**Phase 6 (shops, businesses, loans): in progress.** 6a (idle businesses + the retail shop) is done; next 6b (Bank
-Kota + Ah Long loans), then 6c (the player-item boutique).
+**Phase 6 (shops, businesses, loans): in progress.** 6a (idle businesses + the retail shop) and 6b (Bank Kota + Ah
+Long loans) are done; next 6c (the player-item boutique).
 
 | Check | Result |
 |---|---|
@@ -30,6 +30,27 @@ Kota + Ah Long loans), then 6c (the player-item boutique).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## Phase 6b: loans (Bank Kota and the Ah Long)
+
+### How to test it
+- **📱 → 🏦 Bank → Bank Kota:**
+  - Your **credit score** (300–850; starts at 600, plus a bonus for net worth) sets the interest rate (0.4%–3% a
+    day).
+  - **Personal loan** (no collateral), **business loan** (pledge a business), **property loan** (pledge a home, up
+    to 90% of its value). The limit grows with your wealth stage, level and score; up to 3 bank loans at a time.
+  - Each **loan day** an instalment is taken from your wallet. Paying on time raises your score; paying a loan off
+    raises it more. You can pay early any time (no more interest on what you pay).
+  - **Missed instalments:** a warning, then penalty interest, then after 3 in a row the bank **repossesses** the
+    collateral and auctions it at 70% (the rest after the debt comes back to you). A personal loan takes your
+    wallet instead. Your score crashes. Pledged homes can't be sold.
+- **📱 → 🏦 Bank → Ah Long:** instant cash, no checks, 20% a day, pay back in 3 days.
+  - Late: a red **💸 OWES AH LONG** tag over your head and **two debt collectors follow you around** (everyone
+    sees them). They take whatever is in your wallet each day, and your homes and businesses earn half until
+    you've paid.
+- **Debts count against net worth.** Titles: Credit Worthy (pay off 3 bank loans), Survived Ah Long (pay back RM
+  10,000+), and a secret one if it all goes wrong.
+- **Testing:** `/loanday me 5` runs 5 loan days at once.
 
 ## Phase 6a: idle businesses and the retail shop
 
@@ -845,6 +866,14 @@ npm start
 ## Decisions
 
 Simple options picked where the spec was open, per CLAUDE.md:
+
+**Phase 6b (loans)**
+- **A loan day is an in-game day of play** (24 real minutes online). Nothing is charged while you're offline, so
+  nobody loses their home while they sleep.
+- **The bank and the Ah Long are phone apps** (online banking; Ah Long's number). Physical locations can come later.
+- **Interest compounds daily on what you owe**; the instalment is set when you borrow so the loan is paid off in
+  its term if you never miss.
+- **The Ah Long income penalty** applies to homes (rent, Airbnb) and businesses, not food stalls.
 
 **Phase 6a (businesses and the shop)**
 - **No map locations yet:** businesses and the shop are run from the phone (📱 → Ventures). Placing them as

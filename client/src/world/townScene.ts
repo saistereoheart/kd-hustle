@@ -14,6 +14,7 @@ import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
 import { Culler } from './culler';
+import { Collectors } from './collectors';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 
 interface Sample {
@@ -70,6 +71,8 @@ export class TownScene extends Phaser.Scene {
   private nearPlot: BuiltMap['stallPlots'][number] | null = null;
   stalls!: StallLayer;
   npcs!: NpcLayer;
+  /** Ah Long's debt collectors, trailing whoever is late paying. */
+  private collectors!: Collectors;
   private nearNpc: number | null = null;
   private marker: Phaser.GameObjects.Container | null = null;
   /** The errand's beacon: a light beam + big icon on the spot (or over the NPC to hand it to). */
@@ -151,6 +154,11 @@ export class TownScene extends Phaser.Scene {
     this.offs.push(this.app.store.on(() => this.syncHomeSigns()));
     this.stalls = new StallLayer(this, this.app);
     this.npcs = new NpcLayer(this, this.app);
+    this.collectors = new Collectors(this, this.app);
+    if (you.owesAhLong) {
+      this.me.setDebt(true);
+      this.collectors.set(you.id, true, you.x, you.y);
+    }
     this.offs.push(this.app.store.on(() => this.stalls.sync()));
     this.me.setState(you.dir, false);
     for (const p of this.initData.players) this.addRemote(p);
@@ -186,10 +194,17 @@ export class TownScene extends Phaser.Scene {
     on('player:left', ({ id }: { id: number }) => {
       this.remotes.get(id)?.avatar.destroy();
       this.remotes.delete(id);
+      this.collectors.set(id, false, 0, 0);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior, owesAhLong }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      if (owesAhLong !== undefined) {
+        av.setDebt(owesAhLong);
+        this.collectors.set(id, owesAhLong, av.x, av.y);
+        const r0 = this.remotes.get(id);
+        if (r0) r0.pub.owesAhLong = owesAhLong;
+      }
       const r = this.remotes.get(id);
       if (r) {
         if (appearance) r.pub.appearance = appearance;
@@ -246,6 +261,7 @@ export class TownScene extends Phaser.Scene {
       this.offs = [];
       for (const r of this.remotes.values()) r.avatar.destroy();
       this.remotes.clear();
+      this.collectors?.destroy();
     });
     // Draw the chunks around the spawn point right away so the first frame isn't empty.
     this.cameras.main.centerOn(this.pos.x, this.pos.y);
@@ -272,6 +288,10 @@ export class TownScene extends Phaser.Scene {
     const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
     if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
     if (p.interior) avatar.container.setVisible(false);
+    if (p.owesAhLong) {
+      avatar.setDebt(true);
+      this.collectors.set(p.id, true, p.x, p.y);
+    }
     this.remotes.set(p.id, { id: p.id, name: p.name, avatar, pub: { ...p }, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
@@ -323,6 +343,7 @@ export class TownScene extends Phaser.Scene {
       if (!ids.has(id)) {
         r.avatar.destroy();
         this.remotes.delete(id);
+        this.collectors.set(id, false, 0, 0);
       }
     }
     for (const o of p.players) {
@@ -383,6 +404,10 @@ export class TownScene extends Phaser.Scene {
       this.updateRemotes(now);
       this.stalls.update(delta);
       this.npcs.update(delta);
+    this.collectors.update(delta, (id) => {
+      const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
+      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;
+    });
       this.mapView.update(this.cameras.main.worldView);
       this.culler.update(this.cameras.main.worldView, delta);
       this.updateDecks(delta);
@@ -444,6 +469,10 @@ export class TownScene extends Phaser.Scene {
     this.updateRemotes(now);
     this.stalls.update(delta);
     this.npcs.update(delta);
+    this.collectors.update(delta, (id) => {
+      const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
+      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;
+    });
     this.followBeacon();
     this.mapView.update(this.cameras.main.worldView);
     this.culler.update(this.cameras.main.worldView, delta);

@@ -433,6 +433,11 @@ export class App {
       this.store.ventures = ventures;
       this.store.emit();
     });
+    socket.on('bank:self', ({ bank }) => {
+      this.store.bank = bank;
+      this.store.emit();
+    });
+    socket.on('loan:event', (ev) => toast(ev.text, ev.kind, 6000));
     socket.on('prop:event', (ev) => toast(ev.text, ev.kind, 5000));
     socket.on('welcome', (w) => showWelcomeBack(this, w));
     socket.on('time:vote', (v) => {

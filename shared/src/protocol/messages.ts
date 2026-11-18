@@ -10,6 +10,7 @@ import type { StepParams } from '../cooking/cooking';
 import type { Placed, PropertyMode } from '../property/schemas';
 import type { Rating, Suggestion } from '../property/rating';
 import type { Checkout, Ventures } from '../business/business';
+import type { BankView, Loan } from '../business/loans';
 
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
@@ -31,6 +32,8 @@ export const C2S = {
   shopPrice: z.object({ product: z.string().min(1).max(32), priceSen: z.number().int().positive().max(1e9) }),
   shopCashier: z.object({ on: z.boolean() }),
   checkoutFinish: z.object({ id: z.number().int().positive(), changeSen: z.number().int().min(0).max(1e9) }),
+  loanTake: z.object({ kind: z.enum(['personal', 'business', 'property', 'ahlong']), amountSen: z.number().int().positive().max(1e15), collateral: z.string().min(1).max(60).optional() }),
+  loanRepay: z.object({ id: z.number().int().positive(), amountSen: z.number().int().positive().max(1e15).optional() }),
   // --- property (Phase 5) ---
   propUnit: z.object({ unit: z.string().min(3).max(40) }),
   propMode: z.object({ unit: z.string().min(3).max(40), mode: z.enum(['none', 'rent', 'airbnb', 'home']) }),
@@ -344,6 +347,8 @@ export interface PlayerPublic {
   vehicle: string | null;
   /** Inside this building (hidden outdoors, shown in its interior), or null. */
   interior: string | null;
+  /** Late on an Ah Long loan: a red "OWES AH LONG" tag and debt collectors follow them around. */
+  owesAhLong?: boolean;
 }
 
 export interface SelfState extends PlayerPublic {
@@ -499,6 +504,10 @@ export interface ClientToServerEvents {
   /** Be the cashier: the next customer (their basket, the money they hand over, change options). */
   'checkout:start': (ack: Ack<Result<{ checkout: Omit<Checkout, 'at' | 'totalSen'> }>>) => void;
   'checkout:finish': (msg: { id: number; changeSen: number }, ack: Ack<Result<{ correct: boolean; onTime: boolean; gainSen: number; bonusSen: number }>>) => void;
+  // --- loans (Phase 6) ---
+  'bank:view': (ack: Ack<Result<{ bank: BankView }>>) => void;
+  'loan:take': (msg: { kind: 'personal' | 'business' | 'property' | 'ahlong'; amountSen: number; collateral?: string }, ack: Ack<Result<{ loan: Loan }>>) => void;
+  'loan:repay': (msg: { id: number; amountSen?: number }, ack: Ack<Result<{ paidSen: number; owedSen: number }>>) => void;
   logout: (ack: Ack<SimpleResult>) => void;
 }
 
@@ -506,7 +515,7 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */
@@ -529,6 +538,10 @@ export interface ServerToClientEvents {
   'prop:event': (e: { unit: string; text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** Your businesses and shop. */
   'ventures:self': (p: { ventures: Ventures }) => void;
+  /** Your loans and credit (after any change, and each loan day). */
+  'bank:self': (p: { bank: BankView }) => void;
+  /** A loan event worth a toast (missed instalment, repossession, debt collectors...). */
+  'loan:event': (e: { text: string; kind: 'good' | 'bad' | 'info' }) => void;
   /** "While you were away…" (offline income). */
   welcome: (w: { awayMs: number; earnedSen: number; lines: Array<{ label: string; sen: number }> }) => void;
   'emote:stopped': (p: { id: number }) => void;

@@ -240,6 +240,22 @@ export class Avatar {
     this.titleText.setColor(t.color).setStroke(dark ? '#f1f3f9' : '#11131f', 3);
   }
 
+  private debtTag: Phaser.GameObjects.Text | null = null;
+  /** Late on an Ah Long loan: a red "OWES AH LONG" tag over the head (everyone sees it). */
+  setDebt(on: boolean) {
+    if (!on) {
+      this.debtTag?.destroy();
+      this.debtTag = null;
+      return;
+    }
+    if (this.debtTag) return;
+    this.debtTag = this.scene.add
+      .text(0, this.titleText.visible ? -94 : -81, '💸 OWES AH LONG', { ...TEXT_BASE, fontSize: '11px', fontStyle: '900', color: '#ffffff', backgroundColor: '#c92a2a', padding: { x: 5, y: 2 } })
+      .setOrigin(0.5, 1);
+    this.container.add(this.debtTag);
+    this.scene.tweens.add({ targets: this.debtTag, alpha: 0.65, duration: 600, yoyo: true, repeat: -1 });
+  }
+
   private layoutNameplate() {
     const w = this.nameText.width + this.badge.width + 4;
     this.badge.setX(-w / 2 + this.badge.width);

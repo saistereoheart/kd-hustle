@@ -25,6 +25,7 @@ import { PropertySystem } from '../systems/property/property';
 import type { ChatHistory } from '../systems/chat/chat';
 import type { GameIO } from './gameServer';
 import { createVentures } from './ventureHandlers';
+import { createLoans } from './loanHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -141,6 +142,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   // eslint-disable-next-line prefer-const
   let stalls: StallSystem;
   let props: PropertySystem | null = null;
+  // eslint-disable-next-line prefer-const
+  let finance: ReturnType<typeof createLoans>;
+  /** Homes, stalls and businesses, minus what you owe (loans count against net worth). */
+  const assetsOf = (p: OnlinePlayer) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0) + ventures.assetsOf(p) - (finance?.owedOf(p) ?? 0);
   const prog: ProgressionSystem = new ProgressionSystem(cfg, repos, econ, cryptoRand, {
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
@@ -160,7 +165,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (item.effect?.buff === 'perfectCook') return stalls.addPerfectTokens(p, item.effect.charges ?? 0);
       throw new GameError(`${item.name} can't be used yet.`);
     },
-    assetsOf: (p) => stalls.assetsOf(p) + (props?.assetsOf(p) ?? 0) + ventures.assetsOf(p),
+    assetsOf,
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
@@ -192,13 +197,27 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     selfChanged: (p) => socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) }),
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     event: (p, ev) => socketOf(p)?.emit('prop:event', ev),
-    mods: (p) => prog.mods(p).property,
+    mods: (p) => {
+      // Property skills; half income while late on the Ah Long.
+      const m = prog.mods(p).property;
+      const k = finance.incomeMult(p);
+      return { ...m, rent: m.rent * k, airbnb: m.airbnb * k };
+    },
+    isPledged: (p, unit) => finance.isPledged(p, 'property', unit),
   });
   props = propSys;
   // --- businesses and the shop (Phase 6) ------------------------------------------------------
   const ventures = createVentures({
     cfg, repos, econ, world, socketOf, pushWallet,
-    incomeMult: (p) => prog.mods(p).passive, // Passive Income skill + gear
+    incomeMult: (p) => prog.mods(p).passive * finance.incomeMult(p), // Passive Income (skill + gear); half while late on the Ah Long
+    check: (p) => prog.check(p),
+  });
+  // --- loans (Phase 6): Bank Kota and the Ah Long -----------------------------------------------
+  finance = createLoans({
+    cfg, repos, econ, world, io, socketOf, pushWallet,
+    netWorth: (p) => netWorthSen(cfg.prog, p.walletSen, p.inventory, assetsOf(p)),
+    props: () => propSys,
+    biz: () => ventures.biz,
     check: (p) => prog.check(p),
   });
   inv.lockedIids = (p) => propSys.lockedIids(p);
@@ -311,6 +330,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));
     ventures.register(socket, me, handle);
+    finance.register(socket, me, handle);
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
       const piece = cfg.furniture.pieces[item];
@@ -519,7 +539,15 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       stalls.tick();
       return `It's now ${formatClock(gameTime(cfg.time, Date.now()))} in-game.`;
     }
-    const HELP = 'Commands: /time <hour> · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
+    if (cmd === 'loanday') {
+      // /loanday <player|me> [n]: run n loan days now (testing instalments, missed payments, collectors).
+      const p = target === 'me' ? me : world.byName(target ?? '');
+      if (!p) return 'Usage: /loanday <player|me> [days]';
+      const n = Math.max(1, Math.min(30, Math.round(Number(what) || 1)));
+      for (let i = 0; i < n; i++) finance.loans.loanDay(p);
+      return `Ran ${n} loan day${n > 1 ? 's' : ''} for ${p.name}.`;
+    }
+    const HELP = 'Commands: /time <hour> · /loanday <player|me> [days] · /give <player|me> money <RM> · /give <player|me> item <itemId> [variant] · /give <player|me> shards <n> · /give <player|me> xp <n> · /setlevel <player|me> <n> · /setstage <player|me> <n> · /tp <x> <y>';
     if (cmd === 'setlevel' || cmd === 'setstage') {
       const p = target === 'me' ? me : world.byName(target ?? '');
       if (!p) return `No online player called "${target}".`;
@@ -592,6 +620,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
   /** Load a player's economy state from the DB when they connect. */
   function loadInto(p: OnlinePlayer) {
+    finance.loans.of(p); // loads loans and sets the Ah Long tag before anyone sees the player
     const e = repos.econ.load(p.id);
     p.walletSen = e.walletSen;
     p.shards = e.shards;
@@ -666,6 +695,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const away = propSys.welcomeBack(p, awayMs, cfg.economy.offline, extra);
       socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) });
       ventures.sendSelf(p);
+      finance.sendSelf(p);
       if (away) {
         socketOf(p)?.emit('welcome', away);
         pushWallet(p);
@@ -678,6 +708,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     saveProgress: (p: OnlinePlayer) => {
       prog.save(p);
       ventures.save(p);
+      finance.save(p);
     },
     stallsPublic: () => stalls.all(),
     /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
@@ -685,6 +716,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     leaveStall: (p: OnlinePlayer) => {
       stalls.leave(p);
       ventures.unload(p); // saved, then dropped from memory until they log in again
+      finance.unload(p);
     },
     chatCommand,
     moveRules,
@@ -713,6 +745,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       clearInterval(stallSaveTimer);
       clearInterval(propTimer);
       ventures.stop();
+      finance.stop();
       stalls.saveDirty(true);
     },
   };
