@@ -56,7 +56,14 @@ the working tree, so it doesn't break the typecheck. `git stash pop` brings it b
   multiply (e.g. tier S ×5 and diamond ×5 = base ×25).
 - **Merge copies of the same item to raise its tier,** one step at a time and not too cheaply (e.g. 5 → 1 of the
   next step). The merged item keeps the best variation among its inputs (one golden input → golden result).
-- *To confirm:* does merging raise the tier or the rarity? What are the tier names and multipliers?
+- **Settled:** merging raises the **tier**: 5 of the same item at tier D make 1 at tier C (then C to B, and so
+  on). Item, rarity and variation stay the same. Rarity gives the base stat; tier and variation multiply it.
+- **Milk stock:** condensed, regular and other milks (almond, oat…) are add-on stock, priced so that 1 stock = 1 drink.
+- **Discard:** a free button to throw away the current food or drink and start over.
+- **Claim your own house in any suitable building:**
+  - 1 free, pay for more, with a total limit per player.
+  - Several players can share one building, depending on its size.
+  - Only homes and certain shoplots qualify; not the hypermarket, malls and so on.
 
 ---
 
