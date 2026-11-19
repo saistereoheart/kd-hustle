@@ -21,6 +21,8 @@ const C = 40; // px per cell (1 m)
 const WALL = 18; // outer wall thickness (px)
 const INNER = 8; // inner wall thickness (px)
 const DIM_DEPTH = 900_000;
+/** Space above the floor in the furniture layers (tall pieces at the back wall rise into it). */
+const HEADROOM = 40;
 /** What goes in each kind of room (shown under the room's name while decorating). */
 const BELONGS: Record<RoomKind, string> = {
   living: 'sofas · TV · tables',
@@ -105,7 +107,8 @@ export class HomeScene extends Phaser.Scene {
     this.plan = planForType(t, typeId);
     this.layout = (s?.layout ?? []).map((p) => ({ ...p }));
     const W = this.W * C, H = this.H * C;
-    this.add.rectangle(W / 2, H / 2, 40000, 40000, 0x05060c, 0.75).setDepth(-10);
+    // Bright surroundings: a pale tiled corridor outside the home's walls.
+    this.add.rectangle(W / 2, H / 2, 40000, 40000, 0xdfe3e8, 1).setDepth(-10);
     this.drawStructure();
     // grid lines (only shown while decorating)
     this.gridG = this.add.graphics().setDepth(-3).setVisible(false);
@@ -113,10 +116,11 @@ export class HomeScene extends Phaser.Scene {
     for (let x = 0; x <= this.W; x++) this.gridG.lineBetween(x * C, 0, x * C, H);
     for (let y = 0; y <= this.H; y++) this.gridG.lineBetween(0, y * C, W, y * C);
 
-    this.furnTex = this.textures.createCanvas(`home_${Date.now()}`, W, H);
-    this.add.image(0, 0, this.furnTex!.key).setOrigin(0).setDepth(AVATAR_DEPTH - 1);
-    this.ghostTex = this.textures.createCanvas(`ghost_${Date.now()}`, W, H);
-    this.add.image(0, 0, this.ghostTex!.key).setOrigin(0).setDepth(DIM_DEPTH + 10);
+    // Headroom above the floor: furniture stands up, so its top can rise above the back wall's line.
+    this.furnTex = this.textures.createCanvas(`home_${Date.now()}`, W, H + HEADROOM);
+    this.add.image(0, -HEADROOM, this.furnTex!.key).setOrigin(0).setDepth(AVATAR_DEPTH - 1);
+    this.ghostTex = this.textures.createCanvas(`ghost_${Date.now()}`, W, H + HEADROOM);
+    this.add.image(0, -HEADROOM, this.ghostTex!.key).setOrigin(0).setDepth(DIM_DEPTH + 10);
     this.ghostText = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#fff', backgroundColor: 'rgba(17,19,31,0.85)', padding: { x: 6, y: 3 }, resolution: 3 }).setOrigin(0.5, 1).setDepth(DIM_DEPTH + 20).setVisible(false);
     this.dim = this.add.graphics().setDepth(DIM_DEPTH);
     this.redraw();
@@ -160,7 +164,7 @@ export class HomeScene extends Phaser.Scene {
   private drawStructure() {
     const W = this.W * C, H = this.H * C;
     const g = this.add.graphics().setDepth(-5);
-    g.fillStyle(0x000000, 0.45).fillRoundedRect(-WALL - 12, -WALL - 6, W + WALL * 2 + 24, H + WALL * 2 + 22, 16);
+    g.fillStyle(0x000000, 0.12).fillRoundedRect(-WALL - 8, -WALL - 2, W + WALL * 2 + 16, H + WALL * 2 + 14, 12);
     for (const r of this.plan.rooms) this.drawFloor(g, r.kind, r.x * C, r.y * C, r.w * C, r.h * C);
     // Skirting shadow inside every room.
     for (const r of this.plan.rooms) {
@@ -251,16 +255,9 @@ export class HomeScene extends Phaser.Scene {
     }
   }
 
-  /** Darken every room but yours (none while decorating). */
+  /** (Rooms used to be darkened when you weren't in them; everything stays bright now.) */
   private paintDim() {
-    const g = this.dim!;
-    g.clear();
-    if (this.decorating) return;
-    for (let k = 0; k < this.plan.rooms.length; k++) {
-      if (k === this.room) continue;
-      const r = this.plan.rooms[k];
-      g.fillStyle(0x05060c, 0.78).fillRect(r.x * C - INNER / 2, r.y * C - INNER / 2, r.w * C + INNER, r.h * C + INNER);
-    }
+    this.dim?.clear();
   }
 
   /** Frame the room you're in (or the whole home while decorating). */
@@ -300,10 +297,14 @@ export class HomeScene extends Phaser.Scene {
   private redraw() {
     const tex = this.furnTex!;
     const ctx = tex.getContext();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, tex.width, tex.height);
+    ctx.translate(0, HEADROOM);
     // floor pieces (rugs) first, then the rest, wall items last
-    const order = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : furniturePiece(p.item)?.wall ? 2 : 1);
-    for (const p of [...this.layout].sort((a, b) => order(a) - order(b))) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
+    // Rugs first; then back to front (things nearer the bottom of the screen overlap those behind).
+    const bottom = (p: Placed) => p.y + this.footprint(p.item, p.rot)[1];
+    const flat = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : 1);
+    for (const p of [...this.layout].sort((a, b) => flat(a) - flat(b) || bottom(a) - bottom(b) || a.x - b.x)) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
     // Each room's label: what it still needs, or ✓ complete.
     if (this.decorating) {
       const st = roomStatus(this.ratingCfg(), this.plan, this.layout);
@@ -503,7 +504,9 @@ export class HomeScene extends Phaser.Scene {
   private drawGhost() {
     const tex = this.ghostTex!;
     const ctx = tex.getContext();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, tex.width, tex.height);
+    ctx.translate(0, HEADROOM);
     this.ghostText?.setVisible(false);
     if (this.decorating) {
       this.autoRotate();

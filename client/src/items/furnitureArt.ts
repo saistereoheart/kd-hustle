@@ -561,30 +561,87 @@ function plant(ctx: Ctx, cx: number, cy: number, r: number, leaf: string, big = 
   circle(ctx, cx, cy, r * 0.18, shade(leaf, 0.15));
 }
 
+// ------------------------------------------------------------------ height (the 3D look)
+/** How tall pieces stand, as a share of a cell (1 m): their top is lifted by this much and the
+ *  front face shows below it. Rugs lie flat; wall pieces stick out a little. */
+const HEIGHT_BY_CAT: Record<string, number> = {
+  beds: 0.24, sofas: 0.32, tables: 0.28, storage: 0.62, kitchen: 0.38, bathroom: 0.24, appliances: 0.28,
+  lighting: 0.14, outdoor: 0.16, chairs: 0.3, decor: 0.26,
+};
+const HEIGHT_OF: Record<string, number> = {
+  fridge: 0.8, wardrobe: 0.75, walk_in_closet: 0.75, bookshelf: 0.7, bamboo_shelf: 0.6, shoe_rack: 0.36, canopy_bed: 0.34,
+  shower: 0.05, rain_shower: 0.05, bathtub: 0.28, jacuzzi: 0.2, washer: 0.48, dryer: 0.48, robot_vacuum: 0.06,
+  coffee_machine: 0.32, teh_station: 0.32, mini_fan: 0.3, standing_fan: 0.5, floor_lamp: 0.55, edison_lamp: 0.45,
+  aquarium: 0.45, gold_statue: 0.5, hologram: 0.1, bbq_pit: 0.28, hammock: 0.1, rooftop_lounge: 0.06, bean_bag: 0.2, bean_sofa: 0.22,
+};
+export function pieceHeight(item: string): number {
+  const p = furniturePiece(item);
+  if (!p || p.floor) return 0;
+  if (p.wall) return 0.12;
+  return HEIGHT_OF[item] ?? HEIGHT_BY_CAT[p.category] ?? 0.22;
+}
+
+/** A darker copy of a piece (its sides), same outline. */
+function sides(src: HTMLCanvasElement): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const x = c.getContext('2d')!;
+  x.drawImage(src, 0, 0);
+  x.globalCompositeOperation = 'source-atop';
+  x.fillStyle = 'rgba(20, 14, 10, 0.45)';
+  x.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
 /**
- * Draws `item` filling (0,0)-(w,h): the piece is drawn on its own canvas first, then stamped down
- * with a soft shadow that follows its real outline (a round lamp casts a round shadow), always
- * falling the same way however the piece is turned.
+ * Stamps a piece's drawing (`body`, the top seen from above) onto the floor box (x, y, w, h) as
+ * a solid thing `d` px tall: a soft shadow on the floor, darker sides rising from it, and the top
+ * lifted by `d`. The height always points up the screen, however the piece is turned.
+ */
+function stamp(ctx: Ctx, body: HTMLCanvasElement, x: number, y: number, w: number, h: number, d: number, k: number, floor: boolean) {
+  const m = Math.min(w, h);
+  if (floor || d < 1) {
+    ctx.drawImage(body, x, y, w, h);
+    return;
+  }
+  const dark = sides(body);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = m * 0.14 * k;
+  ctx.shadowOffsetX = m * 0.05 * k;
+  ctx.shadowOffsetY = m * 0.06 * k;
+  ctx.drawImage(dark, x, y, w, h);
+  ctx.restore();
+  for (let i = 1; i < d; i++) ctx.drawImage(dark, x, y - i, w, h);
+  // A thin lit rim where the top meets the sides.
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(body, x, y - d + 1, w, h);
+  ctx.restore();
+  ctx.drawImage(body, x, y - d, w, h);
+}
+
+function scaleOf(ctx: Ctx): number {
+  const t = ctx.getTransform();
+  return Math.max(1, Math.hypot(t.a, t.b));
+}
+
+/**
+ * Draws `item` in the box (0,0)-(w,h), standing up: its top in the upper part, the front face
+ * below it, a shadow that follows its real outline. (Item icons and the shop use this.)
  */
 export function drawFurniturePiece(ctx: Ctx, item: string, w: number, h: number) {
-  const t = ctx.getTransform();
-  const k = Math.max(1, Math.hypot(t.a, t.b));
+  const k = scaleOf(ctx);
+  const floor = !!furniturePiece(item)?.floor;
+  const d = floor ? 0 : Math.round(pieceHeight(item) * Math.min(w, h) * 0.45);
   const off = document.createElement('canvas');
   off.width = Math.max(1, Math.ceil(w * k));
-  off.height = Math.max(1, Math.ceil(h * k));
+  off.height = Math.max(1, Math.ceil((h - d) * k));
   const o = off.getContext('2d')!;
   o.scale(k, k);
-  drawPieceBody(o, item, w, h);
-  const m = Math.min(w, h);
-  ctx.save();
-  if (!furniturePiece(item)?.floor) {
-    ctx.shadowColor = 'rgba(0,0,0,0.38)';
-    ctx.shadowBlur = m * 0.14 * k;
-    ctx.shadowOffsetX = m * 0.05 * k;
-    ctx.shadowOffsetY = m * 0.08 * k;
-  }
-  ctx.drawImage(off, 0, 0, w, h);
-  ctx.restore();
+  drawPieceBody(o, item, w, h - d);
+  stamp(ctx, off, 0, d, w, h - d, d, k, floor);
 }
 
 function drawPieceBody(ctx: Ctx, item: string, w: number, h: number) {
@@ -904,15 +961,22 @@ function drawPieceBody(ctx: Ctx, item: string, w: number, h: number) {
   ctx.restore();
 }
 
-/** Draws a piece rotated by `rot` quarter turns into the cell box at (x, y), cell size `c` px. */
+/** Draws a piece rotated by `rot` quarter turns into the cell box at (x, y), cell size `c` px,
+ *  standing up out of the floor (see stamp). */
 export function drawPlaced(ctx: Ctx, item: string, x: number, y: number, rot: number, c: number) {
   const p = furniturePiece(item);
   if (!p) return;
   const [fw, fh] = rot % 2 ? [p.h, p.w] : [p.w, p.h];
-  ctx.save();
-  ctx.translate((x + fw / 2) * c, (y + fh / 2) * c);
-  ctx.rotate((rot * Math.PI) / 2);
-  ctx.translate((-p.w * c) / 2, (-p.h * c) / 2);
-  drawFurniturePiece(ctx, item, p.w * c, p.h * c);
-  ctx.restore();
+  const W = fw * c, H = fh * c;
+  const k = scaleOf(ctx);
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.ceil(W * k));
+  off.height = Math.max(1, Math.ceil(H * k));
+  const o = off.getContext('2d')!;
+  o.scale(k, k);
+  o.translate(W / 2, H / 2);
+  o.rotate((rot * Math.PI) / 2);
+  o.translate((-p.w * c) / 2, (-p.h * c) / 2);
+  drawPieceBody(o, item, p.w * c, p.h * c);
+  stamp(ctx, off, x * c, y * c, W, H, Math.round(pieceHeight(item) * c * 0.7), k, !!p.floor);
 }

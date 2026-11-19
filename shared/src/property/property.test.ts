@@ -67,15 +67,15 @@ describe('star rating (spec §9.3)', () => {
     const dirty = rateUnit(cfg, studio, essentials(), 30);
     expect(dirty.stars).toBeLessThan(clean.stars);
     // A wall of wardrobes across the room cuts the back off from the door.
-    const wall = [...essentials(), at('wardrobe', 0, 3), at('wardrobe', 2, 3), at('wardrobe', 4, 3), at('wardrobe', 5, 3)];
+    const wall = [...essentials(), ...Array.from({ length: Math.ceil(studio.w / 2) }, (_, k) => at('wardrobe', Math.min(studio.w - 2, k * 2), 3))];
     expect(rateUnit(cfg, studio, wall, 100).blocked).toBe(true);
   });
 
   it('checks layouts: inside the room, no overlap, doorway clear, wall items on a wall', () => {
     expect(layoutProblem(cfg, studio, essentials())).toBeNull();
-    expect(layoutProblem(cfg, studio, [at('basic_bed', 6, 1)])).toMatch(/sticks out/);
+    expect(layoutProblem(cfg, studio, [at('basic_bed', studio.w - 1, 1)])).toMatch(/sticks out/);
     expect(layoutProblem(cfg, studio, [at('basic_bed', 0, 1), at('scandi_sofa', 1, 1)])).toMatch(/overlap/);
-    expect(layoutProblem(cfg, studio, [at('toilet', 3, studio.h - 1)])).toMatch(/doorway/);
+    expect(layoutProblem(cfg, studio, [at('toilet', Math.floor(studio.w / 2) - 1, studio.h - 1)])).toMatch(/doorway/);
     expect(layoutProblem(cfg, studio, [at('smart_tv', 2, 3)])).toMatch(/wall/);
     // A rug can sit under a sofa; a rotated sofa is 1×3.
     expect(layoutProblem(cfg, studio, [at('big_rug', 2, 2), at('scandi_sofa', 2, 2, 1)])).toBeNull();

@@ -48,8 +48,8 @@ export const propertiesConfigSchema = z.object({
       name: z.string(),
       icon: z.string(),
       /** Floor plan in cells (1 cell = 1 m). */
-      w: z.number().int().min(5).max(20),
-      h: z.number().int().min(5).max(16),
+      w: z.number().int().min(5).max(32),
+      h: z.number().int().min(5).max(24),
       priceSen: z.number().int().positive(),
       requires: z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({}),
       rentPerDaySen: z.number().int().positive(),

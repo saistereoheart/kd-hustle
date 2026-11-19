@@ -227,7 +227,7 @@ describe('Airbnb', () => {
     expect(() => s.props.setLayout(s.p, s.studio.id, [{ iid: 99999, item: 'basic_bed', x: 0, y: 1, rot: 0 }])).toThrow(/own/);
     s.props.setLayout(s.p, s.studio.id, [{ iid: bed.iid, item: 'basic_bed', x: 0, y: 1, rot: 0 }]);
     expect(s.props.lockedIids(s.p).has(bed.iid)).toBe(true);
-    expect(() => s.props.setLayout(s.p, s.studio.id, [{ iid: bed.iid, item: 'basic_bed', x: 6, y: 1, rot: 0 }])).toThrow(/sticks out/);
+    expect(() => s.props.setLayout(s.p, s.studio.id, [{ iid: bed.iid, item: 'basic_bed', x: 9, y: 1, rot: 0 }])).toThrow(/sticks out/);
   });
 
   it('a well-decorated unit earns more per night than a bare one', () => {
@@ -237,8 +237,8 @@ describe('Airbnb', () => {
       s.props.buy(s.p, s.studio.id);
       s.props.setMode(s.p, s.studio.id, 'airbnb');
       const items = give(s, ['basic_bed', 'toilet', 'shower', 'kitchenette', 'aircond', 'wifi_router', ...(decorate ? ['japandi_sofa', 'low_table', 'paper_lantern', 'bonsai', 'smart_tv', 'coffee_machine'] : [])]);
-      // The studio's rooms: living room (x 0-4), bathroom (x 5-6, y 0-2), kitchenette (x 5-6, y 3-5).
-      const spots: Array<[number, number]> = [[0, 0], [6, 0], [6, 2], [5, 5], [2, 0], [0, 3], [0, 4], [1, 3], [3, 3], [4, 0], [0, 2], [6, 3]];
+      // The studio (10 × 8): main room x 0-6, bathroom x 7-9 rows 0-3, kitchenette x 7-9 rows 4-7.
+      const spots: Array<[number, number]> = [[0, 0], [9, 0], [7, 0], [8, 7], [2, 0], [0, 4], [0, 6], [1, 4], [4, 4], [5, 0], [0, 2], [9, 5]];
       s.props.setLayout(s.p, s.studio.id, items.map((it, k) => ({ iid: it.iid, item: it.itemId, x: spots[k][0], y: spots[k][1], rot: 0 })));
       const me = () => s.props.selfOf(s.p)[0];
       s.props.setPrices(s.p, s.studio.id, undefined, me().fairNightSen);

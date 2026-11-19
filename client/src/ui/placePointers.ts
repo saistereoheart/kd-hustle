@@ -1,16 +1,16 @@
-// Edge-of-screen pointers: a round badge on the edge of the screen for each place that's off
-// screen, pointing the way, with how far it is. Your own places (homes, stall, Ventures) always;
-// signposted places (JOBS BOARD, BUY STOCK...) when they're near-ish. Tap one and the guide
-// arrow leads you there. Settings → "📍 Pointers to places" turns them off.
+// Edge-of-screen pointers: a round badge on the edge of the screen for a place that's just off
+// screen, pointing the way, with how far it is. Only places close by (yours and signposted ones);
+// everything else is on the minimap and the full map, not on the game screen. Tap one and the
+// guide arrow leads you there. Settings → "📍 Pointers to places" turns them off.
 import type { Poi } from '@kh/shared';
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
 import { loadPrefs } from './settings';
 
 const KIND_COLOR: Record<string, string> = { mine: '#f59f00', work: '#2f9e44', crate: '#7048e8', shop: '#1c7ed6', stall: '#e8590c' };
-/** Signposted places further than this (metres) don't get a pointer (your own always do). */
-const RANGE_M = 280;
-const MAX_POIS = 6;
+/** Places further than this (metres) don't get a pointer: see the minimap / full map. */
+const RANGE_M = 120;
+const MAX_POIS = 5;
 
 interface View {
   x: number;
@@ -47,7 +47,7 @@ export class PlacePointers {
     const mpt = this.app.map.metersPerTile;
     const W = innerWidth, H = innerHeight;
     const meTx = me.x / T, meTy = me.y / T;
-    const mine = this.app.myPlaces();
+    const mine = this.app.myPlaces().filter((p) => Math.hypot(p.x - meTx, p.y - meTy) * mpt <= RANGE_M);
     const pois = (this.app.guide?.pois ?? [])
       .filter((p) => p.kind !== 'soon')
       .map((p) => ({ p, d: Math.hypot(p.x - meTx, p.y - meTy) * mpt }))

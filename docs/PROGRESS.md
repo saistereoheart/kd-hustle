@@ -69,6 +69,20 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## 🏠 Bigger, brighter homes; 3D furniture; fewer pointers (2026-11-19)
+
+- **Homes are ~2× the floor area** (each side × 1.4): studio 10×8, 2-bed condo 13×10, 3-bed 15×11, terrace 17×11,
+  semi-D 18×13, bungalow 20×14, loft 13×10, sublet 8×7, low-cost 11×8, penthouse 22×15, office 28×20, duplex 17×13.
+  The rating's area-based numbers are halved (comfortPerM2 0.46, idealFill 0.11–0.23) so the same furniture rates
+  about the same. Saved furniture keeps its coordinates; the new room walls may cut through some (outlined red).
+- **All bright:** no more dark backdrop or dimmed rooms; a pale corridor around the home. The camera still frames the
+  room you're in. Home buttons got a solid background to show on the light floor.
+- **Furniture stands up (3D):** each piece has a height (wardrobes and fridges tall, beds low, rugs flat); it's drawn
+  as its top lifted above the floor with darker sides below and a shadow, always rising up the screen however it's
+  turned, and pieces nearer the bottom overlap those behind. Icons in the bag and shop get the same look.
+- **Pointers only when close:** the screen-edge pointers now appear only within ~120 m (yours and signposted places);
+  everything else is on the minimap and full map.
+
 ## 🏠 Rooms and better decorating (2026-11-19)
 
 - **Homes have rooms** (`shared/src/property/floorPlan.ts`). Each type's floor is split into rooms with inner walls and

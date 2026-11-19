@@ -1216,3 +1216,5 @@ body:has(.title-screen) .panel-backdrop { z-index: 55; }
 .pp.mine .pp-arrow { color: #ffd43b; }
 body.touch .pp { width: 40px; }
 body.touch .pp-icon { font-size: 17px; }
+/* Homes are bright now: the home buttons need a solid backing to stand out. */
+.home-bar .btn:not(.primary) { background: #1f2335; color: #fff; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }

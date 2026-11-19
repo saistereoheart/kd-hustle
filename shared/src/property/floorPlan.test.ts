@@ -69,8 +69,8 @@ describe('floor plans', () => {
     const living = plan.rooms.find((r) => r.kind === 'living')!;
     let iid = 100;
     const at = (item: string, x: number, y: number): Placed => ({ iid: iid++, item, x, y, rot: 0 });
-    // condo2: bedrooms x 0-2 and 3-5, bathroom x 6-8 (rows 0-2); living room x 0-5, kitchen x 6-8 (rows 3-6).
-    const rest = () => [at('toilet', 8, 0), at('shower', 6, 0), at('kitchenette', 7, 6), at('aircond', 3, 0), at('wifi_router', 0, 4)];
+    // condo2 (13 × 10): bedrooms x 0-4 and 5-9, bathroom x 10-12 (rows 0-4); living room x 0-8, kitchen x 9-12 (rows 5-9).
+    const rest = () => [at('toilet', 12, 0), at('shower', 10, 0), at('kitchenette', 11, 9), at('aircond', 5, 0), at('wifi_router', 0, 6)];
     const right = [at('basic_bed', bedroom.x, bedroom.y), ...rest()];
     const wrong = [at('basic_bed', living.x, living.y + 2), ...rest()];
     expect(layoutProblem(cfg, unit, right)).toBeNull();
@@ -94,7 +94,7 @@ describe('floor plans', () => {
     const unit = { w: t.w, h: t.h, type: 'condo2' };
     let iid = 500;
     const at = (item: string, x: number, y: number): Placed => ({ iid: iid++, item, x, y, rot: 0 });
-    // Master bedroom (x 0-2, rows 0-2; its doorway is at x 1): a bed, then a wardrobe and a lamp.
+    // Master bedroom (x 0-4, rows 0-4; its doorway is at x 2): a bed, then a wardrobe and a lamp.
     const bedOnly = [at('basic_bed', 0, 0)];
     const full = [...bedOnly, { ...at('wardrobe', 2, 0), rot: 1 }, at('floor_lamp', 2, 2)];
     expect(layoutProblem(cfg, unit, full)).toBeNull();
