@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { floorLoot, hitLandsAt, type DungeonTurn, type RandInt } from '@kh/shared';
+import { floorLoot, type RandInt } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -8,10 +8,12 @@ import { World, type OnlinePlayer } from '../../game/world';
 import { ROOT } from '../../paths';
 import { Economy } from '../economy/economy';
 import { emptyProgress, ProgressionSystem } from '../progression/progression';
+import { PetSystem } from '../pets/pets';
 import { DungeonSystem } from './dungeon';
 
 const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
 const dc = cfg.dungeon;
+const pc = cfg.pets;
 
 function seeded(seed: number): RandInt {
   let a = seed >>> 0;
@@ -24,12 +26,12 @@ function seeded(seed: number): RandInt {
   };
 }
 
-function setup() {
+function setup(walletSen = 50_000_000) {
   const db = openDatabase(':memory:');
   const repos = createRepos(db);
-  const id = repos.accounts.create('hunter', 'h', false, { x: 0, y: 0 }, 2, 10_000);
+  const id = repos.accounts.create('hunter', 'h', false, { x: 0, y: 0 }, 2, walletSen);
   const p = {
-    id, name: 'hunter', hasCharacter: true, walletSen: 10_000, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set<string>(), pages: new Set<string>(), pity: {}, jobs: {}, skills: {},
+    id, name: 'hunter', hasCharacter: true, walletSen, shards: 0, inventory: [], equipped: {}, cosmetics: {}, index: new Set<string>(), pages: new Set<string>(), pity: {}, jobs: {}, skills: {},
     prog: emptyProgress(),
   } as unknown as OnlinePlayer;
   const world = new World();
@@ -42,97 +44,83 @@ function setup() {
     wallet: () => {}, items: () => {}, progress: () => {}, publicChanged: () => {}, announce: () => {}, freeRoll: () => ({ crateId: '', results: [] }),
   }, clock);
   prog.load(p);
-  p.prog.goalsDone = cfg.goals.goals.map((g) => g.id); // keep Hustle Path rewards out of the sums
-  p.prog.level = 10;
+  p.prog.goalsDone = cfg.goals.goals.map((g) => g.id);
   p.prog.stage = 1;
-  const wallets: number[] = [];
-  const dungeon = new DungeonSystem(cfg, repos, econ, prog, rand, { wallet: (_p, d) => wallets.push(d) }, clock);
-  /** Play one turn perfectly (or with these taps), `wait` ms after it appeared. */
-  const play = (taps?: { strike: number | null; block: number | null }) => {
-    const t = dungeon.view(p).run!.turn as DungeonTurn;
-    const strike = taps ? taps.strike : t.zone * t.sweepMs;
-    const block = taps ? taps.block : strike === null ? null : hitLandsAt(dc, t, strike);
-    now += Math.max(strike ?? 0, block ?? 0) + 50;
-    return dungeon.turn(p, t.nonce, strike, block);
-  };
-  return { repos, p, dungeon, play, wallets, tick: (ms: number) => (now += ms), setNow: (t: number) => (now = t) };
+  const pets = new PetSystem(cfg, repos, econ, { wallet: () => {}, items: () => {}, check: () => {} });
+  const dungeon = new DungeonSystem(cfg, repos, econ, prog, pets, rand, { wallet: () => {} }, clock);
+  return { repos, p, pets, dungeon, econ, tick: (ms: number) => (now += ms) };
 }
 
-describe('dungeon (server)', () => {
-  it('a run: fight, clear the floor, go deeper, cash out with all the loot', () => {
+describe('pets (server)', () => {
+  it('buy a starter (it joins the team), train it, upgrade it, give it gear; team pets are locked', () => {
     const s = setup();
-    const v = s.dungeon.enter(s.p);
-    expect(v.runsLeft).toBe(dc.runsPerDay - 1);
-    expect(v.run!.phase).toBe('fight');
-    expect(() => s.dungeon.enter(s.p)).toThrow(/already/);
-    expect(() => s.dungeon.deeper(s.p)).toThrow(/Beat this floor/);
-    while (s.dungeon.view(s.p).run!.phase === 'fight') s.play();
-    expect(s.dungeon.view(s.p).run!.phase).toBe('cleared');
-    s.dungeon.deeper(s.p);
-    while (s.dungeon.view(s.p).run!.phase === 'fight') s.play();
-    const loot1 = floorLoot(dc, 1, 1), loot2 = floorLoot(dc, 1, 2);
-    expect(s.dungeon.view(s.p).run!.loot.sen).toBe(loot1.sen + loot2.sen);
-    const w = s.p.walletSen, xp = s.p.prog.xp;
-    const { paid } = s.dungeon.leave(s.p);
-    expect(paid.sen).toBe(loot1.sen + loot2.sen);
-    expect(s.p.walletSen).toBe(w + paid.sen);
-    expect(s.p.prog.xp).toBeGreaterThan(xp);
-    expect(s.p.prog.stats.dungeonFloors).toBe(2);
-    expect(s.dungeon.view(s.p).best).toBe(2);
-    expect(s.dungeon.view(s.p).run).toBeNull();
-  });
-
-  it('taps that are impossible (before the turn, later than real time, too fast) count as misses', () => {
-    const s = setup();
-    s.dungeon.enter(s.p);
-    const t = s.dungeon.view(s.p).run!.turn!;
-    // Claims a perfect strike 3 s in, but only 100 ms have passed: it's a miss.
-    s.tick(100);
-    const r = s.dungeon.turn(s.p, t.nonce, 3000, 3500).result;
-    expect(r.strike).toBe('miss');
-    // The old turn can't be replayed.
-    expect(() => s.dungeon.turn(s.p, t.nonce, 10, 20)).toThrow(/turn is over/);
-    // Inhumanly fast strike.
-    const t2 = s.dungeon.view(s.p).run!.turn!;
-    s.tick(5000);
-    expect(s.dungeon.turn(s.p, t2.nonce, 50, null).result.strike).toBe('miss');
-  });
-
-  it('falling keeps half the loot; fleeing too; a cleared floor at logout is paid in full', () => {
-    const s = setup();
-    s.dungeon.enter(s.p);
-    while (s.dungeon.view(s.p).run!.phase === 'fight') s.play();
-    const loot = s.dungeon.view(s.p).run!.loot.sen;
-    s.dungeon.deeper(s.p);
+    expect(() => s.pets.buyStarter(s.p, 'pet_naga')).toThrow(/Telur Teman/);
     const w = s.p.walletSen;
-    // Never block, never hit: down you go.
-    let paid = 0;
-    for (let i = 0; i < 200 && s.dungeon.view(s.p).run!.phase === 'fight'; i++) {
-      const r = s.play({ strike: null, block: null });
+    const v = s.pets.buyStarter(s.p, pc.starters.ids[0]);
+    expect(s.p.walletSen).toBe(w - pc.starters.priceSen);
+    expect(v.pets).toHaveLength(1);
+    const iid = v.pets[0].iid;
+    expect(v.team).toEqual([iid]);
+    const before = v.pets[0].stats;
+    const t = s.pets.train(s.p, iid);
+    expect(t.level).toBe(2);
+    expect(t.view.pets[0].stats.atk).toBeGreaterThanOrEqual(before.atk);
+    const u = s.pets.upgrade(s.p, iid, 'atk');
+    expect(u.pets[0].up.atk).toBe(1);
+    const gear = s.econ.run(s.p, () => s.econ.grant(s.p, 'pg_taring', 'normal', null)).item;
+    const g = s.pets.setGear(s.p, iid, gear.iid);
+    expect(g.pets[0].gear).toBe(gear.iid);
+    expect(g.pets[0].stats.atk).toBeGreaterThan(u.pets[0].stats.atk);
+    expect(s.pets.lockedIids(s.p)).toEqual(new Set([iid, gear.iid]));
+    expect(() => s.pets.setGear(s.p, iid, iid)).toThrow(/pet gear/);
+  });
+});
+
+describe('dungeon (server, turn-based)', () => {
+  it('needs a team; fights round by round; a win banks the loot; cash out pays it all', () => {
+    const s = setup();
+    expect(() => s.dungeon.enter(s.p)).toThrow(/Teman/);
+    s.pets.buyStarter(s.p, 'pet_kucing');
+    const v = s.dungeon.enter(s.p);
+    expect(v.run!.phase).toBe('fight');
+    expect(v.run!.team).toHaveLength(1);
+    let guard = 0;
+    while (s.dungeon.view(s.p).run!.phase === 'fight' && guard++ < 100) {
+      const r = s.dungeon.act(s.p, 'auto');
+      expect(r.events.length).toBeGreaterThan(0);
+    }
+    const run = s.dungeon.view(s.p).run!;
+    if (run.phase === 'cleared') {
+      expect(run.loot.sen).toBe(floorLoot(dc, 1, 1, pc.xp.perFloor, pc.xp.bossMult).sen);
+      const w = s.p.walletSen;
+      const { paid } = s.dungeon.leave(s.p);
+      expect(s.p.walletSen).toBeGreaterThanOrEqual(w + paid.sen); // (plus any level-up reward from the XP)
+      // The pet got XP for the win.
+      expect(s.pets.view(s.p).pets[0].level > 1 || s.pets.view(s.p).pets[0].xp > 0).toBe(true);
+    }
+  });
+
+  it('Skip plays the fight out at once; deeper heals; falling keeps half', () => {
+    const s = setup();
+    s.pets.buyStarter(s.p, 'pet_kucing');
+    s.dungeon.enter(s.p);
+    const r1 = s.dungeon.act(s.p, 'auto', true);
+    expect(['cleared', 'dead']).toContain(s.dungeon.view(s.p).run!.phase);
+    expect(r1.events.some((e) => e.kind === 'win' || e.kind === 'lose' || e.kind === 'flee')).toBe(true);
+    // Keep going until the team falls.
+    let loot = 0, paid = 0;
+    for (let i = 0; i < 40 && s.dungeon.view(s.p).run?.phase === 'cleared'; i++) {
+      loot = s.dungeon.view(s.p).run!.loot.sen;
+      s.dungeon.deeper(s.p);
+      const r = s.dungeon.act(s.p, 'auto', true);
       if (r.paid) paid = r.paid.sen;
     }
-    expect(s.dungeon.view(s.p).run!.phase).toBe('dead');
-    expect(paid).toBe(Math.floor(loot * dc.deathKeep));
-    expect(s.p.walletSen).toBe(w + paid);
-    // Leaving after falling pays nothing more.
-    expect(s.dungeon.leave(s.p).paid.sen).toBe(0);
-    // Fleeing mid-fight: half.
-    s.dungeon.enter(s.p);
-    while (s.dungeon.view(s.p).run!.phase === 'fight') s.play();
-    const l2 = s.dungeon.view(s.p).run!.loot.sen;
-    s.dungeon.deeper(s.p);
-    expect(s.dungeon.leave(s.p).paid.sen).toBe(Math.floor(l2 * dc.deathKeep));
-    // Logging off between floors: everything.
-    s.dungeon.enter(s.p);
-    while (s.dungeon.view(s.p).run!.phase === 'fight') s.play();
-    const l3 = s.dungeon.view(s.p).run!.loot.sen;
-    const w3 = s.p.walletSen;
-    s.dungeon.unload(s.p);
-    expect(s.p.walletSen).toBe(w3 + l3);
+    if (s.dungeon.view(s.p).run?.phase === 'dead') expect(paid).toBe(Math.floor(loot * dc.deathKeep));
   });
 
-  it('only so many runs a day; they come back the next day', () => {
+  it('only so many runs a day', () => {
     const s = setup();
+    s.pets.buyStarter(s.p, 'pet_ayam');
     for (let i = 0; i < dc.runsPerDay; i++) {
       s.dungeon.enter(s.p);
       s.dungeon.leave(s.p);

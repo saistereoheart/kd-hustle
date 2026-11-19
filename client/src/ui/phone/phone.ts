@@ -30,6 +30,7 @@ import { renderProperties } from './properties';
 import { renderRolls } from './rolls';
 import { openJobsPanel } from '../jobs';
 import { openDungeon } from '../dungeon/dungeon';
+import { openPetsPanel } from '../pets/petsPanel';
 
 export interface PhoneCtx {
   app: App;
@@ -85,6 +86,7 @@ const APPS: PhoneApp[] = [
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
   { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
   { id: 'dungeon', name: 'Gua Gelap', icon: '⚔️', color: '#5f3dc4', open: (app) => openDungeon(app), stacks: true },
+  { id: 'pets', name: 'Teman', icon: '🐾', color: '#2b8a3e', open: (app) => openPetsPanel(app), stacks: true },
   { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0), stacks: true },
   { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
   {

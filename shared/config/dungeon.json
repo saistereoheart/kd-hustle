@@ -2,44 +2,21 @@
   "name": "Gua Gelap",
   "runsPerDay": 5,
   "deathKeep": 0.5,
-  "healPerFloor": 0.25,
+  "healPerFloor": 0.3,
   "bossEvery": 5,
-  "player": { "hpBase": 100, "hpPerLevel": 6, "atkBase": 18, "atkPerLevel": 1.5 },
-  "enemyScale": {
-    "hpBase": 55, "hpPerLevel": 4.5, "hpGrowth": 1.14,
-    "atkBase": 17, "atkPerLevel": 0.8, "atkGrowth": 1.05,
-    "bossHp": 2.0, "bossAtk": 1.0
-  },
+  "enemyScale": {"hp": 38, "atk": 11, "def": 6, "spd": 10, "growth": {"hp": 1.13, "atk": 1.09, "def": 1.08, "spd": 1.03}, "bossHp": 2.2, "bossAtk": 1.15},
   "enemies": [
-    { "id": "lipas", "name": "Lipas Gergasi", "icon": "🪳", "color": "#8a5a2b", "hp": 0.8, "atk": 0.8, "floors": [1, 4], "line": "A cockroach the size of a motorbike. It flies at your face." },
-    { "id": "tikus", "name": "Tikus Mondok", "icon": "🐀", "color": "#868e96", "hp": 0.9, "atk": 0.9, "floors": [1, 4], "line": "It has eaten through three padlocks today." },
-    { "id": "monyet", "name": "Monyet Pencuri", "icon": "🐒", "color": "#a0522d", "hp": 1.0, "atk": 1.0, "floors": [2, 9], "line": "It wants your phone. And your nasi lemak." },
-    { "id": "biawak", "name": "Biawak Besar", "icon": "🦎", "color": "#5c7a3a", "hp": 1.25, "atk": 0.9, "floors": [3, 9], "line": "Slow, heavy, and very sure of itself." },
-    { "id": "toyol", "name": "Toyol", "icon": "👶", "color": "#40c057", "hp": 0.85, "atk": 1.15, "floors": [6, null], "line": "Small, green, fast, and after your wallet." },
-    { "id": "pocong", "name": "Pocong", "icon": "👻", "color": "#f1f3f5", "hp": 1.1, "atk": 1.05, "floors": [6, null], "line": "It hops. You hear it before you see it." },
-    { "id": "hantu_galah", "name": "Hantu Galah", "icon": "🎋", "color": "#495057", "hp": 1.2, "atk": 1.1, "floors": [8, null], "line": "Taller than the lamp posts. Don't look up." },
-    { "id": "jerangkung", "name": "Jerangkung", "icon": "💀", "color": "#e9ecef", "hp": 1.0, "atk": 1.25, "floors": [11, null], "line": "Bones that rattle in time with the bass." },
-    { "id": "orang_minyak", "name": "Orang Minyak", "icon": "🛢️", "color": "#212529", "hp": 1.0, "atk": 1.0, "floors": [5, 5], "boss": true, "line": "BOSS: slippery, oily, and very hard to hit." },
-    { "id": "pontianak", "name": "Pontianak", "icon": "🌺", "color": "#f8f0fc", "hp": 1.0, "atk": 1.05, "floors": [10, 10], "boss": true, "line": "BOSS: you smell frangipani. Then the laughing starts." },
-    { "id": "hantu_raya", "name": "Hantu Raya", "icon": "👹", "color": "#c92a2a", "hp": 1.1, "atk": 1.1, "floors": [15, null], "boss": true, "line": "BOSS: the big one. It looks exactly like you." }
+    {"id": "lipas", "name": "Lipas Gergasi", "icon": "🪳", "color": "#8a5a2b", "hp": 0.8, "atk": 0.8, "floors": [1, 4], "line": "A cockroach the size of a motorbike. It flies at your face.", "move": "Terbang ke Muka", "ultimate": "Serangan Seribu Kaki", "taunts": ["Bzzzt! Muka kau sasaran aku!", "Kau tak boleh pijak aku!"], "def": 0.8, "spd": 1.25},
+    {"id": "tikus", "name": "Tikus Mondok", "icon": "🐀", "color": "#868e96", "hp": 0.9, "atk": 0.9, "floors": [1, 4], "line": "It has eaten through three padlocks today.", "move": "Gigit Kabel", "ultimate": "Wabak Mondok", "taunts": ["Cit cit! Gigi aku tajam!", "Gudang ni aku punya!"], "def": 0.9, "spd": 1.2},
+    {"id": "monyet", "name": "Monyet Pencuri", "icon": "🐒", "color": "#a0522d", "hp": 1.0, "atk": 1.0, "floors": [2, 9], "line": "It wants your phone. And your nasi lemak.", "move": "Rampas Telefon", "ultimate": "Lontar Durian", "taunts": ["Hehehe, nasi lemak kau sedap!", "Bagi sini telefon tu!"], "def": 1.0, "spd": 1.0},
+    {"id": "biawak", "name": "Biawak Besar", "icon": "🦎", "color": "#5c7a3a", "hp": 1.25, "atk": 0.9, "floors": [3, 9], "line": "Slow, heavy, and very sure of itself.", "move": "Libas Ekor", "ultimate": "Hempapan Longkang", "taunts": ["Hsssss...", "Aku dah lama tunggu kat longkang ni."], "def": 1.3, "spd": 0.7},
+    {"id": "toyol", "name": "Toyol", "icon": "👶", "color": "#40c057", "hp": 0.85, "atk": 1.15, "floors": [6, null], "line": "Small, green, fast, and after your wallet.", "move": "Curi Syiling", "ultimate": "Seribu Toyol", "taunts": ["Duit kau aku punya!", "Hihihi! Tak nampak aku?"], "def": 0.8, "spd": 1.3},
+    {"id": "pocong", "name": "Pocong", "icon": "👻", "color": "#f1f3f5", "hp": 1.1, "atk": 1.05, "floors": [6, null], "line": "It hops. You hear it before you see it.", "move": "Lompat Hentam", "ultimate": "Ikatan Kafan", "taunts": ["...", "*lompat* *lompat*"], "def": 1.1, "spd": 0.9},
+    {"id": "hantu_galah", "name": "Hantu Galah", "icon": "🎋", "color": "#495057", "hp": 1.2, "atk": 1.1, "floors": [8, null], "line": "Taller than the lamp posts. Don't look up.", "move": "Jangkau Panjang", "ultimate": "Bayang Tiang", "taunts": ["Jangan pandang atas...", "Aku lebih tinggi dari tiang lampu."], "def": 1.0, "spd": 1.0},
+    {"id": "jerangkung", "name": "Jerangkung", "icon": "💀", "color": "#e9ecef", "hp": 1.0, "atk": 1.25, "floors": [11, null], "line": "Bones that rattle in time with the bass.", "move": "Ketuk Tulang", "ultimate": "Tarian Rangka", "taunts": ["Krek krek krek!", "Tulang aku lagi keras dari kau!"], "def": 0.9, "spd": 1.1},
+    {"id": "orang_minyak", "name": "Orang Minyak", "icon": "🛢️", "color": "#212529", "hp": 1.0, "atk": 1.0, "floors": [5, 5], "boss": true, "line": "BOSS: slippery, oily, and very hard to hit.", "move": "Licin Licau", "ultimate": "Banjir Minyak", "taunts": ["Kau takkan dapat pegang aku!", "Hehehe... licin!"], "def": 1.2, "spd": 1.1},
+    {"id": "pontianak", "name": "Pontianak", "icon": "🌺", "color": "#f8f0fc", "hp": 1.0, "atk": 1.05, "floors": [10, 10], "boss": true, "line": "BOSS: you smell frangipani. Then the laughing starts.", "move": "Cakar Kuku Panjang", "ultimate": "Hilai Tengah Malam", "taunts": ["Hihihihi...", "Bau bunga kemboja... dekat sangat."], "def": 1, "spd": 1.2},
+    {"id": "hantu_raya", "name": "Hantu Raya", "icon": "👹", "color": "#c92a2a", "hp": 1.1, "atk": 1.1, "floors": [15, null], "boss": true, "line": "BOSS: the big one. It looks exactly like you.", "move": "Tumbukan Bayang", "ultimate": "Raya Murka", "taunts": ["Aku ialah kau.", "Gua ini milik aku!"], "def": 1.2, "spd": 1.0}
   ],
-  "strike": {
-    "sweepMs": 1000, "perFloorMs": 30, "minMs": 420,
-    "zone": { "perfect": 0.04, "great": 0.09, "good": 0.16 },
-    "mult": { "perfect": 1.7, "great": 1.25, "good": 1.0, "miss": 0.25 },
-    "timeoutMs": 5000
-  },
-  "block": {
-    "windupMs": [700, 1600],
-    "gapMs": 500,
-    "windowMs": { "perfect": 80, "great": 160, "good": 260 },
-    "taken": { "perfect": 0, "great": 0.18, "good": 0.35, "miss": 1.0 }
-  },
-  "reward": {
-    "floorSen": [4000, 25000, 400000, 4000000, 40000000, 400000000],
-    "perFloor": 0.2,
-    "bossMult": 3,
-    "xpBase": 10, "xpPerFloor": 3,
-    "bossShards": 8
-  }
+  "reward": {"floorSen": [4000, 25000, 400000, 4000000, 40000000, 400000000], "perFloor": 0.2, "bossMult": 3, "xpBase": 10, "xpPerFloor": 3, "bossShards": 8}
 }

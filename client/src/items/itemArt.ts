@@ -7,6 +7,7 @@ import { topVariant } from '@kh/shared';
 //   faces: origin = between the eyes
 //   backs: origin = centre of the shoulders
 import { drawFurniturePiece, furniturePiece } from './furnitureArt';
+import { drawPet, drawPetGear } from './petArt';
 import type { ItemDef } from '@kh/shared';
 
 type Ctx = CanvasRenderingContext2D;
@@ -979,6 +980,10 @@ export function drawItemIcon(ctx: Ctx, def: ItemDef, variant: string, size: numb
   } else if (def.type === 'face') {
     ctx.scale(1.5, 1.5);
     drawFace(ctx, def.shape, paint, 'front');
+  } else if (def.type === 'pet') {
+    drawPet(ctx, def.shape, 0, def.color, def.color2);
+  } else if (def.type === 'petgear') {
+    drawPetGear(ctx, def.shape, def.color);
   } else if (def.type === 'chef' || def.type === 'cashier') {
     drawChefPortrait(ctx, def.shape, def.type === 'cashier' ? { ...paint, c2: shadeHex(def.color, -0.3) } : paint, def.color2 ?? '#c68642', def.type === 'cashier');
   } else if (def.type === 'back') {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import dungeonJson from '../../config/dungeon.json';
-import {
-  deathLoot, dungeonConfigSchema, enemyFor, floorLoot, gradeBlock, gradeStrike, hitLandsAt, isBossFloor, makeTurn, markerAt, playerStats, resolveTurn,
-  type DungeonRun, type HitGrade,
-} from './dungeon';
+import petsJson from '../../config/pets.json';
+import { petsConfigSchema, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
+import { deathLoot, dungeonConfigSchema, enemyFor, floorLoot, isBossFloor } from './dungeon';
 
 const cfg = dungeonConfigSchema.parse(dungeonJson);
+const pets = petsConfigSchema.parse(petsJson);
 
 function seeded(seed: number) {
   let a = seed >>> 0;
@@ -18,124 +18,127 @@ function seeded(seed: number) {
   };
 }
 
-/** When the marker is exactly in the zone's middle (first pass). */
-const perfectStrikeMs = (sweepMs: number, zone: number) => zone * sweepMs;
+const RARITY: Record<string, string> = { pet_kucing: 'common', pet_ayam: 'common', pet_kancil: 'common', pet_penyu: 'uncommon', pet_harimau: 'legendary', pet_naga: 'mythic', pet_enggang: 'rare', pet_kerbau: 'rare' };
 
-describe('dungeon: the timing', () => {
-  it('the marker bounces 0 → 1 → 0', () => {
-    expect(markerAt(1000, 0)).toBe(0);
-    expect(markerAt(1000, 500)).toBeCloseTo(0.5);
-    expect(markerAt(1000, 1000)).toBeCloseTo(1);
-    expect(markerAt(1000, 1500)).toBeCloseTo(0.5);
-    expect(markerAt(1000, 2000)).toBeCloseTo(0);
+function fighter(id: string, level: number, upgrades = 0, iid = 1): Fighter {
+  const prog: PetProgress = { ...newProgress(), level, up: { hp: upgrades, atk: upgrades, def: upgrades, spd: upgrades } };
+  const s = petStats(pets, { id, rarity: RARITY[id] ?? 'common', gradeMult: 1, variantMult: 1 }, prog);
+  const sp = pets.species[id];
+  return { side: 'pet', id, name: id, hp: s.hp, maxHp: s.hp, atk: s.atk, def: s.def, spd: s.spd, points: 0, move: sp.move, ultimate: sp.ultimate, iid };
+}
+
+describe('pets', () => {
+  it('stats grow with level, upgrades, rarity and gear', () => {
+    const base = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, newProgress());
+    const l10 = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, { ...newProgress(), level: 10 });
+    const up = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, { ...newProgress(), up: { hp: 0, atk: 5, def: 0, spd: 0 } });
+    const rare = petStats(pets, { id: 'pet_kucing', rarity: 'rare', gradeMult: 1, variantMult: 1 }, newProgress());
+    const geared = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, newProgress(), { id: 'pg_taring', rarity: 'rare', gradeMult: 1 });
+    expect(l10.atk).toBeGreaterThan(base.atk);
+    expect(up.atk).toBeGreaterThan(base.atk);
+    expect(up.hp).toBe(base.hp);
+    expect(rare.hp).toBeGreaterThan(base.hp);
+    expect(geared.atk).toBeGreaterThan(base.atk);
   });
 
-  it('strikes and blocks are graded by how close they are', () => {
-    const turn = { sweepMs: 1000, zone: 0.5, windupMs: 1000 };
-    expect(gradeStrike(cfg, turn, 500)).toBe('perfect');
-    expect(gradeStrike(cfg, turn, 500 + cfg.strike.zone.great * 1000 - 5)).toBe('great');
-    expect(gradeStrike(cfg, turn, 500 + cfg.strike.zone.good * 1000 - 5)).toBe('good');
-    expect(gradeStrike(cfg, turn, 100)).toBe('miss');
-    expect(gradeStrike(cfg, turn, null)).toBe('miss');
-    expect(gradeStrike(cfg, turn, cfg.strike.timeoutMs + 1)).toBe('miss');
-    const lands = hitLandsAt(cfg, turn, 500);
-    expect(gradeBlock(cfg, turn, 500, lands + 10)).toBe('perfect');
-    expect(gradeBlock(cfg, turn, 500, lands - cfg.block.windowMs.great + 5)).toBe('great');
-    expect(gradeBlock(cfg, turn, 500, lands + cfg.block.windowMs.good - 5)).toBe('good');
-    expect(gradeBlock(cfg, turn, 500, lands + 2000)).toBe('miss');
-    expect(gradeBlock(cfg, turn, 500, null)).toBe('miss');
+  it('XP levels a pet up (carrying the rest over), capped at the max level', () => {
+    const p = newProgress();
+    expect(addPetXp(pets, p, petXpToNext(pets, 1) + 5)).toBe(1);
+    expect(p.level).toBe(2);
+    expect(p.xp).toBe(5);
+    const top = { ...newProgress(), level: pets.maxLevel };
+    expect(addPetXp(pets, top, 99999)).toBe(0);
+    expect(top.level).toBe(pets.maxLevel);
   });
 });
 
-describe('dungeon: floors, enemies, loot', () => {
-  it('bosses on every bossEvery-th floor; enemies get tougher deeper', () => {
+describe('battle rounds', () => {
+  it('attack builds points; charge builds more; ultimate needs points', () => {
+    const r = seeded(3);
+    const me = fighter('pet_kerbau', 10);
+    const foe = enemyFor(cfg, 1, r).fighter;
+    foe.hp = foe.maxHp = 9999;
+    foe.atk = 1;
+    const a = resolveRound(pets, [me], 0, foe, 'attack', r);
+    expect(a.events.find((e) => e.side === 'pet' && e.kind === 'act')?.action).toBe('attack');
+    expect(me.points).toBe(pets.battle.attackPoints);
+    resolveRound(pets, [me], 0, foe, 'charge', r);
+    expect(me.points).toBe(pets.battle.attackPoints + pets.battle.chargePoints);
+    // Not enough points yet: an ultimate becomes a plain attack.
+    me.points = 1;
+    const u = resolveRound(pets, [me], 0, foe, 'ultimate', r);
+    expect(u.events.find((e) => e.side === 'pet' && e.kind === 'act')?.action).toBe('attack');
+    me.points = pets.battle.ultimateCost;
+    const u2 = resolveRound(pets, [me], 0, foe, 'ultimate', r);
+    const ev = u2.events.find((e) => e.side === 'pet' && e.kind === 'act')!;
+    expect(ev.action).toBe('ultimate');
+    expect(ev.move).toBe(pets.species.pet_kerbau.ultimate);
+  });
+
+  it('when a pet falls the next comes out; win and lose end the fight', () => {
+    const r = seeded(5);
+    const a = fighter('pet_kancil', 1, 0, 1), b = fighter('pet_ayam', 1, 0, 2);
+    const foe = enemyFor(cfg, 1, r).fighter;
+    a.hp = 1;
+    foe.atk = 999;
+    foe.spd = 999;
+    const res = resolveRound(pets, [a, b], 0, foe, 'attack', r);
+    expect(res.active).toBe(1);
+    expect(res.events.some((e) => e.kind === 'switch')).toBe(true);
+    b.hp = 1;
+    let over: string | null = null;
+    for (let i = 0; i < 10 && !over; i++) over = resolveRound(pets, [a, b], 1, foe, 'attack', r).over; // (it may charge first)
+    expect(over).toBe('lose');
+    const strong = fighter('pet_naga', 30);
+    const weak = enemyFor(cfg, 1, r).fighter;
+    weak.hp = 1;
+    expect(resolveRound(pets, [strong], 0, weak, 'attack', r).over).toBe('win');
+  });
+});
+
+describe('floors and loot', () => {
+  it('bosses, scaling and loot', () => {
     const r = seeded(1);
-    expect(isBossFloor(cfg, cfg.bossEvery)).toBe(true);
-    expect(enemyFor(cfg, cfg.bossEvery, 10, r).boss).toBe(true);
-    expect(enemyFor(cfg, 1, 10, r).boss).toBe(false);
-    const avg = (floor: number) => {
-      let hp = 0;
-      for (let i = 0; i < 50; i++) hp += enemyFor(cfg, floor, 10, r).maxHp;
-      return hp / 50;
-    };
-    expect(avg(9)).toBeGreaterThan(avg(1) * 1.5);
-    // Way past the last configured floor still works (the deepest ones).
-    expect(enemyFor(cfg, 60, 10, r).hp).toBeGreaterThan(0);
-    expect(enemyFor(cfg, 60, 10, r).boss).toBe(true);
-  });
-
-  it('loot scales with the wealth stage and the floor; bosses pay more and give shards', () => {
-    expect(floorLoot(cfg, 3, 1).sen).toBeGreaterThan(floorLoot(cfg, 1, 1).sen * 10);
-    expect(floorLoot(cfg, 1, 4).sen).toBeGreaterThan(floorLoot(cfg, 1, 1).sen);
-    const boss = floorLoot(cfg, 1, cfg.bossEvery);
-    expect(boss.sen).toBeGreaterThan(floorLoot(cfg, 1, cfg.bossEvery - 1).sen * 2);
+    expect(enemyFor(cfg, cfg.bossEvery, r).fighter.boss).toBe(true);
+    expect(enemyFor(cfg, 9, r).fighter.maxHp).toBeGreaterThan(enemyFor(cfg, 1, r).fighter.maxHp);
+    expect(enemyFor(cfg, 60, r).fighter.hp).toBeGreaterThan(0);
+    expect(isBossFloor(cfg, 10)).toBe(true);
+    const boss = floorLoot(cfg, 1, cfg.bossEvery, 10, 3);
     expect(boss.shards).toBeGreaterThan(0);
-    expect(floorLoot(cfg, 1, 1).shards).toBe(0);
-    expect(floorLoot(cfg, 99, 1).sen).toBe(floorLoot(cfg, cfg.reward.floorSen.length, 1).sen); // capped
-    expect(deathLoot(cfg, { sen: 1001, shards: 9, xp: 7 })).toEqual({ sen: 500, shards: 4, xp: 3 });
-  });
-
-  it('a turn: your hit, then theirs (blocked or not); a kill banks the floor loot', () => {
-    const r = seeded(2);
-    const st = playerStats(cfg, 10);
-    const enemy = enemyFor(cfg, 1, 10, r);
-    const run: DungeonRun = { floor: 1, hp: st.hp, maxHp: st.hp, atk: st.atk, enemy, phase: 'fight', loot: { sen: 0, shards: 0, xp: 0 }, turn: null };
-    const turn = makeTurn(cfg, 1, 1, r);
-    const sMs = perfectStrikeMs(turn.sweepMs, turn.zone);
-    const res = resolveTurn(cfg, run, turn, sMs, hitLandsAt(cfg, turn, sMs), 1);
-    expect(res.strike).toBe('perfect');
-    expect(res.crit).toBe(true);
-    expect(res.dealt).toBe(Math.round(st.atk * cfg.strike.mult.perfect));
-    if (!res.killed) {
-      expect(res.parried).toBe(true);
-      expect(res.taken).toBe(0);
-    }
-    // Hit until it drops.
-    while (run.phase === 'fight') {
-      const t = makeTurn(cfg, 1, 2, r);
-      resolveTurn(cfg, run, t, perfectStrikeMs(t.sweepMs, t.zone), null, 1);
-    }
-    expect(run.phase).toBe('cleared');
-    expect(run.loot.sen).toBe(floorLoot(cfg, 1, 1).sen);
+    expect(boss.petXp).toBeGreaterThan(floorLoot(cfg, 1, 1, 10, 3).petXp);
+    expect(deathLoot(cfg, { sen: 1001, shards: 9, xp: 7, petXp: 5 })).toEqual({ sen: 500, shards: 4, xp: 3, petXp: 2 });
   });
 });
 
-describe('dungeon: balance', () => {
-  /** How deep a player gets, playing every turn at these grades. */
-  function depth(level: number, strike: HitGrade, block: HitGrade, seed: number): number {
+describe('balance (auto battles)', () => {
+  /** How deep a team gets on auto, healing between floors like a run does. */
+  function depth(team: Fighter[], seed: number): number {
     const r = seeded(seed);
-    const st = playerStats(cfg, level);
     let floor = 1;
-    const run: DungeonRun = { floor, hp: st.hp, maxHp: st.hp, atk: st.atk, enemy: enemyFor(cfg, 1, level, r), phase: 'fight', loot: { sen: 0, shards: 0, xp: 0 }, turn: null };
-    for (let turns = 0; turns < 2000; turns++) {
-      const t = makeTurn(cfg, floor, turns, r);
-      const off = { perfect: 0, great: (cfg.strike.zone.perfect + cfg.strike.zone.great) / 2, good: (cfg.strike.zone.great + cfg.strike.zone.good) / 2, miss: 0.45 }[strike];
-      const sMs = Math.max(0, (t.zone + (t.zone > 0.5 ? -off : off)) * t.sweepMs);
-      const lands = hitLandsAt(cfg, t, sMs);
-      const bOff = { perfect: 0, great: (cfg.block.windowMs.perfect + cfg.block.windowMs.great) / 2, good: (cfg.block.windowMs.great + cfg.block.windowMs.good) / 2, miss: 2000 }[block];
-      resolveTurn(cfg, run, t, sMs, lands + bOff, 1);
-      if (run.phase === 'dead') return floor;
-      if (run.phase === 'cleared') {
+    let enemy = enemyFor(cfg, floor, r).fighter;
+    let active = 0;
+    for (let rounds = 0; rounds < 5000; rounds++) {
+      const res = resolveRound(pets, team, active, enemy, autoChoice(pets, team[active], enemy), r);
+      active = res.active;
+      if (res.over === 'lose') return floor;
+      if (res.over === 'win') {
         floor++;
-        run.floor = floor;
-        run.hp = Math.min(run.maxHp, run.hp + Math.round(run.maxHp * cfg.healPerFloor));
-        run.enemy = enemyFor(cfg, floor, level, r);
-        run.phase = 'fight';
+        for (const f of team) if (f.hp > 0) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * cfg.healPerFloor));
+        enemy = enemyFor(cfg, floor, r).fighter;
       }
     }
     return floor;
   }
+  const avg = (make: () => Fighter[]) => [1, 2, 3, 4, 5, 6].reduce((a, s) => a + depth(make(), s), 0) / 6;
 
-  it('sloppy play falls early, good play reaches a boss, great play goes deep (at any level)', () => {
-    for (const level of [5, 30]) {
-      const avg = (s: HitGrade, b: HitGrade) => [1, 2, 3, 4, 5].reduce((a, k) => a + depth(level, s, b, k), 0) / 5;
-      const sloppy = avg('good', 'miss');
-      const good = avg('great', 'good');
-      const great = avg('perfect', 'great');
-      expect(sloppy).toBeLessThan(cfg.bossEvery + 1);
-      expect(good).toBeGreaterThanOrEqual(cfg.bossEvery);
-      expect(great).toBeGreaterThan(good);
-      expect(great).toBeLessThan(60); // not endless
-    }
+  it('one new starter clears a floor or two; a levelled team reaches the bosses; a strong team goes deep', () => {
+    const one = avg(() => [fighter('pet_kucing', 1)]);
+    const three10 = avg(() => [fighter('pet_kucing', 10, 0, 1), fighter('pet_ayam', 10, 0, 2), fighter('pet_kancil', 10, 0, 3)]);
+    const strong = avg(() => [fighter('pet_harimau', 30, 6, 1), fighter('pet_naga', 30, 6, 2), fighter('pet_kerbau', 30, 6, 3)]);
+    expect(one).toBeGreaterThanOrEqual(2);
+    expect(one).toBeLessThan(6);
+    expect(three10).toBeGreaterThan(one);
+    expect(strong).toBeGreaterThan(three10);
+    expect(strong).toBeLessThan(80);
   });
 });

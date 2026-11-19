@@ -1,21 +1,17 @@
-// ⚔️ Gua Gelap, server side (rules in shared/src/dungeon). The server owns the run: it picks the
-// enemies, issues each turn (zone, speed, wind-up) and grades the two taps the client reports,
-// checking they're possible (no taps from before the turn was sent, none later than the time
-// that has really passed). Loot is paid when you cash out, fall, flee or disconnect.
+// ⚔️ Gua Gelap, server side (rules in shared/src/dungeon and shared/src/pets). The server owns the
+// run: your team (from 🐾 Teman), the enemies, every roll. Each round you send an action (or Auto,
+// or Skip to play the fight out); the server answers with what happened. Loot is paid when you
+// cash out, fall, flee or disconnect; your pets get XP for every floor they clear.
 import {
-  dayKey, deathLoot, enemyFor, floorLoot, makeTurn, playerStats, resolveTurn,
-  type DungeonLoot, type DungeonRun, type DungeonTurn, type DungeonView, type RandInt, type TurnResult,
+  autoChoice, dayKey, deathLoot, enemyFor, floorLoot, resolveRound,
+  type BattleAction, type BattleEvent, type DungeonLoot, type DungeonRun, type DungeonView, type RandInt,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
 import type { ProgressionSystem } from '../progression/progression';
-
-/** Allowance for the network between the server sending a turn and the client's taps (ms). */
-const LATENCY_MS = 600;
-/** Faster than a human can react: such a strike counts as a miss. */
-const MIN_STRIKE_MS = 120;
+import type { PetSystem } from '../pets/pets';
 
 interface Saved {
   day: string;
@@ -24,24 +20,25 @@ interface Saved {
 }
 
 interface ServerRun extends DungeonRun {
-  /** Server ms the current turn was sent. */
-  issuedAt: number;
+  taunts: string[];
 }
 
 export interface DungeonHooks {
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
 }
 
+const ZERO: DungeonLoot = { sen: 0, shards: 0, xp: 0, petXp: 0 };
+
 export class DungeonSystem {
   private runs = new Map<number, ServerRun>();
   private saved = new Map<number, Saved>();
-  private nonce = 1;
 
   constructor(
     private cfg: ServerConfig,
     private repos: Repos,
     private econ: Economy,
     private prog: ProgressionSystem,
+    private pets: PetSystem,
     private rand: RandInt,
     private hooks: DungeonHooks,
     private clock: () => number = Date.now,
@@ -73,80 +70,88 @@ export class DungeonSystem {
   view(p: OnlinePlayer): DungeonView {
     const s = this.state(p);
     const r = this.runs.get(p.id);
-    return {
-      name: this.dc().name,
-      runsLeft: Math.max(0, this.dc().runsPerDay - s.runs),
-      runsPerDay: this.dc().runsPerDay,
-      best: s.best,
-      run: r ? { floor: r.floor, hp: r.hp, maxHp: r.maxHp, atk: r.atk, enemy: { ...r.enemy }, phase: r.phase, loot: { ...r.loot }, turn: r.turn } : null,
-    };
+    const copy = (x: ServerRun): DungeonRun => ({
+      floor: x.floor, team: x.team.map((f) => ({ ...f })), active: x.active, enemy: { ...x.enemy }, enemyLine: x.enemyLine, phase: x.phase, loot: { ...x.loot }, round: x.round,
+    });
+    return { name: this.dc().name, runsLeft: Math.max(0, this.dc().runsPerDay - s.runs), runsPerDay: this.dc().runsPerDay, best: s.best, run: r ? copy(r) : null };
   }
 
-  private newTurn(r: ServerRun): DungeonTurn {
-    r.turn = makeTurn(this.dc(), r.floor, this.nonce++, this.rand);
-    r.issuedAt = this.clock();
-    return r.turn;
+  private spawn(r: ServerRun) {
+    const e = enemyFor(this.dc(), r.floor, this.rand);
+    r.enemy = e.fighter;
+    r.enemyLine = e.def.line;
+    r.taunts = e.def.taunts;
+    r.round = 0;
   }
 
   enter(p: OnlinePlayer): DungeonView {
     const old = this.runs.get(p.id);
     if (old && old.phase !== 'dead') throw new GameError("You're already in the cave.");
     this.runs.delete(p.id);
+    const team = this.pets.fighters(p);
+    if (!team.length) throw new GameError('You need a Teman to fight with: 📱 Teman → buy a starter (or roll a Telur Teman).');
     const s = this.state(p);
     if (s.runs >= this.dc().runsPerDay) throw new GameError(`That's all ${this.dc().runsPerDay} runs for today. The cave opens again tomorrow.`);
     s.runs++;
     this.store(p);
-    const st = playerStats(this.dc(), p.prog.level);
-    const r: ServerRun = {
-      floor: 1, hp: st.hp, maxHp: st.hp, atk: st.atk, enemy: enemyFor(this.dc(), 1, p.prog.level, this.rand), phase: 'fight',
-      loot: { sen: 0, shards: 0, xp: 0 }, turn: null, issuedAt: 0,
-    };
-    this.newTurn(r);
+    const r: ServerRun = { floor: 1, team, active: 0, enemy: team[0], enemyLine: '', phase: 'fight', loot: { ...ZERO }, round: 0, taunts: [] };
+    this.spawn(r);
     this.runs.set(p.id, r);
     this.prog.bump(p, 'dungeonRuns');
     return this.view(p);
   }
 
-  /** Your two taps for the current turn (ms after it was shown; null = didn't tap). */
-  turn(p: OnlinePlayer, nonce: number, strikeMs: number | null, blockMs: number | null): { result: TurnResult; view: DungeonView; paid: DungeonLoot | null } {
+  /** One round (or, with `skip`, the whole fight on Auto). */
+  act(p: OnlinePlayer, action: BattleAction | 'auto', skip = false): { events: BattleEvent[]; view: DungeonView; paid: DungeonLoot | null; levelUps: Array<{ name: string; level: number }> } {
     const r = this.runs.get(p.id);
-    if (!r || r.phase !== 'fight' || !r.turn) throw new GameError('No fight going on.');
-    if (r.turn.nonce !== nonce) throw new GameError('That turn is over.');
-    // Only what's possible: not before the turn, not later than the time that has really passed.
-    const elapsed = this.clock() - r.issuedAt + LATENCY_MS;
-    const ok = (ms: number | null) => (ms === null || (Number.isFinite(ms) && ms >= 0 && ms <= elapsed) ? ms : null);
-    let s = ok(strikeMs);
-    if (s !== null && s < MIN_STRIKE_MS) s = null;
-    let b = ok(blockMs);
-    if (b !== null && s !== null && b < s) b = null;
-    const result = resolveTurn(this.dc(), r, r.turn, s, b, p.prog.stage);
+    if (!r || r.phase !== 'fight') throw new GameError('No fight going on.');
+    const pc = this.cfg.pets;
+    const events: BattleEvent[] = [];
     let paid: DungeonLoot | null = null;
-    if (result.killed) {
-      this.prog.bump(p, 'dungeonFloors');
-      if (r.enemy.boss) this.prog.bump(p, 'dungeonBosses');
-      const st = this.state(p);
-      if (r.floor > st.best) {
-        st.best = r.floor;
-        this.store(p);
+    let levelUps: Array<{ name: string; level: number }> = [];
+    do {
+      const me = r.team[r.active];
+      const choice: BattleAction = action === 'auto' || skip ? autoChoice(pc, me, r.enemy) : action;
+      const res = resolveRound(pc, r.team, r.active, r.enemy, choice, this.rand, r.taunts);
+      events.push(...res.events);
+      r.active = res.active;
+      r.round++;
+      if (res.over === 'win') {
+        const loot = floorLoot(this.dc(), p.prog.stage, r.floor, pc.xp.perFloor, pc.xp.bossMult);
+        r.loot = { sen: r.loot.sen + loot.sen, shards: r.loot.shards + loot.shards, xp: r.loot.xp + loot.xp, petXp: r.loot.petXp + loot.petXp };
+        // Every pet on the team learns from the win (even one that fell).
+        levelUps = this.pets.addXp(p, r.team.map((f) => f.iid!).filter(Boolean), loot.petXp);
+        this.prog.bump(p, 'dungeonFloors');
+        if (r.enemy.boss) this.prog.bump(p, 'dungeonBosses');
+        const st = this.state(p);
+        if (r.floor > st.best) {
+          st.best = r.floor;
+          this.store(p);
+        }
+        this.prog.max(p, 'dungeonBest', r.floor);
+        r.phase = 'cleared';
+      } else if (res.over === 'lose') {
+        r.phase = 'dead';
+        paid = this.pay(p, deathLoot(this.dc(), r.loot));
+      } else if (r.round >= pc.battle.maxRounds) {
+        // A stalemate: the enemy runs off. No loot for this floor, but you can carry on.
+        events.push({ kind: 'flee', side: 'enemy', name: r.enemy.name, text: `${r.enemy.name} lari! (too long a fight)` });
+        r.phase = 'cleared';
       }
-      this.prog.max(p, 'dungeonBest', r.floor);
-      r.turn = null;
-    } else if (result.dead) {
-      r.turn = null;
-      paid = this.pay(p, deathLoot(this.dc(), r.loot));
-    } else this.newTurn(r);
-    return { result, view: this.view(p), paid };
+    } while (skip && r.phase === 'fight');
+    return { events, view: this.view(p), paid, levelUps };
   }
 
-  /** After clearing a floor: on to the next one (patched up a little first). */
+  /** After clearing a floor: on to the next one (the team patches up a little). */
   deeper(p: OnlinePlayer): DungeonView {
     const r = this.runs.get(p.id);
     if (!r || r.phase !== 'cleared') throw new GameError('Beat this floor first.');
     r.floor++;
-    r.hp = Math.min(r.maxHp, r.hp + Math.round(r.maxHp * this.dc().healPerFloor));
-    r.enemy = enemyFor(this.dc(), r.floor, p.prog.level, this.rand);
+    for (const f of r.team) if (f.hp > 0) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * this.dc().healPerFloor));
+    if (r.team[r.active].hp <= 0) r.active = Math.max(0, r.team.findIndex((f) => f.hp > 0));
+    for (const f of r.team) f.points = 0;
     r.phase = 'fight';
-    this.newTurn(r);
+    this.spawn(r);
     return this.view(p);
   }
 
@@ -155,14 +160,14 @@ export class DungeonSystem {
     const r = this.runs.get(p.id);
     if (!r) throw new GameError("You're not in the cave.");
     this.runs.delete(p.id);
-    if (r.phase === 'dead') return { paid: { sen: 0, shards: 0, xp: 0 }, view: this.view(p) }; // already paid
+    if (r.phase === 'dead') return { paid: { ...ZERO }, view: this.view(p) }; // already paid
     const loot = r.phase === 'cleared' ? r.loot : deathLoot(this.dc(), r.loot);
     return { paid: this.pay(p, loot), view: this.view(p) };
   }
 
   private pay(p: OnlinePlayer, loot: DungeonLoot): DungeonLoot {
     if (loot.sen || loot.shards) {
-      this.econ.run(p, () => this.econ.change(p, loot.sen, loot.shards, 'dungeon', `floor`));
+      this.econ.run(p, () => this.econ.change(p, loot.sen, loot.shards, 'dungeon', 'loot'));
       this.hooks.wallet(p, loot.sen, 'dungeon');
       this.prog.bump(p, 'dungeonEarnSen', loot.sen);
     }
@@ -183,10 +188,5 @@ export class DungeonSystem {
     }
     this.runs.delete(p.id);
     this.saved.delete(p.id);
-  }
-
-  /** For tests: loot for a floor at the player's stage. */
-  lootFor(p: OnlinePlayer, floor: number) {
-    return floorLoot(this.dc(), p.prog.stage, floor);
   }
 }

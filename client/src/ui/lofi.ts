@@ -9,6 +9,7 @@
 // a recording plays on the audio thread and can't.
 import { audioCtx } from './sound';
 import { loadPrefs } from './settings';
+import { musicDucked } from './battleMusic';
 
 const BPM = 72;
 const STEP = 60 / BPM / 4; // a 16th note (s)
@@ -175,7 +176,7 @@ class Lofi {
   /** Fade in (if music is on and the radio isn't playing). */
   start(fadeSec = 4) {
     const prefs = loadPrefs();
-    if (!prefs.musicOn || this.yielded) return;
+    if (!prefs.musicOn || this.yielded || musicDucked()) return;
     const ctx = audioCtx();
     if (!ctx) return;
     clearTimeout(this.stopTimer);
@@ -218,7 +219,7 @@ class Lofi {
   private applyPrefs() {
     if (!this.wanted) return;
     const p = loadPrefs();
-    if (!p.musicOn || this.yielded) return this.stop(0.6);
+    if (!p.musicOn || this.yielded || musicDucked()) return this.stop(0.6);
     if (!this.playing) return this.start(1.5);
     if (this.ctx && this.out) this.out.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.2);
   }

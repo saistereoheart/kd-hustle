@@ -14,6 +14,7 @@ export interface ItemGroupDef {
 export const ITEM_GROUPS: ItemGroupDef[] = [
   { id: 'outfit', icon: '👕', name: 'Outfit', slots: [['hat', '🎩 Head'], ['face', '🕶️ Face'], ['back', '🎒 Back'], ['aura', '✨ Aura'], ['namecolor', '🌈 Name colour']] },
   { id: 'chefs', icon: '👨‍🍳', name: 'Chefs & cashiers', slots: [['chef', 'Head chef (stall)'], ['cashier', 'Cashier (kopitiam)']] },
+  { id: 'pets', icon: '🐾', name: 'Teman (pets)', slots: [['pet', 'Teman'], ['petgear', 'Pet gear']] },
   { id: 'potions', icon: '🧪', name: 'Potions & boosters', slots: [['potion', 'Potions'], ['booster', 'Boosters']] },
   { id: 'collectibles', icon: '💎', name: 'Collectibles', slots: [['trinket', 'Trinkets']] },
   { id: 'furniture', icon: '🛋️', name: 'Furniture', slots: [['furniture', 'Furniture']] },

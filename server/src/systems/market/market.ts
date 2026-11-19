@@ -117,7 +117,7 @@ export class MarketSystem {
     const inst = p.inventory.find((i) => i.iid === iid);
     if (!inst) throw new GameError('You no longer have that item.');
     if (Object.values(p.equipped).includes(iid)) throw new GameError('Take it off first.');
-    if (this.hooks.lockedIids(p).has(iid)) throw new GameError("It's placed in one of your homes.");
+    if (this.hooks.lockedIids(p).has(iid)) throw new GameError("It's in use (placed in a home, or in your 🐾 Teman team / on a Teman).");
     let endsAt: number | null = null;
     if (kind === 'auction') {
       if (!hours || !mc.auctionHours.includes(hours)) throw new GameError(`Auctions run ${mc.auctionHours.join(', ')} in-game hours.`);

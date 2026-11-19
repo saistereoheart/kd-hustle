@@ -7,6 +7,7 @@ import type { App } from '../app';
 import { el, uiRoot } from './dom';
 import { loadPrefs } from './settings';
 import { lofi } from './lofi';
+import { musicDucked } from './battleMusic';
 
 export class Radio {
   readonly audio = new Audio();
@@ -73,7 +74,7 @@ export class Radio {
   private applyPrefs() {
     const p = loadPrefs();
     this.audio.volume = Math.max(0, Math.min(1, p.musicVolume / 100));
-    const want = p.musicOn && this.unlocked && !!this.trackId && !!this.audio.getAttribute('src');
+    const want = p.musicOn && !musicDucked() && this.unlocked && !!this.trackId && !!this.audio.getAttribute('src');
     if (want && this.audio.paused) {
       this.seek();
       void this.audio.play().catch(() => {});

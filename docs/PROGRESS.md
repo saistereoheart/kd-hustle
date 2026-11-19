@@ -56,6 +56,40 @@ Compared with the spec's content checklist (§19):
 
 ---
 
+## 🐾 Teman (pets) and the turn-based Gua Gelap (2026-11-19, your request)
+
+The dungeon is now a turn-based pet battler (the old strike / block timing game is gone).
+- **📱 Teman** (new app, also from 🎒 Bag → a pet → "Open in Teman"): your pets and your battle team (up to 3, in
+  order: the first fights first, the next comes out when it faints).
+  - Buy a starter for RM 200: Kucing Oyen, Ayam Jantan or Kancil.
+  - Or roll the 🥚 Telur Teman egg (RM 400). It has all 10 Teman: the rarer Penyu, Musang Pandan, Burung Enggang,
+    Kerbau, Buaya, Harimau Malaya and Naga Gua, plus 8 pieces of pet gear.
+  - Each Teman's page offers:
+    - 🏋️ **Train** (pay for +1 level);
+    - 📈 **upgrade** HP / Attack / Defence / Speed (+5% a step, 10 steps each);
+    - put one piece of **🎽 pet gear** on it;
+    - 🎲 **tier and variant rerolls** (💎 shards, the forge's reel).
+  - A higher tier or a variant makes a Teman a little stronger.
+- **Battles:** each round pick:
+  - ⚔️ the Teman's own move (e.g. Kucing Oyen's "Cakar Kilat"), which builds +1 point;
+  - ⚡ Charge, which builds +2 points and halves the damage you take that round;
+  - 🌟 its Ultimate (e.g. "Oyen Mengamuk"), which costs 4 points and hits 2.8× as hard.
+- **Speed and playback:** the faster side acts first. Enemies charge and use their own ultimates, with taunts in the
+  battle log. 🤖 Auto picks for you every round; ⏩ Skip plays the whole fight out in a flash. Keys 1 / 2 / 3.
+- **Between floors:** after a win, every Teman on the team gets pet XP (bosses ×3) and levels up on its own. Then go
+  deeper (the team heals 30%) or cash out. Auto stops there, so the choice is yours.
+- **Music:** its own fight music, with heavier boss music on boss floors. Both are made in your browser like the
+  lofi; the lofi and radio go quiet during a run and come back after.
+- Teman in your team and gear on a Teman can't be sold, traded or merged (rerolls are fine).
+- Balance (`shared/src/dungeon/dungeon.test.ts`, on Auto):
+  - one new starter reaches about floor 4–5;
+  - three level-10 starters reach about floor 10;
+  - a strong level-30 team goes much deeper.
+- Config: `shared/config/pets.json` (species, moves, gear, costs, battle numbers), `shared/config/dungeon.json`
+  (enemies with their moves, ultimates and taunts).
+- Code: `shared/src/pets`, `server/src/systems/pets`, `client/src/ui/pets`, `client/src/items/petArt.ts`,
+  `client/src/ui/battleMusic.ts`.
+
 ## 🐞 In-game bug reports (2026-11-19)
 
 - A big glowing red **Report · bug / idea** button on the right edge of the HUD (smaller on phones, placed clear of
@@ -139,8 +173,7 @@ Compared with the spec's content checklist (§19):
 - 📱 → ⚔️ Gua Gelap. A cave with one enemy per floor and a boss every 5th floor: Malaysian pests (Lipas Gergasi,
   Tikus Mondok, Monyet Pencuri, Biawak Besar) and folklore spirits (Toyol, Pocong, Hantu Galah, Jerangkung), bosses
   Orang Minyak (5), Pontianak (10), Hantu Raya (15+). All drawn in code (`client/src/ui/dungeon/dungeonArt.ts`).
-- Each turn: ⚔️ STRIKE when the sweeping marker is in the zone (gold middle = critical), then 🛡️ BLOCK when the red
-  ring meets the white one (perfect = parry). Tap the big button or press Space.
+- (Replaced the same day by the turn-based 🐾 Teman battles above.)
 - After each floor: go deeper (heal 25%) or cash out. Falling or fleeing keeps half; disconnecting between floors
   pays it all. 5 runs a day.
 - Loot per floor scales with your wealth stage and the floor (a 5-floor run ≈ a few minutes of income at that

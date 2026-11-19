@@ -123,7 +123,7 @@ export class TradeSystem {
     for (const iid of iids) {
       if (!p.inventory.some((i) => i.iid === iid)) throw new GameError('You no longer have one of those items.');
       if (worn.has(iid)) throw new GameError('Take it off first.');
-      if (locked.has(iid)) throw new GameError("That's placed in one of your homes.");
+      if (locked.has(iid)) throw new GameError("That's in use (placed in a home, or in your 🐾 Teman team / on a Teman).");
     }
   }
 

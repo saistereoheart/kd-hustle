@@ -84,7 +84,7 @@ export class BoutiqueSystem {
     const inst = p.inventory.find((i) => i.iid === iid);
     if (!inst) throw new GameError('You no longer have that item.');
     if (Object.values(p.equipped).includes(iid)) throw new GameError('Take it off first.');
-    if (this.hooks.lockedIids(p).has(iid)) throw new GameError("It's placed in one of your homes: put it away first.");
+    if (this.hooks.lockedIids(p).has(iid)) throw new GameError("It's in use (placed in a home, or in your 🐾 Teman team / on a Teman): free it up first.");
     let listing!: Listing;
     this.econ.run(p, () => {
       this.econ.remove(p, iid);

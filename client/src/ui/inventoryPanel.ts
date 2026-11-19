@@ -7,6 +7,7 @@ import { el, toast, keepUiState } from './dom';
 import { closePanel, iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
 import { groupedItems } from './itemGroups';
 import { openMergeWindow, openRerollWindow } from './forge';
+import { openPetsPanel } from './pets/petsPanel';
 import { sfx } from './sound';
 
 export function openInventoryPanel(app: App, startTab = 0) {
@@ -171,6 +172,11 @@ export function openInventoryPanel(app: App, startTab = 0) {
       if (def.effect) {
         const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'use' }, `Use (${s.items.length} left)`);
         b.addEventListener('click', () => app.useItem(s.items[0].iid));
+        actions.append(b);
+      }
+      if (def.type === 'pet' || def.type === 'petgear') {
+        const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'open-pets' }, def.type === 'pet' ? '🐾 Open in Teman (team, training, gear)' : '🐾 Put it on a Teman');
+        b.addEventListener('click', () => openPetsPanel(app));
         actions.append(b);
       }
       if (slot && !home) {

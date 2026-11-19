@@ -14,6 +14,7 @@ import { log } from '../log';
 import { Economy, GameError } from '../systems/economy/economy';
 import { cryptoRand, Gacha } from '../systems/gacha/gacha';
 import { DungeonSystem } from '../systems/dungeon/dungeon';
+import { PetSystem } from '../systems/pets/pets';
 import { InventorySystem } from '../systems/inventory/inventory';
 import { JobSystem } from '../systems/jobs/jobs';
 import { newMoveState } from '../systems/movement/moveValidator';
@@ -221,7 +222,12 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
-  const dungeon = new DungeonSystem(cfg, repos, econ, prog, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
+  const pets = new PetSystem(cfg, repos, econ, {
+    wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+    items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
+    check: (p) => prog.check(p),
+  });
+  const dungeon = new DungeonSystem(cfg, repos, econ, prog, pets, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
     publicChanged: (list) => {
       io.emit('stalls', { stalls: list });
@@ -279,6 +285,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     stageOf: (p) => p.prog.stage,
   });
   // --- property (Phase 5) ---------------------------------------------------------------------
+  /** Can't be sold, traded or merged right now: furniture placed in a home, pets in the team, pet gear in use. */
+  const lockedIids = (p: OnlinePlayer) => new Set([...propSys.lockedIids(p), ...pets.lockedIids(p)]);
   const propSys = new PropertySystem(cfg, repos, econ, world, cryptoRand, {
     publicChanged: () => io.emit('props', { props: propSys.all() }),
     selfChanged: (p) => socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) }),
@@ -299,7 +307,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     incomeMult: (p) => prog.mods(p).passive * finance.incomeMult(p), // Passive Income (skill + gear); half while late on the Ah Long
     check: (p) => prog.check(p),
     io,
-    lockedIids: (p) => propSys.lockedIids(p),
+    lockedIids: (p) => lockedIids(p),
   });
   // --- loans (Phase 6): Bank Kota and the Ah Long -----------------------------------------------
   finance = createLoans({
@@ -312,7 +320,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   // --- trading, gifting, leaderboards (Phase 7) ----------------------------------------------
   const social = createSocial({
     cfg, repos, econ, world, io, socketOf, pushWallet,
-    lockedIids: (p) => propSys.lockedIids(p),
+    lockedIids: (p) => lockedIids(p),
     assetsOf,
     bestAirbnb: (p) => Math.max(0, ...propSys.selfOf(p).filter((s) => s.mode === 'airbnb').map((s) => s.rating.stars)),
     cosmeticsChanged: (p) => {
@@ -378,7 +386,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     },
     check: (p) => prog.check(p),
   });
-  inv.lockedIids = (p) => propSys.lockedIids(p);
+  inv.lockedIids = (p) => lockedIids(p);
   const propTimer = setInterval(() => {
     try {
       propSys.tick();
@@ -505,7 +513,14 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     // ⚔️ Gua Gelap
     handle(socket, 'dungeon:view', null, () => ({ view: dungeon.view(me) }));
     handle(socket, 'dungeon:enter', null, () => ({ view: dungeon.enter(me) }));
-    handle(socket, 'dungeon:turn', C2S.dungeonTurn, ({ nonce, strikeMs, blockMs }) => dungeon.turn(me, nonce, strikeMs, blockMs));
+    handle(socket, 'dungeon:act', C2S.dungeonAct, ({ action, skip }) => dungeon.act(me, action, skip));
+    // 🐾 Teman
+    handle(socket, 'pets:view', null, () => ({ view: pets.view(me) }));
+    handle(socket, 'pets:buy', C2S.petsBuy, ({ id }) => ({ view: pets.buyStarter(me, id) }));
+    handle(socket, 'pets:team', C2S.petsTeam, ({ iids }) => ({ view: pets.setTeam(me, iids) }));
+    handle(socket, 'pets:train', C2S.petsIid, ({ iid }) => pets.train(me, iid));
+    handle(socket, 'pets:upgrade', C2S.petsUpgrade, ({ iid, stat }) => ({ view: pets.upgrade(me, iid, stat) }));
+    handle(socket, 'pets:gear', C2S.petsGear, ({ iid, gear }) => ({ view: pets.setGear(me, iid, gear) }));
     handle(socket, 'dungeon:deeper', null, () => ({ view: dungeon.deeper(me) }));
     handle(socket, 'dungeon:leave', null, () => dungeon.leave(me));
     handle(socket, 'event:view', null, () => ({ event: events.view() }));
@@ -952,6 +967,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       social.leave(p);
       rebirth.unload(p);
       dungeon.unload(p); // a run in progress pays out
+      pets.unload(p);
     },
     chatCommand,
     moveRules,

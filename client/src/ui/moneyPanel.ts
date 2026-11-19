@@ -37,6 +37,7 @@ const CATS: Cat[] = [
   { id: 'skills', icon: '⬆️', name: 'Skills', match: (r) => r === 'skill' },
   { id: 'rides', icon: '🛵', name: 'Ronda rides', match: (r) => r === 'ride' },
   { id: 'dungeon', icon: '⚔️', name: 'Gua Gelap (dungeon)', match: (r) => r === 'dungeon' },
+  { id: 'pets', icon: '🐾', name: 'Teman (pets)', match: (r) => r === 'pets' },
   { id: 'other', icon: '🎁', name: 'Rewards & other', match: () => true },
 ];
 

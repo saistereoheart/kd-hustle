@@ -1,0 +1,37 @@
+{
+  "starters": { "ids": ["pet_kucing", "pet_ayam", "pet_kancil"], "priceSen": 20000 },
+  "species": {
+    "pet_kucing":  { "hp": 50, "atk": 14, "def": 9,  "spd": 15, "move": "Cakar Kilat",      "ultimate": "Oyen Mengamuk",      "cry": "Meow! Jangan kacau aku!" },
+    "pet_ayam":    { "hp": 46, "atk": 15, "def": 8,  "spd": 14, "move": "Patuk Pantas",     "ultimate": "Kokok Halilintar",   "cry": "Kukuruyuk! Siapa berani?" },
+    "pet_kancil":  { "hp": 44, "atk": 12, "def": 8,  "spd": 19, "move": "Lompat Licik",     "ultimate": "Akal Sang Kancil",   "cry": "Kecil-kecil cili padi!" },
+    "pet_penyu":   { "hp": 70, "atk": 10, "def": 16, "spd": 7,  "move": "Tempurung Hentam", "ultimate": "Ombak Pantai Timur", "cry": "Perlahan tapi pasti." },
+    "pet_musang":  { "hp": 48, "atk": 15, "def": 9,  "spd": 17, "move": "Gigitan Senyap",   "ultimate": "Bau Pandan Maut",    "cry": "Hmph. Malam ni aku punya." },
+    "pet_enggang": { "hp": 52, "atk": 16, "def": 10, "spd": 17, "move": "Paruh Tajam",      "ultimate": "Sayap Borneo",       "cry": "Kraaak! Dari langit!" },
+    "pet_kerbau":  { "hp": 80, "atk": 15, "def": 15, "spd": 8,  "move": "Tanduk Sawah",     "ultimate": "Rempuhan Lumpur",    "cry": "Mooo... jangan buat aku marah." },
+    "pet_buaya":   { "hp": 70, "atk": 18, "def": 14, "spd": 10, "move": "Rahang Besi",      "ultimate": "Gulung Maut",        "cry": "Senyum dulu... lepas tu ngap." },
+    "pet_harimau": { "hp": 66, "atk": 20, "def": 12, "spd": 16, "move": "Cakaran Belang",   "ultimate": "Ngauman Malaya",     "cry": "RAWR! Ini tanah aku!" },
+    "pet_naga":    { "hp": 75, "atk": 21, "def": 15, "spd": 15, "move": "Api Naga",         "ultimate": "Naga Langit Murka",  "cry": "Aku penjaga gua ini." }
+  },
+  "gear": {
+    "pg_kolar":   { "def": 0.1 },
+    "pg_bandana": { "atk": 0.08 },
+    "pg_loceng":  { "spd": 0.12 },
+    "pg_azimat":  { "hp": 0.15 },
+    "pg_taring":  { "atk": 0.15 },
+    "pg_perisai": { "def": 0.2, "hp": 0.1 },
+    "pg_sayap":   { "spd": 0.25, "atk": 0.05 },
+    "pg_mahkota": { "hp": 0.12, "atk": 0.12, "def": 0.12, "spd": 0.12 }
+  },
+  "rarityMult": { "common": 1, "uncommon": 1.1, "rare": 1.22, "epic": 1.38, "legendary": 1.58, "mythic": 1.85, "divine": 2.2, "secret": 2.6 },
+  "levelGrowth": 0.08,
+  "maxLevel": 50,
+  "xp": { "base": 30, "growth": 1.16, "perFloor": 14, "bossMult": 3 },
+  "train": { "baseSen": 3000, "growth": 1.25 },
+  "upgrade": { "perLevel": 0.05, "maxLevel": 10, "baseSen": 5000, "growth": 1.7 },
+  "battle": {
+    "attackPower": 1, "attackPoints": 1, "chargePoints": 2, "chargeGuard": 0.5,
+    "ultimateCost": 4, "ultimatePower": 2.8,
+    "critChance": 0.1, "critMult": 1.5, "spread": 0.1,
+    "maxRounds": 60, "teamSize": 3
+  }
+}

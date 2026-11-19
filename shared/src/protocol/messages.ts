@@ -16,7 +16,8 @@ import type { BoardEntry, TradeView } from '../social/social';
 import type { ActiveEvent } from '../events/events';
 import type { MarketListing, MarketSale } from '../market/market';
 import type { RebirthView } from '../rebirth/rebirth';
-import type { DungeonLoot, DungeonView, TurnResult } from '../dungeon/dungeon';
+import type { DungeonLoot, DungeonView } from '../dungeon/dungeon';
+import { PET_STATS, type BattleEvent, type PetsView } from '../pets/pets';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 /** 🐞 In-game reports. */
@@ -61,8 +62,14 @@ export const C2S = {
     image: z.string().max(FEEDBACK_MAX_IMAGE).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   }),
   feedbackDone: z.object({ id: z.number().int().positive(), done: z.boolean() }),
-  /** ⚔️ One dungeon turn: when you tapped Strike and Block (ms after the turn appeared; null = no tap). */
-  dungeonTurn: z.object({ nonce: z.number().int().positive(), strikeMs: z.number().finite().nullable(), blockMs: z.number().finite().nullable() }),
+  /** ⚔️ One battle round: your pet's action (or let Auto pick); `skip` plays the fight out to the end on Auto. */
+  dungeonAct: z.object({ action: z.enum(['attack', 'charge', 'ultimate', 'auto']), skip: z.boolean().default(false) }),
+  /** 🐾 Teman */
+  petsBuy: z.object({ id: z.string().min(1).max(40) }),
+  petsTeam: z.object({ iids: z.array(z.number().int().positive()).max(6) }),
+  petsIid: z.object({ iid: z.number().int().positive() }),
+  petsUpgrade: z.object({ iid: z.number().int().positive(), stat: z.enum(PET_STATS) }),
+  petsGear: z.object({ iid: z.number().int().positive(), gear: z.number().int().positive().nullable() }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
   // --- businesses and the shop (Phase 6) ---
   bizBuy: z.object({ type: z.string().min(1).max(32), n: z.number().int().min(1).max(1000) }),
@@ -650,7 +657,14 @@ export interface ClientToServerEvents {
   /** ⚔️ Gua Gelap: runs left today, best floor, the run in progress. */
   'dungeon:view': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:enter': (ack: Ack<Result<{ view: DungeonView }>>) => void;
-  'dungeon:turn': (msg: { nonce: number; strikeMs: number | null; blockMs: number | null }, ack: Ack<Result<{ result: TurnResult; view: DungeonView; paid: DungeonLoot | null }>>) => void;
+  'dungeon:act': (msg: { action: 'attack' | 'charge' | 'ultimate' | 'auto'; skip?: boolean }, ack: Ack<Result<{ events: BattleEvent[]; view: DungeonView; paid: DungeonLoot | null; levelUps: Array<{ name: string; level: number }> }>>) => void;
+  /** 🐾 Teman: your pets, team, training, upgrades, gear; buying a starter. */
+  'pets:view': (ack: Ack<Result<{ view: PetsView }>>) => void;
+  'pets:buy': (msg: { id: string }, ack: Ack<Result<{ view: PetsView }>>) => void;
+  'pets:team': (msg: { iids: number[] }, ack: Ack<Result<{ view: PetsView }>>) => void;
+  'pets:train': (msg: { iid: number }, ack: Ack<Result<{ view: PetsView; level: number }>>) => void;
+  'pets:upgrade': (msg: { iid: number; stat: 'hp' | 'atk' | 'def' | 'spd' }, ack: Ack<Result<{ view: PetsView }>>) => void;
+  'pets:gear': (msg: { iid: number; gear: number | null }, ack: Ack<Result<{ view: PetsView }>>) => void;
   'dungeon:deeper': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   /** Cash out between floors (everything), or flee mid-fight (half). */
   'dungeon:leave': (ack: Ack<Result<{ paid: DungeonLoot; view: DungeonView }>>) => void;

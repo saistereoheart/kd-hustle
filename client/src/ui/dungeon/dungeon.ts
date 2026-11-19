@@ -1,18 +1,18 @@
-// ⚔️ Gua Gelap, the window: the entrance (runs left today, best floor, how to play), the fight
-// (cave, enemy, HP bars, the strike bar, the block ring), and the choice after each floor (go
-// deeper or cash out). The server grades every tap; this just times them and animates.
-import {
-  formatMoney, gradeStrike, hitLandsAt, markerAt,
-  type DungeonLoot, type DungeonRun, type DungeonTurn, type DungeonView, type HitGrade, type TurnResult,
-} from '@kh/shared';
+// ⚔️ Gua Gelap, the window: a turn-based battle between your 🐾 Teman team and the cave's
+// residents. Each round you pick an action (⚔️ the pet's move, ⚡ Charge, 🌟 its Ultimate once it
+// has the points), or turn on 🤖 Auto, or ⏩ Skip to play the fight out at once. The server
+// decides everything; this plays back what happened (move names, dialogue, HP) and animates.
+import { formatMoney, type BattleEvent, type DungeonLoot, type DungeonRun, type DungeonView, type Fighter } from '@kh/shared';
 import type { App } from '../../app';
+import { drawPet } from '../../items/petArt';
+import { battleMusic } from '../battleMusic';
 import { el, toast } from '../dom';
 import { openPanel } from '../panel';
+import { openPetsPanel } from '../pets/petsPanel';
 import { sfx } from '../sound';
 import { blitEnemy, drawCave } from './dungeonArt';
 
-type Phase = 'strike' | 'block' | 'waiting' | 'result';
-
+type Act = 'attack' | 'charge' | 'ultimate' | 'auto';
 interface Floater {
   text: string;
   x: number;
@@ -21,41 +21,56 @@ interface Floater {
   born: number;
   big?: boolean;
 }
+interface Disp {
+  team: Fighter[];
+  active: number;
+  enemy: Fighter;
+}
+type LogLine = { text: string; cls: string };
 
-const GRADE_TEXT: Record<HitGrade, string> = { perfect: 'PERFECT!', great: 'Great', good: 'Good', miss: 'Miss' };
-const GRADE_COLOR: Record<HitGrade, string> = { perfect: '#ffd43b', great: '#69db7c', good: '#a5d8ff', miss: '#adb5bd' };
+/** Playback speed per event (ms): normal, Auto, Skip. */
+const PACE = { normal: 750, auto: 330, skip: 90 };
 
 export function openDungeon(app: App) {
   const dc = app.cfg.dungeon;
+  const pc = app.cfg.pets;
   const panel = openPanel(`⚔️ ${dc.name}`, { wide: true, testId: 'dungeon-panel', cls: 'dungeon-panel' });
   const lootBox = panel.side('🎒 This run');
+  battleMusic.warm();
   let view: DungeonView | null = null;
   let busy = false;
+  let auto = false;
 
   // ---------------------------------------------------------------- fight state (client side)
+  const petSprite = document.createElement('canvas');
   const canvas = el('canvas', { class: 'dungeon-canvas', 'data-testid': 'dungeon-canvas' }) as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
-  const action = el('button', { class: 'btn primary dungeon-action', type: 'button', 'data-action': 'dungeon-action' }) as HTMLButtonElement;
-  const flee = el('button', { class: 'btn small', type: 'button', 'data-action': 'dungeon-flee' }, '🏃 Flee (keep half)');
-  const hint = el('div', { class: 'muted small dungeon-hint' });
-  let phase: Phase = 'waiting';
-  let turn: DungeonTurn | null = null;
-  let t0 = 0; // performance.now() when the turn appeared
-  let strikeMs: number | null = null;
-  let blockMs: number | null = null;
-  let blockTimer = 0;
-  let strikeTimer = 0;
+  const logBox = el('div', { class: 'battle-log', 'data-testid': 'battle-log', 'aria-live': 'polite' });
+  const btnAtk = el('button', { class: 'btn battle-btn atk', type: 'button', 'data-action': 'battle-attack' }) as HTMLButtonElement;
+  const btnCharge = el('button', { class: 'btn battle-btn charge', type: 'button', 'data-action': 'battle-charge' }) as HTMLButtonElement;
+  const btnUlt = el('button', { class: 'btn battle-btn ult', type: 'button', 'data-action': 'battle-ultimate' }) as HTMLButtonElement;
+  const btnAuto = el('button', { class: 'btn small battle-auto', type: 'button', 'data-action': 'battle-auto' }) as HTMLButtonElement;
+  const btnSkip = el('button', { class: 'btn small', type: 'button', 'data-action': 'battle-skip', title: 'Play the whole fight out on Auto, fast' }, '⏩ Skip fight') as HTMLButtonElement;
+  const btnFlee = el('button', { class: 'btn small', type: 'button', 'data-action': 'dungeon-flee' }, '🏃 Flee (keep half)') as HTMLButtonElement;
+  const actions = el('div', { class: 'battle-actions' }, btnAtk, btnCharge, btnUlt);
+  const tools = el('div', { class: 'dungeon-controls' }, btnAuto, btnSkip, btnFlee);
+  let disp: Disp | null = null;
+  let log: LogLine[] = [];
   let floaters: Floater[] = [];
-  let hurtAt = -1e9; // when the enemy was last hit
-  let youHurtAt = -1e9;
-  let shownHp = { you: 0, enemy: 0 };
+  const hurtAt = { pet: -1e9, enemy: -1e9 };
+  const lungeAt = { pet: -1e9, enemy: -1e9 };
+  const chargeAt = { pet: -1e9, enemy: -1e9 };
+  let banner: { text: string; side: 'pet' | 'enemy'; born: number } | null = null;
+  const shownHp = { pet: 0, enemy: 0 };
+  let playing = false;
   let raf = 0;
   let W = 640, H = 300;
+  let closed = false;
 
   const sizeCanvas = () => {
     const dpr = Math.min(2, devicePixelRatio || 1);
     W = Math.max(280, Math.min(720, panel.body.clientWidth - 30));
-    H = Math.round(Math.min(320, Math.max(220, W * 0.46)));
+    H = Math.round(Math.min(300, Math.max(210, W * 0.44)));
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
@@ -64,171 +79,252 @@ export function openDungeon(app: App) {
   };
 
   const run = (): DungeonRun | null => view?.run ?? null;
+  const copyDisp = (r: DungeonRun): Disp => ({ team: r.team.map((f) => ({ ...f })), active: r.active, enemy: { ...r.enemy } });
+  const shapeOf = (f: Fighter) => app.items.get(f.id)?.shape ?? 'kucing';
+  const itemOf = (f: Fighter) => app.store.inventory.find((i) => i.iid === f.iid);
+  const cryOf = (f: Fighter) => pc.species[f.id]?.cry ?? '!';
+  const petX = () => W * 0.24, enemyX = () => W * 0.74, groundY = () => H * 0.8;
 
+  function say(text: string, cls = '') {
+    log.push({ text, cls });
+    if (log.length > 60) log = log.slice(-60);
+    logBox.replaceChildren(...log.slice(-30).map((l) => el('div', { class: `battle-line ${l.cls}` }, l.text)));
+    logBox.scrollTop = logBox.scrollHeight;
+  }
   function float(text: string, x: number, y: number, color: string, big = false) {
     floaters.push({ text, x, y, color, born: performance.now(), big });
   }
 
-  function startTurn() {
-    const r = run();
-    if (!r || r.phase !== 'fight' || !r.turn) return;
-    turn = r.turn;
-    t0 = performance.now();
-    strikeMs = null;
-    blockMs = null;
-    phase = 'strike';
-    clearTimeout(strikeTimer);
-    clearTimeout(blockTimer);
-    // No tap in time: the strike misses, on to the block.
-    strikeTimer = window.setTimeout(() => phase === 'strike' && doStrike(true), dc.strike.timeoutMs);
-    paintControls();
+  // ---------------------------------------------------------------- playback
+  const wait = (ms: number) => new Promise<void>((res) => window.setTimeout(res, ms));
+
+  /** Shows one event: the log line, the numbers, the animation. */
+  function apply(e: BattleEvent, pace: number) {
+    if (!disp) return;
+    const now = performance.now();
+    const pet = disp.team[disp.active];
+    const isPet = e.side === 'pet';
+    const who = isPet ? 'pet' : 'enemy';
+    const other = isPet ? 'enemy' : 'pet';
+    const tx = isPet ? enemyX() : petX();
+    switch (e.kind) {
+      case 'say':
+        say(`💬 ${e.name}: “${e.text}”`, 'say');
+        break;
+      case 'act': {
+        const me = isPet ? pet : disp.enemy;
+        if (e.points !== undefined) me.points = e.points;
+        if (e.action === 'charge') {
+          chargeAt[who] = now;
+          say(`⚡ ${e.name} charges up! (${e.points} pts, guarding)`, `${who} charge`);
+          if (pace > 150) sfx.whoosh();
+          break;
+        }
+        lungeAt[who] = now;
+        if (e.action === 'ultimate') {
+          banner = { text: `🌟 ${e.move}!`, side: e.side, born: now };
+          say(`🌟 ${e.name} unleashes ${e.move}!!`, `${who} ult`);
+          if (pace > 150) sfx.reveal(4);
+        } else {
+          say(`${isPet ? '⚔️' : '💢'} ${e.name} used ${e.move}!`, who);
+        }
+        if (e.dmg !== undefined) {
+          hurtAt[other] = now + 120;
+          const target = isPet ? disp.enemy : pet;
+          if (e.targetHp !== undefined) target.hp = e.targetHp;
+          float(`${e.crit ? '💥 ' : ''}-${e.dmg}`, tx, groundY() - H * 0.42, e.crit ? '#ffd43b' : isPet ? '#fff' : '#ff8787', e.crit || e.action === 'ultimate');
+          const extra = [e.crit ? 'Critical hit!' : '', e.guarded ? 'Guarded by the charge.' : ''].filter(Boolean).join(' ');
+          say(`   → ${e.dmg} damage.${extra ? ` ${extra}` : ''}`, `${who} dmg`);
+          if (pace > 150) (isPet ? sfx.click : sfx.error)();
+        }
+        break;
+      }
+      case 'faint':
+        say(`💫 ${e.name} fainted!`, e.side === 'pet' ? 'bad' : 'good');
+        if (e.side === 'pet') pet.hp = 0;
+        else disp.enemy.hp = 0;
+        break;
+      case 'switch': {
+        disp.active = e.index ?? disp.active;
+        const f = disp.team[disp.active];
+        shownHp.pet = f.hp;
+        say(`🐾 Go, ${f.name}! “${cryOf(f)}”`, 'pet');
+        break;
+      }
+      case 'win':
+        say(`🏆 ${disp.enemy.name} is beaten!`, 'good');
+        sfx.reveal(disp.enemy.boss ? 5 : 2);
+        break;
+      case 'lose':
+        say(`💀 Your whole team is down…`, 'bad');
+        break;
+      case 'flee':
+        say(`💨 ${e.text}`, 'muted');
+        break;
+    }
   }
 
-  function doStrike(timedOut = false) {
-    if (phase !== 'strike' || !turn) return;
-    clearTimeout(strikeTimer);
-    strikeMs = timedOut ? null : performance.now() - t0;
-    const g = gradeStrike(dc, turn, strikeMs);
-    sfx[g === 'miss' ? 'error' : 'click']();
-    const r = run()!;
-    const dealt = Math.max(g === 'miss' ? 0 : 1, Math.round(r.atk * dc.strike.mult[g]));
-    // If that finishes it off, there's no swing to block: send now.
-    if (dealt >= r.enemy.hp) return send();
-    phase = 'block';
-    const lands = hitLandsAt(dc, turn, strikeMs ?? dc.strike.timeoutMs);
-    blockTimer = window.setTimeout(() => phase === 'block' && send(), Math.max(0, lands + dc.block.windowMs.good + 150 - (performance.now() - t0)));
+  async function playback(events: BattleEvent[], pace: number) {
+    playing = true;
     paintControls();
+    for (const e of events) {
+      if (closed) return;
+      apply(e, pace);
+      await wait(e.kind === 'say' ? pace * 0.8 : e.kind === 'act' && e.action === 'ultimate' ? pace * 1.4 : pace);
+    }
+    playing = false;
   }
 
-  function doBlock() {
-    if (phase !== 'block') return;
-    blockMs = performance.now() - t0;
-    clearTimeout(blockTimer);
-    send();
-  }
-
-  function send() {
-    if (!turn || !app.socket) return;
-    phase = 'waiting';
+  function act(a: Act, skip = false) {
+    if (busy || playing || !app.socket || run()?.phase !== 'fight') return;
+    busy = true;
     paintControls();
-    const nonce = turn.nonce;
-    app.socket.timeout(8000).emit('dungeon:turn', { nonce, strikeMs: strikeMs === null ? null : Math.round(strikeMs), blockMs: blockMs === null ? null : Math.round(blockMs) }, (err, res) => {
+    app.socket.timeout(8000).emit('dungeon:act', { action: a, skip }, async (err, res) => {
+      busy = false;
       if (err || !res.ok) {
         toast(err ? 'No reply from the server.' : res.ok ? '' : res.error, 'bad');
         return load();
       }
-      showResult(res.result, res.view, res.paid);
+      await playback(res.events, skip ? PACE.skip : auto ? PACE.auto : PACE.normal);
+      if (closed) return;
+      const was = view?.run?.floor;
+      view = res.view;
+      for (const u of res.levelUps) {
+        sfx.levelUp();
+        toast(`⬆️ ${u.name} reached level ${u.level}!`, 'good', 3500);
+      }
+      if (res.paid) showPaid(res.paid, true);
+      const r = view.run;
+      if (r && r.phase === 'fight' && r.floor === was) {
+        disp = copyDisp(r);
+        paintLoot();
+        paintControls();
+        if (auto) window.setTimeout(() => auto && act('auto'), 120);
+      } else render();
     });
   }
 
-  function showResult(r: TurnResult, v: DungeonView, paid: DungeonLoot | null) {
-    view = v;
-    phase = 'result';
-    const now = performance.now();
-    const ex = W * 0.7, ey = H * 0.42;
-    float(r.dealt ? `${r.crit ? '💥 ' : ''}-${r.dealt}` : 'Miss', ex, ey, r.crit ? '#ffd43b' : '#fff', r.crit);
-    float(GRADE_TEXT[r.strike], ex, ey - 30, GRADE_COLOR[r.strike]);
-    if (r.dealt) hurtAt = now;
-    if (r.block) {
-      float(r.parried ? '🛡️ PARRY!' : r.taken ? `-${r.taken}` : 'Blocked', W * 0.2, H * 0.45, r.parried ? '#ffd43b' : '#ff8787', r.parried);
-      if (r.taken) youHurtAt = now;
-      if (r.taken) sfx.error();
-    }
-    if (r.crit) sfx.coin();
-    if (r.killed) {
-      sfx.reveal(run()?.enemy.boss ? 4 : 2);
-      float(`+${formatMoney(r.floorLoot!.sen)}`, ex, ey - 64, '#8ce99a', true);
-    }
-    if (r.dead && paid) toast(`💀 You fell on floor ${v.run?.floor}. You kept half the loot: ${formatMoney(paid.sen)}${paid.shards ? ` · ${paid.shards} 💎` : ''}.`, 'bad', 5000);
-    paintLoot();
-    window.setTimeout(() => {
-      if (v.run?.phase === 'fight') startTurn();
-      else render();
-    }, r.killed || r.dead ? 1100 : 750);
+  function showPaid(paid: DungeonLoot, fell: boolean) {
+    if (!paid.sen && !paid.shards) return;
+    sfx.coin();
+    toast(`${fell ? '💀 Your team fell. You kept half: ' : '💰 '}+${formatMoney(paid.sen)}${paid.shards ? ` · +${paid.shards} 💎` : ''} · +${paid.xp} XP from ${dc.name}`, fell ? 'bad' : 'good', 4500);
   }
 
   // ---------------------------------------------------------------- drawing
+  function bar(x: number, y: number, w: number, cur: number, max: number, label: string, color: string, points: number, alignRight: boolean) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, 14);
+    const k = Math.max(0, Math.min(1, cur / max));
+    ctx.fillStyle = k < 0.25 ? '#fa5252' : color;
+    ctx.fillRect(x + 2, y + 2, (w - 4) * k, 10);
+    ctx.font = '800 12px system-ui, sans-serif';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = alignRight ? 'right' : 'left';
+    ctx.fillText(label, alignRight ? x + w : x, y - 2);
+    ctx.textAlign = alignRight ? 'left' : 'right';
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.fillText(`${Math.max(0, Math.round(cur))}/${max}`, alignRight ? x : x + w, y - 2);
+    // Points pips (the ultimate needs ultimateCost).
+    const n = Math.max(pc.battle.ultimateCost, Math.min(points, 12));
+    for (let i = 0; i < n; i++) {
+      const px = alignRight ? x + w - 6 - i * 13 : x + 6 + i * 13;
+      ctx.beginPath();
+      ctx.arc(px, y + 22, 5, 0, Math.PI * 2);
+      ctx.fillStyle = i < points ? (points >= pc.battle.ultimateCost ? '#ffd43b' : '#74c0fc') : 'rgba(255,255,255,0.18)';
+      ctx.fill();
+    }
+  }
+
   function frame() {
     raf = requestAnimationFrame(frame);
     const r = run();
-    if (!r) return;
+    if (!r || !disp) return;
     const now = performance.now();
-    const t = now - t0;
     drawCave(ctx, W, H, r.floor, now);
-    // HP bars ease towards the real values.
-    shownHp.you += (r.hp - shownHp.you) * 0.15;
-    shownHp.enemy += (r.enemy.hp - shownHp.enemy) * 0.15;
-    // You (left): a hustler with a rolled-up newspaper.
-    const youShake = Math.max(0, 1 - (now - youHurtAt) / 300);
-    ctx.save();
-    ctx.translate(W * 0.2 + Math.sin(now / 20) * 4 * youShake, H * 0.82);
-    ctx.font = `${Math.round(H * 0.28)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('🧍', 0, 0);
-    ctx.font = `${Math.round(H * 0.14)}px system-ui, sans-serif`;
-    ctx.fillText(phase === 'block' ? '🛡️' : '🗞️', H * 0.12, -H * 0.1);
-    ctx.restore();
-    // The enemy (right).
-    const wind = phase === 'block' && turn && strikeMs !== null
-      ? (() => {
-          const start = strikeMs + dc.block.gapMs, lands = hitLandsAt(dc, turn, strikeMs);
-          return t < start ? 0 : t < lands ? (t - start) / (lands - start) : Math.max(0, 1 - (t - lands) / 150);
-        })()
-      : 0;
-    const size = H * (r.enemy.boss ? 0.62 : 0.5);
-    blitEnemy(ctx, r.enemy.id, W * 0.7, H * 0.84, size, now, wind, Math.max(0, 1 - (now - hurtAt) / 220));
-    // HP bars
-    const bar = (x: number, y: number, w: number, cur: number, max: number, label: string, color: string) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(x, y, w, 14);
-      ctx.fillStyle = color;
-      ctx.fillRect(x + 2, y + 2, Math.max(0, (w - 4) * (cur / max)), 10);
-      ctx.font = '800 12px system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(label, x, y - 2);
-      ctx.textAlign = 'right';
-      ctx.fillText(`${Math.max(0, Math.round(cur))} / ${max}`, x + w, y - 2);
+    const pet = disp.team[disp.active];
+    shownHp.pet += (pet.hp - shownHp.pet) * 0.15;
+    shownHp.enemy += (disp.enemy.hp - shownHp.enemy) * 0.15;
+    const lunge = (side: 'pet' | 'enemy') => {
+      const k = (now - lungeAt[side]) / 260;
+      return k < 0 || k > 1 ? 0 : Math.sin(k * Math.PI);
     };
-    bar(12, 26, W * 0.36, shownHp.you, r.maxHp, 'You', '#51cf66');
-    bar(W - 12 - W * 0.42, 26, W * 0.42, shownHp.enemy, r.enemy.maxHp, `${r.enemy.boss ? 'BOSS · ' : ''}${r.enemy.name}`, r.enemy.boss ? '#f03e3e' : '#ff922b');
-    // The strike bar (bottom).
-    if (turn && (phase === 'strike' || phase === 'block' || phase === 'waiting')) {
-      const bx = W * 0.1, bw = W * 0.8, by = H - 24, bh = 14;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(bx - 3, by - 3, bw + 6, bh + 6);
-      const z = dc.strike.zone;
-      const band = (half: number, color: string) => {
-        ctx.fillStyle = color;
-        ctx.fillRect(bx + (turn!.zone - half) * bw, by, half * 2 * bw, bh);
-      };
-      band(z.good, '#1971c2');
-      band(z.great, '#2f9e44');
-      band(z.perfect, '#f59f00');
-      const m = markerAt(turn.sweepMs, phase === 'strike' ? t : strikeMs ?? dc.strike.timeoutMs);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(bx + m * bw - 2, by - 6, 4, bh + 12);
-    }
-    // The block ring: closes on you, tap as it touches.
-    if (phase === 'block' && turn && strikeMs !== null) {
-      const lands = hitLandsAt(dc, turn, strikeMs);
-      const start = strikeMs + dc.block.gapMs;
-      if (t >= start) {
-        const k = Math.max(0, (lands - t) / (lands - start));
-        const cx = W * 0.2, cy = H * 0.62, r0 = H * 0.12;
+    const hurt = (side: 'pet' | 'enemy') => Math.max(0, 1 - Math.abs(now - hurtAt[side]) / 220);
+    // Charge aura
+    for (const side of ['pet', 'enemy'] as const) {
+      const k = (now - chargeAt[side]) / 700;
+      if (k >= 0 && k < 1) {
         ctx.beginPath();
-        ctx.arc(cx, cy, r0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(cx, cy, r0 + k * H * 0.45, 0, Math.PI * 2);
-        ctx.strokeStyle = k < 0.12 ? '#ffd43b' : '#ff6b6b';
-        ctx.lineWidth = 5;
+        ctx.arc(side === 'pet' ? petX() : enemyX(), groundY() - H * 0.18, H * (0.12 + k * 0.18), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(116,192,252,${1 - k})`;
+        ctx.lineWidth = 6;
         ctx.stroke();
       }
+    }
+    // Your pet (left, facing right).
+    if (pet.hp > 0 || now - hurtAt.pet < 600) {
+      const s = H / 78;
+      const def = app.items.get(pet.id);
+      // Drawn on its own little canvas so a hit can tint just the pet.
+      const sw = Math.ceil(44 * s), sh = Math.ceil(40 * s);
+      if (petSprite.width !== sw || petSprite.height !== sh) {
+        petSprite.width = sw;
+        petSprite.height = sh;
+      }
+      const pctx = petSprite.getContext('2d')!;
+      pctx.setTransform(1, 0, 0, 1, 0, 0);
+      pctx.clearRect(0, 0, sw, sh);
+      pctx.setTransform(s, 0, 0, s, sw / 2, sh - 16.5 * s); // feet (y 14.5) 2 units off the bottom
+      drawPet(pctx, shapeOf(pet), now, def?.color, def?.color2);
+      if (hurt('pet') > 0) {
+        pctx.setTransform(1, 0, 0, 1, 0, 0);
+        pctx.globalCompositeOperation = 'source-atop';
+        pctx.fillStyle = `rgba(255,80,80,${0.55 * hurt('pet')})`;
+        pctx.fillRect(0, 0, sw, sh);
+        pctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.save();
+      if (pet.hp <= 0) ctx.globalAlpha = 0.4;
+      const px = petX() + lunge('pet') * W * 0.18 + Math.sin(now / 25) * 5 * hurt('pet');
+      ctx.drawImage(petSprite, px - sw / 2, groundY() + 2 * s - sh, sw, sh);
+      ctx.restore();
+      const it = itemOf(pet);
+      if (it && it.variant !== 'normal') {
+        ctx.font = '700 14px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✨', px - sw * 0.4, groundY() - sh * 0.8);
+      }
+    }
+    // The enemy (right).
+    const size = H * (disp.enemy.boss ? 0.6 : 0.48);
+    if (disp.enemy.hp > 0 || now - hurtAt.enemy < 700) {
+      ctx.save();
+      if (disp.enemy.hp <= 0) ctx.globalAlpha = Math.max(0, 1 - (now - hurtAt.enemy) / 700);
+      blitEnemy(ctx, disp.enemy.id, enemyX() - lunge('enemy') * W * 0.18, groundY() + H * 0.04, size, now, lunge('enemy'), hurt('enemy'));
+      ctx.restore();
+    }
+    // HP bars + points
+    bar(12, 24, W * 0.4, shownHp.pet, pet.maxHp, `${pet.name}`, '#51cf66', pet.points, false);
+    bar(W - 12 - W * 0.42, 24, W * 0.42, shownHp.enemy, disp.enemy.maxHp, `${disp.enemy.boss ? 'BOSS · ' : ''}${disp.enemy.name}`, disp.enemy.boss ? '#f03e3e' : '#ff922b', disp.enemy.points, true);
+    // Team dots (bottom left): who's still standing.
+    disp.team.forEach((f, i) => {
+      ctx.beginPath();
+      ctx.arc(18 + i * 18, H - 14, 6, 0, Math.PI * 2);
+      ctx.fillStyle = f.hp <= 0 ? '#495057' : i === disp!.active ? '#69db7c' : '#a5d8ff';
+      ctx.fill();
+    });
+    // Move banner (an ultimate)
+    if (banner && now - banner.born < 1300) {
+      const k = (now - banner.born) / 1300;
+      ctx.globalAlpha = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1;
+      ctx.fillStyle = banner.side === 'pet' ? 'rgba(25,113,194,0.85)' : 'rgba(201,42,42,0.85)';
+      ctx.fillRect(0, H * 0.42, W, 40);
+      ctx.font = `900 ${Math.round(Math.min(26, W / 18))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(banner.text, W / 2 + (banner.side === 'pet' ? -1 : 1) * (1 - Math.min(1, k * 5)) * W * 0.4, H * 0.42 + 20);
+      ctx.globalAlpha = 1;
     }
     // Floating numbers
     floaters = floaters.filter((f) => now - f.born < 1100);
@@ -245,31 +341,34 @@ export function openDungeon(app: App) {
       ctx.fillText(f.text, f.x, f.y - k * 40);
       ctx.globalAlpha = 1;
     }
-    // Floor label
-    ctx.font = '900 14px system-ui, sans-serif';
+    ctx.font = '900 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = r.enemy.boss ? '#ff8787' : '#ced4da';
-    ctx.fillText(`Floor ${r.floor}${r.enemy.boss ? ' · BOSS' : ''}`, W / 2, 6);
+    ctx.fillStyle = disp.enemy.boss ? '#ff8787' : '#ced4da';
+    ctx.fillText(`Floor ${r.floor}${disp.enemy.boss ? ' · BOSS' : ''}`, W / 2, 4);
   }
 
   // ---------------------------------------------------------------- controls & screens
   function paintControls() {
-    action.disabled = phase === 'waiting' || phase === 'result';
-    action.classList.toggle('block', phase === 'block');
-    action.textContent = phase === 'strike' ? '⚔️ STRIKE' : phase === 'block' ? '🛡️ BLOCK!' : '…';
-    hint.textContent = phase === 'strike'
-      ? 'Tap STRIKE (or Space) when the white marker is in the middle of the zone. Gold = critical hit.'
-      : phase === 'block'
-      ? 'The enemy swings: tap BLOCK (or Space) the moment the red ring touches the white one. Perfect = parry.'
-      : '';
+    const r = run();
+    const me = disp?.team[disp.active];
+    const lock = busy || playing || auto || r?.phase !== 'fight';
+    btnAtk.disabled = lock;
+    btnCharge.disabled = lock;
+    btnUlt.disabled = lock || !me || me.points < pc.battle.ultimateCost;
+    btnSkip.disabled = busy || playing || r?.phase !== 'fight';
+    btnFlee.disabled = busy || playing;
+    btnAtk.replaceChildren(el('b', {}, `⚔️ ${me?.move ?? 'Attack'}`), el('small', {}, `Attack · +${pc.battle.attackPoints} pt`));
+    btnCharge.replaceChildren(el('b', {}, '⚡ Charge'), el('small', {}, `+${pc.battle.chargePoints} pts · halves damage`));
+    btnUlt.replaceChildren(el('b', {}, `🌟 ${me?.ultimate ?? 'Ultimate'}`), el('small', {}, `Ultimate · ${me?.points ?? 0}/${pc.battle.ultimateCost} pts`));
+    btnAuto.textContent = auto ? '🤖 Auto: ON' : '🤖 Auto: off';
+    btnAuto.classList.toggle('primary', auto);
   }
 
   function paintLoot() {
     const r = run();
-    const best = view?.best ?? 0;
     const parts: HTMLElement[] = [
-      el('div', { class: 'dungeon-stat' }, el('span', {}, '🏆 Best floor'), el('b', {}, String(best))),
+      el('div', { class: 'dungeon-stat' }, el('span', {}, '🏆 Best floor'), el('b', {}, String(view?.best ?? 0))),
       el('div', { class: 'dungeon-stat' }, el('span', {}, '🎟️ Runs left today'), el('b', {}, `${view?.runsLeft ?? 0} / ${dc.runsPerDay}`)),
     ];
     if (r) {
@@ -278,7 +377,10 @@ export function openDungeon(app: App) {
         el('div', { class: 'dungeon-stat' }, el('span', {}, '💰 Money'), el('b', {}, formatMoney(r.loot.sen))),
         el('div', { class: 'dungeon-stat' }, el('span', {}, '💎 Shards'), el('b', {}, String(r.loot.shards))),
         el('div', { class: 'dungeon-stat' }, el('span', {}, '⭐ XP'), el('b', {}, String(r.loot.xp))),
-        el('div', { class: 'muted small' }, r.phase === 'dead' ? 'You fell: half of this was kept.' : `If you fall or flee: you keep half (${formatMoney(Math.floor(r.loot.sen * dc.deathKeep))}). Cash out between floors to keep it all.`),
+        el('div', { class: 'dungeon-stat' }, el('span', {}, '🐾 Pet XP'), el('b', {}, String(r.loot.petXp))),
+        el('h5', { class: 'worn-section' }, 'Team'),
+        ...(disp ?? copyDisp(r)).team.map((f) => el('div', { class: 'dungeon-stat' }, el('span', {}, `${f.hp <= 0 ? '💫' : '🐾'} ${f.name}`), el('b', {}, `${f.hp}/${f.maxHp}`))),
+        el('div', { class: 'muted small' }, r.phase === 'dead' ? 'Your team fell: half of this was kept.' : `Fall or flee and you keep half (${formatMoney(Math.floor(r.loot.sen * dc.deathKeep))}). Cash out between floors to keep it all.`),
       );
     }
     lootBox.replaceChildren(...parts);
@@ -288,39 +390,65 @@ export function openDungeon(app: App) {
     const v = view!;
     const enter = el('button', { class: 'btn primary dungeon-enter', type: 'button', 'data-action': 'dungeon-enter', disabled: !v.runsLeft }, v.runsLeft ? `⚔️ Enter the cave (${v.runsLeft} left today)` : '🌙 No runs left today');
     enter.addEventListener('click', () => call('dungeon:enter'));
+    const teman = el('button', { class: 'btn', type: 'button', 'data-action': 'dungeon-pets' }, '🐾 My Teman (team, training, gear)');
+    teman.addEventListener('click', () => openPetsPanel(app));
+    const b = pc.battle;
     return [
-      el('p', {}, 'A cave under Kota Damansara, full of pests and spirits. One enemy per floor, a boss every ' + dc.bossEvery + ' floors. The deeper you go, the better the loot.'),
+      el('p', {}, `A cave under Kota Damansara, full of pests and spirits. Your 🐾 Teman fight for you: one enemy per floor, a boss every ${dc.bossEvery} floors. The deeper you go, the better the loot.`),
       el('ol', { class: 'dungeon-how' },
-        el('li', {}, '⚔️ Strike: tap when the white marker is in the zone (gold middle = critical hit).'),
-        el('li', {}, '🛡️ Block: the enemy winds up; tap as the red ring meets the white one (perfect = parry, no damage).'),
-        el('li', {}, '⬇️ After each floor: go deeper (you heal a little) or 💰 cash out with everything.'),
+        el('li', {}, `⚔️ Attack: your Teman's own move. Builds ${b.attackPoints} point.`),
+        el('li', {}, `⚡ Charge: builds ${b.chargePoints} points and halves the damage you take that round.`),
+        el('li', {}, `🌟 Ultimate: costs ${b.ultimateCost} points, hits about ${b.ultimatePower}× as hard.`),
+        el('li', {}, '🤖 Auto picks for you; ⏩ Skip plays the whole fight out in a flash. The faster one acts first.'),
+        el('li', {}, `🐾 Up to ${b.teamSize} Teman: when one faints the next comes out. After each floor: go deeper (they heal ${Math.round(dc.healPerFloor * 100)}%) or 💰 cash out.`),
         el('li', {}, `💀 Fall or flee and you keep half the loot. ${dc.runsPerDay} runs a day.`),
       ),
-      el('p', { class: 'muted small' }, 'Loot grows with your wealth stage and the floor; bosses also drop 💎 shards. Your HP and attack grow with your level.'),
-      enter,
+      el('p', { class: 'muted small' }, 'Every floor cleared gives your team pet XP. Train, upgrade and kit them out in 📱 Teman.'),
+      el('div', { class: 'dungeon-controls' }, enter, teman),
     ];
+  }
+
+  function music() {
+    const r = run();
+    battleMusic.play(r && r.phase !== 'dead' ? (r.enemy.boss ? 'boss' : 'fight') : null);
+  }
+
+  function startFloor(r: DungeonRun) {
+    disp = copyDisp(r);
+    shownHp.pet = disp.team[disp.active].hp;
+    shownHp.enemy = disp.enemy.hp;
+    floaters = [];
+    banner = null;
+    log = [];
+    say(`— Floor ${r.floor}${r.enemy.boss ? ' · BOSS' : ''} —`, 'muted');
+    say(`${r.enemy.boss ? '👹' : '👾'} ${r.enemy.name} appears! ${r.enemyLine}`, 'enemy');
+    const me = disp.team[disp.active];
+    say(`🐾 Go, ${me.name}! “${cryOf(me)}”`, 'pet');
   }
 
   function render() {
     cancelAnimationFrame(raf);
-    clearTimeout(strikeTimer);
-    clearTimeout(blockTimer);
     paintLoot();
+    music();
     if (!view) return void panel.body.replaceChildren(el('p', { class: 'muted' }, 'Loading…'));
     const r = view.run;
-    if (!r) return void panel.body.replaceChildren(...lobby());
+    if (!r) {
+      disp = null;
+      return void panel.body.replaceChildren(...lobby());
+    }
     if (r.phase === 'fight') {
-      panel.body.replaceChildren(canvas, el('div', { class: 'dungeon-controls' }, action, flee), hint);
+      if (!disp || r.round === 0) startFloor(r);
+      panel.body.replaceChildren(canvas, actions, logBox, tools);
       sizeCanvas();
-      shownHp = { you: r.hp, enemy: r.enemy.hp };
       raf = requestAnimationFrame(frame);
-      startTurn();
+      paintControls();
+      if (auto) window.setTimeout(() => auto && act('auto'), 400);
       return;
     }
-    // Between floors, or fallen: one still frame of the cave and the choice.
+    // Between floors, or fallen: the last frame of the fight, the log and the choice.
+    disp = copyDisp(r);
     panel.body.replaceChildren(canvas);
     sizeCanvas();
-    shownHp = { you: r.hp, enemy: 0 };
     raf = requestAnimationFrame(frame);
     if (r.phase === 'cleared') {
       const nextBoss = (r.floor + 1) % dc.bossEvery === 0;
@@ -328,11 +456,19 @@ export function openDungeon(app: App) {
       deeper.addEventListener('click', () => call('dungeon:deeper'));
       const cash = el('button', { class: 'btn', type: 'button', 'data-action': 'dungeon-cashout' }, `💰 Cash out ${formatMoney(r.loot.sen)}${r.loot.shards ? ` + ${r.loot.shards} 💎` : ''}`);
       cash.addEventListener('click', () => leave());
-      panel.body.append(el('div', { class: 'dungeon-cleared' }, el('h4', {}, `✅ Floor ${r.floor} cleared!`), el('div', { class: 'muted' }, `HP ${r.hp} / ${r.maxHp} (you'll heal ${Math.round(dc.healPerFloor * 100)}% on the way down)`), el('div', { class: 'dungeon-controls' }, deeper, cash)));
+      const standing = r.team.filter((f) => f.hp > 0).length;
+      panel.body.append(
+        el('div', { class: 'dungeon-cleared' },
+          el('h4', {}, `✅ Floor ${r.floor} cleared!`),
+          el('div', { class: 'muted' }, `${standing}/${r.team.length} Teman standing · they heal ${Math.round(dc.healPerFloor * 100)}% on the way down`),
+          el('div', { class: 'dungeon-controls' }, deeper, cash)),
+        logBox,
+      );
     } else {
       const ok = el('button', { class: 'btn primary', type: 'button', 'data-action': 'dungeon-ok' }, 'Back to the entrance');
       ok.addEventListener('click', () => leave());
-      panel.body.append(el('div', { class: 'dungeon-cleared' }, el('h4', {}, `💀 You fell on floor ${r.floor}`), el('div', { class: 'muted' }, `Half the loot was kept: ${formatMoney(Math.floor(r.loot.sen * dc.deathKeep))}.`), ok));
+      panel.body.append(el('div', { class: 'dungeon-cleared' }, el('h4', {}, `💀 Your team fell on floor ${r.floor}`), el('div', { class: 'muted' }, `Half the loot was kept: ${formatMoney(Math.floor(r.loot.sen * dc.deathKeep))}.`), ok), logBox);
+      auto = false;
     }
   }
 
@@ -341,9 +477,15 @@ export function openDungeon(app: App) {
     busy = true;
     app.socket.timeout(6000).emit(ev, (err, res) => {
       busy = false;
-      if (err || !res.ok) return void toast(err ? 'No reply from the server.' : res.ok ? '' : res.error, 'bad');
+      if (err || !res.ok) {
+        auto = false;
+        return void toast(err ? 'No reply from the server.' : res.ok ? '' : res.error, 'bad');
+      }
       view = res.view;
-      if (ev === 'dungeon:enter') sfx.click();
+      if (ev !== 'dungeon:view') {
+        sfx.click();
+        disp = null;
+      }
       render();
     });
   }
@@ -351,41 +493,46 @@ export function openDungeon(app: App) {
   function leave() {
     if (busy || !app.socket) return;
     busy = true;
+    auto = false;
     app.socket.timeout(6000).emit('dungeon:leave', (err, res) => {
       busy = false;
       if (err || !res.ok) return void toast(err ? 'No reply from the server.' : res.ok ? '' : res.error, 'bad');
-      if (res.paid.sen || res.paid.shards) {
-        sfx.coin();
-        toast(`💰 +${formatMoney(res.paid.sen)}${res.paid.shards ? ` · +${res.paid.shards} 💎` : ''} · +${res.paid.xp} XP from ${dc.name}`, 'good', 4000);
-      }
+      showPaid(res.paid, false);
       view = res.view;
+      disp = null;
       render();
     });
   }
   const load = () => call('dungeon:view');
 
-  action.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    if (phase === 'strike') doStrike();
-    else if (phase === 'block') doBlock();
+  btnAtk.addEventListener('click', () => act('attack'));
+  btnCharge.addEventListener('click', () => act('charge'));
+  btnUlt.addEventListener('click', () => act('ultimate'));
+  btnSkip.addEventListener('click', () => act('auto', true));
+  btnAuto.addEventListener('click', () => {
+    auto = !auto;
+    paintControls();
+    if (auto && !busy && !playing) act('auto');
   });
-  flee.addEventListener('click', () => {
+  btnFlee.addEventListener('click', () => {
     if (confirm('Run away? You keep half of the loot from this run.')) leave();
   });
   const onKey = (e: KeyboardEvent) => {
-    if (e.code !== 'Space' || panel.root.classList.contains('panel-hidden')) return;
-    const r = run();
-    if (!r || r.phase !== 'fight') return;
-    e.preventDefault();
-    if (phase === 'strike') doStrike();
-    else if (phase === 'block') doBlock();
+    if (panel.root.classList.contains('panel-hidden') || run()?.phase !== 'fight') return;
+    const k = { Digit1: 'attack', Digit2: 'charge', Digit3: 'ultimate' }[e.code] as Act | undefined;
+    if (k) {
+      e.preventDefault();
+      act(k);
+    }
   };
   window.addEventListener('keydown', onKey);
+  panel.onResume = () => paintControls();
   panel.onClose = () => {
+    closed = true;
+    auto = false;
     cancelAnimationFrame(raf);
-    clearTimeout(strikeTimer);
-    clearTimeout(blockTimer);
     window.removeEventListener('keydown', onKey);
+    battleMusic.play(null);
   };
   render();
   load();

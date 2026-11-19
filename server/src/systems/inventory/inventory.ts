@@ -82,7 +82,7 @@ export class InventorySystem {
     if (items.some((i) => i.itemId !== itemId)) throw new GameError('Merge copies of the same item.');
     if (!this.cfg.crateOfItem.get(itemId)) throw new GameError("That item can't be merged.");
     if (items.some((i) => i.serial !== null)) throw new GameError("Limited items can't be merged.");
-    if (items.some((i) => equipped.has(i.iid) || locked.has(i.iid))) throw new GameError('Take it off (or out of your home) first.');
+    if (items.some((i) => equipped.has(i.iid) || locked.has(i.iid))) throw new GameError('Take it off first (or out of your home / your 🐾 Teman team).');
     const out = mergeOutcome(g, this.cfg.rarities.variants, items.map((i) => ({ grade: i.grade, variant: i.variant })), rand);
     return this.econ.run(p, () => {
       for (const i of items) this.econ.remove(p, i.iid);

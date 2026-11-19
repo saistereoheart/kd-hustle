@@ -20,6 +20,7 @@ import type { EventsConfig } from '../events/events';
 import type { MarketConfig } from '../market/market';
 import type { RebirthConfig } from '../rebirth/rebirth';
 import type { DungeonConfig } from '../dungeon/dungeon';
+import type { PetsConfig } from '../pets/pets';
 
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour');
 
@@ -169,5 +170,6 @@ export interface PublicConfig {
   market: MarketConfig;
   rebirth: RebirthConfig;
   dungeon: DungeonConfig;
+  pets: PetsConfig;
 }
 

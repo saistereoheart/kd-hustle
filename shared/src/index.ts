@@ -33,3 +33,4 @@ export * from './events/events';
 export * from './market/market';
 export * from './rebirth/rebirth';
 export * from './dungeon/dungeon';
+export * from './pets/pets';
