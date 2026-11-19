@@ -8,7 +8,7 @@
 // Every factor is 0..1. Suggestions are found by trying a change (buy a piece, clean, remove
 // one) and re-rating, so the predicted gain is exactly what the change would do.
 import type { FurnitureConfig, FurniturePiece, Placed, PropertiesConfig } from './schemas';
-import { doorwayCells, openPlan, planForType, roomIndex, wallBetween, type FloorPlan } from './floorPlan';
+import { doorwayCells, openPlan, planForType, roomIndex, wallBetween, type FloorPlan, type RoomKind } from './floorPlan';
 
 export interface RatingCfg {
   furniture: FurnitureConfig;
@@ -24,6 +24,8 @@ export interface Factors {
   amenities: number;
   clean: number;
   space: number;
+  /** Things in the right rooms (beds in bedrooms, the toilet in the bathroom...). */
+  rooms: number;
 }
 
 export interface Rating {
@@ -38,6 +40,8 @@ export interface Rating {
   fill: number;
   /** Some floor can't be reached from the door (blocked walkway). */
   blocked: boolean;
+  /** Pieces in a room they don't belong in (and where they'd fit). */
+  misplaced: Array<{ iid: number; item: string; want: RoomKind[] }>;
 }
 
 /** What the rating needs from a layout, so "what if I add X" is cheap to try. */
@@ -75,7 +79,7 @@ function addPiece(cfg: RatingCfg, a: Agg, item: string) {
   if (!p.floor && !p.wall) a.covered += p.w * p.h;
 }
 
-function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanliness: number, blocked: boolean) {
+function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanliness: number, blocked: boolean, rooms = 1) {
   const r = cfg.properties.rating;
   const area = unit.w * unit.h;
   const comfort = Math.min(1, a.comfort / (area * r.comfortPerM2));
@@ -91,9 +95,9 @@ function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanline
   const [lo, hi] = r.idealFill;
   let space = fill < lo ? fill / lo : fill <= hi ? 1 : Math.max(0, 1 - (fill - hi) / 0.3);
   if (blocked) space *= 0.4;
-  const factors: Factors = { comfort, style, rarity, amenities, clean, space };
+  const factors: Factors = { comfort, style, rarity, amenities, clean, space, rooms };
   const w = r.weights;
-  const total = comfort * w.comfort + style * w.style + rarity * w.rarity + amenities * w.amenities + clean * w.clean + space * w.space;
+  const total = comfort * w.comfort + style * w.style + rarity * w.rarity + amenities * w.amenities + clean * w.clean + space * w.space + rooms * (w.rooms ?? 0);
   const missing = cfg.furniture.essentials.filter((e) => !a.essentials.has(e));
   let stars = 0.5 + 4.5 * total;
   if (missing.length) stars = Math.min(stars - r.missingPenalty * missing.length, r.missingCap - r.missingCapStep * (missing.length - 1));
@@ -144,10 +148,52 @@ function walkwayBlocked(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): bool
   return free > 0 && reached / free < 0.85;
 }
 
+// ------------------------------------------------------------------ the right rooms
+const ROOM_NAME: Record<RoomKind, string> = { living: 'the living room', bedroom: 'a bedroom', kitchen: 'the kitchen', bath: 'the bathroom', office: 'an office' };
+
+/** The rooms a piece belongs in, or null if it's fine anywhere. */
+export function roomKindsFor(cfg: Pick<RatingCfg, 'furniture'>, item: string): RoomKind[] | null {
+  const p = cfg.furniture.pieces[item];
+  if (!p) return null;
+  return cfg.furniture.roomFor[item] ?? cfg.furniture.roomFor[p.category] ?? null;
+}
+
+/** "a bedroom", "the kitchen or the living room". */
+export function roomNames(kinds: RoomKind[]): string {
+  const n = kinds.map((k) => ROOM_NAME[k]);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} or ${n[n.length - 1]}` : n[0];
+}
+
+/** Does a room of this kind suit the piece? (A home with no bedroom sleeps in its main room.) */
+export function roomSuits(plan: FloorPlan, kind: RoomKind, want: RoomKind[]): boolean {
+  if (want.includes(kind)) return true;
+  if (kind === 'living' && want.includes('bedroom') && !plan.rooms.some((r) => r.kind === 'bedroom')) return true;
+  return false;
+}
+
+/** Share of room-specific pieces that are in a suitable room (1 with nothing to judge). */
+function roomsFit(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): { factor: number; misplaced: Rating['misplaced'] } {
+  if (plan.rooms.length < 2) return { factor: 1, misplaced: [] };
+  let n = 0, ok = 0;
+  const misplaced: Rating['misplaced'] = [];
+  for (const pl of placed) {
+    const want = roomKindsFor(cfg, pl.item);
+    if (!want) continue;
+    const i = roomIndex(plan, pl.x, pl.y);
+    if (i < 0) continue;
+    n++;
+    if (roomSuits(plan, plan.rooms[i].kind, want)) ok++;
+    else misplaced.push({ iid: pl.iid, item: pl.item, want });
+  }
+  return { factor: n ? ok / n : 1, misplaced };
+}
+
 export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[], cleanliness: number): Rating {
   const a = aggregate(cfg, placed);
   const blocked = walkwayBlocked(cfg, unitPlan(cfg, unit), placed);
-  return { ...score(cfg, unit, a, cleanliness, blocked), themes: a.themes, blocked };
+  const plan = unitPlan(cfg, unit);
+  const rf = roomsFit(cfg, plan, placed);
+  return { ...score(cfg, unit, a, cleanliness, blocked, rf.factor), themes: a.themes, blocked, misplaced: rf.misplaced };
 }
 
 // ------------------------------------------------------------------ layout rules
@@ -233,7 +279,7 @@ export interface Suggestion {
   gain: number;
   /** Extra per night at the fair price. */
   nightGainSen: number;
-  action: { kind: 'buy' | 'place'; item: string } | { kind: 'clean' } | { kind: 'remove'; iid: number };
+  action: { kind: 'buy' | 'place'; item: string } | { kind: 'clean' } | { kind: 'remove'; iid: number } | { kind: 'move'; iid: number; item: string };
 }
 
 /**
@@ -256,7 +302,7 @@ export function suggestions(
   const tryAdd = (item: string) => {
     const a = { ...a0, themes: { ...a0.themes }, amenities: new Set(a0.amenities), essentials: new Set(a0.essentials) };
     addPiece(cfg, a, item);
-    return score(cfg, unit, a, cleanliness, base.blocked).stars;
+    return score(cfg, unit, a, cleanliness, base.blocked, base.factors.rooms).stars;
   };
   const push = (text: string, stars: number, action: Suggestion['action']) => {
     const gain = Math.round((stars - base.stars) * 10) / 10;
@@ -277,7 +323,7 @@ export function suggestions(
     if (c) push(`${c.owned ? 'Place your' : 'Add a'} ${name(c.item)} (missing essential)`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
   }
   if (cleanliness < 80) {
-    const stars = score(cfg, unit, a0, 100, base.blocked).stars;
+    const stars = score(cfg, unit, a0, 100, base.blocked, base.factors.rooms).stars;
     push(`Clean the unit (cleanliness ${Math.round(cleanliness)}%)`, stars, { kind: 'clean' });
   }
   // Theme sets: the theme you have most of, one piece closer to its next set.
@@ -300,6 +346,14 @@ export function suggestions(
   // Comfort.
   const comfy = pick((p) => !p.essential && p.comfort >= 5);
   if (comfy && base.factors.comfort < 0.9) push(`More comfort: ${name(comfy.item)}`, tryAdd(comfy.item), { kind: comfy.owned ? 'place' : 'buy', item: comfy.item });
+  // Something in the wrong room: move it (worth what a perfect Rooms score would add, shared out).
+  if (base.misplaced.length) {
+    const m0 = base.misplaced[0];
+    const a1 = aggregate(cfg, placed);
+    const n = placed.filter((pl) => roomKindsFor(cfg, pl.item)).length || 1;
+    const stars = score(cfg, unit, a1, cleanliness, base.blocked, Math.min(1, base.factors.rooms + 1 / n)).stars;
+    push(`Move the ${name(m0.item)} into ${roomNames(m0.want)}`, stars, { kind: 'move', iid: m0.iid, item: m0.item });
+  }
   // Cramped or blocked: take out the piece whose removal helps most.
   if (base.blocked || base.fill > cfg.properties.rating.idealFill[1]) {
     let best: { iid: number; stars: number; item: string } | null = null;
@@ -315,10 +369,15 @@ export function suggestions(
   out.sort((x, y) => y.gain - x.gain || (x.action.kind === 'place' ? -1 : 1));
   // One suggestion per item/action.
   const seen = new Set<string>();
-  return out.filter((s) => {
-    const k = s.action.kind === 'clean' ? 'clean' : s.action.kind === 'remove' ? `rm${s.action.iid}` : s.action.item;
+  const top = out.filter((s) => {
+    const k = s.action.kind === 'clean' ? 'clean' : s.action.kind === 'remove' ? `rm${s.action.iid}` : s.action.kind === 'move' ? `mv${s.action.iid}` : s.action.item;
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
-  }).slice(0, 3);
+  });
+  // Moving something to the right room is free: always keep one slot for it.
+  const best = top.slice(0, 3);
+  const move = top.find((x) => x.action.kind === 'move');
+  if (move && !best.includes(move)) best[Math.min(2, best.length - 1)] = move;
+  return best;
 }

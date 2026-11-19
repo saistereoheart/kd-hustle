@@ -89,7 +89,7 @@
     "missingCapStep": 0.4,
     "missingPenalty": 0.5,
     "idealFill": [0.22, 0.45],
-    "weights": { "comfort": 0.25, "style": 0.2, "rarity": 0.15, "amenities": 0.15, "clean": 0.15, "space": 0.1 },
+    "weights": { "comfort": 0.22, "style": 0.18, "rarity": 0.13, "amenities": 0.14, "clean": 0.14, "space": 0.09, "rooms": 0.1 },
     "amenitiesForMax": 5,
     "rarityForMax": 3
   },

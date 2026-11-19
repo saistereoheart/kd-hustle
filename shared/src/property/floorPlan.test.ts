@@ -3,7 +3,7 @@ import propertiesJson from '../../config/properties.json';
 import furnitureJson from '../../config/furniture.json';
 import { furnitureConfigSchema, propertiesConfigSchema, type Placed } from './schemas';
 import { doorwayCells, planForType, roomAtCell, wallBetween } from './floorPlan';
-import { layoutProblem, rateUnit, type RatingCfg } from './rating';
+import { layoutProblem, rateUnit, suggestions, type RatingCfg } from './rating';
 
 const properties = propertiesConfigSchema.parse(propertiesJson);
 const furniture = furnitureConfigSchema.parse(furnitureJson);
@@ -59,5 +59,33 @@ describe('floor plans', () => {
     expect(layoutProblem(cfg, { w: t.w, h: t.h }, [at('basic_bed', back.x, back.y + back.h - 1)])).toBeNull();
     expect(rateUnit(cfg, unit, [], 100).stars).toBeGreaterThan(0);
     void bed;
+  });
+
+  it('the Rooms factor: things in the right rooms score better, and a misplaced one gets a suggestion', () => {
+    const t = properties.types.condo2;
+    const unit = { w: t.w, h: t.h, type: 'condo2' };
+    const plan = planForType(t, 'condo2');
+    const bedroom = plan.rooms.find((r) => r.kind === 'bedroom')!;
+    const living = plan.rooms.find((r) => r.kind === 'living')!;
+    let iid = 100;
+    const at = (item: string, x: number, y: number): Placed => ({ iid: iid++, item, x, y, rot: 0 });
+    // condo2: bedrooms x 0-2 and 3-5, bathroom x 6-8 (rows 0-2); living room x 0-5, kitchen x 6-8 (rows 3-6).
+    const rest = () => [at('toilet', 8, 0), at('shower', 6, 0), at('kitchenette', 7, 6), at('aircond', 3, 0), at('wifi_router', 0, 4)];
+    const right = [at('basic_bed', bedroom.x, bedroom.y), ...rest()];
+    const wrong = [at('basic_bed', living.x, living.y + 2), ...rest()];
+    expect(layoutProblem(cfg, unit, right)).toBeNull();
+    expect(layoutProblem(cfg, unit, wrong)).toBeNull();
+    const r1 = rateUnit(cfg, unit, right, 100), r2 = rateUnit(cfg, unit, wrong, 100);
+    expect(r1.factors.rooms).toBe(1);
+    expect(r2.factors.rooms).toBe(0.75); // bed wrong; toilet, shower, kitchenette right
+    expect(r2.misplaced.map((m) => m.item)).toEqual(['basic_bed']);
+    expect(r1.score).toBeGreaterThan(r2.score);
+    const s = suggestions(cfg, { ...unit, loc: 1 }, wrong, 100, []);
+    expect(s.some((x) => x.action.kind === 'move' && /bedroom/.test(x.text))).toBe(true);
+    // Neutral things (a lamp) don't count; nothing to judge = full marks.
+    expect(rateUnit(cfg, unit, [at('floor_lamp', living.x, living.y)], 100).factors.rooms).toBe(1);
+    // A studio has no bedroom: the bed belongs in its main room.
+    const st = properties.types.studio;
+    expect(rateUnit(cfg, { w: st.w, h: st.h, type: 'studio' }, [at('basic_bed', 0, 0)], 100).factors.rooms).toBe(1);
   });
 });

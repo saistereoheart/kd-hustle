@@ -10,6 +10,9 @@ export const furnitureConfigSchema = z.object({
   /** Each missing one caps the star rating. */
   essentials: z.array(z.string()).min(1),
   amenities: z.array(z.string()),
+  /** Which rooms things belong in (the Rooms factor): keyed by piece id, else by category. Things
+   *  not listed (lamps, plants, aircond...) are fine anywhere. */
+  roomFor: z.record(z.string(), z.array(z.enum(['living', 'bedroom', 'kitchen', 'bath', 'office']))).default({}),
   /** Keyed by item id (the item itself lives in items.json, type "furniture"). */
   pieces: z.record(
     z.string(),
@@ -110,7 +113,7 @@ export const propertiesConfigSchema = z.object({
     /** Stars lost per missing essential (on top of the cap), so adding one always shows a gain. */
     missingPenalty: z.number().nonnegative(),
     idealFill: z.tuple([z.number(), z.number()]),
-    weights: z.object({ comfort: z.number(), style: z.number(), rarity: z.number(), amenities: z.number(), clean: z.number(), space: z.number() }),
+    weights: z.object({ comfort: z.number(), style: z.number(), rarity: z.number(), amenities: z.number(), clean: z.number(), space: z.number(), rooms: z.number().default(0) }),
     amenitiesForMax: z.number().positive(),
     rarityForMax: z.number().positive(),
   }),

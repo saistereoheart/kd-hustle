@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 327 unit tests |
+| `npm test` (Vitest) | ✅ 328 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -86,6 +86,13 @@ Compared with the spec's content checklist (§19):
   drag pieces to move them; wall items turn to face out from the wall you point at; keys: R / E rotate, Q back,
   arrows (or WASD) move, Enter / Space place, X pick up, Esc / Del put away, Ctrl+Z / Y. The game's Esc / Q / E don't
   fire while decorating. Each piece in the list shows its size.
+- **Rooms factor (star rating):** things count for more in the right room: beds in a bedroom (or a studio's main
+  room), toilet / shower / bathtub in the bathroom, cooking and the fridge in the kitchen, sofas in the living room,
+  desks in an office / bedroom / living room, wardrobes in a bedroom or living room, a TV in the living room or a
+  bedroom (`roomFor` in furniture.json; lamps, plants, aircond, wifi go anywhere). Rooms = share of those pieces in a
+  suitable room; weight 0.10, the other weights trimmed so they still add up to 1. While decorating: misplaced pieces
+  get a yellow outline, the preview says "fits better in the bathroom", each room's name says what belongs there, a
+  Rooms bar in the panel, and a "Move the toilet into the bathroom" suggestion (always kept in the top 3: it's free).
 - **Furniture looks more real:** materials drawn with light and depth (wood grain with bevels, soft fabric, glossy
   porcelain, speckled stone, dark glass with reflections). Beds have a headboard, duvet folds and pillows; sofas arms,
   back and seat cushions; the toilet a tank, bowl and water; showers tiles, a drain and a glass screen; kitchens a stone

@@ -6,7 +6,7 @@
 // the server), then Save. From here you can also clean the unit (Airbnb) and fix requests.
 import Phaser from 'phaser';
 import {
-  formatMoney, layoutProblem, planForType, rateUnit, roomIndex, suggestions, wallBetween,
+  formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomSuits, suggestions, wallBetween,
   type FloorPlan, type Placed, type PropSelf, type RatingCfg, type RoomKind,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -21,6 +21,14 @@ const C = 40; // px per cell (1 m)
 const WALL = 18; // outer wall thickness (px)
 const INNER = 8; // inner wall thickness (px)
 const DIM_DEPTH = 900_000;
+/** What goes in each kind of room (shown under the room's name while decorating). */
+const BELONGS: Record<RoomKind, string> = {
+  living: 'sofas · TV · tables',
+  bedroom: 'beds · wardrobes · desks',
+  kitchen: 'cooking · fridge · dining',
+  bath: 'toilet · shower · bathtub',
+  office: 'desks · shelves',
+};
 
 type Hand = { iid: number; item: string; rot: number; manual: boolean };
 
@@ -189,9 +197,12 @@ export class HomeScene extends Phaser.Scene {
     g.fillStyle(0x6d4c41, 1).fillRect(d0 + 4, H, d1 - d0 - 8, 8); // doormat
     // Room names (shown while decorating).
     for (const r of this.plan.rooms) {
-      const t = this.add.text((r.x + r.w / 2) * C, (r.y + r.h / 2) * C, `${r.icon} ${r.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '14px', fontStyle: '900', color: 'rgba(255,255,255,0.9)', stroke: '#11131f', strokeThickness: 4, resolution: 3 })
-        .setOrigin(0.5).setDepth(DIM_DEPTH + 5).setVisible(false);
-      this.roomLabels.push(t);
+      const cx = (r.x + r.w / 2) * C, cy = (r.y + r.h / 2) * C;
+      const t = this.add.text(cx, cy, `${r.icon} ${r.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '14px', fontStyle: '900', color: 'rgba(255,255,255,0.9)', stroke: '#11131f', strokeThickness: 4, align: 'center', resolution: 3, wordWrap: { width: r.w * C - 6 } })
+        .setOrigin(0.5, 1).setDepth(DIM_DEPTH + 5).setVisible(false);
+      const sub = this.add.text(cx, cy + 2, BELONGS[r.kind], { fontFamily: 'system-ui, sans-serif', fontSize: '10px', fontStyle: 'bold', color: 'rgba(255,255,255,0.8)', stroke: '#11131f', strokeThickness: 3, align: 'center', resolution: 3, wordWrap: { width: r.w * C - 8 } })
+        .setOrigin(0.5, 0).setDepth(DIM_DEPTH + 5).setVisible(false);
+      this.roomLabels.push(t, sub);
     }
   }
 
@@ -289,8 +300,17 @@ export class HomeScene extends Phaser.Scene {
     // floor pieces (rugs) first, then the rest, wall items last
     const order = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : furniturePiece(p.item)?.wall ? 2 : 1);
     for (const p of [...this.layout].sort((a, b) => order(a) - order(b))) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
-    // While decorating: pieces that break a rule (e.g. now across a wall) get a red outline.
+    // While decorating: pieces in the wrong room get a yellow outline, ones that break a rule
+    // (e.g. now across a wall) a red one.
     if (this.decorating) {
+      for (const p of this.misplaced()) {
+        const [w, h] = this.footprint(p.item, p.rot);
+        ctx.strokeStyle = '#ffd43b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(p.x * C + 3, p.y * C + 3, w * C - 6, h * C - 6);
+        ctx.setLineDash([]);
+      }
       for (const p of this.badPieces()) {
         const [w, h] = this.footprint(p.item, p.rot);
         ctx.strokeStyle = '#ff6b6b';
@@ -301,6 +321,15 @@ export class HomeScene extends Phaser.Scene {
       }
     }
     tex.refresh();
+  }
+
+  /** Placed pieces in a room they don't belong in (they still count, just less). */
+  private misplaced(): Placed[] {
+    return this.layout.filter((p) => {
+      const want = roomKindsFor(this.ratingCfg(), p.item);
+      const i = roomIndex(this.plan, p.x, p.y);
+      return want && i >= 0 && !roomSuits(this.plan, this.plan.rooms[i].kind, want);
+    });
   }
 
   /** Pieces that break a rule on their own (out of bounds, across a wall, in a doorway). */
@@ -474,7 +503,14 @@ export class HomeScene extends Phaser.Scene {
         ctx.lineWidth = 3;
         ctx.strokeRect(t.x * C + 1.5, t.y * C + 1.5, t.w * C - 3, t.h * C - 3);
         const name = this.app.items.get(this.hand.item)?.name ?? this.hand.item;
-        this.ghostText?.setText(problem ? `✋ ${problem}` : `${name} · tap to place · R rotate`).setColor(problem ? '#ffc9c9' : '#d3f9d8').setPosition((t.x + t.w / 2) * C, t.y * C - 4).setVisible(true);
+        const want = roomKindsFor(this.ratingCfg(), this.hand.item);
+        const ri = roomIndex(this.plan, t.x, t.y);
+        const wrongRoom = !problem && want && ri >= 0 && !roomSuits(this.plan, this.plan.rooms[ri].kind, want);
+        this.ghostText
+          ?.setText(problem ? `✋ ${problem}` : wrongRoom ? `${name} · fits better in ${roomNames(want!)}` : `${name} · tap to place · R rotate`)
+          .setColor(problem ? '#ffc9c9' : wrongRoom ? '#ffe066' : '#d3f9d8')
+          .setPosition((t.x + t.w / 2) * C, t.y * C - 4)
+          .setVisible(true);
       } else if (this.hover) {
         // Nothing in hand: show what's under the cursor.
         const c = this.hover;
@@ -661,6 +697,7 @@ export class HomeScene extends Phaser.Scene {
       ...(bad.length ? [el('div', { class: 'deco-missing' }, `⚠️ ${bad.length} piece${bad.length > 1 ? 's' : ''} outlined in red: ${bad.length > 1 ? 'they' : 'it'} cross a wall or block a doorway. Pick ${bad.length > 1 ? 'them' : 'it'} up and move ${bad.length > 1 ? 'them' : 'it'} before saving.`)] : []),
       bar('Comfort', r.factors.comfort), bar('Style & theme', r.factors.style), bar('Rarity', r.factors.rarity),
       bar('Amenities', r.factors.amenities), bar('Cleanliness', r.factors.clean), bar(r.blocked ? 'Space (walkway blocked!)' : 'Space', r.factors.space),
+      bar(r.misplaced.length ? `Rooms (${r.misplaced.length} in the wrong room)` : 'Rooms (right things, right rooms)', r.factors.rooms),
       el('h4', {}, '💡 Suggestions'),
       ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → +${x.gain.toFixed(1)}★${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')]),
       el('h4', {}, `🛋️ Your furniture (${free.length})`),
