@@ -49,7 +49,7 @@ export function resolvePois(map: Pick<BuiltMap, 'buildings' | 'interactables' | 
       const it = map.interactables.find((i) => i.id === p.interactable);
       if (it) at = [it.x, it.y];
     } else if (p.stallTier) {
-      const plots = map.stallPlots.filter((s) => s.tier === p.stallTier);
+      const plots = map.stallPlots.filter((s) => s.tier === p.stallTier && !s.auto);
       if (plots.length) at = [plots.reduce((a, s) => a + s.x, 0) / plots.length, plots.reduce((a, s) => a + s.y, 0) / plots.length];
     }
     if (at) out.push({ ...p, x: at[0], y: at[1] });

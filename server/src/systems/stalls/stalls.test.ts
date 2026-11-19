@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { customerRate, restockNeeds, stockItems, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { cashierBonus, customerRate, NO_BONUS, restockNeeds, stockItems, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -348,6 +348,37 @@ describe('stock and upgrades', () => {
     expect(stockCount(s.stalls.selfOf(s.p)!, nasi.id)).toBe(start + 200);
     // 20% off the plain price.
     expect(r.spentSen).toBe(items.reduce((a, it) => a + Math.round(it.ingredientCostSen * 0.8 * 200), 0));
+  });
+
+  it('any free shoplot can be a kopitiam; pick one, then move for the fee only', () => {
+    const auto = cfg.map.stallPlots.filter((x) => x.auto);
+    expect(auto.length).toBeGreaterThan(50);
+    expect(auto.every((x) => x.tier === 3 && x.building)).toBe(true);
+    const s = setup(500_000_000);
+    s.p.prog.stage = 3;
+    s.p.prog.level = 20;
+    s.stalls.buy(s.p, 1, 'pasar_2');
+    expect(s.stalls.selfOf(s.p)!.plot).toBe('pasar_2');
+    expect(() => s.stalls.buy(s.p, 2, 'pasar_1')).toThrow(/isn't a/);
+    s.stalls.buy(s.p, 2);
+    s.stalls.buy(s.p, 3, auto[3].id);
+    expect(s.stalls.selfOf(s.p)!.plot).toBe(auto[3].id);
+    const invested = s.stalls.selfOf(s.p)!.investedSen;
+    const w = s.p.walletSen;
+    const r = s.stalls.move(s.p, auto[7].id);
+    expect(r.feeSen).toBe(cfg.stalls.tiers[2].moveFeeSen);
+    expect(w - s.p.walletSen).toBe(r.feeSen); // the moving fee, not the kopitiam price again
+    expect(s.stalls.selfOf(s.p)!.investedSen).toBe(invested);
+    expect(s.stalls.selfOf(s.p)!.plot).toBe(auto[7].id);
+    expect(() => s.stalls.move(s.p, auto[7].id)).toThrow(/already/);
+    // A random free one.
+    s.stalls.move(s.p);
+    expect(s.stalls.selfOf(s.p)!.plot).not.toBe(auto[7].id);
+  });
+
+  it('a cashier only works at a kopitiam', () => {
+    expect(cashierBonus(cfg.stalls, { tier: 2 }, { ...NO_BONUS, cashierTips: 0.5, cashierPatience: 0.2 })).toEqual({ tips: 0, patience: 0 });
+    expect(cashierBonus(cfg.stalls, { tier: 3 }, { ...NO_BONUS, cashierTips: 0.5, cashierPatience: 0.2 })).toEqual({ tips: 0.5, patience: 0.2 });
   });
 
   it('auto restock tops up low items at the plain hypermarket price', () => {

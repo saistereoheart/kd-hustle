@@ -22,6 +22,9 @@ export const FURNITURE_SIZE: Record<Furniture, [number, number]> = {
 
 /** Station footprints (tiles), by interactable type. */
 export function stationSize(type: string): [number, number] {
+  if (type === 'kitchen') return [4.2, 1.5];
+  if (type === 'cashier') return [2.4, 1.2];
+  if (type === 'stairs') return [1.8, 1.6];
   return type === 'casino' ? [2.6, 1.7] : type === 'carwash' ? [5, 2.6] : type === 'market' ? [3.4, 1.4] : type === 'crate' ? [1.8, 1.4] : [2.8, 1.3];
 }
 
@@ -35,10 +38,10 @@ export interface RoomDoor {
 export const DOOR_HALF = 0.85 * T;
 
 /** Floor, walls, the doorway (in any wall) and its mat. Returns nothing: it's one static Graphics. */
-export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: RoomDoor) {
+export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: RoomDoor, half = DOOR_HALF) {
   const W = s.w * T, H = s.h * T;
   const floor = hex(s.floor), floor2 = hex(s.floor2), wall = hex(s.wall), trim = hex(s.trim);
-  const d0 = door.pos - DOOR_HALF, d1 = door.pos + DOOR_HALF;
+  const d0 = door.pos - half, d1 = door.pos + half;
   // drop shadow under the whole room (it floats above the darkened town)
   g.fillStyle(0x000000, 0.45).fillRoundedRect(-14, -6, W + 28, H + 26, 18);
   // floor: checker tiles
@@ -84,7 +87,7 @@ export function drawRoom(g: Phaser.GameObjects.Graphics, s: RoomStyle, door: Roo
     g.fillStyle(0x8c5a3c, 1).fillRoundedRect(x, y, w, h, 4);
     g.lineStyle(2, 0xd9a066, 1).strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, 3);
   };
-  const m = DOOR_HALF * 0.92;
+  const m = half * 0.92;
   if (door.side === 'bottom') mat(door.pos - m, H - 0.75 * T, m * 2, 0.75 * T);
   else if (door.side === 'top') mat(door.pos - m, 2 * T, m * 2, 0.75 * T);
   else if (door.side === 'left') mat(0, door.pos - m, 0.75 * T, m * 2);
@@ -257,6 +260,29 @@ export function drawStation(g: Phaser.GameObjects.Graphics, type: string, crate:
     for (const [dx, dy, r] of [[-40, -14, 7], [-30, 12, 6], [6, -16, 8], [34, 14, 6], [46, -8, 5]]) g.fillCircle(cx + dx, cy + dy, r);
   } else if (type === 'casino') {
     drawCasinoStation(g, crate ?? '', x, y, w, h, cx, cy);
+  } else if (type === 'kitchen') {
+    // a stainless kitchen line: hood, two wok burners with flames, a prep board, a hot plate
+    g.fillStyle(0xadb5bd, 1).fillRoundedRect(x, y, w, h, 4);
+    g.fillStyle(0xdee2e6, 1).fillRect(x + 3, y + 3, w - 6, 5);
+    g.fillStyle(0x495057, 1).fillRoundedRect(x + 4, y - 14, w - 8, 12, 3); // the hood
+    for (const k of [0.18, 0.42]) {
+      g.fillStyle(0x212529, 1).fillCircle(x + w * k, cy + 2, h * 0.32);
+      g.fillStyle(0xff922b, 0.9).fillCircle(x + w * k, cy + 2, h * 0.16);
+      g.fillStyle(0x343a40, 1).fillEllipse(x + w * k, cy, h * 0.55, h * 0.36); // the wok
+    }
+    g.fillStyle(0xc49a6c, 1).fillRoundedRect(x + w * 0.58, y + 8, w * 0.18, h - 16, 3); // chopping board
+    g.fillStyle(0x495057, 1).fillRoundedRect(x + w * 0.8, y + 8, w * 0.16, h - 16, 3); // hot plate
+    g.fillStyle(0xfcc419, 1).fillCircle(x + w * 0.88, cy, 4);
+  } else if (type === 'cashier') {
+    // the till counter: glass display of kuih, the register
+    g.fillStyle(0x6d4c41, 1).fillRoundedRect(x, y + h * 0.25, w, h * 0.75, 5);
+    g.fillStyle(0xe7f5ff, 0.85).fillRect(x + 5, y + h * 0.35, w * 0.55, h * 0.45);
+    for (let i = 0; i < 4; i++) g.fillStyle([0x40c057, 0xf06595, 0xfcc419, 0x845ef7][i], 1).fillCircle(x + 12 + i * (w * 0.12), cy + 4, 4);
+    g.fillStyle(0x343a40, 1).fillRoundedRect(x + w * 0.66, y, w * 0.28, h * 0.62, 4); // register
+    g.fillStyle(0x8ce99a, 1).fillRect(x + w * 0.7, y + 4, w * 0.2, 6);
+  } else if (type === 'stairs') {
+    for (let i = 0; i < 5; i++) g.fillStyle(i % 2 ? 0x8d6e63 : 0xa1887f, 1).fillRect(x, y + (i * h) / 5, w, h / 5);
+    g.fillStyle(0x5d4037, 1).fillRect(x + w - 5, y, 5, h);
   } else {
     g.fillStyle(accent, 1).fillRoundedRect(x, y, w, h, 6);
   }

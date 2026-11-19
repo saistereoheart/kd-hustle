@@ -212,10 +212,14 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
    * Stalls and food trucks are solid: their footprints go into the collision grids (walking and
    * driving) while a plot is taken. Anyone standing where one just appeared is nudged out.
    */
+  const boxed = new Set<string>();
   function syncStallBoxes() {
     const taken = new Set(stalls.all().map((s) => s.plot));
     let changed = false;
     for (const plot of cfg.map.stallPlots) {
+      if (plot.auto && !taken.has(plot.id) && !boxed.has(plot.id)) continue; // hundreds of free shoplots: nothing to do
+      if (taken.has(plot.id)) boxed.add(plot.id);
+      else boxed.delete(plot.id);
       if (setBoxes([cfg.map.collision, cfg.map.driveCollision], `stall:${plot.id}`, taken.has(plot.id) ? stallFootprint(plot, T) : [])) changed = true;
     }
     if (!changed) return;
@@ -491,10 +495,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
 
     // --- food stall (Phase 4) -----------------------------------------------------------------
-    handle(socket, 'stall:buy', C2S.stallBuy, ({ tier }) => {
-      stalls.buy(me, tier);
+    handle(socket, 'stall:buy', C2S.stallBuy, ({ tier, plot }) => {
+      stalls.buy(me, tier, plot);
       return {};
     });
+    handle(socket, 'stall:move', C2S.stallMove, ({ plot }) => stalls.move(me, plot));
     handle(socket, 'stall:open', C2S.stallOpen, ({ open }) => {
       stalls.setOpen(me, open);
       return {};

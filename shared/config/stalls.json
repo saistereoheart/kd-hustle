@@ -22,7 +22,7 @@
       ],
       "queueBase": 4,
       "staffMax": 1,
-      "hireSen": 30000,
+      "hireSen": 30000, "moveFeeSen": 0,
       "wagePerDaySen": 14400,
       "upgradeCostMult": 1
     },
@@ -49,7 +49,7 @@
       ],
       "queueBase": 5,
       "staffMax": 2,
-      "hireSen": 300000,
+      "hireSen": 300000, "moveFeeSen": 0,
       "wagePerDaySen": 60000,
       "upgradeCostMult": 5
     },
@@ -75,7 +75,7 @@
       ],
       "queueBase": 6,
       "staffMax": 4,
-      "hireSen": 2000000,
+      "hireSen": 2000000, "moveFeeSen": 200000,
       "wagePerDaySen": 240000,
       "upgradeCostMult": 30
     }

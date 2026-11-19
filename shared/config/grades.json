@@ -72,6 +72,17 @@
       "divine": 0.55,
       "secret": 0.75
     },
+    "cashierByRarity": { "common": 0.06, "uncommon": 0.1, "rare": 0.15, "epic": 0.22, "legendary": 0.33, "mythic": 0.48, "divine": 0.65, "secret": 0.9 },
+    "cashierProfiles": {
+      "cashier_kak_mah": { "tips": 1.2, "patience": 0.4 },
+      "cashier_dik_aina": { "tips": 0.6, "patience": 1.0 },
+      "cashier_uncle_lim": { "tips": 1.3, "patience": 0.3 },
+      "cashier_aunty_devi": { "tips": 0.8, "patience": 0.9 },
+      "cashier_abang_zul": { "tips": 1.0, "patience": 0.8 },
+      "cashier_puan_hasnah": { "tips": 1.4, "patience": 0.5 },
+      "cashier_tauke_wong": { "tips": 1.5, "patience": 0.6 },
+      "cashier_kira_laju": { "tips": 1.6, "patience": 1.0 }
+    },
     "chefProfiles": {
       "chef_mak_senah": { "speed": 1.2, "flavour": 0.6, "charm": 0.4 },
       "chef_pak_hamid": { "speed": 0.5, "flavour": 1.2, "charm": 0.5 },

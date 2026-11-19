@@ -98,7 +98,8 @@ export const C2S = {
   itemUse: z.object({ iid: z.number().int().positive() }),
   titleEquip: z.object({ title: z.string().max(32).nullable() }),
   questClaim: z.object({ id: z.string().min(1).max(32) }),
-  stallBuy: z.object({ tier: z.number().int().positive().max(10) }),
+  stallBuy: z.object({ tier: z.number().int().positive().max(10), plot: z.string().max(80).optional() }),
+  stallMove: z.object({ plot: z.string().max(80).optional() }),
   stallOpen: z.object({ open: z.boolean() }),
   stallCook: z.object({ customerId: z.number().int().nonnegative().optional(), token: z.boolean().optional() }),
   stallServe: z.object({
@@ -507,7 +508,10 @@ export interface ClientToServerEvents {
   /** Day 7 includes a free crate roll (`roll`), played with the normal reel. */
   'daily:claim': (ack: Ack<Result<{ day: number; roll?: { crateId: string; results: RollResult[] } }>>) => void;
   'quest:claim': (msg: { id: string }, ack: Ack<SimpleResult>) => void;
-  'stall:buy': (msg: { tier: number }, ack: Ack<SimpleResult>) => void;
+  /** Buy / move up a tier; `plot` picks the spot (none: a random free one). */
+  'stall:buy': (msg: { tier: number; plot?: string }, ack: Ack<SimpleResult>) => void;
+  /** Move to another free spot of the same tier for the tier's moving fee (none: random). */
+  'stall:move': (msg: { plot?: string }, ack: Ack<Result<{ plot: string; feeSen: number }>>) => void;
   'stall:open': (msg: { open: boolean }, ack: Ack<SimpleResult>) => void;
   /** Start cooking for the front customer (or a given one). `token` = use a Perfect Cook Token. */
   'stall:cook': (msg: { customerId?: number; token?: boolean }, ack: Ack<Result<{ dish: DishState | null; served?: ServeResult }>>) => void;

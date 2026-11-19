@@ -1,7 +1,7 @@
 // HustlePhone → Business: buy and grow your food stall (pasar malam → food truck → kopitiam),
 // stock, staff, upgrades and the menu (recipe mastery).
 import {
-  CHEF_STAT_INFO, CHEF_STATS, chefStats, gradeDef, skillLevel, dishBaseSen, formatMoney, masteryLevel, menuRecipes, staffCookMs, staffPayRate, STALL_UPGRADES, stockCount, tierDef, upgradeCostSen, upgradeLevel,
+  CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, gradeDef, skillLevel, skillValue, dishBaseSen, formatMoney, masteryLevel, menuRecipes, staffCookMs, staffPayRate, STALL_UPGRADES, stockCount, tierDef, upgradeCostSen, upgradeLevel,
   wagePerHourSen, type StallUpgrade,
 } from '@kh/shared';
 import type { App } from '../../app';
@@ -9,6 +9,7 @@ import { el, toast } from '../dom';
 import { sfx } from '../sound';
 import { hoursText, stars } from '../stall/stallPanel';
 import { stockList } from '../stall/stock';
+import { openSpotPicker } from '../stall/spotPicker';
 import type { PhoneCtx } from './phone';
 
 let tab = 'overview';
@@ -31,7 +32,8 @@ function tierCard(app: App, tierN: number, action: string) {
       ? `Needs Level ${t.requires.level}`
       : null;
   const b = el('button', { class: 'btn primary', type: 'button', 'data-action': action, disabled: !!lock || app.store.walletSen < t.priceSen }, lock ? `🔒 ${lock}` : 'Buy', lock ? null : el('small', {}, formatMoney(t.priceSen)));
-  b.addEventListener('click', () => app.socket?.timeout(6000).emit('stall:buy', { tier: tierN }, ack(app, `${t.icon} Your ${t.name} is ready!`)));
+  // More than one free spot: pick where (or a random one).
+  b.addEventListener('click', () => openSpotPicker(app, tierN, 'buy'));
   return el(
     'div',
     { class: 'job-card' },
@@ -54,7 +56,7 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
   const t = tierDef(cfg, st.tier);
   const pub = app.store.stalls.get(st.plot);
   const tabsEl = el('div', { class: 'branch-tabs' });
-  for (const [id, name] of [['overview', '🏪 Stall'], ['stock', '📦 Stock'], ['staff', '🧑‍🍳 Staff'], ['chef', '👨‍🍳 Head chef'], ['upgrades', '⬆️ Upgrades'], ['menu', '📜 Menu']]) {
+  for (const [id, name] of [['overview', '🏪 Stall'], ['stock', '📦 Stock'], ['staff', '🧑‍🍳 Staff'], ['chef', '👨‍🍳 Chef & cashier'], ['upgrades', '⬆️ Upgrades'], ['menu', '📜 Menu']]) {
     const b = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-btab': id }, name);
     b.addEventListener('click', () => {
       tab = id;
@@ -66,11 +68,13 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
   if (tab === 'overview') {
     const toggle = el('button', { class: `btn${st.open ? '' : ' primary'}`, type: 'button', 'data-action': 'stall-toggle' }, st.open ? 'Close for now' : 'Open for business');
     toggle.addEventListener('click', () => app.socket?.timeout(5000).emit('stall:open', { open: !st.open }, ack(app)));
-    const go = el('button', { class: 'btn', type: 'button', 'data-action': 'stall-go' }, '🗺️ Where is it?');
+    const go = el('button', { class: 'btn', type: 'button', 'data-action': 'stall-go' }, '📍 Take me there');
     go.addEventListener('click', () => {
       const plot = app.map.stallPlots.find((p) => p.id === st.plot);
-      if (plot) app.minimap?.openFull();
+      if (plot) app.guide?.pointAt({ id: plot.id, label: `YOUR ${t.name.toUpperCase()}`, icon: t.icon, x: plot.x, y: plot.y });
     });
+    const move = el('button', { class: 'btn', type: 'button', 'data-action': 'stall-move' }, '🚚 Move', el('small', {}, t.moveFeeSen ? formatMoney(t.moveFeeSen) : 'free'));
+    move.addEventListener('click', () => openSpotPicker(app, st.tier, 'move'));
     body.push(
       el(
         'div',
@@ -85,8 +89,10 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
           el('div', { class: 'muted small' }, `Earned today: ${formatMoney(st.earnedToday)} · value ${formatMoney(Math.floor(st.investedSen * cfg.assetValueRate))} (counts in net worth)`),
         ),
       ),
-      el('div', { class: 'stall-actions' }, toggle, go),
-      el('p', { class: 'hint' }, 'Cook at the stall (walk there, press E). Customers come while it is open and you have ingredients; they leave if they wait too long.'),
+      el('div', { class: 'stall-actions' }, toggle, go, move),
+      el('p', { class: 'hint' }, st.tier >= cfg.cashierFromTier
+        ? 'Your kopitiam is a real shoplot: walk to its door, press E to go in, and cook in the kitchen. Customers queue outside; your cashier works the till.'
+        : 'Cook at the stall (walk there, press E). Customers come while it is open and you have ingredients; they leave if they wait too long.'),
     );
     const next = cfg.tiers.find((x) => x.tier === st.tier + 1);
     if (next) body.push(el('h4', { class: 'phone-section' }, 'Next step'), tierCard(app, next.tier, `stall-buy-${next.tier}`));
@@ -149,45 +155,60 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
   return [tabsEl, ...body.filter((x): x is HTMLElement => !!x)];
 }
 
-/** The head chef: who's in charge of your kitchen, their stats, and the chefs you could swap in. */
+/** The head chef and (at a kopitiam) the cashier: who's working, their stats, and who you could swap in. */
 function chefTab(app: App): HTMLElement[] {
+  const kopi = (app.store.stall?.tier ?? 0) >= app.cfg.stalls.cashierFromTier;
+  return [
+    ...roleSection(app, 'chef'),
+    el('h4', { class: 'phone-section' }, `💵 Cashier${kopi ? ' (+1 staff)' : ' (kopitiam only)'}`),
+    ...roleSection(app, 'cashier'),
+  ];
+}
+
+function roleSection(app: App, role: 'chef' | 'cashier'): HTMLElement[] {
   const st = app.store;
   const gcfg = app.cfg.grades;
-  const boost = app.mods().chef?.boost ?? 0;
+  const boost = skillValue(app.cfg.upgrades, st.skills, 'chefBoost');
   const academy = skillLevel(app.cfg.upgrades, st.skills, 'chef_academy');
   const pct = (v: number) => `+${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
+  const keys: readonly string[] = role === 'chef' ? CHEF_STATS : CASHIER_STATS;
+  const info = (k: string) => (role === 'chef' ? CHEF_STAT_INFO[k as keyof typeof CHEF_STAT_INFO] : CASHIER_STAT_INFO[k as keyof typeof CASHIER_STAT_INFO]);
+  const stats = (id: string, rarity: string, grade: string | undefined, variant: string, b: number): Record<string, number> =>
+    role === 'chef' ? chefStats(gcfg, { id, rarity, grade, variant }, b) : cashierStats(gcfg, { id, rarity, grade, variant }, b);
   const statRows = (id: string, rarity: string, grade: string | undefined, variant: string) => {
-    const raw = chefStats(gcfg, { id, rarity, grade, variant }, 0);
-    const full = chefStats(gcfg, { id, rarity, grade, variant }, boost);
-    return el('div', { class: 'chef-stats' }, ...CHEF_STATS.map((k) =>
-      el('div', { class: 'chef-stat' }, `${CHEF_STAT_INFO[k].icon} ${CHEF_STAT_INFO[k].name} `, el('b', {}, pct(full[k])),
+    const raw = stats(id, rarity, grade, variant, 0);
+    const full = stats(id, rarity, grade, variant, boost);
+    return el('div', { class: 'chef-stats' }, ...keys.map((k) =>
+      el('div', { class: 'chef-stat' }, `${info(k).icon} ${info(k).name} `, el('b', {}, pct(full[k])),
         boost ? el('span', { class: 'muted small' }, ` (${pct(raw[k])} + ${pct(full[k] - raw[k])} Academy)`) : null,
-        el('span', { class: 'muted small' }, ` · ${CHEF_STAT_INFO[k].does}`))));
+        el('span', { class: 'muted small' }, ` · ${info(k).does}`))));
   };
-  const head = st.equipped.chef;
+  const icon = role === 'chef' ? '👨‍🍳' : '💵';
+  const head = st.equipped[role];
   const worn = head !== undefined ? st.inventory.find((i) => i.iid === head) : undefined;
   const wornDef = worn && app.items.get(worn.itemId);
   const out: HTMLElement[] = [];
   if (worn && wornDef) {
-    const off = el('button', { class: 'btn small', type: 'button', 'data-action': 'chef-off' }, 'Send home');
-    off.addEventListener('click', () => app.socket?.timeout(5000).emit('inv:unequip', { slot: 'chef' }, (err, res) => {
+    const off = el('button', { class: 'btn small', type: 'button', 'data-action': `${role}-off` }, 'Send home');
+    off.addEventListener('click', () => app.socket?.timeout(5000).emit('inv:unequip', { slot: role }, (err, res) => {
       if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       const next = { ...app.store.equipped };
-      delete next.chef;
+      delete next[role];
       app.store.equipped = next;
       app.store.emit();
     }));
-    out.push(el('div', { class: 'job-card chef-card on' }, el('div', { class: 'job-icon' }, '👨‍🍳'), el('div', { class: 'job-info' },
+    out.push(el('div', { class: 'job-card chef-card on' }, el('div', { class: 'job-icon' }, icon), el('div', { class: 'job-info' },
       el('h4', {}, wornDef.name, el('span', { class: 'lv-badge' }, `${gradeDef(gcfg, worn.grade).name}${worn.variant !== 'normal' ? ` · ${worn.variant}` : ''}`)),
-      el('p', { class: 'muted small' }, `${wornDef.rarity} · in charge of your kitchen`),
+      el('p', { class: 'muted small' }, `${wornDef.rarity} · ${role === 'chef' ? 'in charge of your kitchen' : 'at the till'}`),
       statRows(wornDef.id, wornDef.rarity, worn.grade, worn.variant)), off));
-  } else out.push(el('p', { class: 'empty' }, 'No head chef yet. A chef makes your cooks faster, raises dish prices and brings more customers.'));
-  out.push(el('p', { class: 'hint' }, `Chef Academy (📱 Skills → Business) Lv ${academy}: +${Math.round(boost * 100)}% to every chef stat. Merge 5 copies of a chef for a higher tier.`));
-  // Every chef you own (one row per chef / tier / variant), best first.
+  } else out.push(el('p', { class: 'empty' }, role === 'chef'
+    ? 'No head chef yet. A chef makes your cooks faster, raises dish prices and brings more customers.'
+    : 'No cashier yet. At a kopitiam a cashier gets you bigger tips (also on your cooks\' sales) and keeps customers waiting longer.'));
+  if (role === 'chef') out.push(el('p', { class: 'hint' }, `Staff Academy (📱 Skills → Business) Lv ${academy}: +${Math.round(boost * 100)}% to every chef and cashier stat. Merge 5 copies for a higher tier.`));
   const seen = new Map<string, { iid: number; itemId: string; grade?: string; variant: string; n: number }>();
   for (const i of st.inventory) {
     const d = app.items.get(i.itemId);
-    if (d?.type !== 'chef' || i.iid === head) continue;
+    if (d?.type !== role || i.iid === head) continue;
     const k = `${i.itemId}|${i.grade ?? 'D'}|${i.variant}`;
     const e = seen.get(k);
     if (e) e.n++;
@@ -195,24 +216,23 @@ function chefTab(app: App): HTMLElement[] {
   }
   const rows = [...seen.values()].map((r) => {
     const d = app.items.get(r.itemId)!;
-    const s = chefStats(gcfg, { id: d.id, rarity: d.rarity, grade: r.grade, variant: r.variant }, boost);
-    return { r, d, total: s.speed + s.flavour + s.charm };
+    const s = stats(d.id, d.rarity, r.grade, r.variant, boost);
+    return { r, d, total: Object.values(s).reduce((a, b) => a + b, 0) };
   }).sort((a, b) => b.total - a.total);
-  if (rows.length) out.push(el('h4', { class: 'phone-section' }, 'Your other chefs'));
   for (const { r, d } of rows) {
-    const b = el('button', { class: 'btn primary', type: 'button', 'data-action': `chef-on-${r.iid}` }, 'Make head chef');
+    const b = el('button', { class: 'btn primary', type: 'button', 'data-action': `${role}-on-${r.iid}` }, role === 'chef' ? 'Make head chef' : 'Make cashier');
     b.addEventListener('click', () => app.socket?.timeout(5000).emit('inv:equip', { iid: r.iid }, (err, res) => {
       if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
-      app.store.equipped = { ...app.store.equipped, chef: r.iid };
+      app.store.equipped = { ...app.store.equipped, [role]: r.iid };
       sfx.coin();
-      toast(`👨‍🍳 ${d.name} runs your kitchen now.`, 'good');
+      toast(`${icon} ${d.name} ${role === 'chef' ? 'runs your kitchen' : 'works your till'} now.`, 'good');
       app.store.emit();
     }));
-    out.push(el('div', { class: 'job-card chef-card' }, el('div', { class: 'job-icon' }, '👨‍🍳'), el('div', { class: 'job-info' },
+    out.push(el('div', { class: 'job-card chef-card' }, el('div', { class: 'job-icon' }, icon), el('div', { class: 'job-info' },
       el('h4', {}, d.name, el('span', { class: 'lv-badge' }, `${gradeDef(gcfg, r.grade).name}${r.variant !== 'normal' ? ` · ${r.variant}` : ''}${r.n > 1 ? ` · ×${r.n}` : ''}`)),
       el('p', { class: 'muted small' }, d.rarity),
       statRows(d.id, d.rarity, r.grade, r.variant)), b));
   }
-  if (!rows.length && !worn) out.push(el('p', { class: 'hint' }, 'Roll chefs in 📱 Quick Rolls → 👨‍🍳 Chef Gacha (costs 💎 shards).'));
+  if (!rows.length && !worn) out.push(el('p', { class: 'hint' }, `Roll ${role === 'chef' ? 'chefs' : 'cashiers'} in 📱 Quick Rolls → 👨‍🍳 Chef & Cashier Search (costs 💎 shards).`));
   return out;
 }

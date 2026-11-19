@@ -630,7 +630,7 @@ export class TownScene extends Phaser.Scene {
       const myPlot = this.app.store.stall?.plot;
       let plot = this.stalls.nearest(this.pos.x, this.pos.y, 4);
       const mine = myPlot ? map.stallPlots.find((p) => p.id === myPlot) : undefined;
-      if (mine && Math.hypot(this.pos.x / map.tileSize - mine.x, this.pos.y / map.tileSize - mine.y) <= cfg.stalls.cookRadiusTiles - 1) plot = mine;
+      if (mine && mine.tier < cfg.stalls.cashierFromTier && Math.hypot(this.pos.x / map.tileSize - mine.x, this.pos.y / map.tileSize - mine.y) <= cfg.stalls.cookRadiusTiles - 1) plot = mine;
       if (plot && it && Math.hypot(this.pos.x / map.tileSize - it.x, this.pos.y / map.tileSize - it.y) < Math.hypot(this.pos.x / map.tileSize - plot.x, this.pos.y / map.tileSize - plot.y) && plot !== mine) plot = null;
       const npc = this.me.vehicle ? null : this.npcs.nearest(this.pos.x, this.pos.y, cfg.npcs.talkRadiusTiles);
       const npcId = npc?.id ?? null;
@@ -773,6 +773,13 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     // Called on every store change: skip unless the owners changed.
     let key = `${me}`;
     for (const [id, o] of this.app.store.props) key += `|${id}:${o.owner}:${o.ownerName}`;
+    // A shoplot with a kopitiam downstairs shows the kopitiam's signboard, not the loft sign.
+    const kopi = new Set<string>();
+    for (const s of this.app.store.stalls.values()) {
+      const p = s.tier >= this.app.cfg.stalls.cashierFromTier ? this.app.map.stallPlots.find((x) => x.id === s.plot) : undefined;
+      if (p?.building) kopi.add(p.building);
+    }
+    key += `|k:${[...kopi].join(',')}`;
     if (key === this.homeSignsKey) return;
     this.homeSignsKey = key;
     const byBuilding = new Map<string, typeof this.app.listings>();
@@ -796,6 +803,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       // Restyling a Text re-renders it, so only when it changed.
       if (t.text !== text) t.setText(text);
       if (t.style.color !== color) t.setColor(color);
+      t.setAlpha(kopi.has(bid) ? 0 : 1);
     }
   }
 

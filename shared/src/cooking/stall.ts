@@ -30,6 +30,8 @@ export const stallsConfigSchema = z.object({
         queueBase: z.number().int().positive(),
         staffMax: z.number().int().nonnegative(),
         hireSen: money,
+        /** Moving to another spot of the same tier (you keep everything; no purchase price again). */
+        moveFeeSen: money.default(0),
         /** Per cook per in-game day (charged hourly while they work). */
         wagePerDaySen: money,
         /** Stall upgrade prices × this at this tier. */
@@ -48,6 +50,8 @@ export const stallsConfigSchema = z.object({
   staff: z.object({ cookSec: z.number().positive(), passiveRate: z.number().positive() }),
   /** You can open any time; outside a tier's usual hours customers come at this rate. */
   offHoursCustomers: z.number().min(0).max(1).default(0.45),
+  /** A cashier (+1 staff, equipped like a head chef) works from this tier (the kopitiam). */
+  cashierFromTier: z.number().int().positive().default(3),
   /** Closing up: seconds to serve who's waiting before the shutters come down (orders being made always finish). */
   closingGraceSec: z.number().nonnegative().default(20),
   reputation: z.object({
@@ -247,8 +251,17 @@ export interface StallBonuses {
   /** Potions: Customer Rush, Speed Tonic. */
   customerBuff: number;
   staffSpeedBuff: number;
+  /** Kopitiam cashier (only works from `cashierFromTier`): + tips, + customer patience. */
+  cashierTips?: number;
+  cashierPatience?: number;
 }
 export const NO_BONUS: StallBonuses = { dishPrice: 0, customers: 0, wages: 0, customerBuff: 1, staffSpeedBuff: 1 };
+
+/** The cashier's tip and patience bonuses at this stall (zero below the kopitiam). */
+export function cashierBonus(cfg: StallsConfig, s: Pick<StallState, 'tier'>, b: StallBonuses): { tips: number; patience: number } {
+  if (s.tier < cfg.cashierFromTier) return { tips: 0, patience: 0 };
+  return { tips: b.cashierTips ?? 0, patience: b.cashierPatience ?? 0 };
+}
 
 /** A dish's base price before quality, combo and tips. */
 /** Stall level: every level raises all prices. */

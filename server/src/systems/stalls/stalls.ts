@@ -12,7 +12,7 @@
 import {
   ageStock, customerRate, dayKey, dishPay, orderBaseSen, stockItems, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
   queueCapacity, rushHour, staffPayRate, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
-  validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES, restockNeeds, wholesalePackQty, wholesalePriceSen,
+  cashierBonus, validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES, restockNeeds, wholesalePackQty, wholesalePriceSen,
   type DishState, type RandInt, type ServeResult, type StallCustomer, type StallPublic, type StallSelf, type StallState, type StallUpgrade,
   type StepInput,
 } from '@kh/shared';
@@ -181,7 +181,7 @@ export class StallSystem {
         if (!left.length) break;
         const r = left[rr++ % left.length];
         takeStock(l.s, r.id);
-        pay += Math.round(orderBaseSen(st, r, l.s, rush, [], b) * staffPayRate(st, l.s));
+        pay += Math.round(orderBaseSen(st, r, l.s, rush, [], b) * staffPayRate(st, l.s) * (1 + cashierBonus(st, l.s, b).tips * st.tips.max));
         served++;
       }
       dishes += served;
@@ -253,7 +253,7 @@ export class StallSystem {
 
   // ---------------------------------------------------------------- buying + managing
   /** Buy your first stall (tier 1) or move up to the next tier. */
-  buy(p: OnlinePlayer, tier: number) {
+  buy(p: OnlinePlayer, tier: number, plotId?: string) {
     const cur = this.stalls.get(p.id);
     const want = cur ? cur.s.tier + 1 : 1;
     if (tier !== want) throw new GameError(cur ? `Your next upgrade is the ${tierDef(this.cfg.stalls, want).name}.` : 'Start with a pasar malam stall.');
@@ -262,9 +262,7 @@ export class StallSystem {
     if (def.requires.stage && p.prog.stage < def.requires.stage) throw new GameError(`${def.name} needs wealth stage ${def.requires.stage}.`);
     if (def.requires.level && p.prog.level < def.requires.level) throw new GameError(`${def.name} needs Level ${def.requires.level}.`);
     if (p.walletSen < def.priceSen) throw new GameError(`${def.name} costs ${formatMoney(def.priceSen)}.`);
-    const taken = new Set([...this.stalls.values()].map((x) => x.s.plot));
-    const plot = this.cfg.map.stallPlots.find((x) => x.tier === tier && !taken.has(x.id));
-    if (!plot) throw new GameError(`All the ${def.name} spots are taken.`);
+    const plot = this.pickPlot(tier, plotId);
     if (cur?.dish) throw new GameError('Finish the dish you are cooking first.');
     const l = cur ?? this.wrap(p.id, p.name, this.fromData(tier, plot.id, {}));
     this.econ.run(p, () => {
@@ -293,6 +291,47 @@ export class StallSystem {
     this.touch(l);
     this.flush();
     this.prog.check(p);
+  }
+
+  /** A free spot of this tier: the one asked for, or a random one. */
+  private pickPlot(tier: number, plotId?: string) {
+    const def = tierDef(this.cfg.stalls, tier);
+    const taken = new Set([...this.stalls.values()].map((x) => x.s.plot));
+    if (plotId) {
+      const plot = this.cfg.map.stallPlots.find((x) => x.id === plotId);
+      if (!plot || plot.tier !== tier) throw new GameError(`That isn't a ${def.name} spot.`);
+      if (taken.has(plot.id)) throw new GameError('Someone already has that spot.');
+      return plot;
+    }
+    const free = this.cfg.map.stallPlots.filter((x) => x.tier === tier && !taken.has(x.id));
+    if (!free.length) throw new GameError(`All the ${def.name} spots are taken.`);
+    return free[this.rand(free.length)];
+  }
+
+  /** Move your stall to another free spot of the same tier: only the moving fee (you keep
+   *  everything: stock, staff, upgrades, reputation; the queue stays behind). */
+  move(p: OnlinePlayer, plotId?: string): { plot: string; feeSen: number } {
+    const l = this.mine(p);
+    if (l.dish) throw new GameError('Finish the dish you are cooking first.');
+    if (plotId === l.s.plot) throw new GameError("You're already there.");
+    const def = tierDef(this.cfg.stalls, l.s.tier);
+    const plot = this.pickPlot(l.s.tier, plotId);
+    const fee = def.moveFeeSen;
+    if (p.walletSen < fee) throw new GameError(`Moving costs ${formatMoney(fee)}.`);
+    const from = l.s.plot;
+    this.econ.run(p, () => {
+      if (fee) this.econ.change(p, -fee, 0, 'stall-move', `${from}>${plot.id}`);
+      l.s.plot = plot.id;
+      this.save(l);
+    });
+    l.queue = [];
+    l.cooks = l.cooks.map(() => null);
+    l.repGraceUntil = this.clock() + this.cfg.stalls.reputation.moveGraceSec * 1000;
+    this.hooks.removed?.(from);
+    if (fee) this.hooks.wallet(p, -fee, 'stall');
+    this.touch(l);
+    this.flush();
+    return { plot: plot.id, feeSen: fee };
   }
 
   setOpen(p: OnlinePlayer, open: boolean) {
@@ -527,7 +566,9 @@ export class StallSystem {
     // Combo: each Perfect in a row adds a bit (applies from the next dish).
     const combo = l.s.combo;
     const patienceLeft = 1 - (now - customer.arrivedAt) / customer.patienceMs;
-    const { paySen, tipSen } = dishPay(st, base, q.mult, q.quality, combo, patienceLeft, customer.blogger);
+    const dp = dishPay(st, base, q.mult, q.quality, combo, patienceLeft, customer.blogger);
+    const paySen = dp.paySen;
+    const tipSen = Math.round(dp.tipSen * (1 + cashierBonus(st, l.s, b).tips)); // a good cashier gets bigger tips
     l.s.combo = q.quality === 'perfect' ? Math.min(st.combo.max, combo + st.combo.perPerfect) : 0;
     const repDelta = st.reputation.perQuality[q.quality as keyof typeof st.reputation.perQuality] ?? 0;
     l.s.rep = Math.max(0, Math.min(st.reputation.max, l.s.rep + repDelta));
@@ -709,7 +750,7 @@ export class StallSystem {
           const addons = this.pickAddons(l, recipe.id);
           l.queue.push({
             id: nextId(), seed: this.rand(1 << 30), recipe: recipe.id, ...(addons.length ? { addons } : {}), arrivedAt: now,
-            patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000), blogger, serving: null,
+            patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000 * (1 + cashierBonus(st, l.s, b).patience)), blogger, serving: null,
           });
           if (blogger) this.hooks.event(owner, { kind: 'blogger', text: '📸 A food blogger is in your queue! Cook them something Great (5× pay).' });
         }
@@ -725,7 +766,9 @@ export class StallSystem {
         if (c && now >= c.doneAt) {
           const recipe = this.cfg.recipeById.get(c.customer.recipe)!;
           // Cooks make "Good" food at the passive rate: no combo, no tips, no blogger bonus.
-          staffSen += Math.round(orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * staffPayRate(st, l.s));
+          const sale = orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * staffPayRate(st, l.s);
+          // The cashier collects tips on your cooks' sales too.
+          staffSen += Math.round(sale * (1 + cashierBonus(st, l.s, b).tips * st.tips.max));
           staffDishes++;
           l.queue = l.queue.filter((x) => x.id !== c.customer.id);
           l.cooks[i] = null;

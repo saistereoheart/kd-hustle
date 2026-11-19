@@ -40,7 +40,13 @@ function seeded(seed: string) {
   };
 }
 
-const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒', casino: '🎲' };
+const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒', casino: '🎲', kitchen: '🍳', cashier: '💵', stairs: '🏠' };
+
+/** Extra stations a room can get from outside the map data (a kopitiam's kitchen and till). */
+export interface ExtraStation {
+  it: Interactable;
+  use: () => void;
+}
 const GAME_ICON: Record<string, string> = { slots: '🎰', roulette: '🎡', blackjack: '🃏', crash: '📈', wheel: '🎯', highlow: '🔼' };
 
 export class InteriorScene extends Phaser.Scene {
@@ -61,13 +67,19 @@ export class InteriorScene extends Phaser.Scene {
   private door: RoomDoor = { side: 'bottom', pos: 0 };
   /** Kept clear of furniture: the counters and the walk from the door to them. */
   private keepClear: Rect | null = null;
+  private extra = new Map<string, () => void>();
+  private extraIts: Interactable[] = [];
+  private doorHalf = DOOR_HALF;
 
   constructor() {
     super('interior');
   }
 
-  init(data: { app: App; building: BuiltBuilding; style: RoomStyle; door?: BuiltBuilding['doors'][number] | null }) {
+  init(data: { app: App; building: BuiltBuilding; style: RoomStyle; door?: BuiltBuilding['doors'][number] | null; extra?: ExtraStation[] }) {
     this.app = data.app;
+    this.extra = new Map((data.extra ?? []).map((e) => [e.it.id, e.use]));
+    this.extraIts = (data.extra ?? []).map((e) => e.it);
+    this.doorHalf = data.style.doorTiles ? (data.style.doorTiles * T) / 2 : DOOR_HALF;
     this.building = data.building;
     // The room follows the building's footprint (a long shoplot is a long room, a mall is huge).
     const size = roomSize(data.app.cfg.interiors, data.style, data.building, data.app.map.metersPerTile);
@@ -93,27 +105,30 @@ export class InteriorScene extends Phaser.Scene {
     const accent = parseInt(s.trim.slice(1), 16);
     // Darken everything behind the room (the town keeps rendering underneath, blurred).
     this.add.rectangle(W / 2, H / 2, 40000, 40000, 0x05060c, 0.72).setDepth(-10);
-    drawRoom(this.add.graphics().setDepth(-5), s, this.door);
+    drawRoom(this.add.graphics().setDepth(-5), s, this.door, this.doorHalf);
     // The back wall (top 2 rows) blocks, except the passage through it for a door in the top wall.
     const dr = this.door;
     if (dr.side === 'top') {
-      this.blockers.push({ x0: -100, y0: -100, x1: dr.pos - DOOR_HALF, y1: 2 * T + 4 }, { x0: dr.pos + DOOR_HALF, y0: -100, x1: W + 100, y1: 2 * T + 4 });
+      this.blockers.push({ x0: -100, y0: -100, x1: dr.pos - this.doorHalf, y1: 2 * T + 4 }, { x0: dr.pos + this.doorHalf, y0: -100, x1: W + 100, y1: 2 * T + 4 });
     } else this.blockers.push({ x0: -100, y0: -100, x1: W + 100, y1: 2 * T + 4 });
 
     // Counters and machines (what this building is FOR) stand in the middle of the room, each on
     // a glowing, pulsing spot with a bouncing arrow and a big label.
     ensureGlowTexture(this);
-    const its = this.app.map.interactables.filter((i) => i.building === this.building.id);
+    const its = [...this.app.map.interactables.filter((i) => i.building === this.building.id), ...this.extraIts];
     const sizes = its.map((it) => stationSize(it.type));
     const widest = Math.max(0, ...sizes.map(([w]) => w));
     const gap = Math.max((widest + 2.2) * T, Math.min(W / (its.length + 1), 6.5 * T));
     const sx0 = W / 2 - (gap * (its.length - 1)) / 2;
     const cyMid = 2 * T + (H - 2 * T) / 2;
     const glowCol = 0xffd43b;
+    // A narrow room (a long shoplot) stacks the stations down the middle instead.
+    const rowW = sizes.reduce((a, [w]) => a + w, 0) * T + (its.length - 1) * 2.2 * T;
+    const vertical = its.length > 1 && rowW > W - T;
     its.forEach((it, i) => {
-      const cx = sx0 + i * gap;
+      const cx = vertical ? W / 2 : sx0 + i * gap;
       const [sw, sh] = sizes[i];
-      const cy = cyMid;
+      const cy = vertical ? 2 * T + ((H - 2 * T) * (i + 1)) / (its.length + 1) : cyMid;
       const w = sw * T, h = sh * T;
       // the highlight on the floor, a pulsing ring and a soft glow
       drawHighlight(this.add.graphics().setDepth(-4), cx, cy, w, h, glowCol);
@@ -136,8 +151,8 @@ export class InteriorScene extends Phaser.Scene {
       this.stations.push({ it, x: cx, y: cy + h / 2 + T * 0.6, rect: { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 } });
     });
     if (this.stations.length) {
-      const r0 = this.stations[0].rect, r1 = this.stations[this.stations.length - 1].rect;
-      this.keepClear = { x0: r0.x0 - 2.2 * T, y0: r0.y0 - 2.6 * T, x1: r1.x1 + 2.2 * T, y1: r0.y1 + 2.2 * T };
+      const rs = this.stations.map((st) => st.rect);
+      this.keepClear = { x0: Math.min(...rs.map((r) => r.x0)) - 2.2 * T, y0: Math.min(...rs.map((r) => r.y0)) - 2.6 * T, x1: Math.max(...rs.map((r) => r.x1)) + 2.2 * T, y1: Math.max(...rs.map((r) => r.y1)) + 2.2 * T };
     }
     this.layoutFurniture();
     // Name sign over the back wall.
@@ -287,7 +302,7 @@ export class InteriorScene extends Phaser.Scene {
     const W = s.w * T, H = s.h * T;
     const { side, pos } = this.door;
     // The doorway lets you step out through its wall.
-    const gapX = Math.abs(x - pos) < DOOR_HALF - hw, gapY = Math.abs(y - pos) < DOOR_HALF - hh;
+    const gapX = Math.abs(x - pos) < this.doorHalf - hw, gapY = Math.abs(y - pos) < this.doorHalf - hh;
     if (x - hw < 4 && !(side === 'left' && gapY)) return true;
     if (x + hw > W - 4 && !(side === 'right' && gapY)) return true;
     if (y + hh > H - 2 && !(side === 'bottom' && gapX)) return true;
@@ -355,7 +370,10 @@ export class InteriorScene extends Phaser.Scene {
 
   /** E / the interact button: use the station we're at. (You leave by walking out.) */
   interact() {
-    if (this.near) this.app.openInteractable(this.near.it);
+    if (!this.near) return;
+    const use = this.extra.get(this.near.it.id);
+    if (use) use();
+    else this.app.openInteractable(this.near.it);
   }
 
   /** Other players in this same building, standing around the room. */

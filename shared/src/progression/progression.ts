@@ -1,4 +1,4 @@
-import { chefStats, gearBonuses, gradeMult, type ChefStats, type GradesConfig } from '../items/grades';
+import { cashierStats, chefStats, gearBonuses, gradeMult, type CashierStats, type ChefStats, type GradesConfig } from '../items/grades';
 // Progression maths (Phase 3), shared by the server (which owns the real numbers) and the client
 // (which shows progress bars, live odds and the next goal). Pure functions only.
 //
@@ -188,9 +188,11 @@ export interface Mods {
   rollSpeed: number;
   autoRoll: boolean;
   /** Stall bonuses (Business skills + Customer Rush / Speed Tonic). */
-  stall: { dishPrice: number; customers: number; wages: number; customerBuff: number; staffSpeedBuff: number };
+  stall: { dishPrice: number; customers: number; wages: number; customerBuff: number; staffSpeedBuff: number; cashierTips: number; cashierPatience: number };
   /** Your head chef and their stats (after Chef Academy), or null. */
   chef: { id: string; stats: ChefStats; boost: number } | null;
+  /** Your kopitiam cashier and their stats (they only work at a kopitiam), or null. */
+  cashier: { id: string; stats: CashierStats; boost: number } | null;
   /** Property skills (Passive Income counts for rent and Airbnb too). All multipliers. */
   property: { rent: number; airbnb: number; cleanLoss: number; appeal: number };
 }
@@ -229,6 +231,8 @@ export function computeMods(
   const passive = mult('passiveIncome', 'passive', undefined, gear.passive) * rb.income;
   const chefItem = cfg.grades && state.gear?.find((g) => g.type === 'chef' && g.id);
   const chefBoost = sv('chefBoost');
+  const cashierItem = cfg.grades && state.gear?.find((g) => g.type === 'cashier' && g.id);
+  const cashier = cashierItem && cfg.grades ? { id: cashierItem.id!, stats: cashierStats(cfg.grades, { id: cashierItem.id!, rarity: cashierItem.rarity, grade: cashierItem.grade, variant: cashierItem.variant }, chefBoost), boost: chefBoost } : null;
   const chef = chefItem && cfg.grades ? { id: chefItem.id!, stats: chefStats(cfg.grades, { id: chefItem.id!, rarity: chefItem.rarity, grade: chefItem.grade, variant: chefItem.variant }, chefBoost), boost: chefBoost } : null;
   return {
     luck: totalLuck(luckSources, cfg.rarities.maxLuck),
@@ -251,8 +255,11 @@ export function computeMods(
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
       staffSpeedBuff: buffs('staffSpeed').reduce((a, b) => a * b.mult, 1) * (1 + (chef?.stats.speed ?? 0)),
+      cashierTips: cashier?.stats.tips ?? 0,
+      cashierPatience: cashier?.stats.patience ?? 0,
     },
     chef,
+    cashier,
     property: {
       rent: (1 + sv('rentIncome')) * passive,
       airbnb: (1 + sv('airbnbIncome')) * passive,

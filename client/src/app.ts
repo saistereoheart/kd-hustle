@@ -4,7 +4,7 @@ import {
   buildMap, buildSnapshot, computeMods, rebirthMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
   buildListings, roomStyleOf, type Unit,
   type Appearance, type BuiltBuilding, type BuiltMap, type CrateDef, type EquipSlot, type HotbarRef, type InitPayload, type ItemDef, type Mods,
-  type ProgCfg, type ProgressSnapshot, type PublicConfig,
+  type ProgCfg, type ProgressSnapshot, type PublicConfig, type RoomStyle,
 } from '@kh/shared';
 import { celebrate } from './ui/celebrate';
 import { ProgressHud } from './ui/progressHud';
@@ -44,7 +44,7 @@ import { Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
 import { openSettings } from './ui/settings';
 import { TownScene } from './world/townScene';
-import { InteriorScene } from './world/interiorScene';
+import { InteriorScene, type ExtraStation } from './world/interiorScene';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
@@ -709,7 +709,16 @@ export class App {
   }
 
   /** What the prompt says at a building's door. */
+  /** The kopitiam (stall plot + public state) in this shoplot, if someone runs one there. */
+  kopitiamIn(b: BuiltBuilding) {
+    const plot = this.map.stallPlots.find((p) => p.building === b.id && p.tier >= this.cfg.stalls.cashierFromTier);
+    const s = plot ? this.store.stalls.get(plot.id) : undefined;
+    return plot && s ? { plot, s } : null;
+  }
+
   doorPrompt(b: BuiltBuilding): string {
+    const kopi = this.kopitiamIn(b);
+    if (kopi) return kopi.s.owner === this.lastInit?.you.id ? '🏪 Your kopitiam · go in to cook' : `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'} · go in`;
     const units = this.listings.filter((u) => u.building === b.id);
     if (units.length) {
       const me = this.lastInit?.you.id;
@@ -812,10 +821,29 @@ export class App {
   /** Go into a building through the door we're standing at. */
   enterBuilding(b: BuiltBuilding) {
     if (this.interior || this.home) return;
-    // Homes: the sale / ownership panel (your own unit: straight in).
-    if (this.listings.some((u) => u.building === b.id)) return void openPropertyPanel(this, b);
-    const styleId = roomStyleOf(this.cfg.interiors, b);
-    const style = styleId ? this.cfg.interiors.styles[styleId] : undefined;
+    // A kopitiam: its kitchen and till (and the stairs up to any lofts above).
+    const kopi = this.kopitiamIn(b);
+    let style: RoomStyle | undefined;
+    const extra: ExtraStation[] = [];
+    if (kopi) {
+      const base = this.cfg.interiors.styles.kopitiam;
+      const mine = kopi.s.owner === this.lastInit?.you.id;
+      const cashierIid = mine ? this.store.equipped.cashier : undefined;
+      const cashier = cashierIid !== undefined ? this.items.get(this.store.inventory.find((i) => i.iid === cashierIid)?.itemId ?? '') : undefined;
+      style = { ...base, keeper: mine && !cashier ? null : (cashier?.name ?? base.keeper), greeting: mine && !cashier ? 'No cashier yet: roll one in 📱 Quick Rolls → Chef & Cashier Search.' : base.greeting };
+      const at = (id: string, type: 'kitchen' | 'cashier' | 'stairs', name: string) => ({ id, type, name, x: kopi.plot.x, y: kopi.plot.y, building: b.id, spots: [] as Array<[number, number]> });
+      extra.push({ it: at(`kitchen:${b.id}`, 'kitchen', mine ? 'Your kitchen: cook here' : `${kopi.s.ownerName}'s kitchen`), use: () => this.openStallAt(kopi.plot.id) });
+      extra.push({
+        it: at(`cashier:${b.id}`, 'cashier', cashier ? `Till: ${cashier.name}` : 'Till'),
+        use: () => (mine ? this.openPhone('business') : toast(`🧾 ${kopi.s.ownerName}'s kopitiam. Order from the kitchen counter!`)),
+      });
+      if (this.listings.some((u) => u.building === b.id)) extra.push({ it: at(`stairs:${b.id}`, 'stairs', 'Stairs to the lofts'), use: () => openPropertyPanel(this, b) });
+    } else {
+      // Homes: the sale / ownership panel (your own unit: straight in).
+      if (this.listings.some((u) => u.building === b.id)) return void openPropertyPanel(this, b);
+      const styleId = roomStyleOf(this.cfg.interiors, b);
+      style = styleId ? this.cfg.interiors.styles[styleId] : undefined;
+    }
     if (!style) return void toast(this.cfg.interiors.lockedMessage);
     if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
     this.socket?.timeout(5000).emit('interior', { building: b.id }, (err, res) => {
@@ -825,7 +853,7 @@ export class App {
       // The door we came in by decides which way the room faces.
       const T = this.map.tileSize, p = this.town.position;
       const door = [...b.doors].sort((d1, d2) => Math.hypot(d1.frontX + 0.5 - p.x / T, d1.frontY + 0.5 - p.y / T) - Math.hypot(d2.frontX + 0.5 - p.x / T, d2.frontY + 0.5 - p.y / T))[0] ?? b.door;
-      this.game.scene.run('interior', { app: this, building: b, style, door });
+      this.game.scene.run('interior', { app: this, building: b, style, door, extra });
       this.interior = this.game.scene.getScene('interior') as InteriorScene;
       document.body.dataset.inside = b.id;
       // Blur the town behind the room (WebGL only; the dark overlay alone works everywhere).

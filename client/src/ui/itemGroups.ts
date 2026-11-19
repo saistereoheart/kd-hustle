@@ -13,7 +13,7 @@ export interface ItemGroupDef {
 
 export const ITEM_GROUPS: ItemGroupDef[] = [
   { id: 'outfit', icon: '👕', name: 'Outfit', slots: [['hat', '🎩 Head'], ['face', '🕶️ Face'], ['back', '🎒 Back'], ['aura', '✨ Aura'], ['namecolor', '🌈 Name colour']] },
-  { id: 'chefs', icon: '👨‍🍳', name: 'Chefs', slots: [['chef', 'Head chef (stall)']] },
+  { id: 'chefs', icon: '👨‍🍳', name: 'Chefs & cashiers', slots: [['chef', 'Head chef (stall)'], ['cashier', 'Cashier (kopitiam)']] },
   { id: 'potions', icon: '🧪', name: 'Potions & boosters', slots: [['potion', 'Potions'], ['booster', 'Boosters']] },
   { id: 'collectibles', icon: '💎', name: 'Collectibles', slots: [['trinket', 'Trinkets']] },
   { id: 'furniture', icon: '🛋️', name: 'Furniture', slots: [['furniture', 'Furniture']] },

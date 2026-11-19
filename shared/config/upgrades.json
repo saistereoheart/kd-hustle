@@ -132,9 +132,9 @@
     },
     "chef_academy": {
       "branch": "business",
-      "name": "Chef Academy",
+      "name": "Staff Academy",
       "icon": "👨‍🍳",
-      "desc": "Send your head chef to classes: all their stats (speed, flavour, charm) go up.",
+      "desc": "Classes for your head chef and kopitiam cashier: all their stats (speed, flavour, charm, tips, patience) go up.",
       "maxLevel": 10,
       "baseCostSen": 150000,
       "costGrowth": 1.55,

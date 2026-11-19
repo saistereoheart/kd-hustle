@@ -20,6 +20,9 @@ export const gradesConfigSchema = z.object({
     chefByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
     variantMult: z.record(z.string(), z.number().positive()),
     /** Each chef's strengths: how much of their buff goes to each stall stat (missing = even). */
+    /** Cashiers (kopitiam): their base buff by rarity, split by profile into Tips and Patience. */
+    cashierByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
+    cashierProfiles: z.record(z.string(), z.object({ tips: z.number().nonnegative(), patience: z.number().nonnegative() })).default({}),
     chefProfiles: z.record(z.string(), z.object({ speed: z.number().nonnegative(), flavour: z.number().nonnegative(), charm: z.number().nonnegative() })).default({}),
   }),
   shards: z.object({ rerollGrade: z.record(z.string(), z.number().int().positive()), rerollVariant: z.record(z.string(), z.number().int().positive()) }),
@@ -89,11 +92,26 @@ export function chefStats(cfg: GradesConfig, chef: { id: string; rarity: string;
   return { speed: base * prof.speed, flavour: base * prof.flavour, charm: base * prof.charm };
 }
 
-/** All equipped items' buffs added up per stat (the head chef is handled by chefStats). */
+export const CASHIER_STATS = ['tips', 'patience'] as const;
+export type CashierStat = (typeof CASHIER_STATS)[number];
+export type CashierStats = Record<CashierStat, number>;
+export const CASHIER_STAT_INFO: Record<CashierStat, { icon: string; name: string; does: string }> = {
+  tips: { icon: '💵', name: 'Tips', does: 'bigger tips (and tips on your cooks\' sales)' },
+  patience: { icon: '⏳', name: 'Patience', does: 'customers wait longer' },
+};
+
+/** A kopitiam cashier's stats: rarity base × tier × variant, split by profile, × (1 + Staff Academy). */
+export function cashierStats(cfg: GradesConfig, c: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): CashierStats {
+  const base = (cfg.buffs.cashierByRarity[c.rarity] ?? 0) * gradeMult(cfg, c.grade) * (cfg.buffs.variantMult[c.variant] ?? 1) * (1 + boost);
+  const prof = cfg.buffs.cashierProfiles[c.id] ?? { tips: 1, patience: 0.5 };
+  return { tips: base * prof.tips, patience: base * prof.patience };
+}
+
+/** All equipped items' buffs added up per stat (the head chef / cashier are handled separately). */
 export function gearBonuses(cfg: GradesConfig, items: ReadonlyArray<{ type: string; rarity: string; grade?: string; variant: string }>): Partial<Record<GearStat, number>> {
   const out: Partial<Record<GearStat, number>> = {};
   for (const it of items) {
-    if (it.type === 'chef') continue;
+    if (it.type === 'chef' || it.type === 'cashier') continue;
     const b = gearBuff(cfg, it);
     if (b) out[b.stat] = (out[b.stat] ?? 0) + b.value;
   }

@@ -99,7 +99,7 @@
     },
     {
       "id": "chefs",
-      "name": "Chef Search",
+      "name": "Chef & Cashier Search",
       "priceSen": 150000,
       "priceShards": 60,
       "color": "#e8590c",
@@ -117,7 +117,15 @@
         "chef_tuan_rashid",
         "chef_master_raju",
         "chef_sambal_sultan",
-        "chef_grandmaster_teh"
+        "chef_grandmaster_teh",
+        "cashier_kak_mah",
+        "cashier_dik_aina",
+        "cashier_uncle_lim",
+        "cashier_aunty_devi",
+        "cashier_abang_zul",
+        "cashier_puan_hasnah",
+        "cashier_tauke_wong",
+        "cashier_kira_laju"
       ],
       "requires": {
         "stage": 2

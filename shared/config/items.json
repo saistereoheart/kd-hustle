@@ -1916,6 +1916,86 @@
       "color": "#c9b79c",
       "valueSen": 70000,
       "desc": "Furniture (chairs, Japandi theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "cashier_kak_mah",
+      "name": "Kak Mah",
+      "type": "cashier",
+      "rarity": "common",
+      "shape": "bun",
+      "color": "#e64980",
+      "color2": "#c68642",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_dik_aina",
+      "name": "Dik Aina",
+      "type": "cashier",
+      "rarity": "common",
+      "shape": "plain",
+      "color": "#4dabf7",
+      "color2": "#e0ac69",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_uncle_lim",
+      "name": "Uncle Lim",
+      "type": "cashier",
+      "rarity": "uncommon",
+      "shape": "glasses",
+      "color": "#fab005",
+      "color2": "#f1c27d",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_aunty_devi",
+      "name": "Aunty Devi",
+      "type": "cashier",
+      "rarity": "uncommon",
+      "shape": "bun",
+      "color": "#be4bdb",
+      "color2": "#8d5524",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_abang_zul",
+      "name": "Abang Zul",
+      "type": "cashier",
+      "rarity": "rare",
+      "shape": "moustache",
+      "color": "#2f9e44",
+      "color2": "#c68642",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_puan_hasnah",
+      "name": "Puan Hasnah",
+      "type": "cashier",
+      "rarity": "epic",
+      "shape": "glasses",
+      "color": "#e8590c",
+      "color2": "#a0522d",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_tauke_wong",
+      "name": "Tauke Wong",
+      "type": "cashier",
+      "rarity": "legendary",
+      "shape": "beard",
+      "color": "#c92a2a",
+      "color2": "#f1c27d",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
+    },
+    {
+      "id": "cashier_kira_laju",
+      "name": "Mak Cik Kira Laju",
+      "type": "cashier",
+      "rarity": "mythic",
+      "shape": "bun",
+      "color": "#7048e8",
+      "color2": "#8d5524",
+      "desc": "Your kopitiam's cashier (+1 staff). Tips: bigger tips, and tips on your cooks' sales. Patience: customers wait longer. Equip in 📱 Business → Chef & cashier."
     }
   ]
 }

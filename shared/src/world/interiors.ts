@@ -26,6 +26,8 @@ export const roomStyleSchema = z.object({
   /** Who stands behind the counter (null: nobody). */
   keeper: z.string().nullable(),
   greeting: z.string(),
+  /** Doorway width in tiles (default 1.7; a kopitiam has a small entrance). */
+  doorTiles: z.number().positive().optional(),
 });
 export type RoomStyle = z.infer<typeof roomStyleSchema>;
 

@@ -33,7 +33,7 @@ function hash01(s: string): number {
  * inside, or holds a stall (named buildings are landmarks).
  */
 export function buildListings(map: Pick<BuiltMap, 'buildings'> & Partial<Pick<BuiltMap, 'interactables' | 'stallPlots' | 'metersPerTile'>>, cfg: PropertiesConfig): Unit[] {
-  const busy = new Set<string>([...(map.interactables ?? []).map((i) => i.building ?? ''), ...(map.stallPlots ?? []).map((p) => p.building ?? '')]);
+  const busy = new Set<string>([...(map.interactables ?? []).map((i) => i.building ?? ''), ...(map.stallPlots ?? []).filter((p) => !p.auto).map((p) => p.building ?? '')]);
   const mpt = map.metersPerTile ?? 2;
   const spots: Array<[number, number]> = [];
   for (const h of cfg.hotspots) {

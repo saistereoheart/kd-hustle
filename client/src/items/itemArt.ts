@@ -866,22 +866,43 @@ function drawGeneric(ctx: Ctx, def: ItemDef, paint: Paint) {
   }
 }
 
-/** A head chef's portrait: whites, a neckerchief in the item colour, a face and a toque. */
-function drawChefPortrait(ctx: Ctx, shape: string, paint: Paint, skin: string) {
-  // shoulders in chef whites with double buttons
-  ctx.fillStyle = '#f8f9fa';
-  ctx.beginPath();
-  ctx.ellipse(0, 15, 14, 8, 0, Math.PI, 0);
-  ctx.fill();
-  ctx.fillStyle = '#ced4da';
-  for (const [x, y] of [[-3, 11], [3, 11], [-3, 14], [3, 14]]) ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
-  ctx.fillStyle = paint.c1;
-  ctx.beginPath();
-  ctx.moveTo(-6, 7);
-  ctx.lineTo(6, 7);
-  ctx.lineTo(0, 12);
-  ctx.closePath();
-  ctx.fill();
+/** A head chef's portrait: whites, a neckerchief in the item colour, a face and a toque.
+ *  A cashier instead wears a polo in the item colour with a name tag, and a visor. */
+function drawChefPortrait(ctx: Ctx, shape: string, paint: Paint, skin: string, cashier = false) {
+  if (cashier) {
+    // polo shirt in the item colour, white collar, a gold name tag
+    ctx.fillStyle = paint.c1;
+    ctx.beginPath();
+    ctx.ellipse(0, 15, 14, 8, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-5, 7);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(5, 7);
+    ctx.lineTo(3, 6);
+    ctx.lineTo(0, 8);
+    ctx.lineTo(-3, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffd43b';
+    ctx.fillRect(3, 11, 5, 2.4);
+  } else {
+    // shoulders in chef whites with double buttons
+    ctx.fillStyle = '#f8f9fa';
+    ctx.beginPath();
+    ctx.ellipse(0, 15, 14, 8, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#ced4da';
+    for (const [x, y] of [[-3, 11], [3, 11], [-3, 14], [3, 14]]) ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+    ctx.fillStyle = paint.c1;
+    ctx.beginPath();
+    ctx.moveTo(-6, 7);
+    ctx.lineTo(6, 7);
+    ctx.lineTo(0, 12);
+    ctx.closePath();
+    ctx.fill();
+  }
   // face
   ctx.fillStyle = skin;
   ctx.beginPath();
@@ -924,6 +945,18 @@ function drawChefPortrait(ctx: Ctx, shape: string, paint: Paint, skin: string) {
     ctx.lineTo(1, -1);
     ctx.stroke();
   }
+  if (cashier) {
+    // a visor in the item colour
+    ctx.fillStyle = paint.c2;
+    ctx.beginPath();
+    ctx.ellipse(0, -6.5, 9, 2.6, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = paint.c1;
+    ctx.beginPath();
+    ctx.ellipse(0, -5.6, 10.5, 2.2, 0, 0, Math.PI);
+    ctx.fill();
+    return;
+  }
   // the toque
   ctx.save();
   ctx.translate(0, -4);
@@ -945,8 +978,8 @@ export function drawItemIcon(ctx: Ctx, def: ItemDef, variant: string, size: numb
   } else if (def.type === 'face') {
     ctx.scale(1.5, 1.5);
     drawFace(ctx, def.shape, paint, 'front');
-  } else if (def.type === 'chef') {
-    drawChefPortrait(ctx, def.shape, paint, def.color2 ?? '#c68642');
+  } else if (def.type === 'chef' || def.type === 'cashier') {
+    drawChefPortrait(ctx, def.shape, def.type === 'cashier' ? { ...paint, c2: shadeHex(def.color, -0.3) } : paint, def.color2 ?? '#c68642', def.type === 'cashier');
   } else if (def.type === 'back') {
     ctx.translate(0, -6);
     ctx.scale(0.7, 0.7);

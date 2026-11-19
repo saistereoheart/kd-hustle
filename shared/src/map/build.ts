@@ -115,7 +115,8 @@ export interface BuiltMap {
     spots: Array<[number, number]>;
   }>;
   /** Food stall spots (tile coords): where the stall stands, and where its queue forms. */
-  stallPlots: Array<{ id: string; tier: number; x: number; y: number; queueFrom: [number, number]; queueStep: [number, number]; building?: string }>;
+  /** `auto`: a kopitiam spot made from a plain shoplot (any free shoplot can be one). */
+  stallPlots: Array<{ id: string; tier: number; x: number; y: number; queueFrom: [number, number]; queueStep: [number, number]; building?: string; auto?: boolean }>;
   /** Spawn point in world pixels (feet). */
   spawnPx: { x: number; y: number };
 }
@@ -509,20 +510,57 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
 
   // Stall plots: a point, or a shoplot's door (the queue forms outside, along the shopfront).
   const stallPlots: BuiltMap['stallPlots'] = [];
+  const shopPlot = (id: string, tier: number, b: BuiltBuilding, sp: { queueFrom?: [number, number]; queueStep?: [number, number] } = {}, auto = false) => {
+    const d = b.door!;
+    // Which way the door faces (dominant axis): the queue forms outside, along the shopfront.
+    const dx = d.frontX - d.x, dy = d.frontY - d.y;
+    const ox = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
+    const oy = ox === 0 ? Math.sign(dy) || 1 : 0;
+    stallPlots.push({
+      id, tier, building: b.id, x: d.frontX + 0.5, y: d.frontY + 0.5,
+      queueFrom: sp.queueFrom ?? [ox * 1.2 - oy * 0.6, oy * 1.2 + ox * 0.6], queueStep: sp.queueStep ?? [oy !== 0 ? 0.75 : 0, ox !== 0 ? 0.75 : 0],
+      ...(auto ? { auto: true } : {}),
+    });
+  };
   for (const sp of ov.stallPlots) {
     if (sp.building) {
       const b = builtBuildings.find((bb) => bb.id === sp.building);
       if (!b?.door) continue;
-      // Which way the door faces (dominant axis): the queue forms outside, along the shopfront.
-      const dx = b.door.frontX - b.door.x, dy = b.door.frontY - b.door.y;
-      const ox = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
-      const oy = ox === 0 ? Math.sign(dy) || 1 : 0;
-      stallPlots.push({
-        id: sp.id, tier: sp.tier, building: sp.building, x: b.door.frontX + 0.5, y: b.door.frontY + 0.5,
-        queueFrom: sp.queueFrom ?? [ox * 1.2 - oy * 0.6, oy * 1.2 + ox * 0.6], queueStep: sp.queueStep ?? [oy !== 0 ? 0.75 : 0, ox !== 0 ? 0.75 : 0],
-      });
+      shopPlot(sp.id, sp.tier, b, sp);
     } else if (sp.x !== undefined && sp.y !== undefined) {
       stallPlots.push({ id: sp.id, tier: sp.tier, x: sp.x, y: sp.y, queueFrom: sp.queueFrom ?? [1.6, 1.4], queueStep: sp.queueStep ?? [0.75, 0] });
+    }
+  }
+  // Kopitiams: any other plain shoplot (with a door, not used by a shop or machine) can be one.
+  const kopiTier = Math.max(0, ...ov.stallPlots.filter((p) => p.building).map((p) => p.tier));
+  if (kopiTier) {
+    const used = new Set<string>([...stallPlots.map((p) => p.building ?? ''), ...interactables.map((i) => i.building ?? '')]);
+    // Only shopfronts you can walk to from the square, with room for a queue outside.
+    const reach = new Uint8Array(W * H);
+    const start = idx(ov.spawn[0], ov.spawn[1]);
+    if (start >= 0 && !solid[start]) {
+      const stack = [start];
+      reach[start] = 1;
+      while (stack.length) {
+        const i = stack.pop()!;
+        const x = i % W, y = (i - x) / W;
+        for (const [j, ok] of [[i - 1, x > 0], [i + 1, x < W - 1], [i - W, y > 0], [i + W, y < H - 1]] as Array<[number, boolean]>) {
+          if (ok && !reach[j] && !solid[j]) (reach[j] = 1), stack.push(j);
+        }
+      }
+    }
+    const tileAt = (x: number, y: number) => idx(Math.floor(x), Math.floor(y));
+    for (const b of builtBuildings) {
+      if (b.kind !== 'shoplot' || !b.door || used.has(b.id)) continue;
+      const before = stallPlots.length;
+      shopPlot(`kopitiam@${b.id}`, kopiTier, b, {}, true);
+      const p = stallPlots[before];
+      let ok = reach[tileAt(p.x, p.y)] === 1;
+      for (let k = 0; ok && k < 6; k++) {
+        const qi = tileAt(p.x + p.queueFrom[0] + p.queueStep[0] * k, p.y + p.queueFrom[1] + p.queueStep[1] * k);
+        ok = qi >= 0 && !solid[qi];
+      }
+      if (!ok) stallPlots.pop();
     }
   }
 

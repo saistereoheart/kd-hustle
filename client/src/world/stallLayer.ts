@@ -87,7 +87,10 @@ export class StallLayer {
 
   /** Rebuild what changed (call when the store's stalls change). */
   sync() {
-    for (const plot of this.plots) {
+    // Free kopitiam shoplots (hundreds) have nothing to draw: only look at the fixed spots and
+    // the shoplots that have (or just had) a kopitiam.
+    const active = this.plots.filter((p) => !p.auto || this.app.store.stalls.has(p.id) || this.views.has(p.id));
+    for (const plot of active) {
       const s = this.app.store.stalls.get(plot.id);
       // Solid while there's a stall on the plot (the server uses the same boxes).
       setBoxes([this.app.map.collision, this.app.map.driveCollision], `stall:${plot.id}`, s ? stallFootprint(plot, this.T) : []);
@@ -95,6 +98,10 @@ export class StallLayer {
       const v = this.views.get(plot.id);
       if (v?.key === key) continue;
       if (v) for (const o of v.objs) o.destroy();
+      if (!s && plot.auto) {
+        this.views.delete(plot.id);
+        continue;
+      }
       const nv = this.drawPlot(plot, s, key);
       for (const o of nv.objs) this.culler.add(o as unknown as Phaser.GameObjects.Image, plot.x * this.T, plot.y * this.T, 180);
       this.views.set(plot.id, nv);
@@ -391,6 +398,7 @@ export class StallLayer {
     let best: Plot | null = null;
     let bd = radius;
     for (const p of this.plots) {
+      if (p.tier >= this.app.cfg.stalls.cashierFromTier) continue; // kopitiams: go in through the door
       const d = Math.hypot(px / this.T - p.x, py / this.T - p.y);
       if (d < bd) {
         bd = d;

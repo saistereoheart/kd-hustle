@@ -89,7 +89,7 @@ export class Economy {
       const def = inst ? this.cfg.itemById.get(inst.itemId) : undefined;
       // The head chef is a stall buff, not something you wear (others don't need to see it).
       if (inst && def && def.type === slot) {
-        if (slot !== 'chef') next[slot] = { itemId: inst.itemId, variant: inst.variant };
+        if (slot !== 'chef' && slot !== 'cashier') next[slot] = { itemId: inst.itemId, variant: inst.variant };
       }
       else delete p.equipped[slot];
     }

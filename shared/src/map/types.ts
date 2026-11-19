@@ -33,7 +33,7 @@ export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 export const DECOR_KINDS = ['fountain', 'jobsboard', 'lookout', 'busstop', 'stall'] as const;
 
-export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash', 'market', 'furniture', 'casino'] as const;
+export const INTERACT_TYPES = ['crate', 'jobs', 'pawn', 'carwash', 'market', 'furniture', 'casino', 'kitchen', 'cashier', 'stairs'] as const;
 export type InteractType = (typeof INTERACT_TYPES)[number];
 
 // ------------------------------------------------------------- generated OSM data

@@ -23,6 +23,16 @@
     "w1275938577": "carwash"
   },
   "styles": {
+    "kopitiam": {
+      "label": "Kopitiam",
+      "w": 10, "h": 7,
+      "floor": "#f1f3f5", "floor2": "#d3f9d8", "wall": "#2b8a3e", "trim": "#1b5e20",
+      "furniture": ["table", "table", "fridge", "plant", "boxes"],
+      "fill": ["table"],
+      "keeper": "Cashier",
+      "greeting": "Welcome! Order at the counter, pay at the till.",
+      "doorTiles": 1.15
+    },
     "vacant": {
       "label": "Empty shoplot",
       "w": 10, "h": 7,
