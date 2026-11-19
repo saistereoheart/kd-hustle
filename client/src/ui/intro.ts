@@ -36,7 +36,7 @@ export function introReveal() {
       const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
       const frame = (now: number) => {
         const k = Math.min(1, (now - t0) / dur);
-        const r = 4 + (max - 4) * ease(k);
+        const r = 6 + (max - 6) * ease(k);
         const mask = `radial-gradient(circle at 50% 50%, transparent ${r}px, #000 ${r + 1.5}px)`;
         c.style.maskImage = mask;
         c.style.setProperty('-webkit-mask-image', mask);

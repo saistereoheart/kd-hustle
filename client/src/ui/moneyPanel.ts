@@ -59,7 +59,7 @@ export function openMoneyPanel(app: App) {
   function render() {
     const st = app.store;
     const head = el('div', { class: 'money-head' }, el('div', { class: 'money-big' }, formatMoneyExact(st.walletSen)), el('div', { class: 'muted small' }, `💎 ${st.shards.toLocaleString('en-US')} shards`));
-    const tabs = el('div', { class: 'seg' });
+    const tabs = el('div', { class: 'money-tabs' });
     for (const [id, label] of [['hour', 'Last hour'], ['day', 'Last 24 hours']] as const) {
       const b = el('button', { class: `btn small${windowSel === id ? ' primary' : ''}`, type: 'button' }, label);
       b.addEventListener('click', () => {

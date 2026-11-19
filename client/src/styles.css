@@ -1019,6 +1019,8 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 
 /* 💰 Money breakdown */
 .money-head { text-align: center; margin-bottom: 6px; }
+.money-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.money-tabs .btn { flex: 1; }
 .money-big { font-size: 1.6em; font-weight: 800; }
 .money-list { display: grid; gap: 6px; }
 .money-row { background: rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
@@ -1032,7 +1034,7 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 /* Start-game intro: dark cover with a glowing dot, then an iris opening from the dot. */
 .intro-cover { position: fixed; inset: 0; z-index: 60; background: #05060d; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
 .intro-cover.show { opacity: 1; pointer-events: auto; }
-.intro-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #ffe8a3; box-shadow: 0 0 12px 4px rgba(255, 212, 59, 0.7); animation: intro-pulse 1.1s ease-in-out infinite; }
+.intro-dot { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff3bf; box-shadow: 0 0 18px 8px rgba(255, 212, 59, 0.75), 0 0 48px 16px rgba(255, 212, 59, 0.25); animation: intro-pulse 1.1s ease-in-out infinite; }
 .intro-cover.opening .intro-dot { animation: none; opacity: 0; transition: opacity 0.2s; }
 @keyframes intro-pulse { 0%, 100% { transform: scale(0.7); opacity: 0.6; } 50% { transform: scale(1.25); opacity: 1; } }
 

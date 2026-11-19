@@ -75,7 +75,7 @@
       "addonChance": 0.3, "maxAddons": 1
     },
     {
-      "id": "murtabak", "name": "Murtabak", "icon": "🫓", "basePriceSen": 2400, "ingredientCostSen": 600,
+      "id": "murtabak", "name": "Murtabak", "icon": "🥙", "basePriceSen": 2400, "ingredientCostSen": 600,
       "unlock": { "recipe": "mee_goreng", "mastery": 1 },
       "steps": [
         { "kind": "rhythm", "label": "Stretch the dough", "hint": "Slap it on every beat", "art": "dough", "beats": 5, "intervalMs": [520, 680], "leadMs": 900 },

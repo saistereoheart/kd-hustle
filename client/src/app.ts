@@ -599,6 +599,7 @@ export class App {
   private openCreator(first: boolean) {
     if (this.creatorOpen) return;
     this.creatorOpen = true;
+    introCancel(); // the creator needs the screen; the town opens from the dot after it
     const prevState = document.body.dataset.state;
     document.body.dataset.state = 'creator';
     const start: Appearance = first || !this.lastInit?.you.appearance ? randomAppearance(this.cfg.character) : this.lastInit.you.appearance;
@@ -612,6 +613,7 @@ export class App {
             if (err) return resolve('The server did not respond. Try again.');
             if (!res.ok) return resolve(res.error);
             this.creatorOpen = false;
+            if (first) introCover();
             if (!first) {
               document.body.dataset.state = 'town';
               if (this.lastInit) this.lastInit.you.appearance = appearance;

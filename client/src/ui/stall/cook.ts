@@ -441,7 +441,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           }
         } else if (s.art === 'wok_mee') {
           // Mee goreng in a blazing wok: pale noodles → saucy red-brown → burnt.
-          const rad = Math.min(W * 0.36, H * 0.5);
+          const rad = Math.min(W * 0.3, H * 0.46);
           drawWok(ctx, cx - rad * 0.2, cy - 6, rad, 1, t);
           drawNoodles(ctx, cx - rad * 0.2, cy - 10, rad * 0.62, rad * 0.36, p);
         } else if (s.art === 'murtabak') {
@@ -496,7 +496,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.stroke();
         } else if (s.art.startsWith('wok')) {
           // Tossing in the wok: the food jumps after every tap and settles back down.
-          const rad = Math.min(W * 0.36, H * 0.5);
+          const rad = Math.min(W * 0.3, H * 0.46);
           const since = ev.length ? t - ev[ev.length - 1] : 9999;
           const jump = since < 320 ? Math.sin((since / 320) * Math.PI) * rad * 0.45 : 0;
           drawWok(ctx, tx, ty, rad, 1, t);
