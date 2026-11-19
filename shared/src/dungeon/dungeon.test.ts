@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import dungeonJson from '../../config/dungeon.json';
 import petsJson from '../../config/pets.json';
 import { petsConfigSchema, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
-import { deathLoot, dungeonConfigSchema, enemyFor, floorLoot, isBossFloor } from './dungeon';
+import { applyRest, deathLoot, dungeonConfigSchema, enemyFor, floorLoot, isBossFloor, restAfter, restOffer, type DungeonRun } from './dungeon';
 
 const cfg = dungeonConfigSchema.parse(dungeonJson);
 const pets = petsConfigSchema.parse(petsJson);
@@ -142,3 +142,45 @@ describe('balance (auto battles)', () => {
     expect(strong).toBeLessThan(80);
   });
 });
+
+describe('rest rooms', () => {
+  const runWith = (team: Fighter[]): DungeonRun => ({ floor: 4, team, active: 0, enemy: team[0], enemyLine: '', phase: 'rest', loot: { sen: 1000, shards: 0, xp: 0, petXp: 0 }, round: 0, restNext: false, buffs: 0 });
+
+  it('come every few floors, plus sometimes at random; HP carries over between floors', () => {
+    expect(cfg.healPerFloor).toBe(0);
+    expect(restAfter(cfg, cfg.rest.every, 0.99)).toBe(true);
+    expect(restAfter(cfg, cfg.rest.every + 1, 0.99)).toBe(false);
+    expect(restAfter(cfg, cfg.rest.every + 1, 0)).toBe(true);
+  });
+
+  it('heal patches up and revives; buff stacks on attack and defence', () => {
+    const a = fighter('pet_kucing', 5, 0, 1);
+    const b = fighter('pet_ayam', 5, 0, 2);
+    a.hp = 1;
+    b.hp = 0;
+    const r = runWith([a, b]);
+    const offer = restOffer(cfg, r, 1);
+    expect(offer.revives).toBe(1);
+    applyRest(cfg, r, 'heal', 1);
+    expect(r.team[0].hp).toBe(Math.min(a.maxHp, 1 + Math.round(a.maxHp * cfg.rest.heal)));
+    expect(r.team[1].hp).toBe(Math.max(1, Math.round(b.maxHp * cfg.rest.revive)));
+    const atk = r.team[0].atk;
+    applyRest(cfg, r, 'buff', 1);
+    expect(r.team[0].atk).toBe(Math.round(atk * (1 + cfg.rest.buffAtk)));
+    expect(r.buffs).toBe(1);
+  });
+
+  it('a sacrifice costs HP (never below 1, fainted ones untouched) and pays money into the loot', () => {
+    const a = fighter('pet_kucing', 5, 0, 1);
+    const b = fighter('pet_ayam', 5, 0, 2);
+    b.hp = 0;
+    const r = runWith([a, b]);
+    const sen = restOffer(cfg, r, 2).sacrificeSen;
+    expect(sen).toBe(Math.round(floorLoot(cfg, 2, 4).sen * cfg.rest.sacrificeFloors));
+    applyRest(cfg, r, 'sacrifice', 2);
+    expect(r.team[0].hp).toBe(Math.max(1, a.maxHp - Math.round(a.maxHp * cfg.rest.sacrificeHp)));
+    expect(r.team[1].hp).toBe(0);
+    expect(r.loot.sen).toBe(1000 + sen);
+  });
+});
+

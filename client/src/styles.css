@@ -1339,3 +1339,16 @@ body.touch .dash-canvas { width: 210px; height: 134px; }
 body.touch .dash-btn { width: 42px; height: 40px; font-size: 18px; }
 body.touch.portrait .dash { bottom: calc(210px + var(--safe-b)); }
 body.touch.portrait .dash-canvas { width: 180px; height: 116px; }
+
+/* 🏕️ Gua Gelap rest room */
+.rest-room { display: flex; flex-direction: column; gap: 10px; }
+.rest-team { display: flex; flex-wrap: wrap; gap: 6px; }
+.rest-pet { padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.07); font-size: 13px; }
+.rest-pet.out { opacity: 0.6; }
+.rest-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rest-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--text); text-align: center; cursor: pointer; }
+.rest-card:hover:not(:disabled) { border-color: var(--accent); background: rgba(245, 159, 0, 0.12); }
+.rest-card:disabled { opacity: 0.45; cursor: default; }
+.rest-card small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.rest-icon { font-size: 30px; }
+body.portrait .rest-cards { grid-template-columns: 1fr; }

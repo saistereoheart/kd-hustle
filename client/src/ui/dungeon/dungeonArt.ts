@@ -34,39 +34,91 @@ function eyes(ctx: Ctx, x: number, y: number, gap: number, r: number, white = '#
 
 /** The cave: dark rock, stalactites, a lamp glow, the floor. */
 export function drawCave(ctx: Ctx, w: number, h: number, floor: number, t: number) {
-  const g = ctx.createLinearGradient(0, 0, 0, h);
+  // An angled view: the back wall at the top, the cave floor running away from you in perspective
+  // (lines meet at a vanishing point up and to the right), your side lit by a torch.
   const deep = Math.min(1, floor / 20);
-  g.addColorStop(0, `rgb(${30 - deep * 10}, ${26 - deep * 10}, ${44 + deep * 10})`);
-  g.addColorStop(1, '#0b0a12');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  // Stalactites
-  ctx.fillStyle = '#2a2638';
-  for (let i = 0; i < 9; i++) {
-    const x = ((i * 137) % 100) / 100 * w, len = 18 + ((i * 53) % 40);
-    ctx.beginPath();
-    ctx.moveTo(x - 14, 0);
-    ctx.lineTo(x + 14, 0);
-    ctx.lineTo(x + 2, len);
-    ctx.closePath();
-    ctx.fill();
+  const horizon = h * 0.44;
+  const vx = w * 0.66, vy = h * 0.18; // vanishing point
+  const wall = ctx.createLinearGradient(0, 0, 0, horizon);
+  wall.addColorStop(0, `rgb(${22 - deep * 8}, ${19 - deep * 8}, ${34 + deep * 10})`);
+  wall.addColorStop(1, `rgb(${40 - deep * 10}, ${34 - deep * 10}, ${54 + deep * 8})`);
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, w, horizon + 2);
+  // Rock blocks on the back wall.
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 1.5;
+  for (let row = 0; row < 4; row++) {
+    const y = (row / 4) * horizon;
+    for (let i = 0; i < 9; i++) {
+      const x = ((i + (row % 2) * 0.5) / 8) * w;
+      ctx.strokeRect(x - w / 16, y, w / 8, horizon / 4);
+    }
   }
-  // Torch glow on the left (your side), flickering.
-  const fl = 0.85 + Math.sin(t / 90) * 0.08 + Math.sin(t / 37) * 0.05;
-  const glow = ctx.createRadialGradient(w * 0.12, h * 0.55, 4, w * 0.12, h * 0.55, w * 0.55 * fl);
-  glow.addColorStop(0, 'rgba(255, 170, 70, 0.35)');
-  glow.addColorStop(1, 'rgba(255, 170, 70, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-  // Floor
-  ctx.fillStyle = '#1a1724';
+  // Floor (darker as it goes back), with perspective lines.
+  const fl = ctx.createLinearGradient(0, horizon, 0, h);
+  fl.addColorStop(0, '#15121e');
+  fl.addColorStop(1, '#2a2436');
+  ctx.fillStyle = fl;
   ctx.beginPath();
-  ctx.moveTo(0, h * 0.82);
-  for (let x = 0; x <= w; x += w / 12) ctx.lineTo(x, h * 0.82 + Math.sin(x * 0.05) * 5);
+  ctx.moveTo(0, horizon);
+  ctx.lineTo(w, horizon);
   ctx.lineTo(w, h);
   ctx.lineTo(0, h);
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = -6; i <= 12; i++) {
+    const bx = (i / 6) * w; // where the line meets the bottom edge
+    const k = (horizon - vy) / (h - vy);
+    ctx.beginPath();
+    ctx.moveTo(vx + (bx - vx) * k, horizon);
+    ctx.lineTo(bx, h);
+    ctx.stroke();
+  }
+  for (let j = 1; j <= 7; j++) {
+    const y = horizon + (h - horizon) * (j / 7) ** 1.8; // closer together far away
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  // The wall meets the floor: a dark lip.
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, horizon - 2, w, 6);
+  // Stalactites (front ones bigger) and stalagmites on the sides.
+  for (let i = 0; i < 11; i++) {
+    const x = (((i * 137) % 100) / 100) * w, len = 14 + ((i * 53) % 46);
+    const near = i % 3 === 0;
+    ctx.fillStyle = near ? '#1d1a29' : '#2a2638';
+    ctx.beginPath();
+    ctx.moveTo(x - (near ? 20 : 12), 0);
+    ctx.lineTo(x + (near ? 20 : 12), 0);
+    ctx.lineTo(x + 2, len * (near ? 1.5 : 1));
+    ctx.closePath();
+    ctx.fill();
+  }
+  for (const [x, y, s] of [[w * 0.04, h, 1.3], [w * 0.95, h * 0.98, 1.1], [w * 0.88, horizon + 8, 0.5], [w * 0.42, horizon + 4, 0.4]] as Array<[number, number, number]>) {
+    ctx.fillStyle = '#231f31';
+    ctx.beginPath();
+    ctx.moveTo(x - 22 * s, y);
+    ctx.lineTo(x + 22 * s, y);
+    ctx.lineTo(x + 4 * s, y - 60 * s);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Torch glow on your side (front left), flickering; a cold glow deep in the cave.
+  const fk = 0.85 + Math.sin(t / 90) * 0.08 + Math.sin(t / 37) * 0.05;
+  const glow = ctx.createRadialGradient(w * 0.1, h * 0.75, 4, w * 0.1, h * 0.75, w * 0.6 * fk);
+  glow.addColorStop(0, 'rgba(255, 170, 70, 0.38)');
+  glow.addColorStop(1, 'rgba(255, 170, 70, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+  const cold = ctx.createRadialGradient(vx, horizon, 2, vx, horizon, w * 0.35);
+  cold.addColorStop(0, `rgba(120, 140, 255, ${0.12 + deep * 0.1})`);
+  cold.addColorStop(1, 'rgba(120, 140, 255, 0)');
+  ctx.fillStyle = cold;
+  ctx.fillRect(0, 0, w, h);
 }
 
 /**

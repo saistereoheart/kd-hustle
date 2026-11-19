@@ -65,6 +65,7 @@ export const C2S = {
   feedbackDone: z.object({ id: z.number().int().positive(), done: z.boolean() }),
   /** ⚔️ One battle round: your pet's action (or let Auto pick); `skip` plays the fight out to the end on Auto. */
   dungeonAct: z.object({ action: z.enum(['attack', 'charge', 'ultimate', 'auto']), skip: z.boolean().default(false) }),
+  dungeonRest: z.object({ choice: z.enum(['heal', 'buff', 'sacrifice', 'skip']) }),
   /** 🐾 Teman */
   petsBuy: z.object({ id: z.string().min(1).max(40) }),
   petsTeam: z.object({ iids: z.array(z.number().int().positive()).max(6) }),
@@ -682,6 +683,7 @@ export interface ClientToServerEvents {
   'pets:upgrade': (msg: { iid: number; stat: 'hp' | 'atk' | 'def' | 'spd' }, ack: Ack<Result<{ view: PetsView }>>) => void;
   'pets:gear': (msg: { iid: number; gear: number | null }, ack: Ack<Result<{ view: PetsView }>>) => void;
   'dungeon:deeper': (ack: Ack<Result<{ view: DungeonView }>>) => void;
+  'dungeon:rest': (msg: { choice: 'heal' | 'buff' | 'sacrifice' | 'skip' }, ack: Ack<Result<{ view: DungeonView }>>) => void;
   /** Cash out between floors (everything), or flee mid-fight (half). */
   'dungeon:leave': (ack: Ack<Result<{ paid: DungeonLoot; view: DungeonView }>>) => void;
   /** Start a new life (you type REBIRTH to confirm). */

@@ -3,7 +3,7 @@
 // or Skip to play the fight out); the server answers with what happened. Loot is paid when you
 // cash out, fall, flee or disconnect; your pets get XP for every floor they clear.
 import {
-  autoChoice, dayKey, deathLoot, enemyFor, floorLoot, resolveRound,
+  applyRest, autoChoice, dayKey, deathLoot, enemyFor, floorLoot, resolveRound, restAfter, type RestChoice,
   type BattleAction, type BattleEvent, type DungeonLoot, type DungeonRun, type DungeonView, type RandInt,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
@@ -72,6 +72,7 @@ export class DungeonSystem {
     const r = this.runs.get(p.id);
     const copy = (x: ServerRun): DungeonRun => ({
       floor: x.floor, team: x.team.map((f) => ({ ...f })), active: x.active, enemy: { ...x.enemy }, enemyLine: x.enemyLine, phase: x.phase, loot: { ...x.loot }, round: x.round,
+      restNext: x.restNext, buffs: x.buffs,
     });
     return { name: this.dc().name, runsLeft: Math.max(0, this.dc().runsPerDay - s.runs), runsPerDay: this.dc().runsPerDay, best: s.best, run: r ? copy(r) : null };
   }
@@ -94,7 +95,7 @@ export class DungeonSystem {
     if (s.runs >= this.dc().runsPerDay) throw new GameError(`That's all ${this.dc().runsPerDay} runs for today. The cave opens again tomorrow.`);
     s.runs++;
     this.store(p);
-    const r: ServerRun = { floor: 1, team, active: 0, enemy: team[0], enemyLine: '', phase: 'fight', loot: { ...ZERO }, round: 0, taunts: [] };
+    const r: ServerRun = { floor: 1, team, active: 0, enemy: team[0], enemyLine: '', phase: 'fight', loot: { ...ZERO }, round: 0, taunts: [], restNext: false, buffs: 0 };
     this.spawn(r);
     this.runs.set(p.id, r);
     this.prog.bump(p, 'dungeonRuns');
@@ -130,6 +131,7 @@ export class DungeonSystem {
         }
         this.prog.max(p, 'dungeonBest', r.floor);
         r.phase = 'cleared';
+        r.restNext = restAfter(this.dc(), r.floor, this.rand(1000) / 1000);
       } else if (res.over === 'lose') {
         r.phase = 'dead';
         paid = this.pay(p, deathLoot(this.dc(), r.loot));
@@ -137,15 +139,34 @@ export class DungeonSystem {
         // A stalemate: the enemy runs off. No loot for this floor, but you can carry on.
         events.push({ kind: 'flee', side: 'enemy', name: r.enemy.name, text: `${r.enemy.name} lari! (too long a fight)` });
         r.phase = 'cleared';
+        r.restNext = restAfter(this.dc(), r.floor, this.rand(1000) / 1000);
       }
     } while (skip && r.phase === 'fight');
     return { events, view: this.view(p), paid, levelUps };
   }
 
-  /** After clearing a floor: on to the next one (the team patches up a little). */
+  /** After clearing a floor: on to the next one, or first into a rest room if one comes up. HP carries over. */
   deeper(p: OnlinePlayer): DungeonView {
     const r = this.runs.get(p.id);
     if (!r || r.phase !== 'cleared') throw new GameError('Beat this floor first.');
+    if (r.restNext) {
+      r.phase = 'rest';
+      return this.view(p);
+    }
+    return this.next(p, r);
+  }
+
+  /** In a rest room: heal, buff or sacrifice (or just move on), then down to the next floor. */
+  rest(p: OnlinePlayer, choice: RestChoice): DungeonView {
+    const r = this.runs.get(p.id);
+    if (!r || r.phase !== 'rest') throw new GameError("You're not in a rest room.");
+    applyRest(this.dc(), r, choice, p.prog.stage);
+    r.restNext = false;
+    return this.next(p, r);
+  }
+
+  private next(p: OnlinePlayer, r: ServerRun): DungeonView {
+    r.restNext = false;
     r.floor++;
     for (const f of r.team) if (f.hp > 0) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * this.dc().healPerFloor));
     if (r.team[r.active].hp <= 0) r.active = Math.max(0, r.team.findIndex((f) => f.hp > 0));
@@ -161,7 +182,7 @@ export class DungeonSystem {
     if (!r) throw new GameError("You're not in the cave.");
     this.runs.delete(p.id);
     if (r.phase === 'dead') return { paid: { ...ZERO }, view: this.view(p) }; // already paid
-    const loot = r.phase === 'cleared' ? r.loot : deathLoot(this.dc(), r.loot);
+    const loot = r.phase === 'cleared' || r.phase === 'rest' ? r.loot : deathLoot(this.dc(), r.loot);
     return { paid: this.pay(p, loot), view: this.view(p) };
   }
 

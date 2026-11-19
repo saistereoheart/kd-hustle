@@ -13,8 +13,24 @@ export const dungeonConfigSchema = z.object({
   runsPerDay: z.number().int().positive(),
   /** Loot kept when your team falls (the rest is lost). */
   deathKeep: z.number().min(0).max(1),
-  /** Share of max HP your pets heal after each cleared floor. */
+  /** Share of max HP your pets heal after each cleared floor (0: HP carries over; heal in rest rooms). */
   healPerFloor: z.number().min(0).max(1),
+  /**
+   * Rest rooms between floors (every `every` floors, plus a `chance` after any other floor): pick one
+   * of 🍲 heal (standing Teman +heal × max HP, fainted ones back at revive × max HP), 💪 a buff for
+   * the rest of the run (+buffAtk attack, +buffDef defence), or 🩸 sacrifice (each standing Teman
+   * loses sacrificeHp × max HP, never below 1, for sacrificeFloors × this floor's money).
+   */
+  rest: z.object({
+    every: z.number().int().positive(),
+    chance: z.number().min(0).max(1),
+    heal: z.number().min(0).max(1),
+    revive: z.number().min(0).max(1),
+    buffAtk: z.number().min(0),
+    buffDef: z.number().min(0),
+    sacrificeHp: z.number().min(0).max(0.9),
+    sacrificeFloors: z.number().min(0),
+  }).default({ every: 4, chance: 0.15, heal: 0.5, revive: 0.25, buffAtk: 0.2, buffDef: 0.15, sacrificeHp: 0.3, sacrificeFloors: 2 }),
   bossEvery: z.number().int().positive(),
   /** Enemy stats on floor 1 (× the enemy's own mults), growing per floor. */
   enemyScale: z.object({
@@ -63,10 +79,55 @@ export interface DungeonRun {
   enemy: Fighter;
   /** The enemy's lines (said when it shows up / goes for its ultimate). */
   enemyLine: string;
-  /** fight: your move; cleared: choose deeper or cash out; dead: it's over. */
-  phase: 'fight' | 'cleared' | 'dead';
+  /** fight: your move; cleared: choose deeper or cash out; rest: a rest room (pick one); dead: it's over. */
+  phase: 'fight' | 'cleared' | 'rest' | 'dead';
   loot: DungeonLoot;
   round: number;
+  /** A rest room comes before the next floor. */
+  restNext: boolean;
+  /** Rest-room buffs taken this run (each one stacks). */
+  buffs: number;
+}
+
+export type RestChoice = 'heal' | 'buff' | 'sacrifice' | 'skip';
+
+/** What a rest room offers right now (for the buttons): HP healed, money for a sacrifice. */
+export function restOffer(cfg: DungeonConfig, run: Pick<DungeonRun, 'floor' | 'team'>, stage: number): { healHp: number; revives: number; sacrificeSen: number; sacrificeHp: number } {
+  const rc = cfg.rest;
+  let healHp = 0, revives = 0, sacrificeHp = 0;
+  for (const f of run.team) {
+    if (f.hp <= 0) {
+      revives++;
+      healHp += Math.round(f.maxHp * rc.revive);
+    } else {
+      healHp += Math.min(f.maxHp - f.hp, Math.round(f.maxHp * rc.heal));
+      sacrificeHp += Math.min(f.hp - 1, Math.round(f.maxHp * rc.sacrificeHp));
+    }
+  }
+  return { healHp, revives, sacrificeHp, sacrificeSen: Math.round(floorLoot(cfg, stage, run.floor).sen * rc.sacrificeFloors) };
+}
+
+/** Applies a rest-room choice to the team (and loot). */
+export function applyRest(cfg: DungeonConfig, run: DungeonRun, choice: RestChoice, stage: number): void {
+  const rc = cfg.rest;
+  if (choice === 'heal') {
+    for (const f of run.team) f.hp = f.hp <= 0 ? Math.max(1, Math.round(f.maxHp * rc.revive)) : Math.min(f.maxHp, f.hp + Math.round(f.maxHp * rc.heal));
+  } else if (choice === 'buff') {
+    for (const f of run.team) {
+      f.atk = Math.round(f.atk * (1 + rc.buffAtk));
+      f.def = Math.round(f.def * (1 + rc.buffDef));
+    }
+    run.buffs++;
+  } else if (choice === 'sacrifice') {
+    const sen = restOffer(cfg, run, stage).sacrificeSen;
+    for (const f of run.team) if (f.hp > 0) f.hp = Math.max(1, f.hp - Math.round(f.maxHp * rc.sacrificeHp));
+    run.loot = { ...run.loot, sen: run.loot.sen + sen };
+  }
+}
+
+/** Is there a rest room after this floor? (`roll` 0..1 decides the random ones.) */
+export function restAfter(cfg: DungeonConfig, floor: number, roll: number): boolean {
+  return floor % cfg.rest.every === 0 || roll < cfg.rest.chance;
 }
 
 export interface DungeonView {

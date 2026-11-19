@@ -567,6 +567,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
     handle(socket, 'pets:gear', C2S.petsGear, ({ iid, gear }) => ({ view: pets.setGear(me, iid, gear) }));
     handle(socket, 'dungeon:deeper', null, () => ({ view: dungeon.deeper(me) }));
+    handle(socket, 'dungeon:rest', C2S.dungeonRest, ({ choice }) => ({ view: dungeon.rest(me, choice) }));
     handle(socket, 'dungeon:leave', null, () => dungeon.leave(me));
     handle(socket, 'event:view', null, () => ({ event: events.view() }));
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
