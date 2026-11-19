@@ -4,7 +4,7 @@ import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterC
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import type { VehicleLook } from '@kh/shared';
-import { hasDriver, vehicleFit, vehicleTexturePrefix } from '../items/vehicleArt';
+import { hasDriver, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
 import { addCanvasTexture } from './canvasTexture';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
@@ -351,6 +351,7 @@ export class Avatar {
     if (this.bike) {
       const view = VIEW_OF[this.dir];
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
+      if (this.vehicle) this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'));
       this.bike.setFlipX(this.dir === 'right');
       // From the side the bike is under the rider; from the front (handlebar, basket, front
       // wheel) and from behind (rear wheel, plate) it's drawn over them.

@@ -3,7 +3,8 @@
 // cruiser). Paint, wheel colour and the exhaust tip come from the VehicleLook. Side views face
 // LEFT (the sprite is flipped to face right), like the other vehicles.
 //
-// Cars: 96×56 logical px, ground at y = 52. Bikes: 64×44, ground at y = 40.
+// Cars: the side-profile shapes use a 96×56 layout (ground at y = 52) and are drawn ¾ from above
+// into a 96×68 side canvas and a 64×104 front/back canvas. Bikes: 64×44, ground at y = 40.
 import type Phaser from 'phaser';
 import type { GarageConfig, VehicleLook } from '@kh/shared';
 
@@ -15,7 +16,12 @@ export interface Look {
   tip: 'stock' | 'sport' | 'racing' | 'straight';
 }
 
-export const CAR_SIZE = { w: 96, h: 56, ground: 52 };
+/** The classic side profile's layout (the car shapes below are drawn in it). */
+const CAR_SIZE_OLD = { w: 96, h: 56, ground: 52 };
+/** Car canvases: the ¾ side view (room above for the roof seen from above) and the front/back view. */
+export const CAR_SIDE = { w: 96, h: 68, ground: 64 };
+export const CAR_END = { w: 64, h: 104, ground: 100 };
+export const CAR_SIZE = CAR_SIDE;
 export const BIKE_SIZE = { w: 64, h: 44, ground: 40 };
 
 function rgb(hex: string): [number, number, number] {
@@ -426,14 +432,155 @@ function bikeFront(ctx: Ctx, id: string, look: Look, back: boolean) {
   }
 }
 
-/** Draws a showroom vehicle into a canvas laid out as CAR_SIZE / BIKE_SIZE. */
+// ------------------------------------------------------------------ cars, ¾ top-down
+// The game camera looks down at the town at an angle, so cars are drawn that way too: the side
+// profile above is extruded into a body (its width going "into" the picture), so from the side you
+// see the roof, bonnet and boot from above, and from the front / back you look down the length of
+// the car at the bonnet, windscreen, roof and the end facing you.
+type Pt = [number, number];
+function ptsOf(a: number[]): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < a.length; i += 2) out.push([a[i], a[i + 1]]);
+  return out;
+}
+/** Each edge of the profile with its outward normal (y down). */
+function edges(body: number[]): Array<{ a: Pt; b: Pt; nx: number; ny: number }> {
+  const p = ptsOf(body);
+  let area = 0;
+  for (let i = 0; i < p.length; i++) {
+    const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return p.map((a, i) => {
+    const b = p[(i + 1) % p.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const [nx, ny] = area > 0 ? [dy / len, -dx / len] : [-dy / len, dx / len];
+    return { a, b, nx, ny };
+  });
+}
+function glassSpan(c: CarShape): { x0: number; x1: number; belt: number } {
+  const g = ptsOf(c.glass);
+  return { x0: Math.min(...g.map((q) => q[0])), x1: Math.max(...g.map((q) => q[0])), belt: Math.max(...g.map((q) => q[1])) };
+}
+
+/** Side view from above: roof and bonnet/boot tops, then the near side (the classic profile). */
+function carSide3q(ctx: Ctx, id: string, look: Look) {
+  const c = CARS[id] ?? CARS.car_sega;
+  const D = 14; // the car's width, foreshortened
+  ctx.save();
+  ctx.translate(0, CAR_SIDE.ground - CAR_SIZE_OLD.ground);
+  ell(ctx, 48, 50 - D / 2, 47, 3 + D / 2, 'rgba(0,0,0,0.25)');
+  const gs = glassSpan(c);
+  const tops = edges(c.body).filter((e) => e.ny < -0.25);
+  for (const e of tops) {
+    const mid = (e.a[0] + e.b[0]) / 2;
+    const inCabin = mid > gs.x0 + 1 && mid < gs.x1 - 1 && Math.min(e.a[1], e.b[1]) < gs.belt - 1;
+    const steep = Math.abs(e.ny) < 0.97;
+    const fill = inCabin && steep ? glassGrad(ctx, Math.min(e.a[1], e.b[1]) - D, Math.max(e.a[1], e.b[1])) : shade(look.paint, inCabin ? 0.32 : 0.18);
+    // The cabin is narrower than the body (the far side of the roof sits a little in).
+    const inset = inCabin ? 2 : 0;
+    fillPath(ctx, [e.a[0], e.a[1], e.b[0], e.b[1], e.b[0], e.b[1] - D + inset, e.a[0], e.a[1] - D + inset], fill);
+    line(ctx, [e.a[0], e.a[1] - D + inset, e.b[0], e.b[1] - D + inset], shade(look.paint, -0.25), 0.6);
+  }
+  // A shine across the roof.
+  for (const e of tops) {
+    const mid = (e.a[0] + e.b[0]) / 2;
+    if (Math.abs(e.ny) >= 0.97 && mid > gs.x0 && mid < gs.x1) line(ctx, [e.a[0] + 3, e.a[1] - D * 0.45, e.b[0] - 3, e.b[1] - D * 0.45], 'rgba(255,255,255,0.28)', 1.2);
+  }
+  carSide(ctx, id, look);
+  ctx.restore();
+}
+
+/** Front / back view from above: looking down the length of the car. */
+function carEnd3q(ctx: Ctx, id: string, look: Look, back: boolean) {
+  const c = CARS[id] ?? CARS.car_sega;
+  const W = CAR_END.w, G = CAR_END.ground - 2, cx = W / 2;
+  const K = 0.74, CZ = 0.6; // length and height, foreshortened (a camera well above the car)
+  const xs = ptsOf(c.body).map((q) => q[0]);
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const dOf = (x: number) => (back ? xmax - x : x - xmin);
+  const Y = (x: number, y: number) => G - (52 - y) * CZ - dOf(x) * K;
+  const gs = glassSpan(c);
+  const beltZ = 52 - gs.belt;
+  const hw = (q: Pt) => (52 - q[1] > beltZ + 1 && q[0] > gs.x0 - 1 && q[0] < gs.x1 + 1 ? (c.sleek ? 14.5 : 15.5) : 20);
+  const len = (xmax - xmin) * K;
+  ell(ctx, cx, G - len / 2 - 2, 23, len / 2 + 3, "rgba(0,0,0,0.2)");
+  // Tyres poking out at the corners.
+  for (const wx of c.wheels) {
+    const y0 = Y(wx, 52), y1 = Y(wx, 41);
+    for (const sgn of [-1, 1]) rrect(ctx, cx + sgn * 19.5 - 3, y1, 6, y0 - y1 + 1, 2, '#1b1d21');
+  }
+  // Every face we can see (facing up, or facing us), far ones first.
+  const cam: Pt = [back ? 1 : -1, -1.3];
+  const faces = edges(c.body)
+    .filter((e) => e.nx * cam[0] + e.ny * cam[1] > 0.05)
+    .sort((e1, e2) => dOf((e2.a[0] + e2.b[0]) / 2) - dOf((e1.a[0] + e1.b[0]) / 2));
+  for (const e of faces) {
+    const ya = Y(e.a[0], e.a[1]), yb = Y(e.b[0], e.b[1]);
+    const wa = hw(e.a), wb = hw(e.b);
+    const mid: Pt = [(e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2];
+    const cabin = 52 - mid[1] > beltZ && mid[0] > gs.x0 && mid[0] < gs.x1;
+    const facingUs = Math.abs(e.nx) > 0.75;
+    const roofish = Math.abs(e.ny) >= 0.97;
+    let fill: string | CanvasGradient;
+    if (cabin && !roofish) fill = glassGrad(ctx, Math.min(ya, yb), Math.max(ya, yb) + 0.01);
+    else if (facingUs) fill = shade(look.paint, -0.12);
+    else fill = shade(look.paint, roofish ? (cabin ? 0.3 : 0.16) : 0.05);
+    fillPath(ctx, [cx - wa, ya, cx + wa, ya, cx + wb, yb, cx - wb, yb], fill);
+    if (!cabin || roofish) line(ctx, [cx - wa, ya, cx + wa, ya], 'rgba(0,0,0,0.18)', 0.5);
+    // Someone at the wheel (right-hand drive), seen through the windscreen / rear window.
+    if (cabin && !roofish && Math.abs(yb - ya) > 4 && (back ? e.nx > 0 : e.nx < 0)) {
+      const hy = (ya + yb) / 2;
+      ell(ctx, cx + (back ? 6 : -6), hy + 1, 3.4, 3.6, 'rgba(15,20,28,0.8)');
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(cx - Math.min(wa, wb) + 3, Math.min(ya, yb) + 1, 3, Math.abs(yb - ya) - 2);
+    }
+    if (roofish && cabin) line(ctx, [cx - 9, (ya + yb) / 2, cx + 9, (ya + yb) / 2], 'rgba(255,255,255,0.3)', 1.2);
+  }
+  // Mirrors where the windscreen meets the bonnet.
+  const wsY = Y(back ? gs.x0 + 2 : gs.x0, gs.belt);
+  rrect(ctx, cx - 25, wsY - 3, 6, 3.4, 1.4, shade(look.paint, -0.2));
+  rrect(ctx, cx + 19, wsY - 3, 6, 3.4, 1.4, shade(look.paint, -0.2));
+  // The end facing us: lights, plate, bumper (and the exhaust at the back).
+  const zAt = (z: number) => G - z * CZ - 1;
+  if (back) {
+    const lz = c.hatch ? 20 : 19;
+    rrect(ctx, cx - 18.5, zAt(lz) - 2, 8, 4, 1.5, '#e03131');
+    rrect(ctx, cx + 10.5, zAt(lz) - 2, 8, 4, 1.5, '#e03131');
+    if (c.sleek) line(ctx, [cx - 10, zAt(lz), cx + 10, zAt(lz)], '#c92a2a', 1.2);
+    rrect(ctx, cx - 7, zAt(13) - 2, 14, 3.6, 0.6, '#f8f9fa');
+    rrect(ctx, cx - 19, zAt(9) - 1.5, 38, 3, 1.5, 'rgba(0,0,0,0.35)');
+    backTip(ctx, cx + 12, zAt(7.5), look.tip);
+    if (look.tip === 'racing' || look.tip === 'sport') backTip(ctx, cx - 12, zAt(7.5), look.tip);
+  } else {
+    const lamp = c.sleek ? '#e7f5ff' : '#fff3bf';
+    rrect(ctx, cx - 18.5, zAt(18) - 2, 9, 4, 1.8, lamp);
+    rrect(ctx, cx + 9.5, zAt(18) - 2, 9, 4, 1.8, lamp);
+    rrect(ctx, cx - 8, zAt(15) - 2.5, 16, 5, 1.5, '#2b2d31');
+    for (let x = cx - 6; x < cx + 7; x += 3) line(ctx, [x, zAt(15) - 1.5, x, zAt(15) + 1.5], '#495057', 0.6);
+    rrect(ctx, cx - 6, zAt(10.5) - 1.5, 12, 3, 0.6, '#f8f9fa');
+    rrect(ctx, cx - 19, zAt(8) - 1.5, 38, 3, 1.5, 'rgba(0,0,0,0.35)');
+  }
+}
+
+/** Canvas size for a vehicle in a view (cars: a wide side canvas and a tall front/back one). */
+export function viewSize(id: string, view: View): { w: number; h: number; ground: number } {
+  if (!id.startsWith('car_')) return BIKE_SIZE;
+  return view === 'side' ? CAR_SIDE : CAR_END;
+}
+
+/** Draws a showroom vehicle into a canvas laid out as viewSize(id, view). */
 export function drawShowroomVehicle(ctx: Ctx, id: string, look: Look, view: View) {
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   const car = id.startsWith('car_');
-  if (view === 'side') (car ? carSide : bikeSide)(ctx, id, look);
-  else (car ? carFront : bikeFront)(ctx, id, look, view === 'back');
+  if (car) {
+    if (view === 'side') carSide3q(ctx, id, look);
+    else carEnd3q(ctx, id, look, view === 'back');
+  } else if (view === 'side') bikeSide(ctx, id, look);
+  else bikeFront(ctx, id, look, view === 'back');
   ctx.restore();
 }
 
@@ -457,14 +604,14 @@ export function resolveLook(id: string, look: VehicleLook | null | undefined): L
   return { paint, wheel, tip };
 }
 
-const RES = 2;
+const RES = 2.5; // drawn bigger in town now, so a little sharper
 /** Makes <key>_side / _front / _back for this vehicle and look (once) and returns the key. */
 export function ensureShowroomTextures(scene: Phaser.Scene, id: string, look: VehicleLook | null | undefined): string {
   const key = `sr_${id}_${look?.paint ?? '-'}_${look?.wheel ?? '-'}_${look?.exhaust ?? '-'}`;
   if (scene.textures.exists(`${key}_side`)) return key;
-  const size = isCarId(id) ? CAR_SIZE : BIKE_SIZE;
   const colours = resolveLook(id, look);
   for (const view of ['side', 'front', 'back'] as const) {
+    const size = viewSize(id, view);
     const c = document.createElement('canvas');
     c.width = size.w * RES;
     c.height = size.h * RES;
