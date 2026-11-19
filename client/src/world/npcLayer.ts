@@ -9,7 +9,14 @@ interface Npc {
   route: NpcRoute;
   avatar: Avatar;
   tag: Phaser.GameObjects.Text;
+  /** On-screen sidestep (px) so townsfolk walk round people instead of through them. */
+  ox: number;
+  oy: number;
 }
+
+/** How close (px) two people can get before an NPC steps aside, and how far it may step. */
+const PERSONAL_PX = 22;
+const MAX_STEP_PX = 18;
 
 export class NpcLayer {
   private npcs: Npc[] = [];
@@ -22,7 +29,7 @@ export class NpcLayer {
       const tag = scene.add
         .text(0, 0, route.name, { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#c5f6fa', stroke: '#11131f', strokeThickness: 3, resolution: 2 })
         .setOrigin(0.5, 1);
-      this.npcs.push({ route, avatar, tag });
+      this.npcs.push({ route, avatar, tag, ox: 0, oy: 0 });
     }
     this.update(0);
   }
@@ -35,7 +42,12 @@ export class NpcLayer {
 
   private errandNpc = -1;
 
-  update(_delta: number) {
+  /**
+   * `people`: where players are (world px). NPCs keep to their shared routes (everyone agrees
+   * where they are, and you talk to them there); on screen they just step round people and each
+   * other, then drift back onto the path.
+   */
+  update(delta: number, people: Array<{ x: number; y: number }> = []) {
     const now = this.app.store.serverNow();
     const T = this.app.map.tileSize;
     const errandNpc = this.app.store.errand?.stage === 'return' ? this.app.store.errand.npc : -1;
@@ -45,9 +57,32 @@ export class NpcLayer {
     const view = this.scene.cameras.main.worldView;
     const pad = 200;
     const pnow = performance.now();
-    for (const n of this.npcs) {
-      const p = npcPose(n.route, this.app.cfg.npcs, now);
-      const x = p.x * T, y = p.y * T;
+    const poses = this.npcs.map((n) => npcPose(n.route, this.app.cfg.npcs, now));
+    const ease = Math.min(1, delta / 120);
+    for (let k = 0; k < this.npcs.length; k++) {
+      const n = this.npcs[k];
+      const p = poses[k];
+      const bx = p.x * T, by = p.y * T;
+      // Push away from anyone too close (players, then the townsfolk before this one).
+      let px = 0, py = 0;
+      const push = (ox: number, oy: number) => {
+        const dx = bx + n.ox - ox, dy = by + n.oy - oy;
+        const d = Math.hypot(dx, dy);
+        if (d >= PERSONAL_PX) return;
+        const f = (PERSONAL_PX - d) / PERSONAL_PX;
+        // Straight on top of each other: step to the side of the walking direction.
+        const ux = d > 0.5 ? dx / d : p.dir === 'up' || p.dir === 'down' ? 1 : 0;
+        const uy = d > 0.5 ? dy / d : p.dir === 'left' || p.dir === 'right' ? 1 : 0;
+        px += ux * f * MAX_STEP_PX;
+        py += uy * f * MAX_STEP_PX;
+      };
+      for (const o of people) push(o.x, o.y);
+      for (let j = 0; j < k; j++) push(this.npcs[j].avatar.x, this.npcs[j].avatar.y);
+      const tx = Math.max(-MAX_STEP_PX, Math.min(MAX_STEP_PX, n.ox + px)), ty = Math.max(-MAX_STEP_PX, Math.min(MAX_STEP_PX, n.oy + py));
+      // Ease towards the sidestep (or back to the path when nobody's near).
+      n.ox += ((px || py ? tx : 0) - n.ox) * ease;
+      n.oy += ((px || py ? ty : 0) - n.oy) * ease;
+      const x = bx + n.ox, y = by + n.oy;
       n.avatar.setPosition(x, y);
       if (restyle) {
         n.tag.setText(n.route.id === errandNpc ? `❗ ${n.route.name}` : n.route.name);

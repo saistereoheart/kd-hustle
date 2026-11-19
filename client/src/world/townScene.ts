@@ -48,6 +48,12 @@ export class TownScene extends Phaser.Scene {
   private initData!: InitPayload;
   private me!: Avatar;
   private remotes = new Map<number, Remote>();
+  /** You and the other players in town (world px), for the townsfolk to walk round. */
+  private peopleNear(): Array<{ x: number; y: number }> {
+    const out = [{ x: this.pos.x, y: this.pos.y }];
+    for (const r of this.remotes.values()) if (r.avatar.container.visible) out.push({ x: r.avatar.x, y: r.avatar.y });
+    return out;
+  }
   /** Our own positions from the server while a Ronda drives us. */
   private selfSamples: Sample[] = [];
   private mapView!: MapView;
@@ -415,7 +421,7 @@ export class TownScene extends Phaser.Scene {
       this.me.tick(now);
       this.updateRemotes(now);
       this.stalls.update(delta);
-      this.npcs.update(delta);
+      this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;
@@ -480,7 +486,7 @@ export class TownScene extends Phaser.Scene {
 
     this.updateRemotes(now);
     this.stalls.update(delta);
-    this.npcs.update(delta);
+    this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;

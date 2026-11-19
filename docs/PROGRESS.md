@@ -1521,15 +1521,14 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - **Phase 5.1:** a big interior (mall, hypermarket) starts you at the door; the counters are at the far back wall,
   so you walk up to them. Tell me if you'd rather the counters were near the door.
 
-- **Phase 5:** furniture art is simple top-down shapes; decorate mode uses taps/clicks (no drag). On a phone, the
-  decorate panel covers the lower part of the room; scroll it or tap ✅ Done to see the whole room.
-- **Phase 4.1:** NPCs walk through each other and through players (no NPC collision). Their names are always shown.
+- **Phase 5:** on a phone, the decorate panel covers the lower part of the room; scroll it or tap ✅ Done to see the
+  whole room.
+- **Phase 4.1:** NPCs keep to their shared routes (so everyone sees them in the same place); on screen they only step
+  round people and each other (up to ~0.5 m) rather than truly avoiding them. Their names are always shown.
 - **Phase 4.1:** the title-screen character is your last-used look on this device (stored in the browser); a new
   device shows a default hustler until you log in once.
 - **Phase 4.1:** the deck (flyover) layer fades as a whole while you're under any part of it.
 
-- **Phase 3:** jobs alone take ~7–8 h to reach Stage 3 (target 2 h). Expected until stalls/property arrive; the sim
-  flags it as ⏳ rather than a failure.
 - **Phase 3:** the HUD luck readout and crate odds refresh when something changes (and every second for the HUD), so
   an open crate screen can show a potion's luck for up to a moment after it runs out. The server always uses the real value.
 - **Phase 3:** the sim models the player's hands (job times, wash quality, choices). Tell me how long jobs really take
@@ -1544,11 +1543,10 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - **Phase 2.3:** the full map repaints the visible area on every pan/zoom step. Fine on PC; tell me if it stutters on
   your phone when zoomed out a lot.
 
-- **Phase 2:** the economy isn't balanced yet. Phase 3's simulator will tune job pay and prices against the spec's
-  pacing (Stage 2 in ~20 min). Right now a car wash pays ~RM 28–36 and a delivery ~RM 50–90.
 - **Phase 2:** only the desktop and phone browser tests have exercised the reel and car wash. Please try the
   car wash with a finger on your phone and tell me if the dirt spots feel too small.
-- **Phase 2:** a delivery that's in progress is cancelled if you disconnect (you get off the bike, no pay).
+- **Phase 2:** a job in progress survives a short drop-out (the server keeps you for 20 s, `net.reconnectGraceMs`);
+  after that it's cancelled (no pay).
 
 - **Phase 1.5:** chunk drawing is spread over frames (8 ms budget per frame), but on slow phones you may see the map
   fill in while walking fast. Tell me if it stutters and I'll move chunk drawing to a background worker.
@@ -1562,8 +1560,9 @@ Simple options picked where the spec was open, per CLAUDE.md:
 - Graceful shutdown on Ctrl+C is implemented and unit-tested at the `saveAll` level, but sending a real Ctrl+C can't be
   automated here. Please do the Ctrl+C check in the list above.
 - Character **side view** is the weakest angle (thin arms; tudung side view looks a bit boxy). Polish later.
-- Client bundle is ~1.4 MB (Phaser, ~385 KB gzipped). Fine on LAN; can code-split later.
-- No building interiors yet (separate scenes come with shops/Airbnb in later phases). `scene` is already stored per player.
+- Client download: Phaser 1.2 MB (318 KB gzipped) in its own file, cached between updates; the game's own code
+  ~640 KB (210 KB gzipped).
+- The Gua Gelap dungeon isn't in the balance simulator (5 runs a day is small next to the rest of the income).
 - Headless test browsers run Phaser at a low frame rate, so e2e movement checks use loose thresholds.
 
 ## Next: Phase 8 (end game and polish)
