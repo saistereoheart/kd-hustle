@@ -100,7 +100,7 @@ describe('town map v2 (OSM, real scale)', () => {
       const i = gridIndexAt(map, it.x * map.tileSize, it.y * map.tileSize);
       expect(seen[i], it.id).toBe(1);
     }
-    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'casino_blackjack', 'casino_crash', 'casino_highlow', 'casino_roulette', 'casino_slots', 'casino_wheel', 'diamond_vault', 'gergasi', 'ikeja', 'jobsboard', 'jobsboard_gergasi', 'jobsboard_mitraland', 'jobsboard_pasar', 'jobsboard_strand', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter', 'strand_crate', 'towkay_crate', 'tycoon_vault']);
+    expect(map.interactables.map((i) => i.id).sort()).toEqual(['capsule_machine', 'carwash', 'casino_blackjack', 'casino_crash', 'casino_highlow', 'casino_roulette', 'casino_slots', 'casino_wheel', 'diamond_vault', 'gergasi', 'ikeja', 'jobsboard', 'jobsboard_gergasi', 'jobsboard_mitraland', 'jobsboard_pasar', 'jobsboard_strand', 'kedai_pajak', 'luckybag_stall', 'mallbox_counter', 'showroom', 'strand_crate', 'towkay_crate', 'tycoon_vault']);
   });
 
   it('puts every stall plot, and its queue, on reachable ground', () => {

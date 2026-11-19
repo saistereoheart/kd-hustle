@@ -18,9 +18,11 @@ export interface Prefs {
   moneyPopups: boolean;
   /** Pointers on the screen edge to off-screen places (yours, and signposted ones nearby). */
   pointers: boolean;
+  /** 🚗 Engine and exhaust sounds (yours and nearby riders'). */
+  engineSound: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -101,6 +103,12 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  const engine = el('input', { type: 'checkbox', 'aria-label': 'Engine sounds', 'data-pref': 'engineSound', checked: prefs.engineSound });
+  engine.addEventListener('change', () => {
+    prefs.engineSound = engine.checked;
+    savePrefs(prefs);
+  });
+
   const stats = el('button', { class: 'btn small', type: 'button', 'data-action': 'toggle-stats' }, 'Show / hide');
   stats.addEventListener('click', () => window.dispatchEvent(new Event('kh-debug')));
 
@@ -136,6 +144,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '📍 Pointers to places (screen edge)'), pointers),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money sounds (coins)'), moneySound),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money pop-ups (+RM)'), moneyPopups),
+    el('div', { class: 'setting-row' }, el('span', {}, '🚗 Engine & exhaust sounds'), engine),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),

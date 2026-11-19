@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView, GarageView } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -21,6 +21,8 @@ export class Store {
   vehicles: string[] = [];
   /** The vehicle we're riding (mirrors the town scene's avatar). */
   riding: string | null = null;
+  /** 🚗 Your showroom vehicles and their tuning (loaded after login; the garage windows refresh it). */
+  garage: GarageView | null = null;
   /** XP, level, stage, titles, stats, buffs, quests (Phase 3). */
   progress: ProgressState = {
     xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0, goalsDone: [],

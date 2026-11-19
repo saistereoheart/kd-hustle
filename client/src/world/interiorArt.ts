@@ -25,6 +25,7 @@ export function stationSize(type: string): [number, number] {
   if (type === 'kitchen') return [4.2, 1.5];
   if (type === 'cashier') return [2.4, 1.2];
   if (type === 'stairs') return [1.8, 1.6];
+  if (type === 'showroom') return [5, 2.8];
   return type === 'casino' ? [2.6, 1.7] : type === 'carwash' ? [5, 2.6] : type === 'market' ? [3.4, 1.4] : type === 'crate' ? [1.8, 1.4] : [2.8, 1.3];
 }
 
@@ -258,6 +259,18 @@ export function drawStation(g: Phaser.GameObjects.Graphics, type: string, crate:
     g.fillStyle(0xa5d8ff, 1).fillRoundedRect(cx - 30, cy - 18, 22, 36, 4).fillRoundedRect(cx + 16, cy - 18, 16, 36, 4);
     g.fillStyle(0xffffff, 0.85);
     for (const [dx, dy, r] of [[-40, -14, 7], [-30, 12, 6], [6, -16, 8], [34, 14, 6], [46, -8, 5]]) g.fillCircle(cx + dx, cy + dy, r);
+  } else if (type === 'showroom') {
+    // a turntable with a shiny car on it, under spotlights
+    g.fillStyle(0xdee2e6, 1).fillEllipse(cx, cy + 6, w, h * 0.9);
+    g.lineStyle(3, 0xadb5bd, 1).strokeEllipse(cx, cy + 6, w * 0.86, h * 0.74);
+    g.fillStyle(0xfff3bf, 0.35).fillEllipse(cx - w * 0.2, cy - 2, w * 0.3, h * 0.4).fillEllipse(cx + w * 0.2, cy - 2, w * 0.3, h * 0.4);
+    g.fillStyle(0x16181b, 1).fillCircle(cx - 34, cy + 14, 10).fillCircle(cx + 34, cy + 14, 10);
+    g.fillStyle(0xc92a2a, 1).fillRoundedRect(cx - 58, cy - 6, 116, 24, 9);
+    g.fillStyle(0xe03131, 1).fillRoundedRect(cx - 30, cy - 22, 60, 22, 8);
+    g.fillStyle(0x3d5a73, 1).fillRoundedRect(cx - 24, cy - 18, 22, 14, 3).fillRoundedRect(cx + 2, cy - 18, 22, 14, 3);
+    g.fillStyle(0xffffff, 0.5).fillRect(cx - 52, cy - 2, 100, 2);
+    g.fillStyle(0xced4da, 1).fillCircle(cx - 34, cy + 14, 5).fillCircle(cx + 34, cy + 14, 5);
+    g.fillStyle(0xfff3bf, 1).fillRoundedRect(cx - 58, cy, 8, 5, 2);
   } else if (type === 'casino') {
     drawCasinoStation(g, crate ?? '', x, y, w, h, cx, cy);
   } else if (type === 'kitchen') {

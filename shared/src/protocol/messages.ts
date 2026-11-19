@@ -18,6 +18,7 @@ import type { MarketListing, MarketSale } from '../market/market';
 import type { RebirthView } from '../rebirth/rebirth';
 import type { DungeonLoot, DungeonView } from '../dungeon/dungeon';
 import { PET_STATS, type BattleEvent, type PetsView } from '../pets/pets';
+import { GARAGE_PARTS, type GarageView, type VehicleLook } from '../garage/garage';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
 /** 🐞 In-game reports. */
@@ -70,6 +71,10 @@ export const C2S = {
   petsIid: z.object({ iid: z.number().int().positive() }),
   petsUpgrade: z.object({ iid: z.number().int().positive(), stat: z.enum(PET_STATS) }),
   petsGear: z.object({ iid: z.number().int().positive(), gear: z.number().int().positive().nullable() }),
+  /** 🚗 Motor Kota */
+  garageModel: z.object({ model: z.string().min(1).max(24) }),
+  garageUpgrade: z.object({ model: z.string().min(1).max(24), part: z.enum(GARAGE_PARTS) }),
+  garageStyle: z.object({ model: z.string().min(1).max(24), kind: z.enum(['paint', 'wheel', 'exhaust']), id: z.string().min(1).max(24) }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
   // --- businesses and the shop (Phase 6) ---
   bizBuy: z.object({ type: z.string().min(1).max(32), n: z.number().int().min(1).max(1000) }),
@@ -442,6 +447,8 @@ export interface PlayerPublic {
   cosmetics: Cosmetics;
   /** Vehicle being ridden (e.g. 'motorbike'), or null. */
   vehicle: string | null;
+  /** A showroom vehicle's paint, wheels and exhaust (null for the others). */
+  vehicleLook?: VehicleLook | null;
   /** Inside this building (hidden outdoors, shown in its interior), or null. */
   interior: string | null;
   /** Late on an Ah Long loan: a red "OWES AH LONG" tag and debt collectors follow them around. */
@@ -659,6 +666,10 @@ export interface ClientToServerEvents {
   'dungeon:enter': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:act': (msg: { action: 'attack' | 'charge' | 'ultimate' | 'auto'; skip?: boolean }, ack: Ack<Result<{ events: BattleEvent[]; view: DungeonView; paid: DungeonLoot | null; levelUps: Array<{ name: string; level: number }> }>>) => void;
   /** 🐾 Teman: your pets, team, training, upgrades, gear; buying a starter. */
+  'garage:view': (ack: Ack<Result<{ view: GarageView }>>) => void;
+  'garage:buy': (msg: { model: string }, ack: Ack<Result<{ view: GarageView; vehicles: string[] }>>) => void;
+  'garage:upgrade': (msg: { model: string; part: 'engine' | 'torque' | 'tires' }, ack: Ack<Result<{ view: GarageView }>>) => void;
+  'garage:style': (msg: { model: string; kind: 'paint' | 'wheel' | 'exhaust'; id: string }, ack: Ack<Result<{ view: GarageView }>>) => void;
   'pets:view': (ack: Ack<Result<{ view: PetsView }>>) => void;
   'pets:buy': (msg: { id: string }, ack: Ack<Result<{ view: PetsView }>>) => void;
   'pets:team': (msg: { iids: number[] }, ack: Ack<Result<{ view: PetsView }>>) => void;
@@ -721,7 +732,7 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */

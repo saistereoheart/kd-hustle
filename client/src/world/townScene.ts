@@ -3,13 +3,14 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen,
+  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, engineRpm, rideAccelSec, tireGrip,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { Avatar } from './avatar';
+import { startEngine, type EngineVoice } from '../ui/engineSound';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
@@ -85,6 +86,10 @@ export class TownScene extends Phaser.Scene {
   /** The errand's beacon: a light beam + big icon on the spot (or over the NPC to hand it to). */
   private beacon: { root: Phaser.GameObjects.Container; label: Phaser.GameObjects.Text; key: string } | null = null;
   private vehicleSpeed: Float32Array = new Float32Array(0);
+  /** 🚗 Showroom vehicles: current speed (px/s; they speed up with torque), and the engines heard. */
+  private rideSpeed = 0;
+  private engine: { key: string; voice: EngineVoice | null } | null = null;
+  private remoteEngines = new Map<number, { key: string; voice: EngineVoice | null; rpm: number }>();
   private offs: Array<() => void> = [];
 
   constructor() {
@@ -156,7 +161,7 @@ export class TownScene extends Phaser.Scene {
     const particles = loadPrefs().particles;
     this.me = new Avatar(this, cfg.character, this.app.items, {
       name: you.name, level: you.level, appearance: you.appearance, x: you.x, y: you.y, isSelf: true,
-      cosmetics: you.cosmetics, vehicle: you.vehicle, particles, title: this.titleInfo(you.title),
+      cosmetics: you.cosmetics, vehicle: you.vehicle, vehicleLook: you.vehicleLook, particles, title: this.titleInfo(you.title),
     });
 
     this.vehicleSpeed = vehicleSpeedGrid(this.app.map, cfg.terrain);
@@ -210,7 +215,7 @@ export class TownScene extends Phaser.Scene {
       this.remotes.delete(id);
       this.collectors.set(id, false, 0, 0);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, level, title, interior, owesAhLong, rebirths }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, vehicleLook, level, title, interior, owesAhLong, rebirths }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
       if (rebirths !== undefined) av.setRebirths(rebirths);
@@ -235,7 +240,7 @@ export class TownScene extends Phaser.Scene {
       if (cosmetics) av.setCosmetics(cosmetics);
       if (appearance) av.setAppearance(appearance);
       if (vehicle !== undefined) {
-        av.setVehicle(vehicle);
+        av.setVehicle(vehicle, vehicleLook ?? null);
         if (id === this.selfId) {
           this.app.store.riding = vehicle;
           this.selfSamples = [];
@@ -277,6 +282,7 @@ export class TownScene extends Phaser.Scene {
       for (const r of this.remotes.values()) r.avatar.destroy();
       this.remotes.clear();
       this.collectors?.destroy();
+      this.stopEngines();
     });
     // Draw the chunks around the spawn point right away so the first frame isn't empty.
     this.cameras.main.centerOn(this.pos.x, this.pos.y);
@@ -298,7 +304,7 @@ export class TownScene extends Phaser.Scene {
     if (this.remotes.has(p.id)) return;
     const avatar = new Avatar(this, this.app.cfg.character, this.app.items, {
       name: p.name, level: p.level, appearance: p.appearance, x: p.x, y: p.y, isSelf: false,
-      cosmetics: p.cosmetics, vehicle: p.vehicle, particles: loadPrefs().particles, title: this.titleInfo(p.title),
+      cosmetics: p.cosmetics, vehicle: p.vehicle, vehicleLook: p.vehicleLook, particles: loadPrefs().particles, title: this.titleInfo(p.title),
     });
     avatar.setState(p.dir, p.moving);
     // Someone who was already sitting/sleeping/dancing when we joined.
@@ -446,9 +452,19 @@ export class TownScene extends Phaser.Scene {
       const v = this.me.vehicle ? cfg.vehicles.vehicles[this.me.vehicle] : undefined;
       if (v) {
         // Riding: top speed × the terrain's vehicle multiplier (grass is slow, roads are fast).
+        // Showroom vehicles: tuned top speed, better tyres grip off-road, and they pick up speed
+        // with their torque instead of starting at full speed.
         const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
-        const mult = Math.max(v.minTerrainMult, i >= 0 ? this.vehicleSpeed[i] : 0.4);
-        const speed = v.speed * mult;
+        const setup = this.app.store.garage?.owned[this.me.vehicle!] ?? null;
+        const terrain = i >= 0 ? this.vehicleSpeed[i] : 0.4;
+        const mult = Math.max(v.minTerrainMult, setup ? tireGrip(cfg.garage, terrain, setup) : terrain);
+        let speed = (setup?.speed ?? v.speed) * mult;
+        if (cfg.garage.models[this.me.vehicle!]) {
+          const top = setup?.speed ?? v.speed;
+          const accel = top / Math.max(0.2, rideAccelSec(cfg.garage, this.me.vehicle!, setup));
+          this.rideSpeed = this.rideSpeed < speed ? Math.min(speed, this.rideSpeed + accel * dt) : Math.max(speed, this.rideSpeed - accel * 2.5 * dt);
+          speed = this.rideSpeed;
+        }
         const grid = v.grid === 'drive' ? map.driveCollision : map.collision;
         this.pos = moveWithCollision(grid, this.pos.x, this.pos.y, vx * speed * dt, vy * speed * dt, v.hitbox);
       } else {
@@ -457,6 +473,8 @@ export class TownScene extends Phaser.Scene {
       }
       this.me.setPosition(this.pos.x, this.pos.y);
     }
+    if (!moving) this.rideSpeed = Math.max(0, this.rideSpeed - 900 * dt);
+    this.updateEngines(moving);
     this.walkIntoDoors(moving ? vx : 0, moving ? vy : 0);
     if (moving && !this.moving && this.me.currentEmote) this.app.onOwnEmote(null); // walking ends our emote
     this.moving = moving;
@@ -704,6 +722,69 @@ export class TownScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  /** 🚗 Engine sounds: ours (revs from our speed, throttle from the stick) and up to 3 nearby riders'. */
+  private updateEngines(throttleOn: boolean) {
+    const g = this.app.cfg.garage;
+    const inside = !!(this.app.interior || this.app.home);
+    // Ours
+    const id = this.me?.vehicle;
+    const m = id && !inside ? g.models[id] : undefined;
+    const look = this.me?.vehicleLook;
+    const key = m ? `${id}|${look?.exhaust ?? 'stock'}` : '';
+    // (Sounds were off when it started and are on now: start it again.)
+    if (this.engine && (this.engine.key !== key || (!this.engine.voice && loadPrefs().engineSound))) {
+      this.engine.voice?.stop();
+      this.engine = null;
+      this.rideSpeed = 0;
+    }
+    if (m && !this.engine) this.engine = { key, voice: startEngine(g, id!, look?.exhaust ?? 'stock') };
+    if (m && this.engine?.voice) {
+      const top = this.app.store.garage?.owned[id!]?.speed ?? this.app.cfg.vehicles.vehicles[id!]?.speed ?? 1;
+      const share = this.rideSpeed / top;
+      const accelerating = throttleOn && share < 0.985;
+      this.engine.voice.set(engineRpm(m, share), accelerating ? 1 : throttleOn ? 0.55 : 0, 1);
+    }
+    // Nearby riders (by distance; a moving rider revs mid-range)
+    const near = inside ? [] : [...this.remotes.values()]
+      .filter((r) => r.avatar.vehicle && g.models[r.avatar.vehicle] && r.avatar.container.visible)
+      .map((r) => ({ r, d: Math.hypot(r.avatar.x - this.pos.x, r.avatar.y - this.pos.y) }))
+      .filter((x) => x.d < 420)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 3);
+    const keep = new Set(near.map((x) => x.r.id));
+    for (const [rid, e] of this.remoteEngines) {
+      if (!keep.has(rid)) {
+        e.voice?.stop();
+        this.remoteEngines.delete(rid);
+      }
+    }
+    for (const { r, d } of near) {
+      const vid = r.avatar.vehicle!;
+      const rk = `${vid}|${r.avatar.vehicleLook?.exhaust ?? 'stock'}`;
+      let e = this.remoteEngines.get(r.id);
+      if (e && e.key !== rk) {
+        e.voice?.stop();
+        e = undefined;
+      }
+      if (!e) {
+        e = { key: rk, voice: startEngine(g, vid, r.avatar.vehicleLook?.exhaust ?? 'stock'), rpm: 0 };
+        this.remoteEngines.set(r.id, e);
+      }
+      const rm = g.models[vid];
+      const target = engineRpm(rm, r.avatar.moving ? 0.55 : 0);
+      if (!e.rpm) e.rpm = target;
+      e.rpm += (target - e.rpm) * 0.08;
+      e.voice?.set(e.rpm, r.avatar.moving ? 0.7 : 0, Math.max(0, 1 - d / 420) * 0.7);
+    }
+  }
+
+  private stopEngines() {
+    this.engine?.voice?.stop();
+    this.engine = null;
+    for (const e of this.remoteEngines.values()) e.voice?.stop();
+    this.remoteEngines.clear();
   }
 
   /** Remote players: interpolate between snapshots, a little in the past. */

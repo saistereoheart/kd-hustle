@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState, StallSelf,
+  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SelfState, StallSelf, VehicleLook,
 } from '@kh/shared';
 import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
@@ -50,6 +50,8 @@ export interface OnlinePlayer {
   jobs: Record<string, JobProgress>;
   job: ServerJob | null;
   vehicle: string | null;
+  /** A showroom vehicle's paint / wheels / exhaust while riding it. */
+  vehicleLook?: VehicleLook | null;
   skills: Record<string, number>;
   /** Manifest earnings (sen, fractional) not yet paid out. */
   manifestBank: number;
@@ -81,9 +83,12 @@ export class World {
   starterVehicles: string[] = [];
 
   /** Vehicles this player can ride right now. */
-  vehiclesOf(_p: OnlinePlayer): string[] {
-    return [...this.starterVehicles];
+  vehiclesOf(p: OnlinePlayer): string[] {
+    return [...this.starterVehicles, ...this.ownedVehicles(p)];
   }
+
+  /** Showroom vehicles this player bought (set by the garage system). */
+  ownedVehicles: (p: OnlinePlayer) => string[] = () => [];
 
   get(id: number) {
     return this.players.get(id);
@@ -125,6 +130,7 @@ export class World {
       emote: p.emote,
       cosmetics: p.cosmetics,
       vehicle: p.vehicle,
+      vehicleLook: p.vehicleLook ?? null,
       interior: p.interior,
       owesAhLong: !!p.owesAhLong,
       rebirths: p.rebirths ?? 0,

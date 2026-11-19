@@ -15,6 +15,7 @@ import { Economy, GameError } from '../systems/economy/economy';
 import { cryptoRand, Gacha } from '../systems/gacha/gacha';
 import { DungeonSystem } from '../systems/dungeon/dungeon';
 import { PetSystem } from '../systems/pets/pets';
+import { GarageSystem } from '../systems/garage/garage';
 import { InventorySystem } from '../systems/inventory/inventory';
 import { JobSystem } from '../systems/jobs/jobs';
 import { newMoveState } from '../systems/movement/moveValidator';
@@ -47,6 +48,9 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
 
   // --- vehicles ---------------------------------------------------------------------------
   world.starterVehicles = Object.entries(cfg.vehicles.vehicles).filter(([, v]) => v.starter).map(([id]) => id);
+  // 🚗 Motor Kota (created below; vehicles bought there count as yours and have tuned top speeds)
+  let garage: GarageSystem | null = null;
+  world.ownedVehicles = (p) => garage?.owned(p) ?? [];
   const gridFor = (grid: 'walk' | 'drive'): CollisionGrid => (grid === 'drive' ? cfg.map.driveCollision : cfg.map.collision);
   /** Movement rules for a player right now (walking or riding). */
   const moveRules = (p: OnlinePlayer): { grid: CollisionGrid; movement: MovementConfig } => {
@@ -55,12 +59,13 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const walk = p.prog ? prog.mods(p).walk : 1; // Kaki Lari skill
       return { grid: cfg.map.collision, movement: walk === 1 ? cfg.movement : { ...cfg.movement, walkSpeed: cfg.movement.walkSpeed * walk } };
     }
-    return { grid: gridFor(v.grid), movement: { ...cfg.movement, walkSpeed: v.speed, hitbox: v.hitbox } };
+    return { grid: gridFor(v.grid), movement: { ...cfg.movement, walkSpeed: garage ? garage.speedOf(p, p.vehicle!) : v.speed, hitbox: v.hitbox } };
   };
   const socketOf = (p: OnlinePlayer) => io.sockets.sockets.get(p.socketId);
   /** Puts the player on a vehicle (or off it, with null) and tells everyone. */
   function setVehicle(p: OnlinePlayer, vehicle: string | null) {
     p.vehicle = vehicle;
+    p.vehicleLook = garage?.lookOf(p, vehicle) ?? null;
     // Landing somewhere this ride (or your feet) can't be, e.g. hopping off on a highway:
     // step to the nearest spot that's allowed.
     const rules = moveRules(p);
@@ -76,7 +81,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       p.emote = null;
       io.to(p.scene).emit('emote:stopped', { id: p.id });
     }
-    io.to(p.scene).emit('player:updated', { id: p.id, vehicle });
+    io.to(p.scene).emit('player:updated', { id: p.id, vehicle, vehicleLook: p.vehicleLook });
   }
   const jobs = new JobSystem(cfg, econ, cryptoRand);
   const rides = new RideSystem(cfg.rides, cfg.map, cfg.terrain);
@@ -227,6 +232,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
     check: (p) => prog.check(p),
   });
+  garage = new GarageSystem(cfg, repos, econ, {
+    wallet: (p, delta, reason) => pushWallet(p, delta, reason),
+    look: (p) => io.to(p.scene).emit('player:updated', { id: p.id, vehicle: p.vehicle, vehicleLook: p.vehicleLook }),
+  });
+  const garageSys = garage;
   const dungeon = new DungeonSystem(cfg, repos, econ, prog, pets, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
     publicChanged: (list) => {
@@ -514,6 +524,16 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'dungeon:view', null, () => ({ view: dungeon.view(me) }));
     handle(socket, 'dungeon:enter', null, () => ({ view: dungeon.enter(me) }));
     handle(socket, 'dungeon:act', C2S.dungeonAct, ({ action, skip }) => dungeon.act(me, action, skip));
+    // 🚗 Motor Kota (buying needs you at the showroom; the garage app works anywhere)
+    handle(socket, 'garage:view', null, () => ({ view: garageSys.view(me) }));
+    handle(socket, 'garage:buy', C2S.garageModel, ({ model }) => {
+      if (!nearInteractable(me, 'showroom')) throw new GameError(`Buy it at the ${cfg.garage.name} showroom.`);
+      const view = garageSys.buy(me, model);
+      prog.check(me);
+      return { view, vehicles: world.vehiclesOf(me) };
+    });
+    handle(socket, 'garage:upgrade', C2S.garageUpgrade, ({ model, part }) => ({ view: garageSys.upgrade(me, model, part) }));
+    handle(socket, 'garage:style', C2S.garageStyle, ({ model, kind, id }) => ({ view: garageSys.style(me, model, kind, id) }));
     // 🐾 Teman
     handle(socket, 'pets:view', null, () => ({ view: pets.view(me) }));
     handle(socket, 'pets:buy', C2S.petsBuy, ({ id }) => ({ view: pets.buyStarter(me, id) }));
@@ -968,6 +988,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       rebirth.unload(p);
       dungeon.unload(p); // a run in progress pays out
       pets.unload(p);
+      garageSys.unload(p);
     },
     chatCommand,
     moveRules,

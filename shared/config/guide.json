@@ -65,6 +65,14 @@
       "stallTier": 3
     },
     {
+      "id": "showroom",
+      "label": "CARS & BIKES",
+      "sub": "Motor Kota Showroom",
+      "icon": "🚗",
+      "kind": "shop",
+      "building": "w823493832"
+    },
+    {
       "id": "ikeja",
       "label": "FURNITURE",
       "sub": "IKEJA · for your Airbnb",

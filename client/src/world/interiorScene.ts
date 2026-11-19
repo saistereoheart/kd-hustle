@@ -40,7 +40,7 @@ function seeded(seed: string) {
   };
 }
 
-const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒', casino: '🎲', kitchen: '🍳', cashier: '💵', stairs: '🏠' };
+const ICON: Record<string, string> = { jobs: '📋', pawn: '🏪', crate: '🎰', carwash: '🚿', market: '🛒', casino: '🎲', kitchen: '🍳', cashier: '💵', stairs: '🏠', showroom: '🚗' };
 
 /** Extra stations a room can get from outside the map data (a kopitiam's kitchen and till). */
 export interface ExtraStation {

@@ -34,6 +34,102 @@
       "grid": "drive",
       "minTerrainMult": 0.2,
       "passenger": true
+    },
+    "car_sega": {
+      "name": "Protan Sega",
+      "icon": "🚗",
+      "speed": 470,
+      "hitbox": {
+        "w": 24,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.25,
+      "kind": "car"
+    },
+    "car_bezzo": {
+      "name": "Peroduo Bezzo",
+      "icon": "🚗",
+      "speed": 460,
+      "hitbox": {
+        "w": 24,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.25,
+      "kind": "car"
+    },
+    "car_mivy": {
+      "name": "Peroduo Mivy",
+      "icon": "🚙",
+      "speed": 490,
+      "hitbox": {
+        "w": 24,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.25,
+      "kind": "car"
+    },
+    "car_s7o": {
+      "name": "Protan S7O",
+      "icon": "🚘",
+      "speed": 540,
+      "hitbox": {
+        "w": 24,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.25,
+      "kind": "car"
+    },
+    "bike_zx25": {
+      "name": "Kawasaky ZX-25",
+      "icon": "🏍️",
+      "speed": 540,
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.3,
+      "kind": "bike"
+    },
+    "bike_500rr": {
+      "name": "ZXMotto 500RR",
+      "icon": "🏍️",
+      "speed": 570,
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.3,
+      "kind": "bike"
+    },
+    "bike_dukati": {
+      "name": "Dukati Panigalo V2",
+      "icon": "🏍️",
+      "speed": 620,
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.3,
+      "kind": "bike"
+    },
+    "bike_harlee": {
+      "name": "Harlee-Davisson Road Kingo",
+      "icon": "🏍️",
+      "speed": 520,
+      "hitbox": {
+        "w": 18,
+        "h": 12
+      },
+      "grid": "drive",
+      "minTerrainMult": 0.3,
+      "kind": "bike"
     }
   }
 }

@@ -38,6 +38,7 @@ const CATS: Cat[] = [
   { id: 'rides', icon: '🛵', name: 'Ronda rides', match: (r) => r === 'ride' },
   { id: 'dungeon', icon: '⚔️', name: 'Gua Gelap (dungeon)', match: (r) => r === 'dungeon' },
   { id: 'pets', icon: '🐾', name: 'Teman (pets)', match: (r) => r === 'pets' },
+  { id: 'garage', icon: '🚗', name: 'Cars & bikes (Motor Kota)', match: (r) => r === 'garage' },
   { id: 'other', icon: '🎁', name: 'Rewards & other', match: () => true },
 ];
 

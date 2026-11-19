@@ -3,7 +3,8 @@ import Phaser from 'phaser';
 import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
-import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
+import type { VehicleLook } from '@kh/shared';
+import { hasDriver, vehicleFit, vehicleTexturePrefix } from '../items/vehicleArt';
 import { addCanvasTexture } from './canvasTexture';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
@@ -90,7 +91,7 @@ export class Avatar {
     private items: Map<string, ItemDef>,
     opts: {
       name: string; level: number; appearance: Appearance; x: number; y: number; isSelf: boolean;
-      cosmetics?: Cosmetics; vehicle?: string | null; particles?: boolean; title?: { name: string; color: string } | null;
+      cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; particles?: boolean; title?: { name: string; color: string } | null;
       /** An NPC (stall customer): no nameplate. */
       npc?: boolean;
     },
@@ -118,7 +119,7 @@ export class Avatar {
     this.cosmetics = opts.cosmetics ?? {};
     this.setAppearance(opts.appearance);
     this.applyCosmeticExtras();
-    this.setVehicle(opts.vehicle ?? null);
+    this.setVehicle(opts.vehicle ?? null, opts.vehicleLook ?? null);
     this.setPosition(opts.x, opts.y);
   }
 
@@ -193,15 +194,17 @@ export class Avatar {
   }
 
   /** Hop on/off a vehicle (bicycle, motorbike...). */
-  setVehicle(v: string | null) {
+  setVehicle(v: string | null, look: VehicleLook | null = null) {
     this.vehicle = v;
+    this.vehicleLook = look;
+    this.fit = v ? vehicleFit(v) : null;
     this.bike?.destroy();
     this.bike = null;
     this.driver?.destroy();
     this.driver = null;
     if (v) {
-      this.bikeTex = vehicleTexturePrefix(this.scene, v);
-      this.bike = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, 36 / 40).setScale(0.5);
+      this.bikeTex = vehicleTexturePrefix(this.scene, v, look);
+      this.bike = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, this.fit!.originY).setScale(this.fit!.scale);
       this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
       if (hasDriver(v)) {
         this.driverTex = ensureCharacterTexture(this.scene, RIDER, this.cfg);
@@ -210,11 +213,14 @@ export class Avatar {
       }
     }
     this.sprite.setX(0);
-    this.sprite.setY(v ? (v === 'bicycle' ? -8 : -9) : 0);
+    this.sprite.setY(v ? this.fit!.riderY : 0);
+    this.sprite.setVisible(!this.fit?.hideRider); // in a car you're inside it
     this.applyAnim(true);
   }
 
   private bikeTex = 'bike';
+  vehicleLook: VehicleLook | null = null;
+  private fit: ReturnType<typeof vehicleFit> | null = null;
 
   /** For tests/debug: the level and title shown on the nameplate. */
   get shownLevel() {
@@ -350,6 +356,8 @@ export class Avatar {
       // wheel) and from behind (rear wheel, plate) it's drawn over them.
       if (view === 'side') this.layer(this.bike, this.auraGlow ? 1 : 0);
       else this.container.moveAbove(this.bike, this.sprite);
+      // Big bikes: sit on the seat (behind the middle) from the side.
+      if (this.fit?.riderX && !this.driver) this.sprite.setX(view === 'side' ? (this.dir === 'right' ? -this.fit.riderX : this.fit.riderX) : 0);
     }
     if (this.driver) {
       // Passenger on the back: behind the rider (side view), peeking over them (front view),

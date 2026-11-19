@@ -1,6 +1,8 @@
 // Vehicle sprites drawn in code: the starter basikal, the kapcai (small motorbike) and the
 // green Ronda kapcai (ride-hailing; drawn with an NPC rider, see avatar.ts).
 import Phaser from 'phaser';
+import type { VehicleLook } from '@kh/shared';
+import { BIKE_SIZE, CAR_SIZE, ensureShowroomTextures, isCarId, isShowroomVehicle } from './carArt';
 
 const RES = 2;
 
@@ -27,7 +29,8 @@ function wheel(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, 
 }
 
 /** Texture key prefix for a vehicle id (`<prefix>_side`, `_front`, `_back`). */
-export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string): string {
+export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string, look?: VehicleLook | null): string {
+  if (isShowroomVehicle(vehicle)) return ensureShowroomTextures(scene, vehicle, look);
   if (vehicle === 'bicycle') {
     ensureBicycleTextures(scene);
     return 'bicycle';
@@ -38,6 +41,17 @@ export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string): stri
   }
   ensureBikeTextures(scene);
   return 'bike';
+}
+
+/** How a vehicle's sprite sits: origin (ground line), where the rider sits, and whether the rider
+ *  is hidden (inside a car). */
+export function vehicleFit(vehicle: string): { originY: number; riderY: number; riderX: number; hideRider: boolean; scale: number } {
+  if (isShowroomVehicle(vehicle)) {
+    // A car is drawn a bit smaller (about 4.5 m long next to a person).
+    if (isCarId(vehicle)) return { originY: CAR_SIZE.ground / CAR_SIZE.h, riderY: -9, riderX: 0, hideRider: true, scale: 0.42 };
+    return { originY: BIKE_SIZE.ground / BIKE_SIZE.h, riderY: vehicle === 'bike_harlee' ? -13 : -15, riderX: vehicle === 'bike_harlee' ? 7 : 5, hideRider: false, scale: 0.5 };
+  }
+  return { originY: 36 / 40, riderY: vehicle === 'bicycle' ? -8 : -9, riderX: 0, hideRider: false, scale: 0.5 };
 }
 
 /** Vehicles that come with someone else driving (you ride on the back). */

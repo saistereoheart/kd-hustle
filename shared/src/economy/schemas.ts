@@ -195,6 +195,8 @@ export const vehiclesConfigSchema = z.object({
       starter: z.boolean().default(false),
       /** A hailed ride (Ronda): drawn with a driver, you sit on the back and can't steer. */
       passenger: z.boolean().default(false),
+      /** Showroom vehicles (🚗 Motor Kota): a car (you sit inside) or a big bike. */
+      kind: z.enum(['car', 'bike']).optional(),
     }),
   ),
 });

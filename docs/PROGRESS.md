@@ -56,6 +56,52 @@ Compared with the spec's content checklist (§19):
 
 ---
 
+## 🚗 Motor Kota: cars and superbikes (2026-11-19, your request)
+
+- **The showroom:** a new building about 100 m from the square, signposted 🚗 CARS & BIKES. Walk in to buy. Each
+  model has a big preview, a spec sheet and a 🔊 Hear it rev. Prices are like real ones:
+
+  | Kind | Model | Price | Engine |
+  |---|---|---|---|
+  | Car | Protan Sega | RM 35k | inline-4 |
+  | Car | Peroduo Bezzo | RM 38k | 3-cylinder |
+  | Car | Peroduo Mivy | RM 52k | inline-4 hatch |
+  | Car | Protan S7O | RM 85k | turbo 3-cylinder, 7 gears |
+  | Bike | Kawasaky ZX-25 | RM 32k | inline-4 250 cc, revs to 17,000 |
+  | Bike | ZXMotto 500RR | RM 38k | parallel twin |
+  | Bike | Dukati Panigalo V2 | RM 95k | 90° L-twin |
+  | Bike | Harlee-Davisson Road Kingo | RM 130k | 45° V-twin |
+
+  All names are parodies (no real brands).
+- **📱 Garage** (new app, anywhere):
+  - ride it or park it, and put it on the hotbar (a new purchase goes on the hotbar by itself);
+  - ⚙️ Engine tune: +5% top speed a level, 5 levels;
+  - ⚡ Torque: +15% acceleration a level;
+  - 🛞 Tyres: better grip on grass and dirt;
+  - 🎨 14 paints (Emas Sultan gold costs extra) and 🛞 9 wheel colours;
+  - 💨 exhausts: Stock, Sport muffler, Racing can, Straight pipe. You buy each one once, then swap for free.
+- **What others see:** the paint, wheels and exhaust tip show to everyone. In a car you sit inside (with a driver
+  shape in the window); on a bike you sit on the seat.
+- **Driving:**
+  - cars and big bikes pick up speed with their torque instead of starting at full speed;
+  - the top speed shows in km/h (Protan Sega ≈ 106 km/h, Dukati ≈ 140 km/h before tuning);
+  - the server allows the tuned top speed and nothing more.
+- **Engine sounds (made in the browser, no recordings):**
+  - each engine is built from its real firing order: inline-4s fire every 180°, the three-cylinders every 240°, the
+    Dukati at 0°/270°, and the Harlee at 0°/315° (its "potato-potato" idle);
+  - the revs climb through the gears as you speed up;
+  - the exhaust changes the loudness, brightness, pipe resonance and distortion;
+  - the Sport, Racing and Straight pipes pop and crackle when you let off at speed, and the turbo S7O whistles and
+    blows off;
+  - you hear your own engine and up to 3 riders nearby, quieter with distance;
+  - Settings → 🚗 Engine & exhaust sounds turns them off.
+- Config: `shared/config/garage.json` (models, prices, engines, paints, wheels, exhausts, upgrades); the vehicles
+  themselves are in `shared/config/vehicles.json` (speeds, hitboxes).
+- Code: `shared/src/garage`, `server/src/systems/garage` (with tests), `client/src/items/carArt.ts`,
+  `client/src/ui/engineSound.ts`, `client/src/ui/garage`.
+- **Decision:** I treated the ZXMotto 500RR as a parallel twin (180° crank). If the real bike has a different engine,
+  change `firing`, `cylinders` and `layout` in `garage.json`.
+
 ## 🐾 Teman (pets) and the turn-based Gua Gelap (2026-11-19, your request)
 
 The dungeon is now a turn-based pet battler (the old strike / block timing game is gone).

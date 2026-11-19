@@ -16,6 +16,8 @@ import { Hotbar } from './ui/hotbar';
 import { openInventoryPanel } from './ui/inventoryPanel';
 import { DeliveryHud, openCarwashPanel, openJobsPanel } from './ui/jobs';
 import { openPhone } from './ui/phone/phone';
+import { setGarageConfig } from './items/carArt';
+import { openShowroom } from './ui/garage/garage';
 import { openRonda, type RideHud } from './ui/ronda';
 import { closePanel, isPanelOpen } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
@@ -139,6 +141,7 @@ export class App {
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) if (!c.event) for (const id of c.pool) this.cratesOfItem.set(id, c);
+    setGarageConfig(this.cfg.garage);
     const c = this.cfg;
     this.prog = {
       rarities: c.rarities, items: c.items, itemById: this.items, crates: c.crates, crateOfItem: this.cratesOfItem, pawnRate: c.economy.pawnRate,
@@ -383,6 +386,15 @@ export class App {
     });
   }
 
+  /** 🚗 Fetch our garage (tuned speeds, looks) for driving and the engine sounds. */
+  loadGarage() {
+    this.socket?.timeout(6000).emit('garage:view', (err, res) => {
+      if (err || !res.ok) return;
+      this.store.garage = res.view;
+      this.store.emit();
+    });
+  }
+
   /** Hop on a vehicle we have (or off, with null). */
   ride(vehicle: string | null) {
     this.socket?.timeout(5000).emit('vehicle:ride', { vehicle }, (err, res) => {
@@ -589,6 +601,7 @@ export class App {
     this.rideHud?.destroy();
     this.rideHud = null;
     this.store.load(p.you);
+    this.loadGarage();
     this.store.clockOffset = p.serverTime - Date.now();
     this.store.setStalls(p.stalls, true);
     this.store.setProps(p.props ?? []);
@@ -936,6 +949,7 @@ export class App {
     else if (it.type === 'jobs') openJobsPanel(this);
     else if (it.type === 'pawn') openPawnPanel(this);
     else if (it.type === 'carwash') openCarwashPanel(this);
+    else if (it.type === 'showroom') openShowroom(this);
     else if (it.type === 'casino' && it.game) openCasinoGame(this, it.game);
   }
 

@@ -216,6 +216,10 @@
       "name": "Kilat Car Wash",
       "kind": "shop"
     },
+    "w823493832": {
+      "name": "Motor Kota Showroom",
+      "kind": "shop"
+    },
     "w1509727667": {
       "name": "IKEJA",
       "kind": "furniture"
@@ -402,6 +406,12 @@
       "type": "market",
       "name": "Gergasi Hypermarket",
       "building": "w366614388"
+    },
+    {
+      "id": "showroom",
+      "type": "showroom",
+      "name": "Motor Kota Showroom",
+      "building": "w823493832"
     },
     {
       "id": "ikeja",
