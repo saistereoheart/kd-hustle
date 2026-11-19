@@ -69,6 +69,18 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## 📍 Place markers (2026-11-19)
+
+- **Pointers on the screen edge** for places that are off screen: a round badge pointing the way, with the
+  distance. Always for your own places (gold: homes, stall, Ventures); for signposted places within ~280 m (nearest
+  6). Tap one for the guide arrow. They keep clear of the minimap and goal card. Settings → 📍 Pointers to places.
+- **Your Ventures have a building now** (for show; `shared/src/world/ventureSpots.ts`): each business type, the Kedai
+  Runcit and the Butik get a shop / office / shoplot near the square, the same on every device. Own one and its
+  building gets a gold "🍔 YOUR BURGER BAKAR" sign and a gold pin on the minimap and full map.
+- **Bug fixed:** on a fresh load the minimap and full map had no signposted places at all (the list was handed over
+  before the minimap existed).
+- The casino and bank signposts were still "coming soon": now LUCKY STRAND CASINO and BANK KOTA.
+
 ## ⚔️ Gua Gelap: the dungeon (2026-11-19, a player idea)
 
 - 📱 → ⚔️ Gua Gelap. A cave with one enemy per floor and a boss every 5th floor: Malaysian pests (Lipas Gergasi,

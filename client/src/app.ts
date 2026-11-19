@@ -1,5 +1,5 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
-import type { Poi } from '@kh/shared';
+import { ventureSpots, type Poi, type VentureSpot } from '@kh/shared';
 import Phaser from 'phaser';
 import {
   buildMap, buildSnapshot, computeMods, rebirthMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
@@ -57,6 +57,7 @@ import { Radio } from './ui/radio';
 import { EventBanner } from './ui/eventBanner';
 import { DebugOverlay } from './ui/debugOverlay';
 import { watchGraphics } from './ui/graphicsGuard';
+import { PlacePointers } from './ui/placePointers';
 import { showTrade, showTradeRequest } from './ui/trade';
 import { showCoinflipChallenge, showCoinflipResult } from './ui/coinflip';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
@@ -668,6 +669,17 @@ export class App {
       this.guide = new Guide(this);
       this.minimap?.setPois(this.guide.pois);
       if (this.minimap) this.minimap.mine = () => this.myPlaces();
+      // Each Venture gets a building in town (for its sign and map pin when you own it).
+      const taken = new Set<string>([
+        ...this.cfg.guide.pois.map((p) => p.building ?? '').filter(Boolean),
+        // Homes, but not the lofts above shoplots (a business downstairs is fine).
+        ...this.listings.filter((u) => this.map.buildings.find((b) => b.id === u.building)?.kind !== 'shoplot').map((u) => u.building),
+        // Not the kopitiam shoplots: every free shoplot is one, and a kopitiam rarely lands on these few.
+        ...this.map.stallPlots.filter((p) => !p.auto).map((p) => p.building ?? '').filter(Boolean),
+        ...this.map.interactables.map((i) => i.building ?? '').filter(Boolean),
+      ]);
+      this.ventureAt = ventureSpots(this.map, [...this.cfg.businesses.types.map((t) => t.id), 'retail', 'boutique'], taken);
+      this.pointers ??= new PlacePointers(this);
       this.voteBanner = new VoteBanner(this);
       this.phoneBtn = new PhoneButton(this);
       this.radio ??= new Radio(this);
@@ -682,6 +694,9 @@ export class App {
         this.cfg.chat.maxLength,
       );
       this.minimap = new Minimap(this.map);
+      // (The guide is set up before this on a first load, so hand the minimap its places here.)
+      if (this.guide) this.minimap.setPois(this.guide.pois);
+      this.minimap.mine = () => this.myPlaces();
       // Blank map + characters = the browser threw the graphics away: notice and reload.
       if (!this.gfxWatched) {
         this.gfxWatched = true;
@@ -965,6 +980,25 @@ export class App {
   }
 
   /** Your homes and your stall, as gold pins on the minimap and the full map. */
+  /** Where each Venture is in town (see ventureSpots). */
+  ventureAt = new Map<string, VentureSpot>();
+  pointers: PlacePointers | null = null;
+
+  /** The Ventures you own: id, icon, name, and where. */
+  myVentures(): Array<{ id: string; icon: string; name: string; spot: VentureSpot }> {
+    const out: Array<{ id: string; icon: string; name: string; spot: VentureSpot }> = [];
+    const v = this.store.ventures;
+    for (const t of this.cfg.businesses.types) {
+      const spot = this.ventureAt.get(t.id);
+      if (spot && (v.businesses[t.id]?.level ?? 0) > 0) out.push({ id: t.id, icon: t.icon, name: t.name, spot });
+    }
+    const r = this.ventureAt.get('retail');
+    if (r && v.retail) out.push({ id: 'retail', icon: this.cfg.businesses.retail.icon, name: this.cfg.businesses.retail.name, spot: r });
+    const b = this.ventureAt.get('boutique');
+    if (b && this.store.boutique?.open) out.push({ id: 'boutique', icon: this.cfg.businesses.boutique.icon, name: this.cfg.businesses.boutique.name, spot: b });
+    return out;
+  }
+
   myPlaces(): Poi[] {
     const out: Poi[] = [];
     for (const s of this.store.myProps) {
@@ -978,6 +1012,7 @@ export class App {
       const tier = this.cfg.stalls.tiers.find((t) => t.tier === plot.tier);
       out.push({ id: 'mine:stall', label: `MY ${(tier?.name ?? 'STALL').toUpperCase()}`, sub: '', icon: tier?.icon ?? '🍳', kind: 'mine' as Poi['kind'], x: plot.x, y: plot.y } as Poi);
     }
+    for (const v of this.myVentures()) out.push({ id: `mine:biz:${v.id}`, label: `MY ${v.name.toUpperCase()}`, sub: '', icon: v.icon, kind: 'mine' as Poi['kind'], x: v.spot.x, y: v.spot.y } as Poi);
     return out;
   }
 

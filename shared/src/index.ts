@@ -16,6 +16,7 @@ export * from './cooking/cooking';
 export * from './cooking/stall';
 export * from './world/interiors';
 export * from './world/guide';
+export * from './world/ventureSpots';
 export * from './world/npcs';
 export * from './property/schemas';
 export * from './property/rating';

@@ -25,6 +25,10 @@ window.__kh = {
   stall: () => app.store.stall,
   stalls: () => [...app.store.stalls.values()],
   dish: () => app.cookingDish,
+  /** Dev/tests: your places (homes, stall, Ventures) and where each Venture is. */
+  places: () => ({ mine: app.myPlaces().map((p) => p.id), spots: app.ventureAt.size, owned: Object.entries(app.store.ventures.businesses).filter(([, b]) => b.level > 0).map(([k]) => k) }),
+  /** Dev/tests: the raw socket (window.__khSock) for calls that need the server's reply. */
+  exposeSocket: () => ((window as unknown as { __khSock: unknown }).__khSock = app.socket),
   /** Dev/tests: count server messages by name from now on (read with eventCounts). */
   countEvents: () => {
     const c: Record<string, number> = {};

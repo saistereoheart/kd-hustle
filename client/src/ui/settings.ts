@@ -16,9 +16,11 @@ export interface Prefs {
   moneySound: boolean;
   /** "+RM" pop-ups by your cash and over your stall. */
   moneyPopups: boolean;
+  /** Pointers on the screen edge to off-screen places (yours, and signposted ones nearby). */
+  pointers: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -102,6 +104,12 @@ export function openSettings(opts: {
   const stats = el('button', { class: 'btn small', type: 'button', 'data-action': 'toggle-stats' }, 'Show / hide');
   stats.addEventListener('click', () => window.dispatchEvent(new Event('kh-debug')));
 
+  const pointers = el('input', { type: 'checkbox', 'aria-label': 'Pointers to places', 'data-pref': 'pointers', checked: prefs.pointers });
+  pointers.addEventListener('change', () => {
+    prefs.pointers = pointers.checked;
+    savePrefs(prefs);
+  });
+
   const quality = el('select', { 'aria-label': 'Graphics' },
     ...([['auto', 'Auto'], ['high', 'Sharpest'], ['saver', 'Battery saver']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.quality === v }, label)));
   quality.addEventListener('change', () => {
@@ -125,6 +133,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
     el('div', { class: 'setting-row' }, el('span', {}, '🎵 Music (lofi / shared radio)'), musicOn),
     el('div', { class: 'setting-row' }, el('span', {}, 'Music volume'), musicVol),
+    el('div', { class: 'setting-row' }, el('span', {}, '📍 Pointers to places (screen edge)'), pointers),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money sounds (coins)'), moneySound),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money pop-ups (+RM)'), moneyPopups),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),

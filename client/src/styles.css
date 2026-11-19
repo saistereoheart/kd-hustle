@@ -1205,3 +1205,14 @@ body:has(.title-screen) .panel-backdrop { z-index: 55; }
 .dungeon-cleared { text-align: center; }
 .dungeon-cleared h4 { font-size: 18px; text-transform: none; letter-spacing: 0; color: #fff; margin: 6px 0; }
 .dungeon-stat { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+
+/* ---- 📍 pointers to off-screen places ---- */
+.place-pointers { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.pp { position: absolute; left: 0; top: 0; pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 0; width: 46px; padding: 3px 0 2px; border-radius: 14px; border: 2px solid var(--pp); background: rgba(17, 19, 31, 0.82); color: #fff; cursor: pointer; touch-action: manipulation; box-shadow: 0 3px 10px rgba(0,0,0,0.45); }
+.pp.mine { background: rgba(245, 159, 0, 0.92); border-color: #fff; box-shadow: 0 0 12px rgba(245, 159, 0, 0.6), 0 3px 10px rgba(0,0,0,0.45); }
+.pp-icon { font-size: 20px; line-height: 1.1; }
+.pp-dist { font: 800 10px system-ui, sans-serif; white-space: nowrap; }
+.pp-arrow { position: absolute; top: -13px; left: 50%; margin-left: -6px; width: 12px; text-align: center; font-size: 11px; color: var(--pp); transform-origin: 6px 30px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.pp.mine .pp-arrow { color: #ffd43b; }
+body.touch .pp { width: 40px; }
+body.touch .pp-icon { font-size: 17px; }

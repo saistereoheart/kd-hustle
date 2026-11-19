@@ -99,17 +99,17 @@
     {
       "id": "bank",
       "label": "BANK KOTA",
-      "sub": "Loans · coming soon",
+      "sub": "Loans · also in 📱 Bank",
       "icon": "🏦",
-      "kind": "soon",
+      "kind": "shop",
       "building": "w1275938527"
     },
     {
       "id": "casino",
-      "label": "CASINO",
-      "sub": "Coming soon",
+      "label": "LUCKY STRAND CASINO",
+      "sub": "Slots, roulette, blackjack, crash…",
       "icon": "🎲",
-      "kind": "soon",
+      "kind": "crate",
       "building": "w467995024"
     }
   ],

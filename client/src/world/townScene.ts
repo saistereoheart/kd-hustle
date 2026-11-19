@@ -157,6 +157,8 @@ export class TownScene extends Phaser.Scene {
     this.createSigns();
     this.syncHomeSigns();
     this.offs.push(this.app.store.on(() => this.syncHomeSigns()));
+    this.offs.push(this.app.store.on(() => this.syncVentureSigns()));
+    this.syncVentureSigns();
     this.stalls = new StallLayer(this, this.app);
     this.npcs = new NpcLayer(this, this.app);
     this.collectors = new Collectors(this, this.app);
@@ -678,6 +680,7 @@ export class TownScene extends Phaser.Scene {
       this.updateBeacon();
       this.app.jobHud?.update(this.pos.x, this.pos.y, screen);
       this.app.guide?.update(this.pos.x, this.pos.y, screen);
+      this.app.pointers?.update(cam.worldView, this.pos);
       this.app.minimap?.update([
         { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
@@ -773,6 +776,33 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     }
   }
   private signs: Phaser.GameObjects.Container[] = [];
+  /** Gold "YOUR …" signs over the buildings of the Ventures you own. */
+  private ventureSigns = new Map<string, Phaser.GameObjects.Text>();
+  private ventureKey = '';
+  private syncVentureSigns() {
+    const mine = this.app.myVentures();
+    const key = mine.map((v) => v.id).join(',');
+    if (key === this.ventureKey) return;
+    this.ventureKey = key;
+    const T = this.app.map.tileSize;
+    const want = new Set(mine.map((v) => v.id));
+    for (const [id, t] of this.ventureSigns) {
+      if (want.has(id)) continue;
+      t.destroy();
+      this.ventureSigns.delete(id);
+    }
+    for (const v of mine) {
+      if (this.ventureSigns.has(v.id)) continue;
+      const x = v.spot.x * T, y = v.spot.y * T - 34;
+      const t = this.add
+        .text(x, y, `${v.icon} YOUR ${v.name.toUpperCase()}`, { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontStyle: '900', color: '#1b1300', backgroundColor: 'rgba(245,159,0,0.95)', padding: { x: 9, y: 5 }, resolution: 2 })
+        .setOrigin(0.5, 1)
+        .setDepth(998_700);
+      this.tweens.add({ targets: t, y: y - 4, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.culler.add(t, x, y, 140);
+      this.ventureSigns.set(v.id, t);
+    }
+  }
   /** Signs and labels far off-screen are hidden (Phaser draws everything otherwise). */
   private culler = new Culler();
   /** What the home signs last showed: they're only redrawn when ownership changes. */
