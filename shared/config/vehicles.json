@@ -86,7 +86,7 @@
     "bike_zx25": {
       "name": "Kawasaky ZX-25",
       "icon": "🏍️",
-      "speed": 540,
+      "speed": 585,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -98,7 +98,7 @@
     "bike_500rr": {
       "name": "ZXMotto 500RR",
       "icon": "🏍️",
-      "speed": 570,
+      "speed": 615,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -110,7 +110,7 @@
     "bike_dukati": {
       "name": "Dukati Panigalo V2",
       "icon": "🏍️",
-      "speed": 620,
+      "speed": 670,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -122,7 +122,7 @@
     "bike_harlee": {
       "name": "Harlee-Davisson Road Kingo",
       "icon": "🏍️",
-      "speed": 520,
+      "speed": 560,
       "hitbox": {
         "w": 18,
         "h": 12

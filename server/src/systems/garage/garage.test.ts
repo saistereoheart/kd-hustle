@@ -136,9 +136,8 @@ describe('gearbox (drive model)', () => {
     }
   });
 
-  it('a stock car spends at least 2 s in every gear on a full-throttle run', () => {
+  it('every stock car and bike spends at least 2 s in each gear on a full-throttle run', () => {
     for (const [id, m] of Object.entries(gc.models)) {
-      if (m.kind !== 'car') continue;
       const { spec } = run(id);
       const st = newDriveState(spec, true);
       const dt = 1 / 120;
@@ -164,7 +163,7 @@ describe('gearbox (drive model)', () => {
     const ups: number[] = [];
     let last = st.rpm;
     const dt = 1 / 60;
-    for (let i = 0; i < 60 * 8; i++) {
+    for (let i = 0; i < 60 * 20; i++) {
       const ev = stepDrive(spec, st, { throttle: true, cap: Infinity }, dt);
       if (ev === 'up') ups.push(st.gear);
       expect(st.rpm).toBeLessThanOrEqual(spec.redline);

@@ -50,12 +50,14 @@ data (achievements, weekly quests) lives in the existing progress JSON.
   - **Dashboard** (bottom right, big; above the E button on phones): a rev counter with a red redline and shift
     lights, km/h, the gear, AUTO/MANUAL.
   - **Tyre smoke** on a hard launch, and when spinning up on grass.
-  - 0-to-top times are longer and more real now. Bikes take 2.6–3.6 s.
+  - **Bikes (your follow-up):** about 8% more top speed (ZX-25 132 km/h, 500RR 138, Dukati 151, Harlee 126) and
+    less torque, with the gears spaced evenly like the cars. Stock, every bike spends **at least 2 s in each gear**.
+    0-to-top: Dukati 14.8 s, 500RR 15.5, Harlee 16.0, ZX-25 16.5.
   - **Cars (your follow-up):** about 8% more top speed (Sega 115 km/h, Bezzo 111, Mivy 119, S7O 132) and less
     torque. Stock, every car spends **at least 2 s in each gear** on a full-throttle run (Sega gears: 2.1 / 2.3 /
     2.2 / 2.4 s, then top gear). 0-to-top: Sega 13.7 s, Bezzo 13.5, Mivy 13.5, S7O 19.5 (seven gears).
   - Car gears are spaced more evenly (a longer first gear) and get a milder boost in the low gears. A unit test keeps
-    every stock car gear at 2 s or more.
+    every stock car and bike gear at 2 s or more.
   - Torque upgrades still shorten every gear, down to about 1.2 s at the max.
 - **🔊 Engine sound (more real):**
   - Each cylinder's pressure pulse is a little different, and the pipe rings at fixed frequencies like a real
@@ -150,7 +152,7 @@ data (achievements, weekly quests) lives in the existing progress JSON.
   shape in the window); on a bike you sit on the seat.
 - **Driving:**
   - cars and big bikes pick up speed with their torque instead of starting at full speed;
-  - the top speed shows in km/h (Protan Sega ≈ 115 km/h, Dukati ≈ 140 km/h before tuning);
+  - the top speed shows in km/h (Protan Sega ≈ 115 km/h, Dukati ≈ 151 km/h before tuning);
   - the server allows the tuned top speed and nothing more.
 - **Engine sounds (made in the browser, no recordings):**
   - each engine is built from its real firing order: inline-4s fire every 180°, the three-cylinders every 240°, the

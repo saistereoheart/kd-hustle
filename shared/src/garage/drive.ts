@@ -168,6 +168,7 @@ export function followDrive(spec: DriveSpec, st: DriveState, speed: number, thro
   return ev;
 }
 
+const BIKE_FIRST = 0.25, BIKE_P = 0.8, BIKE_M = 0.35;
 const specs = new Map<string, DriveSpec>();
 
 /** Seconds from standing to 97% of top speed with full throttle and the automatic (a test drive). */
@@ -194,14 +195,11 @@ export function driveSpec(m: GarageModel, top: number, accelSec: number): DriveS
   const e = m.engine;
   const bike = m.kind === 'bike';
   const n = e.gears;
-  // Bikes: close, geometric ratios and a big torque boost in the low gears (they rip through them).
-  // Cars: a longer first gear, gaps that grow gently and a milder boost, so every gear lasts a while.
-  const first = bike ? 0.3 : 0.27;
-  const gearTop = Array.from({ length: n }, (_, i) => {
-    const k = i / Math.max(1, n - 1);
-    return bike ? top * first ** (1 - k) : top * (first + (1 - first) * k ** 0.85);
-  });
-  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** (bike ? 0.75 : 0.3));
+  // Gears spaced fairly evenly (a longer first gear, gaps that shrink gently) with a mild boost in the
+  // low gears, so every gear lasts a while (at least 2 s stock: see the garage tests).
+  const first = bike ? BIKE_FIRST : 0.27;
+  const gearTop = Array.from({ length: n }, (_, i) => top * (first + (1 - first) * (i / Math.max(1, n - 1)) ** (bike ? BIKE_P : 0.85)));
+  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** (bike ? BIKE_M : 0.3));
   const range = e.redline - e.idleRpm;
   const spec: DriveSpec = {
     top, gearTop, gearMult, accel: 1,
