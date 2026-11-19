@@ -243,6 +243,19 @@
       ]
     },
     {
+      "id": "furniture",
+      "icon": "🛋️",
+      "title": "Furniture: where to get it, how to use it",
+      "steps": [
+        "GET IT: walk to IKEJA (🛋️ FURNITURE on the map, or 📘 Take me to… → Furniture), press E and buy pieces. Rare themed pieces also come from the Mall Mystery Box at The Strand Mall.",
+        "Bought furniture goes into your 🎒 Bag (Furniture group). Tap a piece there to see its size, comfort, style and theme.",
+        "USE IT: you need a home first (your first one is free: 📱 → Properties). Go to your home's door and press E → 🚪 Go in.",
+        "Inside, tap 🛠️ Decorate. Pick a piece from your furniture tray, tap a free spot on the floor to place it, and rotate it if it doesn't fit. Wall pieces (aircond, TV, paintings) go against a wall.",
+        "Essentials (bed, toilet, shower, kitchen, aircond, wifi) unlock good ratings; amenities (TV, washer, coffee, console, bathtub, balcony, smart lock), matching themes and high style push you to 5★.",
+        "Placed furniture stays yours: take it back to your Bag any time in Decorate mode (it can't be sold or traded while it's placed)."
+      ]
+    },
+    {
       "id": "grow",
       "icon": "📈",
       "title": "Levels, skills and stages",

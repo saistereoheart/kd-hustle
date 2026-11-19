@@ -49,7 +49,12 @@ export function openFurnitureStore(app: App) {
     cat = i;
     render();
   });
-  panel.body.replaceChildren(el('p', { class: 'muted' }, 'Essentials (bed, toilet, shower, kitchen, aircond, wifi) unlock good ratings. Matching themes and rare pieces from the Mall Mystery Box push you towards 5★.'), t, grid);
+  panel.body.replaceChildren(
+    el('p', { class: 'muted' }, 'Essentials (bed, toilet, shower, kitchen, aircond, wifi) unlock good ratings. Matching themes and rare pieces from the Mall Mystery Box push you towards 5★.'),
+    el('p', { class: 'hint' }, '🛋️ How to use: what you buy goes to your 🎒 Bag. Go into your home (📱 Properties → 📍 Take me there, then E at the door), tap 🛠️ Decorate, pick the piece and tap the floor to place it.'),
+    t,
+    grid,
+  );
   const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();

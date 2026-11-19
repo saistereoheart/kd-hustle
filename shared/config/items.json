@@ -1456,6 +1456,466 @@
       "color": "#ffd43b",
       "color2": "#ffffff",
       "limit": 1
+    },
+    {
+      "id": "kampung_mattress",
+      "name": "Tilam Kekabu",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 140000,
+      "desc": "Furniture (beds, Tropical Kampung theme; counts as the bed essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "canopy_bed",
+      "name": "Royal Canopy Bed",
+      "type": "furniture",
+      "rarity": "legendary",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 1800000,
+      "desc": "Furniture (beds, Luxury Gold theme; counts as the bed essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "neon_loft_bed",
+      "name": "Gamer Loft Bed",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "valueSen": 680000,
+      "desc": "Furniture (beds, Gamer Neon theme; counts as the bed essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "day_bed",
+      "name": "Rattan Day Bed",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 300000,
+      "desc": "Furniture (beds, Tropical Kampung theme; counts as the bed essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "rain_shower",
+      "name": "Rain Shower",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 280000,
+      "desc": "Furniture (bathroom, Luxury Gold theme; counts as the shower essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "smart_toilet",
+      "name": "Bidet Smart Toilet",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "valueSen": 350000,
+      "desc": "Furniture (bathroom, Cyberpunk theme; counts as the toilet essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "vanity_sink",
+      "name": "Vanity Sink",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 90000,
+      "desc": "Furniture (bathroom, Scandinavian theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "jacuzzi",
+      "name": "Jacuzzi",
+      "type": "furniture",
+      "rarity": "legendary",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 1500000,
+      "desc": "Furniture (bathroom, Luxury Gold theme; bathtub amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "kampung_dapur",
+      "name": "Dapur Kayu",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 160000,
+      "desc": "Furniture (kitchen, Tropical Kampung theme; counts as the kitchen essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "chef_kitchen",
+      "name": "Chef's Kitchen",
+      "type": "furniture",
+      "rarity": "legendary",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 1200000,
+      "desc": "Furniture (kitchen, Luxury Gold theme; counts as the kitchen essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "fridge",
+      "name": "Two-Door Fridge",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 140000,
+      "desc": "Furniture (kitchen). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "teh_station",
+      "name": "Teh Tarik Station",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 80000,
+      "desc": "Furniture (kitchen, Tropical Kampung theme; coffee amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "bar_counter",
+      "name": "Bar Counter",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 420000,
+      "desc": "Furniture (kitchen, Industrial theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "inverter_aircond",
+      "name": "Inverter Aircond",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 320000,
+      "desc": "Furniture (appliances; counts as the aircond essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "mesh_wifi",
+      "name": "Mesh WiFi",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 90000,
+      "desc": "Furniture (appliances; counts as the wifi essential). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "oled_tv",
+      "name": "85-inch OLED TV",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 900000,
+      "desc": "Furniture (appliances; tv amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "console_set",
+      "name": "Game Console Set",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "valueSen": 250000,
+      "desc": "Furniture (appliances, Gamer Neon theme; console amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "robot_vacuum",
+      "name": "Robot Vacuum",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "valueSen": 120000,
+      "desc": "Furniture (appliances, Cyberpunk theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "dryer",
+      "name": "Dryer",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 130000,
+      "desc": "Furniture (appliances; washer amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "standing_fan",
+      "name": "Kipas Berdiri",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 25000,
+      "desc": "Furniture (appliances). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "bbq_pit",
+      "name": "BBQ Pit",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 180000,
+      "desc": "Furniture (outdoor, Industrial theme; balcony amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "hammock",
+      "name": "Hammock",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 110000,
+      "desc": "Furniture (outdoor, Tropical Kampung theme; balcony amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "rooftop_lounge",
+      "name": "Rooftop Lounge Set",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 950000,
+      "desc": "Furniture (outdoor, Luxury Gold theme; balcony amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "bean_sofa",
+      "name": "Modular Bean Sofa",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "valueSen": 380000,
+      "desc": "Furniture (sofas, Gamer Neon theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "cyber_sofa",
+      "name": "LED Cyber Sofa",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "valueSen": 720000,
+      "desc": "Furniture (sofas, Cyberpunk theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "l_sofa",
+      "name": "L-Shaped Sofa",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 520000,
+      "desc": "Furniture (sofas, Scandinavian theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "marble_dining",
+      "name": "Marble Dining Table",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 880000,
+      "desc": "Furniture (tables, Luxury Gold theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "kopitiam_table",
+      "name": "Kopitiam Marble Table",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 60000,
+      "desc": "Furniture (tables, Tropical Kampung theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "gaming_desk",
+      "name": "Gaming Battlestation",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "valueSen": 640000,
+      "desc": "Furniture (tables, Cyberpunk theme; console amenity). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "coffee_table",
+      "name": "Glass Coffee Table",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 85000,
+      "desc": "Furniture (tables, Scandinavian theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "bookshelf",
+      "name": "Tall Bookshelf",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 120000,
+      "desc": "Furniture (storage, Japandi theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "shoe_rack",
+      "name": "Shoe Rack",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 30000,
+      "desc": "Furniture (storage). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "walk_in_closet",
+      "name": "Walk-in Closet",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 760000,
+      "desc": "Furniture (storage, Luxury Gold theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "pendant_lights",
+      "name": "Pendant Lights",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#495057",
+      "valueSen": 75000,
+      "desc": "Furniture (lighting, Industrial theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "pelita_lamp",
+      "name": "Pelita Lamp",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 35000,
+      "desc": "Furniture (lighting, Tropical Kampung theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "rgb_strip",
+      "name": "RGB Light Strip",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "valueSen": 60000,
+      "desc": "Furniture (lighting, Gamer Neon theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "wau_kite",
+      "name": "Wau Bulan Kite",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#2f9e44",
+      "valueSen": 95000,
+      "desc": "Furniture (decor, Tropical Kampung theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "aquarium",
+      "name": "Aquarium",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#adb5bd",
+      "valueSen": 320000,
+      "desc": "Furniture (decor). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "ikebana",
+      "name": "Ikebana Vase",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 70000,
+      "desc": "Furniture (decor, Japandi theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "gold_statue",
+      "name": "Golden Lucky Cat",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 650000,
+      "desc": "Furniture (decor, Luxury Gold theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "hologram",
+      "name": "Hologram Projector",
+      "type": "furniture",
+      "rarity": "rare",
+      "shape": "furn",
+      "color": "#22b8cf",
+      "valueSen": 420000,
+      "desc": "Furniture (decor, Cyberpunk theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "tatami_rug",
+      "name": "Tatami Mat",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 90000,
+      "desc": "Furniture (decor, Japandi theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "office_chair",
+      "name": "Ergo Office Chair",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#e9ecef",
+      "valueSen": 110000,
+      "desc": "Furniture (chairs, Scandinavian theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "throne",
+      "name": "Velvet Throne",
+      "type": "furniture",
+      "rarity": "epic",
+      "shape": "furn",
+      "color": "#fcc419",
+      "valueSen": 990000,
+      "desc": "Furniture (chairs, Luxury Gold theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "gaming_chair",
+      "name": "Gaming Chair",
+      "type": "furniture",
+      "rarity": "uncommon",
+      "shape": "furn",
+      "color": "#be4bdb",
+      "valueSen": 260000,
+      "desc": "Furniture (chairs, Gamer Neon theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
+    },
+    {
+      "id": "zaisu",
+      "name": "Zaisu Floor Chair",
+      "type": "furniture",
+      "rarity": "common",
+      "shape": "furn",
+      "color": "#c9b79c",
+      "valueSen": 70000,
+      "desc": "Furniture (chairs, Japandi theme). Buy at IKEJA; place it in your home with 🛠️ Decorate."
     }
   ]
 }

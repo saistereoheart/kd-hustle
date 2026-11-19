@@ -69,6 +69,7 @@ export function renderProperties({ app, rerender }: PhoneCtx): HTMLElement[] {
       for (const r of s.reviews.slice(0, 3)) lines.push(el('div', { class: 'review' }, `${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)} “${r.text}”`));
     } else if (s.mode === 'home') lines.push(el('div', { class: 'muted' }, 'Your own place: decorate it and show it off.'));
     else lines.push(el('div', { class: 'muted' }, 'Empty. Pick what to do with it above.'));
+    lines.push(el('div', { class: 'muted small' }, '🛋️ Furnish it: go in and tap 🛠️ Decorate. Buy furniture at IKEJA (🛋️ on the map).'));
     const staff = el('div', { class: 'seg' });
     for (const role of ['manager', 'cleaner'] as const) {
       if (role === 'manager' && s.mode !== 'rent') continue;

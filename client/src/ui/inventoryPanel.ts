@@ -4,7 +4,7 @@ import { CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBu
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
 import { el, toast, keepUiState } from './dom';
-import { iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
+import { closePanel, iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
 import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
 
@@ -181,6 +181,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
               : buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
             el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant, gradeMult(gcfg, s.grade)))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gradeMult(gcfg, s.grade)))}`),
             el('div', { class: 'muted' }, 'Sell or scrap at Kedai Pajak Untung (next to Kedai Runcit).'),
+            def.type === 'furniture' ? furnitureHelp(app, def.id) : null,
             actions,
           ),
         );
@@ -219,4 +220,44 @@ export function openInventoryPanel(app: App, startTab = 0) {
   const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
   render();
+}
+
+/** Furniture in the Bag: its stats, where it comes from, and how to place it. */
+function furnitureHelp(app: App, id: string): HTMLElement {
+  const f = app.cfg.furniture;
+  const p = f.pieces[id];
+  const box = el('div', { class: 'furniture-help' });
+  if (p) {
+    box.append(el('div', { class: 'item-buff' }, [
+      `${p.w}×${p.h} m${p.wall ? ' · on a wall' : p.floor ? ' · on the floor' : ''}`,
+      `🛏️ comfort ${p.comfort} · 💅 style ${p.style}`,
+      p.theme ? `🎨 ${f.themes[p.theme]?.name ?? p.theme}` : '',
+      p.essential ? `⭐ essential: ${p.essential}` : '',
+      p.amenity ? `✨ amenity: ${p.amenity}` : '',
+    ].filter(Boolean).join(' · ')));
+    box.append(el('div', { class: 'muted small' }, p.storeSen ? `Sold at ${f.storeName} for ${formatMoney(p.storeSen)}.` : 'Only from the Mall Mystery Box (The Strand Mall).'));
+  }
+  const homes = app.store.myProps.length;
+  box.append(el('div', { class: 'muted small' }, homes
+    ? '🛠️ To use it: go into your home (📱 Properties → 📍 Take me there, then E at the door), tap Decorate, pick it and tap the floor.'
+    : '🏠 You need a home to place furniture: your first one is free (📱 Properties, or walk to a 🏷️ FOR SALE door).'));
+  const row = el('div', { class: 'detail-actions' });
+  const go = el('button', { class: 'btn small', type: 'button', 'data-action': 'go-ikeja' }, `📍 Take me to ${f.storeName}`);
+  go.addEventListener('click', () => {
+    closePanel();
+    app.guide?.point('ikeja');
+  });
+  row.append(go);
+  if (homes) {
+    const home = el('button', { class: 'btn small', type: 'button', 'data-action': 'go-home' }, '🏠 Take me home');
+    home.addEventListener('click', () => {
+      const s = app.store.myProps[0];
+      const u = app.listings.find((x) => x.id === s.unit);
+      closePanel();
+      if (u) app.guide?.pointAt({ id: s.unit, label: 'YOUR HOME', icon: '🏠', x: u.x, y: u.y });
+    });
+    row.append(home);
+  }
+  box.append(row);
+  return box;
 }
