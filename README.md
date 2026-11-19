@@ -1,61 +1,72 @@
 # Kota Hustle
 
 A browser-based **LAN multiplayer 2D social RNG tycoon** set in a cartoon city inspired by Kota Damansara, Malaysia.
-Hustle from RM 300 to billions: roll crates for rare cosmetics and items, cook at your own pasar malam stall,
-buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), and flex on friends on the same WiFi.
+Hustle from RM 300 to billions with 2–5 friends on the same WiFi: roll crates for rare cosmetics, cook at your own
+pasar malam stall, buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), race superbikes,
+send your Teman into a cave, and flex on everyone.
 
-> 🚧 Work in progress: **Phases 1, 1.5, 2 and 3 are done** (town, characters, money, jobs, crates, progression). See [`docs/PROGRESS.md`](docs/PROGRESS.md) for status,
-> decisions and a step-by-step test guide.
+**Version 1.0.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built. What changed, round by round, is
+in [`docs/PROGRESS.md`](docs/PROGRESS.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-## What works now (Phases 1–3)
-- Accounts (register / login / auto-login / one session per account) with autosave
-- A chibi vector character creator: face shapes, 23 hairstyles, tudung styles, baju kurung / baju melayu and more
-- A real-scale Kota Damansara built from **OpenStreetMap** (2 m per tile, ~1.5 × 1.15 km): The Strand, Dataran
-  Sunway, Mitraland, Surian MRT, PJU 3 / Palm Spring, with real roads, lanes and building footprints
-- Walk around with friends (keyboard or touch joystick), see each other in real time, chat with speech bubbles, emotes
-- Minimap + full map, district banners, saving (autosave every 60 s, on logout/disconnect/shutdown) and DB backups
-- Money in RM, two starter jobs (food delivery, a 3-step car wash), a starter bicycle, a hotbar (keys 1–0),
-  🛵 **Ronda** rides from the phone (pick a spot on the map, pay the fare, a rider takes you), 3 gacha crates with visible odds,
-  a CS:GO-style reel, 48 collectable items, cosmetics everyone can see, pity, rare-pull announcements, Item Index,
-  pawn shop and Shard Shop
-- Progression: XP and levels (1–100), 6 wealth stages from Budak Baru to Tan Sri, 22 titles worn over your head,
-  the **Hustle Skills** tree, potions with buff timers (luck, XP, job pay, passive income), a 7-day login streak,
-  3 daily quests, and the **Hustle Path** (a next-goal tracker that guides your first couple of hours)
-- The 📱 **HustlePhone** (P or Tab): Daily, Quests, Hustle Path, Skills, Titles, Profile, Ronda, Bag, Index, Map, Settings
+## What's in the game
+- **The town:** a real-scale Kota Damansara from **OpenStreetMap** (2 m per tile): The Strand, Dataran Sunway,
+  Mitraland, Surian MRT, PJU 3. Real roads and building footprints, day and night, NPCs, signposts, a minimap and
+  a full map, 🛵 Ronda rides.
+- **Your character:** a chibi vector character creator (face shapes, 23 hairstyles, tudung styles, baju kurung /
+  baju melayu…), cosmetics everyone sees, titles over your head, emotes, chat with speech bubbles.
+- **Making money:**
+  - starter jobs: delivery, car wash, Flyer Run, Mamak Helper;
+  - food stalls from pasar malam to food truck to a kopitiam shoplot, with step-by-step cooking mini-games
+    (6 recipes), staff, head chefs and cashiers;
+  - 12 property types to rent out or run as an Airbnb, with a Sims-style decorate mode, 88 furniture pieces and
+    a star rating;
+  - idle businesses (Ventures), your own shop and Butik, Bank Kota loans or Ah Long.
+- **Luck:**
+  - 10 crates from the Capsule Machine to the Tan Sri Diamond Vault (visible odds, pity, variants, serial numbers);
+  - 230 items in the Item Index;
+  - the Lucky Strand Casino (7 games, shared tables), PvP coinflip.
+- **With friends:** trading, gifting, Pasar Online (fixed price and auctions), leaderboards, server events
+  (Lucky Hour, Rush Hour, Durian Season…), a shared radio, a night-skip vote.
+- **🐾 Teman and ⚔️ Gua Gelap:**
+  - 10 pets to buy, roll, train, upgrade and kit out with gear;
+  - a turn-based cave battler with ultimates, bosses, rest rooms, Auto and Skip, and its own fight and boss music.
+- **🚗 Motor Kota:**
+  - 4 cars and 4 superbikes (parody names);
+  - a real gearbox (automatic or manual), engine tuning, torque, tyres, paint, wheels and 4 exhausts;
+  - engine sounds built from each engine's firing order, heard by nearby players;
+  - a big dashboard and tyre smoke.
+- **Progression:**
+  - XP and levels to 100, 6 wealth stages from Budak Baru to Tan Sri, 45 titles;
+  - 🏅 74 achievements, daily and weekly quests, a login streak, the Hustle Path for new players;
+  - Hustle Skills, potions, and rebirth with a Rebirth Shop.
+- **📱 HustlePhone:** every app in one place (P or Tab).
+- **Sound:** made in the browser: effects, lofi music, battle music, engines, and city, casino and kitchen
+  ambience.
 
-## Features (planned)
-- More crates (up to the Tan Sri Diamond Vault)
-- Step-by-step cooking mini-games (Nasi Lemak, Teh Tarik, Roti Canai…) or passive income with staff
-- Buy property: long-term rent or Airbnb with a Sims-style decorate mode and a star rating
-- Shops, businesses, bank loans, a casino, trading, a marketplace, leaderboards and rebirth
-
-Full design: [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md)
-
-## Where we left off (resume here)
-**Phase 3 (progression) is done** (local commit, not pushed). **Phase 4 (food stalls and cooking)** is next.
-What's verified, decisions and known issues are in [`docs/PROGRESS.md`](docs/PROGRESS.md). To pick up on any device:
-1. Open this folder (same PC via Remote Desktop, or a fresh `git clone` + `npm install` elsewhere).
-2. `npm run typecheck`, `npm test` and `npm run e2e` should all pass.
-3. `npm run dev` and play-test the "How to test it" list for the latest round in PROGRESS.md.
+All money is virtual. There are no real-money purchases.
 
 ## Requirements
 - Node.js LTS (https://nodejs.org), v20 or newer
-- A PC to host the server. Players join from any browser on the same network.
+- One PC to host the server (Windows, macOS or Linux). Players join from any browser on the same network, phone
+  or computer.
 
 ## Run it
 ```bash
 npm install
-npm run dev        # development (hot reload, one port)
-# or
 npm run build
-npm start          # production
+npm start          # production: the server also serves the game
+# or, while developing:
+npm run dev        # server + client with hot reload on one port
 ```
 The server prints the address to open, e.g. `Players join at: http://192.168.1.23:3000`. Open it on any phone or
-laptop on the same WiFi. If port 3000 is already used by another program, the server picks the next free port and
-prints it. To force a port, copy `.env.example` to `.env` and set `PORT`.
+laptop on the same WiFi. If port 3000 is busy, the server picks the next free port and prints it. To force a port,
+copy `.env.example` to `.env` and set `PORT`.
 
-If other devices can't connect: allow Node.js through Windows Firewall (Private networks), make sure they're on the
-same network, and check that your router doesn't have AP/client isolation turned on.
+**Phones can't connect?** Allow Node.js through Windows Firewall on **Private** networks, make sure everyone is on
+the same network, and check that the router doesn't have AP/client isolation turned on.
+
+**Saving:** progress autosaves every 60 s, and on logout, on disconnect and when you stop the server with Ctrl+C.
+`npm run backup` copies the database to `server/backups/` with a timestamp.
 
 ### Friends on a different WiFi (ZeroTier)
 [ZeroTier](https://www.zerotier.com) makes a private virtual LAN over the internet, so the game still works as "LAN".
@@ -74,6 +85,23 @@ Nothing is opened to the public internet, and only devices you approve can reach
 Tailscale works the same way, and its addresses (100.x.y.z) are also printed as `Remote players:`.
 Never port-forward the game on your router: accounts and the server aren't hardened for the open internet.
 
+## Controls
+| | Keyboard / mouse | Touch |
+|---|---|---|
+| Move | WASD / arrows | joystick (bottom left) |
+| Interact | E | the E button |
+| HustlePhone | P or Tab | 📱 button |
+| Bag / Map / Chat | B / M / Enter | buttons on screen |
+| Hotbar (rides, potions…) | 1–0 | tap a slot |
+| Emotes | Q | 😀 button |
+| Gears (manual) | R up, F down, G auto/manual | ▲ ▼ A/M on the dashboard |
+
+## Admin
+The first account to register is the admin (or set `ADMIN_USERNAME` in `.env`). Admins have chat commands
+(`/give`, `/event`, `/announce`, `/kick`, `/saveall`, `/reloadconfig`, `/music rescan`…) and a debug overlay.
+From a terminal: `npm run admin -- list`, `promote <user>`, `demote <user>`, `password <user> [new]` (reset a
+forgotten password) and `feedback [all]` (read the 🐞 reports players sent with the in-game Report button).
+
 ## Commands
 | Command | What it does |
 |---|---|
@@ -81,31 +109,34 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | `npm run build` / `npm start` | Production build / run it |
 | `npm run typecheck` | TypeScript checks for every workspace |
 | `npm test` | Unit tests (Vitest) |
-| `npm run e2e` | Browser smoke test with two players (Playwright, uses a throwaway DB). First time: `npx playwright install chromium` |
+| `npm run e2e` | Browser tests with two players (Playwright, a throwaway DB). First time: `npx playwright install chromium` |
 | `npm run backup` | Copy the DB to `server/backups/` with a timestamp |
 | `npm run seed` | Create test accounts `tester1`–`tester4` (password `test123`) |
-| `npm run admin -- list` | List accounts and admins. Also `promote <user>`, `demote <user>`, `password <user> [new]` (reset a forgotten password), `feedback [all]` (read the 🐞 reports players sent with the in-game Report button) |
-| `npm run sim` | Economy balance simulator: plays N hours with the real config and server systems, prints time to each wealth stage vs the pacing targets, the Hustle Path timeline and income/sinks (`-- --hours=30 --runs=10 --session=2 --budget=0.2`) |
-| `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
-| `npm run map-preview` | PNG of the collision grid, for map editing |
-| `npm run map-inspect` | SVG/PNG of the built map (roads, decks, buildings with ids, doors, signposts, walk-unreachable ground in red): `-- x0 y0 x1 y1 --px 4 --ids` |
-| `npm run sim:stall` | Phase 4 check: a pasar malam night with perfect cooking, sloppy cooking and a hired cook vs jobs (`-- --nights=5 --tier=1`) |
+| `npm run admin -- <cmd>` | Accounts and admins (see above) |
+| `npm run sim` | Economy balance simulator: time to each wealth stage vs the pacing targets (`-- --hours=30 --runs=10`) |
+| `npm run sim:stall` | A pasar malam night: perfect vs sloppy cooking vs a hired cook |
+| `npm run fetch-osm` / `npm run import-map` | Refresh the map from OpenStreetMap (see `shared/map/README.md`) |
+| `npm run map-preview` / `npm run map-inspect` | Pictures of the collision grid / the built map, for map editing |
+
+## Tweaking the game
+All balance and content live in JSON in `shared/config/` (prices, odds, crates, items, recipes, properties,
+businesses, loans, titles, achievements, quests, pets, the dungeon, cars and bikes…). The town layout overrides
+and parody names are in `shared/map/town.overrides.json`. Restart the server after editing (admins can also type
+`/reloadconfig` for most balance files).
 
 ## Project layout
 ```
-client/   Phaser 3 + Vite game client (scenes, character renderer, DOM UI)
+client/   Phaser 3 + Vite game client (scenes, art drawn in code, DOM UI)
 server/   Express + Socket.IO + SQLite (auth, game systems, saving, backups)
 shared/   Types, zod schemas, config JSON (balance), the town map + collision
-scripts/  backup, seed, balance simulator
-e2e/      Playwright smoke test
+scripts/  backup, seed, admin, balance simulators, map tools
+e2e/      Playwright browser tests
 docs/     Spec, progress log, credits
 ```
-Balance and content live in `shared/config/*.json`, and the town layout lives in `shared/map/town.json`.
-Restart the server after editing them.
 
 ## Music (the shared radio)
-Everyone in the game hears the same track at the same time; a majority vote skips it or switches the genre
-(📱 → 📻 Radio). The music is **your own files on the server PC**, never in this repo:
+Everyone hears the same track at the same time; a majority vote skips it or switches the genre (📱 → 📻 Radio).
+The music is **your own files on the server PC**, never in this repo:
 
 ```
 server/music/
@@ -125,7 +156,7 @@ The generated map files in `shared/map/` are ODbL; the code is MIT.
 
 ## Disclaimer
 All in-game money is virtual and has no real-world value. There are no real-money purchases.
-Real place names are used for inspiration only; all shops and brands in the game are fictional parodies.
+Real place names are used for inspiration only; all shops, brands, cars and bikes in the game are fictional parodies.
 
 ## License
 Code: MIT. See [LICENSE](LICENSE). Map data: ODbL (see above). Third-party licences: [`docs/CREDITS.md`](docs/CREDITS.md).

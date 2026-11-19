@@ -4,7 +4,10 @@
 - **All art is generated in code** (Canvas 2D / Phaser Graphics): characters, tiles, buildings, decor and UI icons.
   There are no image, sprite, font or sound files in the repo.
 - Text uses the device's **system fonts**. Emoji come from the device's own emoji font.
-- No audio yet. When it's added it will be generated with WebAudio or be CC0.
+- **All sound is generated in code** with the Web Audio API: effects, the lofi music, the battle music, engine and
+  exhaust sounds, and the city / casino / kitchen ambience. There are no audio files in the repo.
+- The shared radio plays music files the host puts in `server/music/` on their own PC (never in this repo); the
+  host is responsible for their licences.
 
 ## Libraries (runtime)
 | Package | Licence |

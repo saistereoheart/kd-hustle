@@ -2,29 +2,18 @@
 
 ## Status
 
-_Last updated: 2026-11-19 (Phase 8c: rebirth rework, recipes, furniture, money breakdown, head chef, intro + lofi, stock)_
+_Last updated: 2026-11-20 (v1.0.0: trophies, weekly quests, gearbox + dashboard, Gua Gelap rest rooms, ambience)_
 
-**Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
-**Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
-**Phase 3 (progression): done.**
-**Phase 4 (food stalls and cooking): done.** The acceptance check passes in `npm run sim:stall` (see below).
-**Phase 4.1 (your feedback round: roads, interiors, guidance, start screen, NPCs, night-skip vote): done.**
-**Phase 5 (property and Airbnb): first full version done**, see "Phase 5" below for what to check.
-**Phase 5.1 (your second feedback round): done**, and **5.2 (touch-ups)**, see below.
-**Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
-income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
-Online). Plus the shared radio.
-**Phase 8 (end game and polish): in progress.** Done: 8a (the higher crates, rebirth, reworked in 8c), 8b (admin
-commands, the debug overlay), 8c (content, the money breakdown, head chefs, the intro and lofi music, stock upgrades,
-the extended simulator). Still open: the polish pass (see "Phase 8: what's left").
+**Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
+§19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
+on driving and battles, and a bug sweep) are in the round below. What's next is whatever you find while playing.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 329 unit tests |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
-| `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
-| `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
+| `npm test` (Vitest) | ✅ 345 unit tests |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; not re-run this round) |
+| `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
 
 ### Notes for you
@@ -36,23 +25,94 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 
 ---
 
-## Phase 8: what's left
+## 🏁 v1.0.0: the final round (2026-11-20, your requests)
 
-Compared with the spec's content checklist (§19):
+Rebuild and restart to get it (`npm run build`, Ctrl+C the server, `npm start`). No database migration: the new
+data (achievements, weekly quests) lives in the existing progress JSON.
 
-| | Now | Spec |
-|---|---|---|
-| Gacha items | 158 (6 Divine, 2 Secret) | 150+ ✅ |
-| Titles | 43 | 40+ ✅ |
-| Casino games | 7 | 7 ✅ |
-| Business types | 10 idle + shop + Butik + 3 stall tiers | 14 ✅ |
-| Property types | 12 (+ Duplex condo) | 12 ✅ |
-| Recipes | 6 | 6 ✅ |
-| Starter jobs | 4 (+ Flyer Run, Mamak Helper) | 4 ✅ |
-| Furniture | 88 | 80+ ✅ |
+- **🏅 Trophies (📱 → Trophies):** 74 achievements in 9 groups (Hustle, Gacha, Kitchen, Property, Business, Money,
+  Social & Casino, Teman & Motor, Legend).
+  - Each pays its reward the moment it's done: RM, XP, 💎 or a potion.
+  - Achievements stay through a rebirth.
+  - Players who already did the work get them on their next login, with one "N achievements!" splash and not a
+    flood of toasts.
+  - Config: `shared/config/achievements.json`.
+- **📅 Weekly quests:** 3 bigger quests each week (new on Monday), under today's quests. They're picked from 11 in
+  `quests.json` → `weekly`.
+- **🏍️ Driving (showroom cars and bikes):**
+  - **Gearbox:** each gear tops out at its own speed (the rev limiter bounces if you hold it there). Pull comes from
+    a torque curve (peaky for the inline-4 bikes, flatter for twins, cars and the turbo), multiplied by the gear,
+    minus air drag.
+  - **Automatic** by default. **Manual:** R shifts up, F shifts down, G switches; or use the dashboard's ▲ ▼ A/M.
+    A downshift that would over-rev is refused.
+  - The revs are rate-limited (no jumps). A slipping clutch holds launch revs as you pull away.
+  - Let go and you coast to a stop; hitting a wall stops you.
+  - **Dashboard** (bottom right, big; above the E button on phones): a rev counter with a red redline and shift
+    lights, km/h, the gear, AUTO/MANUAL.
+  - **Tyre smoke** on a hard launch, and when spinning up on grass.
+  - 0-to-top times are longer and more real now (cars 4–5.6 s, bikes 2.6–3.6 s; torque upgrades still shorten them).
+- **🔊 Engine sound (more real):**
+  - Each cylinder's pressure pulse is a little different, and the pipe rings at fixed frequencies like a real
+    exhaust.
+  - The inline-4 bikes howl near the redline.
+  - Gear changes cut the sound with a clunk, and loud pipes pop on upshifts.
+  - The rev limiter chops the sound.
+  - **Other riders:** their revs and gear changes come from their real speed. They're panned left/right and heard as
+    far as their exhaust carries: stock 320 px, sport 460, racing 620, straight pipe 820.
+- **🚘 Cars:**
+  - About 25% bigger in town.
+  - Drawn ¾ from above in every direction: from the side you see the roof, bonnet and boot. Driving up or down, you
+    look down the car's length (bonnet, windscreen, roof, rear window, boot) with the near end's lights, plate and
+    exhaust.
+- **⚔️ Gua Gelap:**
+  - **HP carries over** between floors (no more free heal on the way down).
+  - **🏕️ Rest rooms** every 4 floors, plus a 15% chance after any other floor. Pick one:
+    - 🍲 heal: +50% HP each, and fainted Teman come back at 25%;
+    - 💪 train: +20% attack and +15% defence for the rest of the run (stacks);
+    - 🩸 blood money: each standing Teman loses 30% HP (never below 1) for 2 floors' worth of money.
+  - **🤖 Auto** now keeps going deeper, floor after floor, picking in rest rooms too (heal if hurt, otherwise train),
+    until the whole team faints. ⏸ Stop Auto (or Cash out) any time between floors.
+  - **Angled 3D view:** a perspective cave floor, your Teman big in front, the enemy further back, shadows, and lunges
+    along the diagonal.
+  - **🌟 Ultimates** are animated: a spinning aura while winding up, a blazing shot across, then a white flash, shock
+    rings, spikes, sparks and screen shake.
+- **🐾 Teman gear:**
+  - Each Teman's page shows "Wearing: …" with Take off, and every other piece to tap on. It used to be in the side
+    box, which was easy to miss on a phone.
+  - Teman cards and team slots show 🎽 when they wear gear.
+  - The bag has 🎽 "Put it on a Teman", which opens a picker.
+- **Rarest first everywhere:** the bag, the Teman list, chefs & cashiers, pet gear and the pawn shop all sort by
+  rarity, then tier, then variant (then level / stats / name).
+- **🏙️ Ambience:**
+  - town: traffic (quieter late at night), cars passing left to right, birds by day, crickets at night;
+  - casino: a murmuring crowd, slot jingles, chips clinking;
+  - shops and homes: a soft room tone;
+  - cooking: a sizzling pan with crackles;
+  - Settings → 🏙️ Ambient sounds.
+- **Fix:** after a rebirth wiped the stats, open daily quests counted from the old totals (you had to redo
+  everything first). They now count from zero.
+- **Release:**
+  - version 1.0.0 (printed when the server starts);
+  - README rewritten for the full game, `CHANGELOG.md`, and the credits updated (all sound is generated).
 
-- Content checklist complete. Starter jobs 3 and 4 (2026-11-19): **📄 Flyer Run** (drop flyers at 5 houses near you, any order, speed bonus) and **☕ Mamak Helper** (3 teh tarik orders with the cooking mini-game, paid per drink by quality). 12th property type: **Duplex condo** (a 17th unit in every condo block, stage 4, RM 700K).
-- **Polish pass:** sound, juice, mobile performance (texture atlases), a final bug sweep. Tell me what bothers you most.
+### Decisions
+- Achievements are paid automatically (like Hustle Path goals) rather than with a Claim button: simpler, and a
+  backlog arrives as one splash.
+- A rebirth keeps achievements (they're lifetime trophies) but, as before, wipes the stats. So stat-based ones can't
+  be earned twice.
+- The gearbox runs on the client (it's feel). The server still only checks the tuned top speed, so nothing new
+  can be cheated.
+- For other riders we only know their position: their speed is measured from it, and an automatic gearbox is
+  simulated for the sound. They're assumed tuned up to 30% for the gear spacing.
+- Mobile performance: texture atlases weren't needed. Every texture is generated once and cached; the particles
+  setting and 🔋 Battery saver are the levers on weak phones. Say if a phone stutters and I'll profile it.
+
+### Please check when you play
+- How the gears feel, and the 0-to-top times. They're in `garage.json` → `accelSec`.
+- The engine sound on your speakers, and how far other riders carry.
+- The cars' new look, and the dashboard on a phone held upright and on its side.
+- Gua Gelap: whether rest rooms come often enough, and whether HP carrying over is too hard.
+  `dungeon.json` → `rest` has every number.
 
 ---
 
