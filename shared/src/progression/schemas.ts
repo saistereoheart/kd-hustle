@@ -114,6 +114,25 @@ export const titlesConfigSchema = z.object({
 export type TitlesConfig = z.infer<typeof titlesConfigSchema>;
 export type TitleDef = TitlesConfig['titles'][number];
 
+// ------------------------------------------------------------------ achievements.json
+/** 🏆 Achievements (spec §15): one-time milestones over the same conditions as titles, each paid once. */
+export const achievementsConfigSchema = z.object({
+  groups: z.array(z.object({ id, name: z.string(), icon: z.string() })).min(1),
+  achievements: z.array(
+    z.object({
+      id,
+      group: id,
+      icon: z.string(),
+      name: z.string(),
+      desc: z.string(),
+      cond: conditionSchema,
+      reward: rewardSchema,
+    }),
+  ),
+});
+export type AchievementsConfig = z.infer<typeof achievementsConfigSchema>;
+export type AchievementDef = AchievementsConfig['achievements'][number];
+
 // ------------------------------------------------------------------ upgrades.json
 export const SKILL_EFFECTS = [
   'luck', 'variantChance', 'pity', 'potionDuration', 'unlock', 'rollSpeed',
@@ -159,31 +178,35 @@ export type UpgradesConfig = z.infer<typeof upgradesConfigSchema>;
 export type SkillDef = UpgradesConfig['skills'][string];
 
 // ------------------------------------------------------------------ quests.json
+/** One quest (daily or weekly): "{n}" in the text is the target for the player's wealth stage. */
+export const questDefSchema = z.object({
+  id,
+  /** {n} is replaced by the target (formatted as RM or minutes per `format`). */
+  text: z.string(),
+  icon: z.string(),
+  stat: z.string(),
+  format: z.enum(['count', 'money', 'minutes']).default('count'),
+  /** Target per wealth stage (index 0 = stage 1; the last entry is used for higher stages). */
+  targets: z.array(z.number().positive()).min(1),
+  minStage: z.number().int().positive().default(1),
+  /** Only offered to players who own a stall. */
+  requires: z.enum(['stall']).optional(),
+  reward: z.object({
+    /** RM per wealth stage (same indexing as targets). */
+    senByStage: z.array(z.number().int().nonnegative()).min(1),
+    xp: z.number().int().nonnegative(),
+    items: z.array(z.string()).optional(),
+  }),
+});
+
 export const questsConfigSchema = z.object({
   perDay: z.number().int().positive(),
   /** Day 1–7 login streak rewards (spec §15). Day 8 starts again at day 1. */
   login: z.array(rewardSchema).length(7),
-  daily: z.array(
-    z.object({
-      id,
-      /** {n} is replaced by the target (formatted as RM or minutes per `format`). */
-      text: z.string(),
-      icon: z.string(),
-      stat: z.string(),
-      format: z.enum(['count', 'money', 'minutes']).default('count'),
-      /** Target per wealth stage (index 0 = stage 1; the last entry is used for higher stages). */
-      targets: z.array(z.number().positive()).min(1),
-      minStage: z.number().int().positive().default(1),
-      /** Only offered to players who own a stall. */
-      requires: z.enum(['stall']).optional(),
-      reward: z.object({
-        /** RM per wealth stage (same indexing as targets). */
-        senByStage: z.array(z.number().int().nonnegative()).min(1),
-        xp: z.number().int().nonnegative(),
-        items: z.array(z.string()).optional(),
-      }),
-    }),
-  ),
+  daily: z.array(questDefSchema),
+  /** Weekly quests (spec §15): bigger targets, bigger rewards, new ones every Monday. */
+  perWeek: z.number().int().nonnegative().default(0),
+  weekly: z.array(questDefSchema).default([]),
 });
 export type QuestsConfig = z.infer<typeof questsConfigSchema>;
 export type QuestDef = QuestsConfig['daily'][number];

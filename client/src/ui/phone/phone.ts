@@ -24,6 +24,7 @@ import { renderQuests } from './quests';
 import { renderRides } from './rides';
 import { renderSkills } from './skills';
 import { renderTitles } from './titles';
+import { renderAchievements } from './achievements';
 import { renderHandbook } from './handbook';
 import { renderClock } from './clock';
 import { renderProperties } from './properties';
@@ -69,8 +70,8 @@ const APPS: PhoneApp[] = [
     id: 'quests', name: 'Quests', icon: '📋', color: '#f59f00', render: renderQuests,
     badge: (app) => {
       const pr = app.store.progress;
-      const n = pr.quests.filter((q) => {
-        const def = app.cfg.quests.daily.find((d) => d.id === q.id);
+      const n = [...pr.quests, ...(pr.weekly ?? [])].filter((q) => {
+        const def = app.cfg.quests.daily.find((d) => d.id === q.id) ?? app.cfg.quests.weekly.find((d) => d.id === q.id);
         return def && !q.claimed && questProgress(def, q, pr.stats).done;
       }).length;
       return n ? String(n) : null;
@@ -84,6 +85,7 @@ const APPS: PhoneApp[] = [
   },
   { id: 'skills', name: 'Skills', icon: '⬆️', color: '#7048e8', render: renderSkills },
   { id: 'titles', name: 'Titles', icon: '🏷️', color: '#1c7ed6', render: renderTitles },
+  { id: 'trophies', name: 'Trophies', icon: '🏅', color: '#e67700', render: renderAchievements },
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
   { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
   { id: 'dungeon', name: 'Gua Gelap', icon: '⚔️', color: '#5f3dc4', open: (app) => openDungeon(app), stacks: true },

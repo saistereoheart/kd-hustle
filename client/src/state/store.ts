@@ -25,7 +25,7 @@ export class Store {
   garage: GarageView | null = null;
   /** XP, level, stage, titles, stats, buffs, quests (Phase 3). */
   progress: ProgressState = {
-    xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0, goalsDone: [],
+    xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], weekly: [], path: 0, goalsDone: [], achievements: [],
   };
   /** When `progress` arrived (buff timers count down from here). */
   progressAt = Date.now();

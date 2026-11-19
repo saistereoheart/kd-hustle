@@ -73,7 +73,7 @@ export class World {
   /** Builds a player's progress for the client (set by the progression system). */
   progressOf: (p: OnlinePlayer) => ProgressState = (p) => ({
     xp: p.prog.xp, level: p.prog.level, stage: p.prog.stage, title: p.prog.title, titles: p.prog.titles, stats: p.prog.stats,
-    buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], path: 0, goalsDone: p.prog.goalsDone,
+    buffs: [], daily: { canClaim: false, nextDay: 1, streak: 0 }, quests: [], weekly: [], path: 0, goalsDone: p.prog.goalsDone, achievements: p.prog.achievements ?? [],
   });
 
   /** A player's food stall for the client (set by the stall system). */

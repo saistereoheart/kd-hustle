@@ -18,7 +18,7 @@ import type { CratesConfig, CrateDef, ItemDef, ItemsConfig, RaritiesConfig, Buff
 import { isCollectible } from '../economy/schemas';
 import { pawnPriceSen, totalLuck, type LuckSource, type LuckSourceType, type RandInt } from '../luck';
 import type {
-  Condition, GoalsConfig, LevelsConfig, QuestDef, QuestsConfig, Reward, SkillDef, SkillEffect, StagesConfig, TitlesConfig, UpgradesConfig,
+  AchievementsConfig, Condition, GoalsConfig, LevelsConfig, QuestDef, QuestsConfig, Reward, SkillDef, SkillEffect, StagesConfig, TitlesConfig, UpgradesConfig,
 } from './schemas';
 
 /** Everything progression needs from the configs (the server and client both build one). */
@@ -36,6 +36,8 @@ export interface ProgCfg {
   quests: QuestsConfig;
   goals: GoalsConfig;
   grades: GradesConfig;
+  /** 🏆 Achievements (optional so small test fixtures can leave them out). */
+  achievements?: AchievementsConfig;
 }
 
 // ------------------------------------------------------------------ levels
@@ -375,6 +377,13 @@ export function dayKey(ts: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** The Monday (YYYY-MM-DD) of the week `ts` falls in: weekly quests change on Monday at midnight. */
+export function weekKey(ts: number): string {
+  const d = new Date(ts);
+  const back = (d.getDay() + 6) % 7; // Monday = 0
+  return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - back, 12).getTime());
+}
+
 /** The day before a YYYY-MM-DD key. */
 export function prevDayKey(key: string): string {
   const [y, m, d] = key.split('-').map(Number);
@@ -477,8 +486,22 @@ export function validateProgressionConfigs(cfg: ProgCfg): string[] {
     checkReward(`goal ${g.id}`, g.reward);
   }
   cfg.quests.login.forEach((r, i) => checkReward(`login day ${i + 1}`, r));
-  for (const q of cfg.quests.daily) for (const id of q.reward.items ?? []) if (!cfg.itemById.has(id)) errors.push(`quest ${q.id}: unknown item ${id}`);
+  for (const q of [...cfg.quests.daily, ...cfg.quests.weekly]) for (const id of q.reward.items ?? []) if (!cfg.itemById.has(id)) errors.push(`quest ${q.id}: unknown item ${id}`);
+  const dailyIds = new Set(cfg.quests.daily.map((q) => q.id));
+  for (const q of cfg.quests.weekly) if (dailyIds.has(q.id)) errors.push(`weekly quest ${q.id}: same id as a daily quest`);
+  if (cfg.quests.perWeek && cfg.quests.weekly.filter((q) => q.minStage <= 1 && !q.requires).length < cfg.quests.perWeek) errors.push('quests: not enough stage-1 weekly quests for perWeek');
   for (const s of cfg.stages.stages) checkReward(`stage ${s.n}`, s.reward);
+  if (cfg.achievements) {
+    const groups = new Set(cfg.achievements.groups.map((g) => g.id));
+    const seen = new Set<string>();
+    for (const a of cfg.achievements.achievements) {
+      if (seen.has(a.id)) errors.push(`achievement ${a.id}: duplicate id`);
+      seen.add(a.id);
+      if (!groups.has(a.group)) errors.push(`achievement ${a.id}: unknown group ${a.group}`);
+      checkCond(`achievement ${a.id}`, a.cond);
+      checkReward(`achievement ${a.id}`, a.reward);
+    }
+  }
   for (const m of cfg.levels.milestones) checkReward('level milestone', m.reward);
   for (const c of Object.keys(cfg.levels.xp.crateRoll)) if (!crateIds.has(c)) errors.push(`levels.xp.crateRoll: unknown crate ${c}`);
   if (cfg.quests.daily.filter((q) => q.minStage <= 1).length < cfg.quests.perDay) errors.push('quests: not enough stage-1 quests for perDay');

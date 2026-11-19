@@ -1,8 +1,9 @@
 // Juice for progression (spec §15): level-up and stage-up splashes with confetti, plus toasts for
-// titles, Hustle Path goals and finished quests.
+// titles, Hustle Path goals, achievements and finished quests.
 import { formatMoney, stageDef, type ProgressEvent } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast, uiRoot } from './dom';
+import { rewardText } from './phone/daily';
 import { sfx } from './sound';
 
 function confetti(host: HTMLElement, colors: string[], count: number) {
@@ -40,6 +41,20 @@ export function celebrate(app: App, events: ProgressEvent[]) {
     const parts = [sen ? `+${formatMoney(sen)}` : '', items.length ? itemList(app, items) : ''].filter(Boolean);
     sfx.levelUp();
     splash('level-up', `LEVEL ${top.level}!`, parts.join(' · '), '#f59f00', 2200, 60);
+  }
+  // 🏆 Achievements: a small banner each (a summary if several land at once, e.g. after an update).
+  const achs = events.filter((e): e is Extract<ProgressEvent, { kind: 'achievement' }> => e.kind === 'achievement');
+  const defs = achs.map((e) => app.cfg.achievements.achievements.find((a) => a.id === e.id)).filter((a) => !!a);
+  if (defs.length > 3) {
+    sfx.fanfare();
+    splash('ach-up', `🏆 ${defs.length} ACHIEVEMENTS!`, `${defs.slice(0, 4).map((a) => a.name).join(', ')}… Rewards paid. See 📱 → Trophies.`, '#fab005', 3800, 90);
+  } else {
+    defs.forEach((a, i) =>
+      setTimeout(() => {
+        sfx.chime();
+        toast(`🏆 ${a.icon} ${a.name}${rewardText(app, a.reward) ? `: ${rewardText(app, a.reward)}` : ''}`, 'good', 5000);
+      }, i * 500),
+    );
   }
   for (const e of events) {
     if (e.kind === 'stage') {

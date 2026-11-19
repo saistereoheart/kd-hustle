@@ -1,15 +1,16 @@
 import { closePanel } from '../panel';
-// HustlePhone → Quests: today's 3 daily quests (new ones every day at midnight).
-import { formatMoney, questProgress, questText } from '@kh/shared';
+// HustlePhone → Quests: today's 3 daily quests (new ones every day at midnight) and this week's
+// bigger ones (new every Monday).
+import { formatMoney, questProgress, questText, type QuestDef, type QuestState } from '@kh/shared';
 import { el, toast } from '../dom';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
 
 export function renderQuests({ app, rerender }: PhoneCtx): HTMLElement[] {
   const pr = app.store.progress;
-  if (!pr.quests.length) return [el('p', { class: 'empty' }, 'No quests yet. They arrive as soon as you start playing today.')];
-  const cards = pr.quests.map((q) => {
-    const def = app.cfg.quests.daily.find((d) => d.id === q.id);
+  if (!pr.quests.length && !pr.weekly?.length) return [el('p', { class: 'empty' }, 'No quests yet. They arrive as soon as you start playing today.')];
+  const card = (q: QuestState, defs: QuestDef[]) => {
+    const def = defs.find((d) => d.id === q.id);
     if (!def) return el('div');
     const prog = questProgress(def, q, pr.stats);
     const fmt = (n: number) => (def.format === 'money' ? formatMoney(n) : def.format === 'minutes' ? `${Math.floor(n / 60)}/${Math.round(q.target / 60)} min` : `${n}`);
@@ -48,6 +49,15 @@ export function renderQuests({ app, rerender }: PhoneCtx): HTMLElement[] {
       el('div', { class: 'quest-info' }, el('div', { class: 'quest-text' }, questText(def, q.target, formatMoney)), bar, el('div', { class: 'muted small' }, `Reward: ${reward}`), ...(whereBtn ? [whereBtn] : [])),
       btn,
     );
-  });
-  return [...cards, el('p', { class: 'hint' }, `Quests done in total: ${pr.stats.questsDone ?? 0}. New quests every day at midnight.`)];
+  };
+  const daily = pr.quests.map((q) => card(q, app.cfg.quests.daily));
+  const weekly = (pr.weekly ?? []).map((q) => card(q, app.cfg.quests.weekly));
+  const now = new Date();
+  const daysLeft = 7 - ((now.getDay() + 6) % 7);
+  return [
+    el('h3', { class: 'quest-head' }, '📋 Today'),
+    ...daily,
+    ...(weekly.length ? [el('h3', { class: 'quest-head' }, `📅 This week `, el('span', { class: 'muted small' }, `(${daysLeft} day${daysLeft > 1 ? 's' : ''} left)`)), ...weekly] : []),
+    el('p', { class: 'hint' }, `Quests done in total: ${pr.stats.questsDone ?? 0} daily, ${pr.stats.weeklyQuestsDone ?? 0} weekly. New daily quests every midnight; weekly ones every Monday.`),
+  ];
 }

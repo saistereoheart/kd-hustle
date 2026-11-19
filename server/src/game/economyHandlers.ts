@@ -372,6 +372,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       pr.title = null;
       pr.titles = [];
       pr.stats = { rebirths: (pr.stats.rebirths ?? 0) + 1 };
+      prog.rebaseQuests(p);
       pr.goalsDone = [];
       pr.buffs = [];
       prog.save(p);
@@ -525,21 +526,45 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'dungeon:enter', null, () => ({ view: dungeon.enter(me) }));
     handle(socket, 'dungeon:act', C2S.dungeonAct, ({ action, skip }) => dungeon.act(me, action, skip));
     // 🚗 Motor Kota (buying needs you at the showroom; the garage app works anywhere)
-    handle(socket, 'garage:view', null, () => ({ view: garageSys.view(me) }));
+    handle(socket, 'garage:view', null, () => {
+      // Rides bought before achievements existed (or before a rebirth) still count.
+      const n = garageSys.owned(me).length;
+      if (n > (me.prog.stats.vehiclesBought ?? 0)) {
+        prog.max(me, 'vehiclesBought', n);
+        prog.check(me);
+      }
+      return { view: garageSys.view(me) };
+    });
     handle(socket, 'garage:buy', C2S.garageModel, ({ model }) => {
       if (!nearInteractable(me, 'showroom')) throw new GameError(`Buy it at the ${cfg.garage.name} showroom.`);
       const view = garageSys.buy(me, model);
+      prog.bump(me, 'vehiclesBought');
       prog.check(me);
       return { view, vehicles: world.vehiclesOf(me) };
     });
-    handle(socket, 'garage:upgrade', C2S.garageUpgrade, ({ model, part }) => ({ view: garageSys.upgrade(me, model, part) }));
+    handle(socket, 'garage:upgrade', C2S.garageUpgrade, ({ model, part }) => {
+      const view = garageSys.upgrade(me, model, part);
+      prog.bump(me, 'garageUpgrades');
+      prog.check(me);
+      return { view };
+    });
     handle(socket, 'garage:style', C2S.garageStyle, ({ model, kind, id }) => ({ view: garageSys.style(me, model, kind, id) }));
     // 🐾 Teman
     handle(socket, 'pets:view', null, () => ({ view: pets.view(me) }));
     handle(socket, 'pets:buy', C2S.petsBuy, ({ id }) => ({ view: pets.buyStarter(me, id) }));
     handle(socket, 'pets:team', C2S.petsTeam, ({ iids }) => ({ view: pets.setTeam(me, iids) }));
-    handle(socket, 'pets:train', C2S.petsIid, ({ iid }) => pets.train(me, iid));
-    handle(socket, 'pets:upgrade', C2S.petsUpgrade, ({ iid, stat }) => ({ view: pets.upgrade(me, iid, stat) }));
+    handle(socket, 'pets:train', C2S.petsIid, ({ iid }) => {
+      const r = pets.train(me, iid);
+      prog.bump(me, 'petTrains');
+      prog.check(me);
+      return r;
+    });
+    handle(socket, 'pets:upgrade', C2S.petsUpgrade, ({ iid, stat }) => {
+      const view = pets.upgrade(me, iid, stat);
+      prog.bump(me, 'petUpgrades');
+      prog.check(me);
+      return { view };
+    });
     handle(socket, 'pets:gear', C2S.petsGear, ({ iid, gear }) => ({ view: pets.setGear(me, iid, gear) }));
     handle(socket, 'dungeon:deeper', null, () => ({ view: dungeon.deeper(me) }));
     handle(socket, 'dungeon:leave', null, () => dungeon.leave(me));

@@ -12,7 +12,7 @@
 import {
   newlyDoneGoals, currentGoalIndex, buildSnapshot, computeMods, conditionProgress, dayKey, effectivePity, levelInfo, levelUpReward,
   gearOf, loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
-  stageForNetWorth, formatMoney,
+  stageForNetWorth, formatMoney, weekKey,
   type ActiveBuff, type BuffKind, type CrateDef, type InventoryItem, type Mods, type ProgressEvent, type ProgressState,
   type RandInt, type Reward, type RollResult, type ItemDef,
 } from '@kh/shared';
@@ -39,12 +39,14 @@ export interface ServerProgress {
   buffs: ServerBuff[];
   login: { lastDay: string | null; streak: number };
   quests: ProgressRecord['quests'];
+  weekly: ProgressRecord['weekly'];
   goalsDone: string[];
+  achievements: string[];
   xpFrac: number;
 }
 
 export function emptyProgress(): ServerProgress {
-  return { xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], login: { lastDay: null, streak: 0 }, quests: { day: null, list: [] }, goalsDone: [], xpFrac: 0 };
+  return { xp: 0, level: 1, stage: 1, title: null, titles: [], stats: {}, buffs: [], login: { lastDay: null, streak: 0 }, quests: { day: null, list: [] }, weekly: { week: null, list: [] }, goalsDone: [], achievements: [], xpFrac: 0 };
 }
 
 export interface ProgressionHooks {
@@ -106,8 +108,10 @@ export class ProgressionSystem {
       buffs: r.buffs.filter((b) => b.leftMs > 0 && kinds.has(b.kind)).map((b) => ({ item: b.item, kind: b.kind as BuffKind, mult: b.mult, until: now + b.leftMs })),
       login: r.login,
       quests: r.quests,
+      weekly: r.weekly,
       // Before Phase 4 the path was done strictly in order: the first `path` goals are done.
       goalsDone: r.goalsDone.length ? r.goalsDone : this.cfg.goals.goals.slice(0, r.path ?? 0).map((g) => g.id),
+      achievements: r.achievements,
       xpFrac: r.xpFrac,
     };
     if (r.retroXp) {
@@ -125,7 +129,7 @@ export class ProgressionSystem {
     this.repos.progress.save(p.id, {
       xp: g.xp, level: g.level, stage: g.stage, title: g.title, titles: g.titles, stats: g.stats,
       buffs: g.buffs.map((b) => ({ item: b.item, kind: b.kind, mult: b.mult, leftMs: Math.max(0, b.until - now) })).filter((b) => b.leftMs > 0),
-      login: g.login, quests: g.quests, goalsDone: g.goalsDone, xpFrac: g.xpFrac,
+      login: g.login, quests: g.quests, weekly: g.weekly, goalsDone: g.goalsDone, achievements: g.achievements, xpFrac: g.xpFrac,
     });
   }
 
@@ -143,8 +147,10 @@ export class ProgressionSystem {
       buffs: this.activeBuffs(p),
       daily: { canClaim: st.canClaim, nextDay: st.nextDay, streak: g.login.streak },
       quests: g.quests.day === dayKey(this.clock()) ? g.quests.list.map((q) => ({ ...q })) : [],
+      weekly: g.weekly.week === weekKey(this.clock()) ? g.weekly.list.map((q) => ({ ...q })) : [],
       path: currentGoalIndex(this.cfg.goals, g.goalsDone),
       goalsDone: [...g.goalsDone],
+      achievements: [...g.achievements],
     };
   }
 
@@ -344,16 +350,17 @@ export class ProgressionSystem {
 
   claimQuest(p: OnlinePlayer, id: string) {
     this.rolloverQuests(p);
-    const q = p.prog.quests.list.find((x) => x.id === id);
-    const def = this.cfg.quests.daily.find((d) => d.id === id);
-    if (!q || !def) throw new GameError("That isn't one of today's quests.");
+    const weekly = p.prog.weekly.list.some((x) => x.id === id);
+    const q = (weekly ? p.prog.weekly.list : p.prog.quests.list).find((x) => x.id === id);
+    const def = (weekly ? this.cfg.quests.weekly : this.cfg.quests.daily).find((d) => d.id === id);
+    if (!q || !def) throw new GameError("That isn't one of your quests right now.");
     if (q.claimed) throw new GameError('Already claimed.');
     if (!questProgress(def, q, p.prog.stats).done) throw new GameError('Not done yet!');
     const before = this.money(p);
     const granted = this.econ.run(p, () => {
       const items = this.grant(p, { sen: q.senReward, xp: def.reward.xp, items: def.reward.items }, `quest-${id}`);
       q.claimed = true;
-      this.bump(p, 'questsDone');
+      this.bump(p, weekly ? 'weeklyQuestsDone' : 'questsDone');
       this.save(p);
       return items;
     });
@@ -377,10 +384,22 @@ export class ProgressionSystem {
   // ---------------------------------------------------------------- the check
   /** Hands out new quests when the day changes (quests are per calendar day). */
   private rolloverQuests(p: OnlinePlayer) {
-    const today = dayKey(this.clock());
+    const now = this.clock();
+    const week = weekKey(now);
+    const qc = this.cfg.quests;
+    if (qc.perWeek && p.prog.weekly.week !== week) {
+      p.prog.weekly = { week, list: pickQuests({ ...qc, daily: qc.weekly, perDay: qc.perWeek }, p.prog.stage, p.prog.stats, this.rand, this.hooks.flagsOf?.(p)) };
+      this.notified.delete(p.id);
+    }
+    const today = dayKey(now);
     if (p.prog.quests.day === today) return;
-    p.prog.quests = { day: today, list: pickQuests(this.cfg.quests, p.prog.stage, p.prog.stats, this.rand, this.hooks.flagsOf?.(p)) };
+    p.prog.quests = { day: today, list: pickQuests(qc, p.prog.stage, p.prog.stats, this.rand, this.hooks.flagsOf?.(p)) };
     this.notified.delete(p.id);
+  }
+
+  /** After a rebirth wipes the stats: count open quests from zero again (not from the old totals). */
+  rebaseQuests(p: OnlinePlayer) {
+    for (const q of [...p.prog.quests.list, ...p.prog.weekly.list]) if (!q.claimed) q.base = 0;
   }
 
   /** Quests we've already told the player are ready (so the toast shows once). */
@@ -443,6 +462,15 @@ export class ProgressionSystem {
           g.goalsDone.push(goal.id);
           changed = true;
         }
+        // 🏆 Achievements: paid once, kept for good (a rebirth doesn't take them back).
+        const done = new Set(g.achievements);
+        for (const a of this.cfg.achievements.achievements) {
+          if (done.has(a.id) || !conditionProgress(a.cond, snap2, this.cfg.stages).done) continue;
+          g.achievements.push(a.id);
+          items.push(...this.grant(p, a.reward, `ach-${a.id}`));
+          events.push({ kind: 'achievement', id: a.id });
+          changed = true;
+        }
         if (!changed) break;
       }
       this.save(p);
@@ -451,8 +479,9 @@ export class ProgressionSystem {
     // Quests that just became claimable.
     const seen = this.notified.get(p.id) ?? new Set<string>();
     this.notified.set(p.id, seen);
-    for (const q of g.quests.list) {
-      const def = this.cfg.quests.daily.find((d) => d.id === q.id);
+    const defOf = (id: string) => this.cfg.quests.daily.find((d) => d.id === id) ?? this.cfg.quests.weekly.find((d) => d.id === id);
+    for (const q of [...g.quests.list, ...g.weekly.list]) {
+      const def = defOf(q.id);
       if (!def || q.claimed || seen.has(q.id) || !questProgress(def, q, g.stats).done) continue;
       seen.add(q.id);
       events.push({ kind: 'questReady', id: q.id });

@@ -48,8 +48,9 @@ describe('XP and levels', () => {
     const { p, prog } = setup();
     prog.onJob(p, 'delivery', 6000, false);
     const x = cfg.levels.xp;
-    // + the first Hustle Path goal ("take your first job") pays XP too.
-    expect(p.prog.xp).toBe(Math.floor(x.jobBase + 60 * x.jobPerRm) + (cfg.goals.goals[0].reward.xp ?? 0));
+    // + the first Hustle Path goal ("take your first job") and the first-job achievement pay XP too.
+    const ach = cfg.achievements.achievements.filter((a) => a.cond.type === 'stat' && a.cond.stat === 'jobs' && a.cond.n === 1).reduce((t, a) => t + (a.reward.xp ?? 0), 0);
+    expect(p.prog.xp).toBe(Math.floor(x.jobBase + 60 * x.jobPerRm) + (cfg.goals.goals[0].reward.xp ?? 0) + ach);
     expect(p.prog.stats).toMatchObject({ jobs: 1, jobs_delivery: 1, jobEarnSen: 6000 });
   });
 
@@ -248,6 +249,38 @@ describe('daily quests', () => {
   });
 });
 
+describe('weekly quests', () => {
+  it('hands out a set each week (Monday to Sunday), claimable once, and a rebirth counts them from zero again', () => {
+    const s = setup(0);
+    s.prog.check(s.p); // Tuesday 17 Nov 2026
+    expect(s.p.prog.weekly.week).toBe('2026-11-16');
+    const list = s.p.prog.weekly.list;
+    expect(list).toHaveLength(cfg.quests.perWeek);
+    const q = list[0];
+    const def = cfg.quests.weekly.find((d) => d.id === q.id)!;
+    expect(() => s.prog.claimQuest(s.p, q.id)).toThrow(/Not done/);
+    s.prog.bump(s.p, def.stat, q.target);
+    s.prog.check(s.p);
+    expect(s.events.some((e) => e.kind === 'questReady' && e.id === q.id)).toBe(true);
+    s.prog.claimQuest(s.p, q.id);
+    expect(s.p.prog.stats.weeklyQuestsDone).toBe(1);
+    expect(() => s.prog.claimQuest(s.p, q.id)).toThrow(/Already/);
+    // Sunday: same week. Next Monday: a new set.
+    s.setNow(at(22, 23));
+    s.prog.check(s.p);
+    expect(s.p.prog.weekly.week).toBe('2026-11-16');
+    s.setNow(at(23, 0));
+    s.prog.check(s.p);
+    expect(s.p.prog.weekly.week).toBe('2026-11-23');
+    expect(s.p.prog.weekly.list.every((x) => !x.claimed)).toBe(true);
+    // Rebirth wipes stats: open quests restart from 0 instead of needing the old total first.
+    const open = s.p.prog.weekly.list[0];
+    s.p.prog.stats = { rebirths: 1 };
+    s.prog.rebaseQuests(s.p);
+    expect(open.base).toBe(0);
+  });
+});
+
 describe('players from before Phase 3', () => {
   it('migration 7 rebuilds their stats and they get XP for them on login', () => {
     const db = openDatabase(':memory:');
@@ -271,5 +304,38 @@ describe('players from before Phase 3', () => {
     expect(p.prog.xp).toBe(xp);
     prog.save(p);
     expect(repos.progress.load(id).retroXp).toBe(false); // only once
+  });
+});
+
+describe('achievements', () => {
+  it('pays each one once, the moment it is done, and keeps it through a stats reset (rebirth)', () => {
+    const { p, prog, events, repos, db } = setup(0);
+    const paid = () => (db.prepare("SELECT COALESCE(SUM(delta_sen),0) AS s, COUNT(*) AS n FROM transactions WHERE reason = 'ach-a_jobs_50'").get() as { s: number; n: number });
+    p.prog.goalsDone = cfg.goals.goals.map((g) => g.id); // only achievement rewards here
+    const a = cfg.achievements.achievements.find((x) => x.id === 'a_jobs_50')!;
+    p.prog.stats.jobs = 49;
+    prog.check(p);
+    expect(p.prog.achievements).not.toContain('a_jobs_50');
+    p.prog.stats.jobs = 50;
+    prog.check(p);
+    expect(p.prog.achievements).toContain('a_jobs_50');
+    expect(paid()).toEqual({ s: a.reward.sen ?? 0, n: 1 });
+    expect(events).toContainEqual({ kind: 'achievement', id: 'a_jobs_50' });
+    // Again: nothing more.
+    prog.check(p);
+    expect(paid().n).toBe(1);
+    // Saved, and a rebirth (stats wiped) doesn't take it away or pay it twice.
+    expect(repos.progress.load(p.id).achievements).toContain('a_jobs_50');
+    p.prog.stats = { rebirths: 1 };
+    prog.check(p);
+    expect(p.prog.achievements.filter((x) => x === 'a_jobs_50')).toHaveLength(1);
+    expect(paid().n).toBe(1);
+    expect(p.prog.achievements).toContain('a_rebirth');
+  });
+
+  it('the config has 50+ achievements, all valid', () => {
+    expect(cfg.achievements.achievements.length).toBeGreaterThanOrEqual(50);
+    const groups = new Set(cfg.achievements.groups.map((g) => g.id));
+    for (const a of cfg.achievements.achievements) expect(groups.has(a.group), a.id).toBe(true);
   });
 });

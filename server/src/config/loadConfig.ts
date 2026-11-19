@@ -8,7 +8,7 @@ import {
   osmMapDataSchema, overridesSchema, saveConfigSchema, terrainConfigSchema,
   cratesConfigSchema, economyConfigSchema, itemsConfigSchema, jobsConfigSchema, raritiesConfigSchema, validateEconomyConfigs,
   vehiclesConfigSchema, ridesConfigSchema, type RidesConfig,
-  upgradesConfigSchema, levelsConfigSchema, stagesConfigSchema, titlesConfigSchema, questsConfigSchema, goalsConfigSchema,
+  upgradesConfigSchema, levelsConfigSchema, stagesConfigSchema, titlesConfigSchema, achievementsConfigSchema, type AchievementsConfig, questsConfigSchema, goalsConfigSchema,
   validateProgressionConfigs, type ProgCfg, type UpgradesConfig, type LevelsConfig, type StagesConfig, type TitlesConfig,
   type QuestsConfig, type GoalsConfig,
   timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
@@ -41,6 +41,7 @@ export interface ServerConfig {
   levels: LevelsConfig;
   stages: StagesConfig;
   titles: TitlesConfig;
+  achievements: AchievementsConfig;
   quests: QuestsConfig;
   goals: GoalsConfig;
   time: TimeConfig;
@@ -109,6 +110,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     levels: readJson(j('levels.json'), levelsConfigSchema),
     stages: readJson(j('stages.json'), stagesConfigSchema),
     titles: readJson(j('titles.json'), titlesConfigSchema),
+    achievements: readJson(j('achievements.json'), achievementsConfigSchema),
     upgrades: readJson(j('upgrades.json'), upgradesConfigSchema),
     quests: readJson(j('quests.json'), questsConfigSchema),
     goals: readJson(j('goals.json'), goalsConfigSchema),
@@ -137,6 +139,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     levels: prog.levels,
     stages: prog.stages,
     titles: prog.titles,
+    achievements: prog.achievements!,
     quests: prog.quests,
     goals: prog.goals,
     time,
@@ -196,6 +199,7 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     levels: cfg.levels,
     stages: cfg.stages,
     titles: cfg.titles,
+    achievements: cfg.achievements,
     quests: cfg.quests,
     goals: cfg.goals,
     time: cfg.time,
@@ -228,7 +232,7 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
 export function reloadBalance(cfg: ServerConfig, configDir: string, mapDir: string): string[] {
   const fresh = loadConfig(configDir, mapDir);
   const keys = [
-    'rarities', 'items', 'crates', 'economy', 'jobs', 'vehicles', 'rides', 'upgrades', 'levels', 'stages', 'titles', 'quests', 'goals',
+    'rarities', 'items', 'crates', 'economy', 'jobs', 'vehicles', 'rides', 'upgrades', 'levels', 'stages', 'titles', 'achievements', 'quests', 'goals',
     'time', 'recipes', 'stalls', 'interiors', 'guide', 'npcs', 'furniture', 'properties', 'businesses', 'loans', 'casino', 'music', 'events', 'market', 'rebirth', 'dungeon', 'pets', 'garage',
   ] as const;
   for (const k of keys) Object.assign(cfg[k] as object, fresh[k]);

@@ -4,7 +4,7 @@ import type { GradesConfig } from '../items/grades';
 import { z } from 'zod';
 import type { MapSource } from '../map/types';
 import type { CratesConfig, EconomyConfig, ItemsConfig, JobsConfig, RaritiesConfig, RidesConfig, VehiclesConfig } from '../economy/schemas';
-import type { GoalsConfig, LevelsConfig, QuestsConfig, StagesConfig, TitlesConfig, UpgradesConfig } from '../progression/schemas';
+import type { AchievementsConfig, GoalsConfig, LevelsConfig, QuestsConfig, StagesConfig, TitlesConfig, UpgradesConfig } from '../progression/schemas';
 import type { TimeConfig } from '../time/clock';
 import type { RecipesConfig } from '../cooking/cooking';
 import type { StallsConfig } from '../cooking/stall';
@@ -153,6 +153,7 @@ export interface PublicConfig {
   levels: LevelsConfig;
   stages: StagesConfig;
   titles: TitlesConfig;
+  achievements: AchievementsConfig;
   quests: QuestsConfig;
   goals: GoalsConfig;
   time: TimeConfig;

@@ -25,5 +25,19 @@
     {"id": "cook", "icon": "🍳", "text": "Cook {n} dishes at your stall", "stat": "dishes", "targets": [10, 15, 20, 25, 30, 40], "minStage": 2, "requires": "stall", "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 80}},
     {"id": "perfect_dishes", "icon": "✨", "text": "Cook {n} Perfect dishes", "stat": "perfectDishes", "targets": [5, 8, 10, 12, 15, 20], "minStage": 2, "requires": "stall", "reward": {"senByStage": [20000, 80000, 600000, 6000000, 60000000, 600000000], "xp": 90, "items": ["customer_rush"]}},
     {"id": "stall_earn", "icon": "🏪", "text": "Earn {n} at your stall", "stat": "stallEarnSen", "format": "money", "targets": [30000, 50000, 500000, 5000000, 50000000, 500000000], "minStage": 2, "requires": "stall", "reward": {"senByStage": [15000, 60000, 500000, 5000000, 50000000, 500000000], "xp": 70}}
+  ],
+  "perWeek": 3,
+  "weekly": [
+    {"id": "w_roll", "icon": "🎰", "text": "Roll any crate {n} times this week", "stat": "rolls", "targets": [60, 120, 180, 300, 450, 600], "reward": {"senByStage": [80000, 300000, 2500000, 25000000, 250000000, 2500000000], "xp": 300, "items": ["luck_potion"]}},
+    {"id": "w_jobs", "icon": "📋", "text": "Finish {n} jobs this week", "stat": "jobs", "targets": [25, 40, 50, 60, 75, 100], "reward": {"senByStage": [100000, 400000, 3000000, 30000000, 300000000, 3000000000], "xp": 400, "items": ["kopi_kaw"]}},
+    {"id": "w_earn_jobs", "icon": "💼", "text": "Earn {n} from jobs this week", "stat": "jobEarnSen", "format": "money", "targets": [150000, 500000, 1500000, 5000000, 15000000, 50000000], "reward": {"senByStage": [80000, 300000, 2500000, 25000000, 250000000, 2500000000], "xp": 350}},
+    {"id": "w_quests", "icon": "✅", "text": "Complete {n} daily quests this week", "stat": "questsDone", "targets": [10, 12, 14, 15, 15, 15], "reward": {"senByStage": [100000, 400000, 3000000, 30000000, 300000000, 3000000000], "xp": 400, "items": ["xp_booster"]}},
+    {"id": "w_perfect_wash", "icon": "✨", "text": "Get a 100% car wash {n} times this week", "stat": "perfectWashes", "targets": [5, 8, 10, 12, 15, 20], "reward": {"senByStage": [80000, 300000, 2500000, 25000000, 250000000, 2500000000], "xp": 300}},
+    {"id": "w_manifest", "icon": "🧘", "text": "Manifest for {n} minutes this week", "stat": "manifestSecs", "format": "minutes", "targets": [900, 1800, 2400, 3600, 3600, 5400], "reward": {"senByStage": [60000, 250000, 2000000, 20000000, 200000000, 2000000000], "xp": 250}},
+    {"id": "w_epic", "icon": "💜", "text": "Pull {n} Epic-or-better items this week", "stat": "epicPlusRolls", "targets": [2, 3, 4, 5, 6, 8], "minStage": 2, "reward": {"senByStage": [100000, 400000, 3000000, 30000000, 300000000, 3000000000], "xp": 400, "items": ["luck_potion"]}},
+    {"id": "w_dungeon", "icon": "⚔️", "text": "Clear {n} Gua Gelap floors this week", "stat": "dungeonFloors", "targets": [10, 15, 20, 25, 30, 40], "minStage": 2, "reward": {"senByStage": [100000, 400000, 3000000, 30000000, 300000000, 3000000000], "xp": 400}},
+    {"id": "w_cook", "icon": "🍳", "text": "Cook {n} dishes by hand this week", "stat": "dishes", "targets": [60, 90, 120, 150, 180, 240], "minStage": 2, "requires": "stall", "reward": {"senByStage": [100000, 400000, 3000000, 30000000, 300000000, 3000000000], "xp": 450, "items": ["customer_rush"]}},
+    {"id": "w_stall_earn", "icon": "💵", "text": "Earn {n} at your stall this week", "stat": "stallEarnSen", "format": "money", "targets": [200000, 300000, 3000000, 30000000, 300000000, 3000000000], "minStage": 2, "requires": "stall", "reward": {"senByStage": [80000, 300000, 2500000, 25000000, 250000000, 2500000000], "xp": 350}},
+    {"id": "w_casino", "icon": "🎲", "text": "Place {n} casino bets this week", "stat": "casinoBets", "targets": [30, 40, 50, 60, 80, 100], "minStage": 3, "reward": {"senByStage": [50000, 200000, 1500000, 15000000, 150000000, 1500000000], "xp": 250}}
   ]
 }

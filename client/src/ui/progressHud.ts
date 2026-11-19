@@ -127,6 +127,10 @@ export class ProgressHud {
         if (q.claimed) done++;
         else if (questProgress(def, q, pr.stats).done) ready++;
       }
+      for (const q of pr.weekly ?? []) {
+        const def = app.cfg.quests.weekly.find((d) => d.id === q.id);
+        if (def && !q.claimed && questProgress(def, q, pr.stats).done) ready++;
+      }
       chip(ready ? 'pulse ready' : '', ready ? `📋 ${ready} quest${ready > 1 ? 's' : ''} ready!` : `📋 Quests ${done}/${pr.quests.length}`, () => app.openPhone('quests'), 'quest-chip');
     }
     for (const b of st.buffs()) {

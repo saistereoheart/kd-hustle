@@ -300,10 +300,14 @@ export interface ProgressState {
   daily: { canClaim: boolean; nextDay: number; streak: number };
   /** Today's quests. */
   quests: QuestState[];
+  /** This week's quests (new ones every Monday). */
+  weekly: QuestState[];
   /** Index of the first Hustle Path goal not done yet (= number of goals when the path is done). */
   path: number;
   /** Hustle Path goals done (any order). */
   goalsDone: string[];
+  /** 🏆 Achievements earned (ids). They stay through a rebirth. */
+  achievements: string[];
 }
 
 /** Something to celebrate, sent with a progress update. */
@@ -312,6 +316,7 @@ export type ProgressEvent =
   | { kind: 'stage'; stage: number }
   | { kind: 'title'; id: string }
   | { kind: 'goal'; id: string; rewardSen: number; items: string[] }
+  | { kind: 'achievement'; id: string }
   | { kind: 'questReady'; id: string };
 
 /** A customer at a stall (everyone sees them queue). */

@@ -58,9 +58,13 @@ export interface ProgressRecord {
   buffs: Array<{ item: string; kind: string; mult: number; leftMs: number }>;
   login: { lastDay: string | null; streak: number };
   quests: { day: string | null; list: Array<{ id: string; base: number; target: number; senReward: number; claimed: boolean }> };
+  /** This week's quests (`week` = the Monday's date). */
+  weekly: { week: string | null; list: Array<{ id: string; base: number; target: number; senReward: number; claimed: boolean }> };
   /** Legacy (before Phase 4): how many goals were done, in order. */
   path?: number;
   goalsDone: string[];
+  /** 🏆 Achievements earned (kept through rebirth). */
+  achievements: string[];
   /** Fractional XP not yet credited (manifesting earns a fraction per payout). */
   xpFrac: number;
   /** Set by migration 7 for players from before Phase 3: turn their stats into XP on login. */
@@ -257,8 +261,10 @@ export function createRepos(db: DB) {
           buffs: Array.isArray(j.buffs) ? j.buffs : [],
           login: j.login ?? { lastDay: null, streak: 0 },
           quests: j.quests ?? { day: null, list: [] },
+          weekly: j.weekly ?? { week: null, list: [] },
           path: typeof j.path === 'number' ? j.path : 0,
           goalsDone: Array.isArray(j.goalsDone) ? j.goalsDone : [],
+          achievements: Array.isArray(j.achievements) ? j.achievements : [],
           xpFrac: typeof j.xpFrac === 'number' ? j.xpFrac : 0,
           retroXp: j.retroXp === true,
         };
