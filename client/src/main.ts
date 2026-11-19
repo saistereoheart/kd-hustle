@@ -25,6 +25,13 @@ window.__kh = {
   stall: () => app.store.stall,
   stalls: () => [...app.store.stalls.values()],
   dish: () => app.cookingDish,
+  /** Dev/tests: count server messages by name from now on (read with eventCounts). */
+  countEvents: () => {
+    const c: Record<string, number> = {};
+    app.socket?.onAny((ev: string) => (c[ev] = (c[ev] ?? 0) + 1));
+    (window as unknown as { __khCounts: Record<string, number> }).__khCounts = c;
+  },
+  eventCounts: () => (window as unknown as { __khCounts?: Record<string, number> }).__khCounts ?? {},
   openStall: (plot: string) => app.openStallAt(plot),
   plotPos: (plot: string) => app.map?.stallPlots.find((p) => p.id === plot) ?? null,
   luck: () => app.mods().luck,

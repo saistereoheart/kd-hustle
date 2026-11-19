@@ -33,6 +33,7 @@ function tone(freq: number, dur: number, type: OscillatorType = 'sine', gain = 0
 export const sfx = {
   tick: () => tone(1800, 0.03, 'square', 0.05),
   coin: () => {
+    if (!loadPrefs().moneySound) return;
     tone(988, 0.08, 'square', 0.08);
     tone(1319, 0.18, 'square', 0.08, 0.07);
   },
@@ -72,6 +73,7 @@ export const sfx = {
   },
   /** Coins from a sale made by your staff (softer than your own). */
   staffCoin: () => {
+    if (!loadPrefs().moneySound) return;
     tone(1175, 0.06, 'triangle', 0.05);
     tone(1568, 0.12, 'triangle', 0.05, 0.05);
   },

@@ -1,7 +1,7 @@
 // Shared UI bits: a modal panel shell with optional tabs, and item cards.
 import { topVariant, variantParts, formatMoney, type ItemDef, type RaritiesConfig } from '@kh/shared';
 import { drawItemIcon } from '../items/itemArt';
-import { el, uiRoot } from './dom';
+import { el, resumeUi, uiRoot } from './dom';
 
 export interface Panel {
   root: HTMLElement;
@@ -52,6 +52,7 @@ function showTop() {
   const t = top();
   if (!t) return;
   t.root.classList.remove('panel-hidden');
+  resumeUi(t.root); // the updates it skipped while hidden
   t.onResume?.();
 }
 

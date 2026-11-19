@@ -299,13 +299,15 @@ body.touch .osm-credit { bottom: auto; top: calc(190px + var(--safe-t)); }
 .hud-money { display: flex; gap: 8px; font-size: 13px; font-weight: 800; }
 .hud-wallet { color: #8ce99a; cursor: pointer; }
 .hud-shards { color: #a5d8ff; }
-.float-money { position: absolute; color: #8ce99a; font-weight: 900; font-size: 16px; text-shadow: 0 1px 3px #000; pointer-events: none; animation: float-up 1.4s ease-out forwards; z-index: 25; }
-@keyframes float-up { to { transform: translateY(-36px); opacity: 0; } }
+/* "+RM" beside the cash (never on top of it, never catches a tap). */
+.float-money { position: absolute; transform: translateY(-50%); color: #8ce99a; font-weight: 900; font-size: 15px; text-shadow: 0 1px 3px #000; pointer-events: none; z-index: 25; white-space: nowrap; background: rgba(17, 19, 31, 0.75); border-radius: 999px; padding: 1px 8px; }
+.float-money.go { animation: float-side 1.6s ease-out forwards; }
+@keyframes float-side { 0% { opacity: 0; translate: -6px 0; } 12% { opacity: 1; translate: 0 0; } 70% { opacity: 1; } 100% { opacity: 0; translate: 14px 0; } }
 
 .panel-backdrop { z-index: 8; }
 .panel { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
 /* Windows have a fixed size (they never grow or shrink as their content changes; it scrolls). */
-.panel-frame { display: flex; gap: 10px; width: min(460px, 100%); height: min(88vh, 760px); }
+.panel-frame { display: flex; gap: 10px; width: min(460px, 100%); height: min(88vh, 760px); min-width: 0; min-height: 0; max-width: 100%; }
 .panel-frame.wide { width: min(760px, 100%); }
 .panel-frame.has-side { width: min(720px, 100%); }
 .panel-frame.wide.has-side { width: min(1030px, 100%); }

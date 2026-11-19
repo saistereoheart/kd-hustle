@@ -12,16 +12,27 @@ export interface Prefs {
   musicVolume: number;
   /** Rendering sharpness: auto (phones ≤ 2×), high (up to 3×), saver (1.25×, for battery / old phones). */
   quality: 'auto' | 'high' | 'saver';
+  /** Coin sounds when money comes in or you pay. */
+  moneySound: boolean;
+  /** "+RM" pop-ups by your cash and over your stall. */
+  moneyPopups: boolean;
 }
 
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true };
+/** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
+let cached: Prefs | null = null;
+
 export function loadPrefs(): Prefs {
+  if (cached) return { ...cached };
   try {
-    return { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    cached = { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto' };
+    cached = { ...DEFAULT_PREFS };
   }
+  return { ...cached! };
 }
 export function savePrefs(p: Prefs) {
+  cached = { ...p };
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(p));
   } catch {
@@ -77,6 +88,20 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  const moneySound = el('input', { type: 'checkbox', 'aria-label': 'Money sounds', 'data-pref': 'moneySound', checked: prefs.moneySound });
+  moneySound.addEventListener('change', () => {
+    prefs.moneySound = moneySound.checked;
+    savePrefs(prefs);
+  });
+  const moneyPopups = el('input', { type: 'checkbox', 'aria-label': 'Money pop-ups', 'data-pref': 'moneyPopups', checked: prefs.moneyPopups });
+  moneyPopups.addEventListener('change', () => {
+    prefs.moneyPopups = moneyPopups.checked;
+    savePrefs(prefs);
+  });
+
+  const stats = el('button', { class: 'btn small', type: 'button', 'data-action': 'toggle-stats' }, 'Show / hide');
+  stats.addEventListener('click', () => window.dispatchEvent(new Event('kh-debug')));
+
   const quality = el('select', { 'aria-label': 'Graphics' },
     ...([['auto', 'Auto'], ['high', 'Sharpest'], ['saver', 'Battery saver']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.quality === v }, label)));
   quality.addEventListener('change', () => {
@@ -100,7 +125,10 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
     el('div', { class: 'setting-row' }, el('span', {}, '🎵 Music (lofi / shared radio)'), musicOn),
     el('div', { class: 'setting-row' }, el('span', {}, 'Music volume'), musicVol),
+    el('div', { class: 'setting-row' }, el('span', {}, '💰 Money sounds (coins)'), moneySound),
+    el('div', { class: 'setting-row' }, el('span', {}, '💰 Money pop-ups (+RM)'), moneyPopups),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
+    ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),
     el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · P or Tab HustlePhone · B bag · 1–0 hotbar (with Q: emotes) · − manifest · M map · N minimap · Esc back')),

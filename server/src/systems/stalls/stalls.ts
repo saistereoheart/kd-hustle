@@ -46,6 +46,8 @@ interface Live {
   earned: { day: string; sen: number };
   dirtyPublic: boolean;
   dirtySelf: boolean;
+  /** Server ms of the last update sent (see flush). */
+  flushedAt: number;
   dirtySave: boolean;
   outOfStockWarned: boolean;
   /** Items we've already warned are running low (cleared when restocked). */
@@ -69,6 +71,9 @@ const nextId = (() => {
   let n = 1;
   return () => n++;
 })();
+
+/** Background updates per stall at most this often (ms). */
+const FLUSH_GAP_MS = 1000;
 
 export class StallSystem {
   private stalls = new Map<number, Live>();
@@ -109,7 +114,7 @@ export class StallSystem {
   private wrap(owner: number, ownerName: string, s: StallState): Live {
     return {
       owner, ownerName, s, queue: [], cooks: [], dish: null, live: false, unpaid: false, lastTick: this.clock(), wageAcc: 0,
-      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, dirtySave: false, outOfStockWarned: false, lowWarned: new Set(), closingUntil: 0, repGraceUntil: 0,
+      earned: { day: '', sen: 0 }, dirtyPublic: true, dirtySelf: true, flushedAt: 0, dirtySave: false, outOfStockWarned: false, lowWarned: new Set(), closingUntil: 0, repGraceUntil: 0,
     };
   }
 
@@ -841,13 +846,21 @@ export class StallSystem {
       if (lost.length || l.queue.length !== before || staffDishes) this.touch(l);
       if (staffDishes) this.prog.check(owner);
     }
-    this.flush();
+    this.flush(true);
   }
 
-  /** Sends what changed: public stall state to everyone, private state to owners. */
-  flush() {
+  /**
+   * Sends what changed: public stall state to everyone, private state to owners. From the
+   * background tick (`throttle`) a stall sends at most once per FLUSH_GAP_MS (customers arriving
+   * and cooks selling would otherwise send several full updates a second); after a player's own
+   * action it goes out at once.
+   */
+  flush(throttle = false) {
     const changed: StallPublic[] = [];
+    const now = this.clock();
     for (const l of this.stalls.values()) {
+      if (throttle && now - l.flushedAt < FLUSH_GAP_MS && now >= l.flushedAt) continue;
+      if (l.dirtyPublic || l.dirtySelf) l.flushedAt = now;
       if (l.dirtyPublic) {
         changed.push(this.publicOf(l));
         l.dirtyPublic = false;

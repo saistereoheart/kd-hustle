@@ -68,7 +68,73 @@ function uiKey(node: Element, root: Element): string {
  * scroll positions of scrolled boxes (e.g. a tab row), values they typed into inputs but haven't
  * sent yet, and the focused input with its caret. Use for panels that re-render on store updates.
  */
+// Re-renders are scheduled, not run blindly:
+//  - at most one per root every MIN_GAP_MS (the store can change several times a second);
+//  - never while a finger / mouse button is down (a button rebuilt between press and release
+//    loses the click), but straight after the release;
+//  - not while the window is hidden under another one (done when you come back to it).
+const MIN_GAP_MS = 300;
+const pendingRebuild = new Map<HTMLElement, () => void>();
+const lastRebuild = new WeakMap<HTMLElement, number>();
+const rebuildTimer = new Map<HTMLElement, number>();
+let pointerIsDown = false;
+let pressedAt = 0;
+addEventListener('pointerdown', () => ((pointerIsDown = true), (pressedAt = performance.now())), true);
+const released = () => {
+  if (!pointerIsDown) return;
+  pointerIsDown = false;
+  // After the click that follows this release has been handled.
+  setTimeout(() => {
+    for (const r of [...pendingRebuild.keys()]) scheduleRebuild(r);
+  }, 60);
+};
+addEventListener('pointerup', released, true);
+addEventListener('pointercancel', released, true);
+addEventListener('blur', released); // released outside the window
+
+function scheduleRebuild(root: HTMLElement) {
+  if (rebuildTimer.has(root)) return;
+  const wait = (lastRebuild.get(root) ?? -1e9) + MIN_GAP_MS - performance.now();
+  if (wait <= 0) return runRebuild(root);
+  rebuildTimer.set(root, window.setTimeout(() => {
+    rebuildTimer.delete(root);
+    runRebuild(root);
+  }, wait));
+}
+
+function runRebuild(root: HTMLElement) {
+  const fn = pendingRebuild.get(root);
+  if (!fn) return;
+  if (!root.isConnected) {
+    pendingRebuild.delete(root); // closed: nothing to show
+    return;
+  }
+  // Later (on release / resumeUi). A press held over 3 s (a drag, a long-press) doesn't block it.
+  if (pointerIsDown && performance.now() - pressedAt < 3000) {
+    window.setTimeout(() => scheduleRebuild(root), 3100 - (performance.now() - pressedAt));
+    return;
+  }
+  if (root.closest('.panel-hidden')) return;
+  pendingRebuild.delete(root);
+  lastRebuild.set(root, performance.now());
+  rebuildKeepingState(root, fn);
+}
+
+/** A window came back to the front: run the re-renders it skipped while hidden. */
+export function resumeUi(container: HTMLElement) {
+  for (const r of [...pendingRebuild.keys()]) if (container.contains(r)) scheduleRebuild(r);
+}
+
+/**
+ * Re-renders `root` (see the scheduling rules above) and puts back what the player was doing:
+ * scroll positions, values typed but not sent, and the focused input with its caret.
+ */
 export function keepUiState(root: HTMLElement, rebuild: () => void) {
+  pendingRebuild.set(root, rebuild);
+  scheduleRebuild(root);
+}
+
+function rebuildKeepingState(root: HTMLElement, rebuild: () => void) {
   const scrolls = new Map<string, [number, number]>();
   const typed = new Map<string, string>();
   let focus: { key: string; start: number | null; end: number | null } | null = null;
@@ -94,7 +160,11 @@ export function keepUiState(root: HTMLElement, rebuild: () => void) {
   }
   rebuild();
   if (!scrolls.size && !typed.size && !focus) return;
+  // Only elements that could match: same tag as something we saved.
+  const tags = new Set<string>();
+  for (const k of [...scrolls.keys(), ...typed.keys(), ...(focus ? [focus.key] : [])]) tags.add(/(?:^|>)([A-Z0-9]+)[^>]*$/.exec(k)?.[1] ?? '');
   for (const n of root.querySelectorAll<HTMLElement>('*')) {
+    if (!tags.has(n.tagName)) continue;
     const k = uiKey(n, root);
     const sc = scrolls.get(k);
     if (sc) {

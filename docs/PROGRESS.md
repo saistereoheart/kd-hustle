@@ -69,6 +69,31 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## Lag, missed clicks, music cuts (2026-11-19)
+
+- **Real bug: resizing broke the town.** When the window size changed enough to redraw the map at a new sharpness
+  (rotating a phone, resizing the browser), the stall layer was destroyed and never rebuilt, so every frame after
+  that threw an error (no stalls, cooks or night shading; a stuttering game). It's rebuilt now.
+- **Missed clicks.** Open windows were rebuilt from scratch on every update (your stall sent up to 4 a second, plus
+  every wallet change), so a button could be replaced between press and release and the click was lost. Now:
+  - store updates are batched (one wake-up per burst);
+  - a window re-renders at most every 300 ms, never while a finger / mouse button is down (straight after instead),
+    and not while it's hidden under another window (done when you come back);
+  - re-rendering is cheaper (it only looks for the elements whose scroll / typing it has to restore).
+- **Less traffic.** The server sends background stall updates at most once a second per stall (your own actions
+  still update at once), and merges wallet updates that come within 0.4 s into one.
+- **Music cuts.** The lofi was played note by note from a timer, so any hitch left a gap. Now each browser
+  records two ~107 s pieces once (an OfflineAudioContext, off the main thread) and plays them back to back from
+  memory. The shared radio (only if you put files in `server/music/`) downloads each track in full before playing
+  it (no streaming), and only re-syncs if it drifts more than 4 s.
+- **Money pop-ups** sit beside the cash (not over it), and income arriving close together adds up in one pop-up.
+  The "+RM" over your stall is one reused label. **Settings → 💰 Money sounds / 💰 Money pop-ups** turn them off.
+- **Settings → 📊 FPS & ping** shows the debug overlay on phones too (F3 on a PC): high ping = the WiFi, low FPS =
+  the device (try Graphics → Battery saver).
+- Windows on narrow phones no longer get wider than the screen (the phone's ✕ was pushed off the edge).
+- e2e phases 1–4 pass. Phase 2 once read RM 0 for a player straight after joining (before anything ran), then
+  passed on the re-run: a test timing flake, watching it.
+
 ## Windows: Back button, fixed size, side boxes (2026-11-19)
 
 - **Every window can go back.** Opening a window from another one (phone → Bag, Jobs, Settings, Quick Rolls → a crate;

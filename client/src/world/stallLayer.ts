@@ -1,6 +1,7 @@
 // Food stalls in the world (Phase 4): the pasar malam stalls, food trucks and kopitiam signs on
 // their plots, NPC customers queueing with order bubbles and patience bars, warm lights at
 // night, and the day/night tint over the whole town.
+import { loadPrefs } from '../ui/settings';
 import Phaser from 'phaser';
 import { darkness, formatMoneyExact, gameTime, randomAppearance, setBoxes, stallFootprint, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
 import type { App } from '../app';
@@ -109,8 +110,9 @@ export class StallLayer {
     this.syncStaff();
     // Customers: add new ones, move the queue up, send leavers away.
     const seen = new Set<number>();
+    const byId = new Map(active.map((p) => [p.id, p]));
     for (const s of this.app.store.stalls.values()) {
-      const plot = this.plots.find((p) => p.id === s.plot);
+      const plot = byId.get(s.plot);
       if (!plot) continue;
       s.queue.forEach((c, k) => {
         seen.add(c.id);
@@ -136,7 +138,8 @@ export class StallLayer {
   /** Hired cooks stand at their stall while it's open; busy ones cook (🍳 and steam). */
   private syncStaff() {
     const T = this.T;
-    for (const plot of this.plots) {
+    // Only plots with a stall (or cooks still standing there): not the hundreds of free shoplots.
+    for (const plot of this.plots.filter((p) => this.app.store.stalls.has(p.id) || this.staff.has(p.id))) {
       const s = this.app.store.stalls.get(plot.id);
       const want = s?.open ? Math.min(s.staff, (STAFF_SPOTS[plot.tier] ?? STAFF_SPOTS[1]).length) : 0;
       const list = this.staff.get(plot.id) ?? [];
@@ -173,17 +176,32 @@ export class StallLayer {
 
   /** "+RM 21.60 🧑‍🍳" rising over your stall when a cook sells something. */
   popIncome(sen: number) {
+    if (!loadPrefs().moneyPopups) return;
     const me = this.app.store.stall;
     const plot = me ? this.plots.find((p) => p.id === me.plot) : undefined;
     if (!plot) return;
     const T = this.T;
-    const x = plot.x * T + (Math.random() - 0.5) * 30, y = plot.y * T - 70;
-    const t = this.scene.add
-      .text(x, y, `+${formatMoneyExact(sen)} 🧑‍🍳`, { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontStyle: 'bold', color: '#8ce99a', stroke: '#11131f', strokeThickness: 4, resolution: 3 })
-      .setOrigin(0.5, 1)
-      .setDepth(999_100);
-    this.scene.tweens.add({ targets: t, y: y - 46, alpha: { from: 1, to: 0 }, duration: 1800, ease: 'Sine.easeOut', onComplete: () => t.destroy() });
+    const x = plot.x * T, y = plot.y * T - 70;
+    // One reused label: sales close together add up instead of each making a new text.
+    if (this.pop?.active) {
+      this.popSum += sen;
+      this.scene.tweens.killTweensOf(this.pop);
+    } else {
+      this.popSum = sen;
+      this.pop = this.scene.add
+        .text(x, y, '', { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontStyle: 'bold', color: '#8ce99a', stroke: '#11131f', strokeThickness: 4, resolution: 2 })
+        .setOrigin(0.5, 1)
+        .setDepth(999_100);
+    }
+    const t = this.pop;
+    t.setText(`+${formatMoneyExact(this.popSum)} 🧑‍🍳`).setPosition(x, y).setAlpha(1);
+    this.scene.tweens.add({ targets: t, y: y - 46, alpha: { from: 1, to: 0 }, delay: 600, duration: 1600, ease: 'Sine.easeOut', onComplete: () => {
+      t.destroy();
+      if (this.pop === t) this.pop = null;
+    } });
   }
+  private pop: Phaser.GameObjects.Text | null = null;
+  private popSum = 0;
 
   private spawn(c: StallCustomer, plot: Plot, tx: number, ty: number): Customer {
     const a = randomAppearance(this.app.cfg.character, seeded(c.seed));

@@ -19,6 +19,8 @@ export class DebugOverlay {
       e.preventDefault();
       this.toggle();
     });
+    // Settings → "Show FPS & ping" (phones have no F3).
+    window.addEventListener('kh-debug', () => this.toggle());
   }
 
   toggle() {

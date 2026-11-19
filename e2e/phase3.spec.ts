@@ -149,7 +149,7 @@ test('phase 3: progression, HustlePhone, potions and stages', async ({ browser }
   await kh(A.page, (k) => k.open('luckybag_stall'));
   await A.page.waitForSelector('[data-testid=crate-panel]');
   await expect(A.page.getByTestId('crate-lock')).toHaveCount(0);
-  await expect(A.page.locator('[data-testid=crate-panel] h4').first()).toContainText('luck ×2.00');
+  await expect(A.page.locator('.crate-panel-frame .panel-side')).toContainText('Luck ×2.00'); // the odds & pity side box
   await A.page.screenshot({ path: `${SHOTS}/p3-10-crate-with-luck.png` });
   // Roll it: the roll counts towards stats (and the "Roll any crate" style quests).
   await A.page.click('[data-roll="1"]');

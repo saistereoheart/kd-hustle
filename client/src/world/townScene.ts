@@ -124,6 +124,9 @@ export class TownScene extends Phaser.Scene {
       this.mapView.destroy();
       this.stalls.destroy();
       this.mapView = new MapView(this, this.app.map, res);
+      // Rebuild the stalls too (they used to stay destroyed, and every frame after that threw an
+      // error: no stalls, cooks or night shading, and a stuttering game).
+      this.stalls = new StallLayer(this, this.app);
     }
     this.mapView.update(cam.worldView, true);
   }

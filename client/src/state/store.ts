@@ -128,9 +128,16 @@ export class Store {
     return () => this.listeners.delete(fn);
   }
 
+  /** Tells listeners something changed. Batched: many changes in a burst (a stall update, the
+   *  wallet, progress...) wake the UI once, a moment later, instead of once each. */
   emit() {
-    for (const fn of this.listeners) fn();
+    if (this.emitTimer) return;
+    this.emitTimer = window.setTimeout(() => {
+      this.emitTimer = 0;
+      for (const fn of this.listeners) fn();
+    }, 24);
   }
+  private emitTimer = 0;
 
   addItems(items: InventoryItem[], index?: string[]) {
     const have = new Set(this.inventory.map((i) => i.iid));

@@ -14,6 +14,7 @@ export class Radio {
   private label: HTMLElement;
   private votes: HTMLElement;
   private trackId: string | null = null;
+  private blobUrl: string | null = null;
   private startedAt = 0;
   private unlocked = false;
   private timer: number;
@@ -72,7 +73,7 @@ export class Radio {
   private applyPrefs() {
     const p = loadPrefs();
     this.audio.volume = Math.max(0, Math.min(1, p.musicVolume / 100));
-    const want = p.musicOn && this.unlocked && !!this.trackId;
+    const want = p.musicOn && this.unlocked && !!this.trackId && !!this.audio.getAttribute('src');
     if (want && this.audio.paused) {
       this.seek();
       void this.audio.play().catch(() => {});
@@ -87,8 +88,27 @@ export class Radio {
     if (id !== this.trackId) {
       this.trackId = id;
       if (v?.track) {
-        this.audio.src = v.track.url;
-        this.audio.load();
+        // Download the whole track first and play it from memory (not streamed: a busy WiFi
+        // can't make it stutter mid-song).
+        const want = v.track.id;
+        if (this.blobUrl) URL.revokeObjectURL(this.blobUrl);
+        this.blobUrl = null;
+        this.audio.pause();
+        void fetch(v.track.url)
+          .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+          .then((b) => {
+            if (this.trackId !== want) return; // moved on while downloading
+            this.blobUrl = URL.createObjectURL(b);
+            this.audio.src = this.blobUrl;
+            this.audio.load();
+            this.applyPrefs();
+          })
+          .catch(() => {
+            if (this.trackId !== want) return;
+            this.audio.src = v.track!.url; // fall back to streaming
+            this.audio.load();
+            this.applyPrefs();
+          });
       } else {
         this.audio.pause();
         this.audio.removeAttribute('src');
@@ -104,7 +124,8 @@ export class Radio {
   private drift() {
     if (this.audio.paused || !this.trackId) return;
     const off = Math.abs(this.audio.currentTime - this.position()) * 1000;
-    if (off > this.app.cfg.music.resyncMs) this.seek();
+    // Only jump for a real drift (each jump is an audible skip).
+    if (off > Math.max(4000, this.app.cfg.music.resyncMs)) this.seek();
   }
 
   private paint() {

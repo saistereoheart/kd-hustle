@@ -4,6 +4,7 @@ import type { App } from '../app';
 import { openFeedback } from './feedback';
 import { openMoneyPanel } from './moneyPanel';
 import { el, toast, uiRoot } from './dom';
+import { loadPrefs } from './settings';
 
 export interface HudOptions {
   name: string;
@@ -177,15 +178,31 @@ export class Hud {
     this.shards.textContent = `💎 ${shards.toLocaleString('en-US')}`;
   }
 
-  /** A floating +RM number by the wallet. */
+  /** "+RM" beside the cash (not over it): income arriving close together adds up in one
+   *  pop-up instead of stacking. Off with Settings → Money pop-ups. */
   floatMoney(sen: number) {
-    const f = el('div', { class: 'float-money' }, `+${formatMoney(sen)}`);
-    const r = this.wallet.getBoundingClientRect();
-    f.style.left = `${r.left}px`;
-    f.style.top = `${r.bottom}px`;
-    uiRoot().append(f);
-    setTimeout(() => f.remove(), 1500);
+    if (!loadPrefs().moneyPopups) return;
+    const r = this.moneyRow.getBoundingClientRect();
+    if (!this.float || !this.float.isConnected) {
+      this.floatSum = 0;
+      this.float = el('div', { class: 'float-money' });
+      uiRoot().append(this.float);
+    }
+    this.floatSum += sen;
+    this.float.textContent = `+${formatMoney(this.floatSum)}`;
+    this.float.style.left = `${Math.round(r.right + 8)}px`;
+    this.float.style.top = `${Math.round(r.top + r.height / 2)}px`;
+    // Restart the fade each time more comes in.
+    this.float.classList.remove('go');
+    void this.float.offsetWidth;
+    this.float.classList.add('go');
+    clearTimeout(this.floatTimer);
+    const f = this.float;
+    this.floatTimer = window.setTimeout(() => f.remove(), 1600);
   }
+  private float: HTMLElement | null = null;
+  private floatSum = 0;
+  private floatTimer = 0;
 
   setDistrict(name: string, announce: boolean) {
     this.district.textContent = `📍 ${name}`;

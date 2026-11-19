@@ -101,8 +101,34 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         i.spots.some(([sx, sy]) => Math.hypot(p.x / T - sx, p.y / T - sy) <= cfg.economy.interactRadiusTiles),
     );
 
-  const pushWallet = (p: OnlinePlayer, delta?: number, reason?: string) =>
+  // Wallet updates: the first goes out at once; any more within WALLET_GAP_MS are merged into
+  // one trailing update (cooks, ventures and rent can tick many times a second, and every update
+  // makes the client redraw).
+  const WALLET_GAP_MS = 400;
+  const walletOut = new Map<number, { last: number; timer: ReturnType<typeof setTimeout> | null; delta: number; reason?: string }>();
+  const sendWallet = (p: OnlinePlayer, delta?: number, reason?: string) =>
     socketOf(p)?.emit('wallet', { walletSen: p.walletSen, shards: p.shards, delta, reason });
+  const pushWallet = (p: OnlinePlayer, delta?: number, reason?: string) => {
+    const now = Date.now();
+    const w = walletOut.get(p.id) ?? { last: 0, timer: null, delta: 0 };
+    walletOut.set(p.id, w);
+    if (!w.timer && now - w.last >= WALLET_GAP_MS) {
+      w.last = now;
+      return sendWallet(p, delta, reason);
+    }
+    w.delta += delta ?? 0;
+    w.reason = reason ?? w.reason;
+    if (w.timer) return;
+    w.timer = setTimeout(() => {
+      w.timer = null;
+      w.last = Date.now();
+      const d = w.delta;
+      w.delta = 0;
+      const live = world.get(p.id);
+      if (live) sendWallet(live, d, w.reason);
+      else walletOut.delete(p.id);
+    }, Math.max(0, w.last + WALLET_GAP_MS - now));
+  };
 
   const broadcastCosmetics = (p: OnlinePlayer) => io.to(p.scene).emit('player:updated', { id: p.id, cosmetics: p.cosmetics });
 
