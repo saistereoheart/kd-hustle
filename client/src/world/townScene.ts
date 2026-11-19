@@ -632,7 +632,14 @@ export class TownScene extends Phaser.Scene {
       const mine = myPlot ? map.stallPlots.find((p) => p.id === myPlot) : undefined;
       if (mine && mine.tier < cfg.stalls.cashierFromTier && Math.hypot(this.pos.x / map.tileSize - mine.x, this.pos.y / map.tileSize - mine.y) <= cfg.stalls.cookRadiusTiles - 1) plot = mine;
       if (plot && it && Math.hypot(this.pos.x / map.tileSize - it.x, this.pos.y / map.tileSize - it.y) < Math.hypot(this.pos.x / map.tileSize - plot.x, this.pos.y / map.tileSize - plot.y) && plot !== mine) plot = null;
-      const npc = this.me.vehicle ? null : this.npcs.nearest(this.pos.x, this.pos.y, cfg.npcs.talkRadiusTiles);
+      let npc = this.me.vehicle ? null : this.npcs.nearest(this.pos.x, this.pos.y, cfg.npcs.talkRadiusTiles);
+      // Your own stall beats a passer-by; otherwise the closer of an NPC or a stall wins.
+      if (npc && plot) {
+        const T1 = map.tileSize;
+        const dn = this.npcs.distance(npc.id, this.pos.x, this.pos.y);
+        const dp = Math.hypot(plot.x - this.pos.x / T1, plot.y - this.pos.y / T1);
+        if (plot === mine || dp < dn) npc = null;
+      }
       const npcId = npc?.id ?? null;
       if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot || npcId !== this.nearNpc) {
         this.nearInteract = it;

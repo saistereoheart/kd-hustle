@@ -134,6 +134,7 @@ test('phase 4: a pasar malam stall, customers, cooking and stock', async ({ brow
   await A.page.screenshot({ path: `${SHOTS}/p4-1-business-buy.png` });
   const w0 = (await kh(A.page, (k) => k.wallet())).sen;
   await A.page.click('[data-action=stall-buy-1]');
+  await A.page.click('[data-action=spot-random]'); // the spot picker: any free spot
   await expect.poll(async () => (await kh(A.page, (k) => k.stall()))?.tier).toBe(1);
   expect((await kh(A.page, (k) => k.wallet())).sen).toBeLessThan(w0);
   await A.page.waitForTimeout(400);

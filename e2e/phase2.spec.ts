@@ -41,7 +41,7 @@ async function player(browser: Browser, name: string, mobile: boolean, errors: s
 }
 
 test('phase 2: crates, cosmetics, pawn shop and jobs', async ({ browser }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000); // slow in headless Chrome's software WebGL (the car wash script alone can take 2+ min)
   const errors: string[] = [];
   const tag = Date.now().toString(36).slice(-5);
   const A = await player(browser, `rich_${tag}`, false, errors);

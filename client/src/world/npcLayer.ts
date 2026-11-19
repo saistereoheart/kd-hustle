@@ -81,6 +81,12 @@ export class NpcLayer {
     return best;
   }
 
+  /** How far (tiles) an NPC is from a point. */
+  distance(id: number, px: number, py: number): number {
+    const n = this.npcs.find((x) => x.route.id === id);
+    return n ? Math.hypot(n.avatar.x - px, n.avatar.y - py) / this.app.map.tileSize : Infinity;
+  }
+
   say(id: number, text: string) {
     this.npcs.find((n) => n.route.id === id)?.avatar.say(text, 5000);
   }
