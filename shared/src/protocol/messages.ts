@@ -18,6 +18,22 @@ import type { MarketListing, MarketSale } from '../market/market';
 import type { RebirthView } from '../rebirth/rebirth';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
 
+/** 🐞 In-game reports. */
+export const FEEDBACK_KINDS = ['bug', 'idea', 'feedback'] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+export const FEEDBACK_MIN_CHARS = 5;
+export const FEEDBACK_MAX_CHARS = 1500;
+export interface FeedbackReport {
+  id: number;
+  username: string;
+  kind: FeedbackKind;
+  text: string;
+  /** JSON-friendly context: where they were, level, screen, device, recent errors. */
+  context: Record<string, unknown>;
+  at: number;
+  done: boolean;
+}
+
 export const C2S = {
   characterSave: z.object({ appearance: z.unknown() }),
   move: z.object({
@@ -28,6 +44,18 @@ export const C2S = {
     seq: z.number().int().nonnegative(),
   }),
   chatSend: z.object({ text: z.string().min(1).max(500) }),
+  feedbackSend: z.object({
+    kind: z.enum(FEEDBACK_KINDS),
+    text: z.string().trim().min(FEEDBACK_MIN_CHARS).max(FEEDBACK_MAX_CHARS),
+    /** What the client saw (the server adds who, where and the player's progress itself). */
+    client: z.object({
+      district: z.string().max(80).optional(),
+      screen: z.string().max(40).optional(),
+      device: z.string().max(300).optional(),
+      errors: z.array(z.string().max(400)).max(5).optional(),
+    }).default({}),
+  }),
+  feedbackDone: z.object({ id: z.number().int().positive(), done: z.boolean() }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
   // --- businesses and the shop (Phase 6) ---
   bizBuy: z.object({ type: z.string().min(1).max(32), n: z.number().int().min(1).max(1000) }),
@@ -469,6 +497,10 @@ export interface RerollPity {
   grade: number;
   variant: number;
 }
+export interface FeedbackInbox {
+  reports: FeedbackReport[];
+  open: number;
+}
 export interface LedgerRow {
   reason: string;
   inSen: number;
@@ -596,6 +628,12 @@ export interface ClientToServerEvents {
   'net:ping': (ack: Ack<SimpleResult>) => void;
   /** 💰 Money in/out per reason over the last hour and the last 24 hours. */
   'money:ledger': (ack: Ack<Result<{ hour: LedgerRow[]; day: LedgerRow[] }>>) => void;
+  /** 🐞 Send a bug report / suggestion / feedback (stored for the host to read). */
+  'feedback:send': (msg: { kind: FeedbackKind; text: string; client?: { district?: string; screen?: string; device?: string; errors?: string[] } }, ack: Ack<Result<{ id: number }>>) => void;
+  /** Admin: the latest reports. */
+  'feedback:list': (ack: Ack<Result<FeedbackInbox>>) => void;
+  /** Admin: mark a report done (or open again). */
+  'feedback:done': (msg: { id: number; done: boolean }, ack: Ack<SimpleResult>) => void;
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
   'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
   /** Start a new life (you type REBIRTH to confirm). */
@@ -678,6 +716,8 @@ export interface ServerToClientEvents {
   event: (p: { event: ActiveEvent | null }) => void;
   /** Your rebirth state (count, cash multiplier). */
   'rebirth:self': (p: { view: RebirthView }) => void;
+  /** Admins: a new 🐞 report arrived (`open` = unread reports). */
+  'feedback:new': (p: { open: number }) => void;
   /** Pasar Online listings changed. */
   market: (p: { listings: MarketListing[] }) => void;
   /** Someone challenged you to a coinflip. */

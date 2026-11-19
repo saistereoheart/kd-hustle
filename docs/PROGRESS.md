@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 297 unit tests |
+| `npm test` (Vitest) | ✅ 300 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -55,6 +55,19 @@ Compared with the spec's content checklist (§19):
 - **Polish pass:** sound, juice, mobile performance (texture atlases), a final bug sweep. Tell me what bothers you most.
 
 ---
+
+## 🐞 In-game bug reports (2026-11-19)
+
+- A big glowing red **Report · bug / idea** button on the right edge of the HUD (smaller on phones, placed clear of
+  the minimap, the E button and the map credit; it hides while the emote wheel is open).
+- It opens a short form: 🐞 Bug / 💡 Suggestion / 💬 Feedback, a text box (5–1,500 characters), Send. An unsent note is
+  kept if you close the window.
+- Stored in the new `feedback` table (migration 14). The server records who sent it, the scene, tile, level, stage and
+  wallet from its own state. The client adds the district, screen size, device and, for bugs, the last 5 script errors.
+- Spam guard: 3 reports a minute, 40 a day per player.
+- **Reading them:** admins get an 📥 Inbox tab in the same window (unread count on the button, a toast when one
+  arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
+  `npm run admin -- feedback all`.
 
 ## Phase 8d: kopitiam shoplots, cashiers, the forge (2026-11-19)
 

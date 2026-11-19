@@ -1070,3 +1070,51 @@ body.touch .radio-pill { bottom: calc(182px + var(--safe-b)); left: calc(70px + 
 .pity-bar { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: visible; }
 .pity-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ffd43b, #ff6b6b); }
 .pity-soft { position: absolute; top: -3px; width: 2px; height: 14px; background: #ffd43b; }
+
+/* ---- 🐞 report a bug / idea: a big glowing button on the right edge ---- */
+.feedback-btn {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 3;
+  display: flex; align-items: center; gap: 10px; padding: 12px 18px 12px 14px; min-height: 68px;
+  border: 3px solid #fff; border-right: 0; border-radius: 18px 0 0 18px;
+  background: linear-gradient(135deg, #ff6b6b, #f03e3e 45%, #d6336c);
+  color: #fff; cursor: pointer; touch-action: manipulation; text-align: left;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.35), 0 0 22px rgba(240, 62, 62, 0.7), 0 8px 18px rgba(0,0,0,0.45);
+  animation: feedback-glow 2s ease-in-out infinite; transition: padding-right 0.15s;
+}
+.feedback-btn:hover { padding-right: 22px; }
+.feedback-btn:active { filter: brightness(0.92); }
+.feedback-btn-icon { font-size: 36px; line-height: 1; display: inline-block; animation: feedback-wiggle 3.2s ease-in-out infinite; }
+.feedback-btn-text { display: flex; flex-direction: column; line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
+.feedback-btn-text b { font-size: 20px; font-weight: 900; letter-spacing: 0.02em; }
+.feedback-btn-text small { font-size: 13px; font-weight: 800; opacity: 0.95; }
+.feedback-btn-badge { position: absolute; top: -9px; left: -9px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; background: #ffd43b; color: #1b1300; font: 900 13px/24px system-ui, sans-serif; text-align: center; border: 2px solid #fff; }
+@keyframes feedback-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.3), 0 0 14px rgba(240, 62, 62, 0.55), 0 8px 18px rgba(0,0,0,0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 107, 107, 0.5), 0 0 30px rgba(240, 62, 62, 0.9), 0 8px 18px rgba(0,0,0,0.45); }
+}
+@keyframes feedback-wiggle { 0%, 82%, 100% { transform: rotate(0); } 86% { transform: rotate(-14deg); } 90% { transform: rotate(12deg); } 94% { transform: rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) { .feedback-btn, .feedback-btn-icon { animation: none; } }
+/* Phones: a little smaller, and clear of the minimap (top) and the E button (bottom). */
+body.touch .feedback-btn { min-height: 50px; padding: 7px 10px 7px 9px; gap: 6px; }
+body.touch .feedback-btn-icon { font-size: 24px; }
+body.touch .feedback-btn-text b { font-size: 14px; }
+body.touch .feedback-btn-text small { font-size: 10.5px; }
+body.touch.portrait .feedback-btn { top: 42%; }
+.feedback-panel .feedback-kinds { margin: 10px 0; }
+.feedback-text { width: 100%; box-sizing: border-box; min-height: 130px; resize: vertical; font: inherit; font-size: 15px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: inherit; }
+.feedback-text:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.feedback-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 6px 0 12px; }
+.feedback-inbox-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.feedback-inbox-head b { margin-right: auto; }
+.feedback-card { border: 1px solid var(--line); border-left: 4px solid #ff6b6b; border-radius: 12px; padding: 9px 11px; margin-bottom: 8px; background: rgba(255,255,255,0.04); }
+.feedback-card.kind-idea { border-left-color: #ffd43b; }
+.feedback-card.kind-feedback { border-left-color: #4dabf7; }
+.feedback-card.done { opacity: 0.55; }
+.feedback-card-head { display: flex; align-items: center; gap: 8px; }
+.feedback-card-head .muted { margin-right: auto; }
+.feedback-card-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; font-size: 14px; }
+.feedback-err { font-family: ui-monospace, monospace; font-size: 11px; color: #ffa8a8; overflow-wrap: anywhere; margin-top: 3px; }
+.feedback-device { overflow-wrap: anywhere; margin-top: 3px; font-size: 10.5px; }
+body.touch:not(.portrait) .feedback-btn { top: 58%; }
+/* Out of the way while the emote wheel (same spot) is open. */
+body:has(.emote-wheel:not(.hidden)) .feedback-btn { opacity: 0; pointer-events: none; }

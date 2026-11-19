@@ -2,7 +2,7 @@
 // the World, validates every message with zod, and broadcasts position snapshots.
 import type { Server, Socket } from 'socket.io';
 import {
-  C2S, DIR_INDEX, atDoor, roomStyleOf, validateAppearance,
+  C2S, DIR_INDEX, FEEDBACK_MAX_CHARS, FEEDBACK_MIN_CHARS, type FeedbackReport, atDoor, roomStyleOf, validateAppearance,
   type ClientToServerEvents, type InitPayload, type ServerToClientEvents, type SnapshotRow,
 } from '@kh/shared';
 import type { AuthedAccount, AuthService } from '../auth/authService';
@@ -15,6 +15,7 @@ import type { SaveManager } from '../save/saveManager';
 import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
+import { FeedbackDesk } from '../systems/feedback/feedback';
 import { EmoteSystem } from '../systems/emotes/emotes';
 import { SkipNightVote } from '../systems/timeskip/timeskip';
 import { attachEconomy } from './economyHandlers';
@@ -53,6 +54,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   /** Players connected right now (not ones in their reconnect grace period). */
   const onlineCount = () => [...world.players.values()].filter((p) => p.hasCharacter && !offline.has(p.id)).length;
   const voteState = () => skip.state(onlineCount(), Date.now());
+  const feedback = new FeedbackDesk(repos, cfg.map.tileSize);
   const systemSay = (text: string) => io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
   const skipNight = () => {
     cfg.time.offsetGameMinutes += skip.skipMinutes(Date.now());
@@ -293,6 +295,31 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       }
       const m = chat.add({ fromId: me.id, fromName: me.name, text });
       io.to(me.scene).emit('chat:msg', m);
+      reply({ ok: true });
+    });
+
+    // --- 🐞 bug reports / suggestions / feedback ------------------------------------------
+    socket.on('feedback:send', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const parsed = C2S.feedbackSend.safeParse(msg);
+      if (!parsed.success) return reply({ ok: false, error: `Write between ${FEEDBACK_MIN_CHARS} and ${FEEDBACK_MAX_CHARS} characters.` });
+      const res = feedback.send(me, parsed.data.kind, parsed.data.text, parsed.data.client);
+      if (!res.ok) return reply(res);
+      log.info(`🐞 ${parsed.data.kind} #${res.id} from ${me.name}: ${parsed.data.text.slice(0, 120).replace(/\s+/g, ' ')}`);
+      reply({ ok: true, id: res.id });
+      // Let online admins know there's something new to read.
+      for (const a of world.players.values()) if (a.isAdmin && a.id !== me.id) io.to(a.socketId).emit('feedback:new', { open: repos.feedback.countOpen() });
+    });
+    socket.on('feedback:list', (ack) => {
+      if (typeof ack !== 'function') return;
+      if (!me.isAdmin) return ack({ ok: false, error: 'Only the host can read reports.' });
+      ack({ ok: true, reports: repos.feedback.list(150) as FeedbackReport[], open: repos.feedback.countOpen() });
+    });
+    socket.on('feedback:done', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const parsed = C2S.feedbackDone.safeParse(msg);
+      if (!parsed.success || !me.isAdmin) return reply({ ok: false, error: 'Bad request' });
+      if (!repos.feedback.setDone(parsed.data.id, parsed.data.done)) return reply({ ok: false, error: 'No such report.' });
       reply({ ok: true });
     });
 

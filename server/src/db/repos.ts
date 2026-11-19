@@ -75,8 +75,23 @@ function parseJson<T>(s: string | null | undefined, fallback: T): T {
   }
 }
 
+export interface FeedbackRow {
+  id: number;
+  username: string;
+  kind: string;
+  text: string;
+  context: Record<string, unknown>;
+  at: number;
+  done: boolean;
+}
+
 export function createRepos(db: DB) {
   const s = {
+    feedbackInsert: db.prepare('INSERT INTO feedback (account_id, username, kind, text, context_json, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+    feedbackList: db.prepare('SELECT id, username, kind, text, context_json, created_at, done FROM feedback ORDER BY id DESC LIMIT ?'),
+    feedbackOpen: db.prepare('SELECT COUNT(*) AS n FROM feedback WHERE done = 0'),
+    feedbackSince: db.prepare('SELECT COUNT(*) AS n FROM feedback WHERE account_id = ? AND created_at >= ?'),
+    feedbackDone: db.prepare('UPDATE feedback SET done = ? WHERE id = ?'),
     countAccounts: db.prepare('SELECT COUNT(*) AS n FROM accounts'),
     insertAccount: db.prepare('INSERT INTO accounts (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)'),
     accountByName: db.prepare('SELECT * FROM accounts WHERE username = ?'),
@@ -281,6 +296,24 @@ export function createRepos(db: DB) {
       log: (accountId: number, crateId: string, itemId: string, tier: string, variant: string, serial: number | null) =>
         s.rollInsert.run(accountId, crateId, itemId, tier, variant, serial, Date.now()),
       countItem: (itemId: string) => (s.rollCountItem.get(itemId) as { n: number }).n,
+    },
+    feedback: {
+      add: (accountId: number, username: string, kind: string, text: string, context: Record<string, unknown>, at = Date.now()) =>
+        Number(s.feedbackInsert.run(accountId, username, kind, text, JSON.stringify(context), at).lastInsertRowid),
+      /** Newest first. */
+      list: (limit = 100): FeedbackRow[] =>
+        (s.feedbackList.all(limit) as Array<{ id: number; username: string; kind: string; text: string; context_json: string; created_at: number; done: number }>).map((r) => {
+          let context: Record<string, unknown> = {};
+          try {
+            context = JSON.parse(r.context_json) as Record<string, unknown>;
+          } catch {
+            /* keep empty */
+          }
+          return { id: r.id, username: r.username, kind: r.kind, text: r.text, context, at: r.created_at, done: !!r.done };
+        }),
+      countOpen: () => (s.feedbackOpen.get() as { n: number }).n,
+      countSince: (accountId: number, since: number) => (s.feedbackSince.get(accountId, since) as { n: number }).n,
+      setDone: (id: number, done: boolean) => s.feedbackDone.run(done ? 1 : 0, id).changes > 0,
     },
     announcements: {
       add: (text: string, tier: string) => s.announceInsert.run(text, tier, Date.now()),

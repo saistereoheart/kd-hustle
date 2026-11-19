@@ -84,7 +84,7 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | `npm run e2e` | Browser smoke test with two players (Playwright, uses a throwaway DB). First time: `npx playwright install chromium` |
 | `npm run backup` | Copy the DB to `server/backups/` with a timestamp |
 | `npm run seed` | Create test accounts `tester1`–`tester4` (password `test123`) |
-| `npm run admin -- list` | List accounts and admins. Also `promote <user>`, `demote <user>`, `password <user> [new]` (reset a forgotten password) |
+| `npm run admin -- list` | List accounts and admins. Also `promote <user>`, `demote <user>`, `password <user> [new]` (reset a forgotten password), `feedback [all]` (read the 🐞 reports players sent with the in-game Report button) |
 | `npm run sim` | Economy balance simulator: plays N hours with the real config and server systems, prints time to each wealth stage vs the pacing targets, the Hustle Path timeline and income/sinks (`-- --hours=30 --runs=10 --session=2 --budget=0.2`) |
 | `npm run fetch-osm` / `npm run import-map` | Refresh map data from OpenStreetMap (see `shared/map/README.md`) |
 | `npm run map-preview` | PNG of the collision grid, for map editing |

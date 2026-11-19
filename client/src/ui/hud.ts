@@ -1,6 +1,7 @@
 import type { Joystick } from '../input/joystick';
 import { formatMoney, formatMoneyExact, levelInfo, stageDef } from '@kh/shared';
 import type { App } from '../app';
+import { openFeedback } from './feedback';
 import { openMoneyPanel } from './moneyPanel';
 import { el, toast, uiRoot } from './dom';
 
@@ -42,6 +43,8 @@ export class Hud {
   /** The top-left pill (ProgressHud sits just below it). */
   readonly pill: HTMLElement;
   private offStore: () => void;
+  private feedbackBadge: HTMLElement;
+  private offFeedback: () => void = () => {};
 
   constructor(opts: HudOptions, private app: App) {
     const btn = (icon: string, label: string, action: string, fn: () => void) => {
@@ -90,7 +93,21 @@ export class Hud {
       ),
     );
 
-    this.root = el('div', { class: 'hud' }, top, this.banner, this.prompt, this.saved, el('div', { class: 'osm-credit' }, opts.attribution));
+    // 🐞 The big report button (right edge, middle). Admins see a count of unread reports on it.
+    this.feedbackBadge = el('span', { class: 'feedback-btn-badge hidden' });
+    const feedbackBtn = el(
+      'button',
+      { class: 'feedback-btn', type: 'button', 'data-action': 'feedback', 'aria-label': 'Report a bug, suggestion or feedback', title: 'Report a bug, suggestion or feedback' },
+      el('span', { class: 'feedback-btn-icon' }, '🐞'),
+      el('span', { class: 'feedback-btn-text' }, el('b', {}, 'Report'), el('small', {}, 'bug / idea')),
+      this.feedbackBadge,
+    );
+    feedbackBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openFeedback(app, { district: this.district.textContent ?? undefined, inbox: app.store.isAdmin && !this.feedbackBadge.classList.contains('hidden') });
+    });
+
+    this.root = el('div', { class: 'hud' }, top, this.banner, this.prompt, this.saved, feedbackBtn, el('div', { class: 'osm-credit' }, opts.attribution));
     if (opts.joystick) {
       const interact = el('button', { class: 'interact-btn hidden', type: 'button', 'aria-label': 'Interact' }, 'E');
       this.interactBtn = interact;
@@ -116,6 +133,24 @@ export class Hud {
     uiRoot().append(this.root);
     this.offStore = app.store.on(() => this.renderProgress());
     this.renderProgress();
+    if (app.store.isAdmin && app.socket) {
+      const sock = app.socket;
+      const onNew = ({ open }: { open: number }) => {
+        this.setFeedbackBadge(open);
+        toast('🐞 New player report: tap the Report button to read it', 'info', 3500);
+      };
+      sock.on('feedback:new', onNew);
+      this.offFeedback = () => sock.off('feedback:new', onNew);
+      sock.timeout(6000).emit('feedback:list', (err, res) => {
+        if (!err && res.ok) this.setFeedbackBadge(res.open);
+      });
+    }
+  }
+
+  /** Admins: unread 🐞 reports on the Report button. */
+  setFeedbackBadge(open: number) {
+    this.feedbackBadge.textContent = open > 99 ? '99+' : String(open);
+    this.feedbackBadge.classList.toggle('hidden', open <= 0);
   }
 
   /** Level badge, XP bar and wealth stage. */
@@ -192,6 +227,7 @@ export class Hud {
 
   destroy() {
     this.offStore();
+    this.offFeedback();
     clearTimeout(this.bannerTimer);
     clearTimeout(this.savedTimer);
     this.root.remove();

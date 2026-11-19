@@ -4,6 +4,8 @@
 //   demote <username>            remove admin
 //   password <username> [new]    reset a password (a random one is generated if you leave it out);
 //                                logs that account out everywhere
+//   feedback [all]               show the 🐞 bug reports / suggestions players sent (open ones,
+//                                or every one with "all"), newest first
 // Works while the server is running (SQLite WAL), but stopping it first is safest.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -67,7 +69,23 @@ switch (cmd) {
     console.log('They have been logged out everywhere; log in again with the new password.');
     break;
   }
+  case 'feedback': {
+    const all = name === 'all';
+    const rows = repos.feedback.list(500).filter((r) => all || !r.done);
+    if (!rows.length) console.log(all ? 'No reports yet.' : 'No open reports. (npm run admin -- feedback all shows done ones too)');
+    const icon: Record<string, string> = { bug: '🐞 Bug', idea: '💡 Idea', feedback: '💬 Feedback' };
+    for (const r of rows.reverse()) {
+      const c = r.context as { scene?: string; tile?: { x: number; y: number }; district?: string; level?: number; screen?: string; device?: string; errors?: string[] };
+      console.log(`
+#${r.id}  ${icon[r.kind] ?? r.kind}  from ${r.username}  ${new Date(r.at).toLocaleString()}${r.done ? '  (done)' : ''}`);
+      console.log(`   ${[c.district, c.scene !== 'town' ? c.scene : '', c.tile ? `tile ${c.tile.x},${c.tile.y}` : '', c.level ? `Lv ${c.level}` : '', c.screen].filter(Boolean).join(' · ')}`);
+      if (c.device) console.log(`   ${c.device}`);
+      console.log(r.text.replace(/^/gm, '   > '));
+      for (const e of c.errors ?? []) console.log(`   ⚠ ${e}`);
+    }
+    break;
+  }
   default:
-    console.log('Usage: npm run admin -- list | promote <user> | demote <user> | password <user> [newPassword]');
+    console.log('Usage: npm run admin -- list | promote <user> | demote <user> | password <user> [newPassword] | feedback [all]');
 }
 db.close();

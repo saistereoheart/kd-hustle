@@ -276,6 +276,25 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX market_sales_item ON market_sales(item_id, at);
     `,
   },
+  {
+    id: 14,
+    name: 'feedback reports',
+    // In-game 🐞 bug reports / suggestions / feedback, for the host to read (admin inbox or
+    // `npm run admin -- feedback`).
+    sql: `
+      CREATE TABLE feedback (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id   INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        username     TEXT NOT NULL,
+        kind         TEXT NOT NULL,
+        text         TEXT NOT NULL,
+        context_json TEXT NOT NULL DEFAULT '{}',
+        created_at   INTEGER NOT NULL,
+        done         INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX feedback_created ON feedback(created_at);
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */
