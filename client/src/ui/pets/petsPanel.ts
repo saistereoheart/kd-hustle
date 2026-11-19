@@ -9,6 +9,7 @@ import { el, toast } from '../dom';
 import { openRerollWindow } from '../forge';
 import { itemCard, openPanel } from '../panel';
 import { sfx } from '../sound';
+import { byRarity } from '../itemSort';
 
 const STAT_INFO: Record<PetStat, { icon: string; name: string }> = {
   hp: { icon: '❤️', name: 'HP' },
@@ -100,7 +101,8 @@ export function openPetsPanel(app: App) {
     const def = app.items.get(p.itemId);
     if (!it || !def) return null;
     const inTeam = v.team.indexOf(p.iid);
-    const c = itemCard(rar, def, it.variant, { caption: `Lv ${p.level}${inTeam >= 0 ? ` · #${inTeam + 1}` : ''}`, grade: it.grade, gradeColor: gradeDef(app.cfg.grades, it.grade).color });
+    const c = itemCard(rar, def, it.variant, { caption: `Lv ${p.level}${inTeam >= 0 ? ` · #${inTeam + 1}` : ''}${p.gear !== null ? ' · 🎽' : ''}`, grade: it.grade, gradeColor: gradeDef(app.cfg.grades, it.grade).color });
+    if (p.gear !== null) c.title = `Wearing ${gearName(app, p.gear)}`;
     c.classList.add('pet-card');
     if (inTeam >= 0) c.classList.add('in-team');
     c.dataset.iid = String(p.iid);
@@ -130,13 +132,18 @@ export function openPetsPanel(app: App) {
         send(app, 'pets:team', { iids: order }, (nv) => paint(nv));
       });
       const slot = el('div', { class: 'pet-slot' }, el('b', { class: 'pet-slot-n' }, `${i + 1}`), petPortrait(app, p.itemId, 48),
-        el('div', { class: 'grow' }, el('b', {}, def?.name ?? ''), el('div', { class: 'muted small' }, `Lv ${p.level} · ❤️${p.stats.hp} ⚔️${p.stats.atk} 🛡️${p.stats.def} 💨${p.stats.spd}`)), up);
+        el('div', { class: 'grow' }, el('b', {}, def?.name ?? ''), el('div', { class: 'muted small' }, `Lv ${p.level} · ❤️${p.stats.hp} ⚔️${p.stats.atk} 🛡️${p.stats.def} 💨${p.stats.spd}`), el('div', { class: 'muted small' }, p.gear !== null ? `🎽 ${gearName(app, p.gear)}` : '🎽 no gear')), up);
       slot.addEventListener('click', () => openPetPage(app, p.iid));
       return slot;
     });
     const go = el('button', { class: 'btn', type: 'button', 'data-action': 'pets-to-dungeon' }, '⚔️ To Gua Gelap');
     go.addEventListener('click', () => void import('../dungeon/dungeon').then((m) => m.openDungeon(app)));
-    const sorted = [...v.pets].sort((a, b) => (v.team.includes(b.iid) ? 1 : 0) - (v.team.includes(a.iid) ? 1 : 0) || b.level - a.level);
+    // Rarest first (then tier, variant, level), like the bag.
+    const look = (p: PetCard) => {
+      const inv = app.store.inventory.find((i) => i.iid === p.iid);
+      return { ...p, grade: inv?.grade, variant: inv?.variant };
+    };
+    const sorted = v.pets.map(look).sort(byRarity(app, (a, b) => b.level - a.level));
     panel.body.replaceChildren(
       el('h5', { class: 'worn-section' }, `⚔️ Battle team (${team.length}/${v.teamSize}) · the first one fights first`),
       el('div', { class: 'pet-team' }, ...slots),
@@ -157,7 +164,6 @@ function openPetPage(app: App, iid: number) {
   const it0 = app.store.inventory.find((i) => i.iid === iid);
   const def0 = it0 && app.items.get(it0.itemId);
   const panel = openPanel(`🐾 ${def0?.name ?? 'Teman'}`, { wide: true, testId: 'pet-page' });
-  const gearBox = panel.side('🎽 Pet gear');
   const pc = app.cfg.pets;
   const g = app.cfg.grades;
 
@@ -167,7 +173,6 @@ function openPetPage(app: App, iid: number) {
     const def = it && app.items.get(it.itemId);
     if (!p || !it || !def) {
       panel.body.replaceChildren(el('p', { class: 'muted' }, 'This Teman is gone.'));
-      gearBox.replaceChildren();
       return;
     }
     const sp = pc.species[def.id];
@@ -232,44 +237,124 @@ function openPetPage(app: App, iid: number) {
         ),
       ),
       el('div', { class: 'dungeon-controls' }, train, team, inTeam ? lead : null),
+      ...gearSection(app, v, p, (nv) => paint(nv)),
       el('h5', { class: 'worn-section' }, '📈 Stats & upgrades'),
       ...statRows,
       el('p', { class: 'muted small' }, 'Stats = species × rarity × level × upgrades, a little more for a higher tier or a variant, plus the gear.'),
       el('h5', { class: 'worn-section' }, '🎲 Forge'),
       el('div', { class: 'dungeon-controls' }, ...rerolls),
     );
-
-    // Gear: what it wears, and the pieces you have (a piece on another pet moves over).
-    const owner = new Map<number, number>();
-    for (const x of v.pets) if (x.gear !== null) owner.set(x.gear, x.iid);
-    const pieces = app.store.inventory.filter((i) => app.items.get(i.itemId)?.type === 'petgear');
-    const off = el('button', { class: 'btn small', type: 'button', 'data-action': 'pet-gear-off', disabled: p.gear === null }, 'Take off');
-    off.addEventListener('click', () => send(app, 'pets:gear', { iid, gear: null }, (nv) => paint(nv)));
-    gearBox.replaceChildren(
-      el('p', { class: 'muted small' }, 'One piece per Teman. Rarer, higher-tier gear boosts more. Pet gear comes from the 🥚 egg.'),
-      ...(pieces.length
-        ? pieces.map((gi) => {
-            const gd = app.items.get(gi.itemId)!;
-            const boosts = pc.gear[gd.id] ?? {};
-            const on = p.gear === gi.iid;
-            const other = owner.get(gi.iid);
-            const otherName = other !== undefined && other !== iid ? app.items.get(app.store.inventory.find((i) => i.iid === other)?.itemId ?? '')?.name : null;
-            const c = itemCard(app.cfg.rarities, gd, gi.variant, {
-              caption: Object.entries(boosts).map(([k, n]) => `${STAT_INFO[k as PetStat].icon}+${Math.round((n ?? 0) * 100)}%`).join(' '),
-              grade: gi.grade, gradeColor: gradeDef(g, gi.grade).color, size: 56,
-            });
-            c.classList.add('pet-gear-card');
-            if (on) c.classList.add('selected');
-            c.title = on ? 'Worn by this Teman' : otherName ? `On ${otherName}: tap to move it here` : 'Tap to put it on';
-            c.addEventListener('click', () => !on && send(app, 'pets:gear', { iid, gear: gi.iid }, (nv) => paint(nv)));
-            return el('div', { class: 'pet-gear-row' }, c, on ? el('span', { class: 'pill' }, '✓ on') : otherName ? el('span', { class: 'muted small' }, `on ${otherName}`) : null);
-          })
-        : [el('p', { class: 'muted' }, 'No pet gear yet.')]),
-      off,
-    );
   }
 
   panel.onResume = () => fetchView(app, paint); // back from a reroll
+  if (cache) paint(cache);
+  fetchView(app, paint);
+}
+
+// ------------------------------------------------------------------ 🎽 pet gear
+function gearName(app: App, gearIid: number): string {
+  const gi = app.store.inventory.find((i) => i.iid === gearIid);
+  return (gi && app.items.get(gi.itemId)?.name) ?? 'gear';
+}
+
+function boostText(app: App, itemId: string): string {
+  const boosts = app.cfg.pets.gear[itemId] ?? {};
+  return Object.entries(boosts).map(([k, n]) => `${STAT_INFO[k as PetStat].icon}+${Math.round((n ?? 0) * 100)}%`).join(' ');
+}
+
+/** On a Teman's page: what it wears now (with Take off) and every other piece you own, to tap on. */
+function gearSection(app: App, v: PetsView, p: PetCard, repaint: (v: PetsView) => void): HTMLElement[] {
+  const g = app.cfg.grades;
+  const owner = new Map<number, number>();
+  for (const x of v.pets) if (x.gear !== null) owner.set(x.gear, x.iid);
+  const worn = p.gear !== null ? app.store.inventory.find((i) => i.iid === p.gear) : undefined;
+  const wornDef = worn && app.items.get(worn.itemId);
+  const off = el('button', { class: 'btn small', type: 'button', 'data-action': 'pet-gear-off' }, 'Take off');
+  off.addEventListener('click', () =>
+    send(app, 'pets:gear', { iid: p.iid, gear: null }, (nv) => {
+      sfx.click();
+      repaint(nv);
+    }),
+  );
+  const now =
+    worn && wornDef
+      ? el(
+          'div',
+          { class: 'pet-gear-now' },
+          itemCard(app.cfg.rarities, wornDef, worn.variant, { grade: worn.grade, gradeColor: gradeDef(g, worn.grade).color, size: 56 }),
+          el('div', { class: 'grow' }, el('b', {}, `Wearing: ${wornDef.name}`), el('div', { class: 'small' }, boostText(app, wornDef.id))),
+          off,
+        )
+      : el('div', { class: 'pet-gear-now empty' }, el('span', { class: 'muted' }, 'Wearing: nothing. Tap a piece below to put it on.'));
+  const pieces = app.store.inventory.filter((i) => app.items.get(i.itemId)?.type === 'petgear' && i.iid !== p.gear).sort(byRarity(app));
+  const cards = pieces.map((gi) => {
+    const gd = app.items.get(gi.itemId)!;
+    const other = owner.get(gi.iid);
+    const otherName = other !== undefined ? app.items.get(app.store.inventory.find((i) => i.iid === other)?.itemId ?? '')?.name : null;
+    const c = itemCard(app.cfg.rarities, gd, gi.variant, {
+      caption: otherName ? `on ${otherName}` : boostText(app, gd.id),
+      grade: gi.grade,
+      gradeColor: gradeDef(g, gi.grade).color,
+      size: 64,
+    });
+    c.classList.add('pet-gear-card');
+    if (otherName) c.classList.add('on-other');
+    c.title = `${gd.name}: ${boostText(app, gd.id)}${otherName ? ` (on ${otherName}: tap to move it here)` : ' (tap to put it on)'}`;
+    c.addEventListener('click', () =>
+      send(app, 'pets:gear', { iid: p.iid, gear: gi.iid }, (nv) => {
+        sfx.click();
+        toast(`🎽 ${gd.name} on!`, 'good');
+        repaint(nv);
+      }),
+    );
+    return c;
+  });
+  return [
+    el('h5', { class: 'worn-section' }, '🎽 Gear (one piece per Teman)'),
+    now,
+    pieces.length
+      ? el('div', { class: 'item-grid small pet-gear-grid' }, ...cards)
+      : el('p', { class: 'muted small' }, worn ? 'No other pet gear. More comes from the 🥚 Telur Teman egg.' : 'No pet gear yet. It comes from the 🥚 Telur Teman egg.'),
+  ];
+}
+
+/** From the bag: pick which Teman wears this piece of gear. */
+export function openGearPicker(app: App, gearIid: number) {
+  const gi = app.store.inventory.find((i) => i.iid === gearIid);
+  const gd = gi && app.items.get(gi.itemId);
+  if (!gi || !gd) return;
+  const panel = openPanel(`🎽 ${gd.name}`, { testId: 'pet-gear-picker' });
+  const paint = (v: PetsView) => {
+    const wearer = v.pets.find((x) => x.gear === gearIid);
+    const look = (x: PetCard) => {
+      const inv = app.store.inventory.find((i) => i.iid === x.iid);
+      return { ...x, grade: inv?.grade, variant: inv?.variant };
+    };
+    const rows = v.pets
+      .map(look)
+      .sort(byRarity(app, (a, b) => b.level - a.level))
+      .map((x) => {
+        const def = app.items.get(x.itemId);
+        const on = x.iid === wearer?.iid;
+        const b = el('button', { class: `btn${on ? '' : ' primary'}`, type: 'button', disabled: on }, on ? '✓ Wearing it' : 'Put it on');
+        b.addEventListener('click', () =>
+          send(app, 'pets:gear', { iid: x.iid, gear: gearIid }, (nv) => {
+            sfx.click();
+            toast(`🎽 ${def?.name ?? 'Your Teman'} now wears ${gd.name}.`, 'good');
+            paint(nv);
+          }),
+        );
+        const note = on ? 'wearing this' : x.gear !== null ? `🎽 ${gearName(app, x.gear)} (swaps out)` : 'no gear';
+        return el('div', { class: 'pet-slot' }, petPortrait(app, x.itemId, 44), el('div', { class: 'grow' }, el('b', {}, def?.name ?? ''), el('div', { class: 'muted small' }, `Lv ${x.level} · ${note}`)), b);
+      });
+    const off = el('button', { class: 'btn small', type: 'button' }, 'Take it off');
+    off.addEventListener('click', () => wearer && send(app, 'pets:gear', { iid: wearer.iid, gear: null }, (nv) => paint(nv)));
+    panel.body.replaceChildren(
+      el('p', {}, `${boostText(app, gd.id)} · ${wearer ? `now on ${app.items.get(wearer.itemId)?.name ?? 'a Teman'}` : 'not on any Teman'}`),
+      ...(wearer ? [el('div', { class: 'row-end' }, off)] : []),
+      ...(rows.length ? rows : [el('p', { class: 'empty' }, 'No Teman yet. Get one in 📱 Teman.')]),
+    );
+  };
   if (cache) paint(cache);
   fetchView(app, paint);
 }

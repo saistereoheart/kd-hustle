@@ -7,6 +7,7 @@ import {
 import type { App } from '../../app';
 import { el, toast } from '../dom';
 import { sfx } from '../sound';
+import { byRarity } from '../itemSort';
 import { hoursText, stars } from '../stall/stallPanel';
 import { stockList } from '../stall/stock';
 import { openSpotPicker } from '../stall/spotPicker';
@@ -218,7 +219,10 @@ function roleSection(app: App, role: 'chef' | 'cashier'): HTMLElement[] {
     const d = app.items.get(r.itemId)!;
     const s = stats(d.id, d.rarity, r.grade, r.variant, boost);
     return { r, d, total: Object.values(s).reduce((a, b) => a + b, 0) };
-  }).sort((a, b) => b.total - a.total);
+  });
+  // Rarest first (then tier, variant), the strongest first among equals.
+  const order = byRarity<{ itemId: string; grade?: string; variant: string; total: number }>(app, (x, y) => y.total - x.total);
+  rows.sort((a, b) => order({ ...a.r, total: a.total }, { ...b.r, total: b.total }));
   for (const { r, d } of rows) {
     const b = el('button', { class: 'btn primary', type: 'button', 'data-action': `${role}-on-${r.iid}` }, role === 'chef' ? 'Make head chef' : 'Make cashier');
     b.addEventListener('click', () => app.socket?.timeout(5000).emit('inv:equip', { iid: r.iid }, (err, res) => {

@@ -1261,9 +1261,10 @@ body:has(.title-screen) .panel-backdrop { z-index: 55; }
 .pet-pips { display: flex; gap: 3px; flex-wrap: wrap; }
 .pet-pips i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.15); }
 .pet-pips i.on { background: #69db7c; }
-.pet-gear-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pet-gear-now { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(64, 192, 87, 0.1); border: 1px solid rgba(64, 192, 87, 0.45); margin-bottom: 8px; }
+.pet-gear-now.empty { background: rgba(255,255,255,0.04); border-style: dashed; border-color: var(--line); }
 .pet-gear-card { cursor: pointer; }
-.pet-gear-card.selected { outline: 2px solid #40c057; }
+.pet-gear-card.on-other { opacity: 0.75; }
 .row-end { display: flex; justify-content: flex-end; margin: 6px 0; }
 @media (max-width: 520px) {
   .pet-stat { grid-template-columns: 90px 40px 1fr; }

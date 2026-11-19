@@ -3,6 +3,7 @@ import { formatMoney, isCollectible, pawnPriceSen, scrapShards, gradeDef, gradeM
 import type { App } from '../app';
 import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
+import { byRarity } from './itemSort';
 import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
 
@@ -44,7 +45,7 @@ export function openPawnPanel(app: App) {
     const stacks = app.store
       .stacks()
       .filter((s) => s.serial === null)
-      .sort((a, b) => tierOf(rar, app.items.get(a.itemId)!.rarity).index - tierOf(rar, app.items.get(b.itemId)!.rarity).index);
+      .sort(byRarity(app));
     if (!stacks.length) {
       content.replaceChildren(el('p', { class: 'empty' }, 'Nothing to pawn. (Limited items with serial numbers can\'t be pawned.)'));
       return;

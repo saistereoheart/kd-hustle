@@ -6,8 +6,9 @@ import type { App } from '../app';
 import { el, toast, keepUiState } from './dom';
 import { closePanel, iconUrl, itemCard, openPanel, tabs, tierOf } from './panel';
 import { groupedItems } from './itemGroups';
+import { byRarity as rarityOrder } from './itemSort';
 import { openMergeWindow, openRerollWindow } from './forge';
-import { openPetsPanel } from './pets/petsPanel';
+import { openGearPicker, openPetsPanel } from './pets/petsPanel';
 import { sfx } from './sound';
 
 export function openInventoryPanel(app: App, startTab = 0) {
@@ -149,8 +150,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
     const placed = placedIn();
     /** Worn or placed in a home: kept out of the grid. */
     const aside = (iid: number) => equippedIids.has(iid) || placed.has(iid);
-    const byRarity = (a: { itemId: string }, b: { itemId: string }) =>
-      tierOf(rar, app.items.get(b.itemId)!.rarity).index - tierOf(rar, app.items.get(a.itemId)!.rarity).index || a.itemId.localeCompare(b.itemId);
+    const byRarity = rarityOrder<{ itemId: string; grade: string; variant: string }>(app);
     // The grid: only what you're NOT wearing (worn copies are in the side box).
     const stacks = st
       .stacks()
@@ -175,8 +175,8 @@ export function openInventoryPanel(app: App, startTab = 0) {
         actions.append(b);
       }
       if (def.type === 'pet' || def.type === 'petgear') {
-        const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'open-pets' }, def.type === 'pet' ? '🐾 Open in Teman (team, training, gear)' : '🐾 Put it on a Teman');
-        b.addEventListener('click', () => openPetsPanel(app));
+        const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'open-pets' }, def.type === 'pet' ? '🐾 Open in Teman (team, training, gear)' : '🎽 Put it on a Teman');
+        b.addEventListener('click', () => (def.type === 'pet' ? openPetsPanel(app) : openGearPicker(app, s.items[0].iid)));
         actions.append(b);
       }
       if (slot && !home) {
