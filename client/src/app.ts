@@ -28,6 +28,7 @@ import { Keyboard } from './input/keyboard';
 import { checkSession, clearToken, fetchPublicConfig, loadToken } from './net/api';
 import { connectSocket, type GameSocket } from './net/socket';
 import { showAuthScreen } from './ui/authScreen';
+import { loadPrefs } from './ui/settings';
 import { Chat } from './ui/chat';
 import { showCreator } from './ui/creator';
 import { el, isTouchDevice, messageOverlay, toast, uiRoot } from './ui/dom';
@@ -35,7 +36,10 @@ import { el, isTouchDevice, messageOverlay, toast, uiRoot } from './ui/dom';
 /** Device pixel ratio to render at: up to 3× (phones), but keep the canvas under ~8.3 MP
  *  (about 4K) so big high-DPI monitors don't tank the frame rate. */
 function renderDpr(): number {
-  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  // Phones: 2× looks the same as 3× at arm's length and fills a third fewer pixels.
+  const q = loadPrefs().quality;
+  const cap = q === 'saver' ? 1.25 : q === 'high' ? 3 : isTouchDevice() ? 2 : 3;
+  const dpr = Math.min(cap, window.devicePixelRatio || 1);
   const budget = Math.sqrt(8_300_000 / Math.max(1, innerWidth * innerHeight));
   return Math.max(1, Math.min(dpr, budget));
 }
