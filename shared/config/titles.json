@@ -20,6 +20,8 @@
     {"id": "credit_worthy", "name": "Credit Worthy", "rarity": "rare", "desc": "Pay off 3 Bank Kota loans.", "cond": {"type": "stat", "stat": "loansRepaid", "n": 3}},
     {"id": "survived_ah_long", "name": "Survived Ah Long", "rarity": "epic", "desc": "Pay back an Ah Long loan of RM 10,000 or more.", "cond": {"type": "stat", "stat": "ahlongSurvived", "n": 1}},
     {"id": "bankrupt", "name": "Bankrupt", "rarity": "rare", "desc": "Lose it all to the bank. It happens to the best of us.", "cond": {"type": "stat", "stat": "bankrupt", "n": 1}, "secret": true},
+    {"id": "pemburu_hantu", "name": "Pemburu Hantu", "rarity": "rare", "desc": "Beat 3 bosses in Gua Gelap.", "cond": {"type": "stat", "stat": "dungeonBosses", "n": 3}},
+    {"id": "penjelajah_gua", "name": "Penjelajah Gua", "rarity": "epic", "desc": "Reach floor 10 of Gua Gelap.", "cond": {"type": "stat", "stat": "dungeonBest", "n": 10}},
     {"id": "high_roller", "name": "High Roller", "rarity": "rare", "desc": "Bet 100 times at the Lucky Strand Casino.", "cond": {"type": "stat", "stat": "casinoBets", "n": 100}},
     {"id": "jackpot", "name": "Jackpot!", "rarity": "epic", "desc": "Win RM 100,000 or more in one go at the casino.", "cond": {"type": "stat", "stat": "biggestCasinoWin", "n": 10000000}},
     {"id": "coin_master", "name": "Coin Master", "rarity": "rare", "desc": "Win 10 PvP coinflips.", "cond": {"type": "stat", "stat": "coinflipsWon", "n": 10}},

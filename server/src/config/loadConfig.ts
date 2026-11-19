@@ -13,7 +13,7 @@ import {
   type QuestsConfig, type GoalsConfig,
   timeConfigSchema, recipesConfigSchema, stallsConfigSchema, type TimeConfig, type RecipesConfig, type StallsConfig, type RecipeDef,
   interiorsConfigSchema, type InteriorsConfig, guideConfigSchema, type GuideConfig, npcsConfigSchema, type NpcsConfig, furnitureConfigSchema, propertiesConfigSchema, type FurnitureConfig, type PropertiesConfig,
-  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, musicConfigSchema, eventsConfigSchema, type EventsConfig, marketConfigSchema, type MarketConfig, rebirthConfigSchema, type RebirthConfig, type BusinessesConfig, type LoansConfig, type CasinoConfig, type MusicConfig,
+  businessesConfigSchema, loansConfigSchema, casinoConfigSchema, musicConfigSchema, eventsConfigSchema, type EventsConfig, marketConfigSchema, type MarketConfig, rebirthConfigSchema, type RebirthConfig, dungeonConfigSchema, type DungeonConfig, type BusinessesConfig, type LoansConfig, type CasinoConfig, type MusicConfig,
   type CrateDef, type CratesConfig, type EconomyConfig, type ItemDef, type ItemsConfig, type JobsConfig,
   type RaritiesConfig, type VehiclesConfig,
   type AuthConfig, type BuiltMap, type CharacterConfig, type ChatConfig, type MapSource, type MovementConfig,
@@ -58,6 +58,7 @@ export interface ServerConfig {
   events: EventsConfig;
   market: MarketConfig;
   rebirth: RebirthConfig;
+  dungeon: DungeonConfig;
   recipeById: Map<string, RecipeDef>;
   /** The configs progression needs, in one bundle (shared with the client's maths). */
   prog: ProgCfg;
@@ -151,6 +152,7 @@ export function loadConfig(configDir: string, mapDir: string): ServerConfig {
     events: readJson(j('events.json'), eventsConfigSchema),
     market: readJson(j('market.json'), marketConfigSchema),
     rebirth: readJson(j('rebirth.json'), rebirthConfigSchema),
+    dungeon: readJson(j('dungeon.json'), dungeonConfigSchema),
     recipeById,
     prog,
     itemById,
@@ -207,6 +209,7 @@ export function toPublicConfig(cfg: ServerConfig): PublicConfig {
     events: cfg.events,
     market: cfg.market,
     rebirth: cfg.rebirth,
+    dungeon: cfg.dungeon,
   };
 }
 
@@ -220,7 +223,7 @@ export function reloadBalance(cfg: ServerConfig, configDir: string, mapDir: stri
   const fresh = loadConfig(configDir, mapDir);
   const keys = [
     'rarities', 'items', 'crates', 'economy', 'jobs', 'vehicles', 'rides', 'upgrades', 'levels', 'stages', 'titles', 'quests', 'goals',
-    'time', 'recipes', 'stalls', 'interiors', 'guide', 'npcs', 'furniture', 'properties', 'businesses', 'loans', 'casino', 'music', 'events', 'market', 'rebirth',
+    'time', 'recipes', 'stalls', 'interiors', 'guide', 'npcs', 'furniture', 'properties', 'businesses', 'loans', 'casino', 'music', 'events', 'market', 'rebirth', 'dungeon',
   ] as const;
   for (const k of keys) Object.assign(cfg[k] as object, fresh[k]);
   if (cfg.prog.grades && fresh.prog.grades) Object.assign(cfg.prog.grades, fresh.prog.grades);

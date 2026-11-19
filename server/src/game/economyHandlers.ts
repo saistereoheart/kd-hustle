@@ -13,6 +13,7 @@ import type { Repos } from '../db/repos';
 import { log } from '../log';
 import { Economy, GameError } from '../systems/economy/economy';
 import { cryptoRand, Gacha } from '../systems/gacha/gacha';
+import { DungeonSystem } from '../systems/dungeon/dungeon';
 import { InventorySystem } from '../systems/inventory/inventory';
 import { JobSystem } from '../systems/jobs/jobs';
 import { newMoveState } from '../systems/movement/moveValidator';
@@ -220,6 +221,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     flagsOf: (p) => new Set(stalls.get(p.id) ? ['stall'] : []),
   });
   // --- food stalls (Phase 4) ------------------------------------------------------------------
+  const dungeon = new DungeonSystem(cfg, repos, econ, prog, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
     publicChanged: (list) => {
       io.emit('stalls', { stalls: list });
@@ -500,6 +502,12 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     radio.register(socket, me, handle);
     social.register(socket, me, handle);
     rebirth.register(socket, me, handle);
+    // ⚔️ Gua Gelap
+    handle(socket, 'dungeon:view', null, () => ({ view: dungeon.view(me) }));
+    handle(socket, 'dungeon:enter', null, () => ({ view: dungeon.enter(me) }));
+    handle(socket, 'dungeon:turn', C2S.dungeonTurn, ({ nonce, strikeMs, blockMs }) => dungeon.turn(me, nonce, strikeMs, blockMs));
+    handle(socket, 'dungeon:deeper', null, () => ({ view: dungeon.deeper(me) }));
+    handle(socket, 'dungeon:leave', null, () => dungeon.leave(me));
     handle(socket, 'event:view', null, () => ({ event: events.view() }));
     handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
       if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
@@ -943,6 +951,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       radio.leave(p);
       social.leave(p);
       rebirth.unload(p);
+      dungeon.unload(p); // a run in progress pays out
     },
     chatCommand,
     moveRules,

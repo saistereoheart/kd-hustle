@@ -1,0 +1,45 @@
+{
+  "name": "Gua Gelap",
+  "runsPerDay": 5,
+  "deathKeep": 0.5,
+  "healPerFloor": 0.25,
+  "bossEvery": 5,
+  "player": { "hpBase": 100, "hpPerLevel": 6, "atkBase": 18, "atkPerLevel": 1.5 },
+  "enemyScale": {
+    "hpBase": 55, "hpPerLevel": 4.5, "hpGrowth": 1.14,
+    "atkBase": 17, "atkPerLevel": 0.8, "atkGrowth": 1.05,
+    "bossHp": 2.0, "bossAtk": 1.0
+  },
+  "enemies": [
+    { "id": "lipas", "name": "Lipas Gergasi", "icon": "🪳", "color": "#8a5a2b", "hp": 0.8, "atk": 0.8, "floors": [1, 4], "line": "A cockroach the size of a motorbike. It flies at your face." },
+    { "id": "tikus", "name": "Tikus Mondok", "icon": "🐀", "color": "#868e96", "hp": 0.9, "atk": 0.9, "floors": [1, 4], "line": "It has eaten through three padlocks today." },
+    { "id": "monyet", "name": "Monyet Pencuri", "icon": "🐒", "color": "#a0522d", "hp": 1.0, "atk": 1.0, "floors": [2, 9], "line": "It wants your phone. And your nasi lemak." },
+    { "id": "biawak", "name": "Biawak Besar", "icon": "🦎", "color": "#5c7a3a", "hp": 1.25, "atk": 0.9, "floors": [3, 9], "line": "Slow, heavy, and very sure of itself." },
+    { "id": "toyol", "name": "Toyol", "icon": "👶", "color": "#40c057", "hp": 0.85, "atk": 1.15, "floors": [6, null], "line": "Small, green, fast, and after your wallet." },
+    { "id": "pocong", "name": "Pocong", "icon": "👻", "color": "#f1f3f5", "hp": 1.1, "atk": 1.05, "floors": [6, null], "line": "It hops. You hear it before you see it." },
+    { "id": "hantu_galah", "name": "Hantu Galah", "icon": "🎋", "color": "#495057", "hp": 1.2, "atk": 1.1, "floors": [8, null], "line": "Taller than the lamp posts. Don't look up." },
+    { "id": "jerangkung", "name": "Jerangkung", "icon": "💀", "color": "#e9ecef", "hp": 1.0, "atk": 1.25, "floors": [11, null], "line": "Bones that rattle in time with the bass." },
+    { "id": "orang_minyak", "name": "Orang Minyak", "icon": "🛢️", "color": "#212529", "hp": 1.0, "atk": 1.0, "floors": [5, 5], "boss": true, "line": "BOSS: slippery, oily, and very hard to hit." },
+    { "id": "pontianak", "name": "Pontianak", "icon": "🌺", "color": "#f8f0fc", "hp": 1.0, "atk": 1.05, "floors": [10, 10], "boss": true, "line": "BOSS: you smell frangipani. Then the laughing starts." },
+    { "id": "hantu_raya", "name": "Hantu Raya", "icon": "👹", "color": "#c92a2a", "hp": 1.1, "atk": 1.1, "floors": [15, null], "boss": true, "line": "BOSS: the big one. It looks exactly like you." }
+  ],
+  "strike": {
+    "sweepMs": 1000, "perFloorMs": 30, "minMs": 420,
+    "zone": { "perfect": 0.04, "great": 0.09, "good": 0.16 },
+    "mult": { "perfect": 1.7, "great": 1.25, "good": 1.0, "miss": 0.25 },
+    "timeoutMs": 5000
+  },
+  "block": {
+    "windupMs": [700, 1600],
+    "gapMs": 500,
+    "windowMs": { "perfect": 80, "great": 160, "good": 260 },
+    "taken": { "perfect": 0, "great": 0.18, "good": 0.35, "miss": 1.0 }
+  },
+  "reward": {
+    "floorSen": [4000, 25000, 400000, 4000000, 40000000, 400000000],
+    "perFloor": 0.2,
+    "bossMult": 3,
+    "xpBase": 10, "xpPerFloor": 3,
+    "bossShards": 8
+  }
+}

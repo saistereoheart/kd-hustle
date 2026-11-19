@@ -36,6 +36,7 @@ const CATS: Cat[] = [
   { id: 'market', icon: '🛒', name: 'Trades, gifts & Pasar Online', match: (r) => r.startsWith('market') || r.startsWith('trade') || r.startsWith('gift') },
   { id: 'skills', icon: '⬆️', name: 'Skills', match: (r) => r === 'skill' },
   { id: 'rides', icon: '🛵', name: 'Ronda rides', match: (r) => r === 'ride' },
+  { id: 'dungeon', icon: '⚔️', name: 'Gua Gelap (dungeon)', match: (r) => r === 'dungeon' },
   { id: 'other', icon: '🎁', name: 'Rewards & other', match: () => true },
 ];
 

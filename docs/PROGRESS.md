@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 301 unit tests |
+| `npm test` (Vitest) | ✅ 314 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -68,6 +68,23 @@ Compared with the spec's content checklist (§19):
 - **Reading them:** admins get an 📥 Inbox tab in the same window (unread count on the button, a toast when one
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
+
+## ⚔️ Gua Gelap: the dungeon (2026-11-19, a player idea)
+
+- 📱 → ⚔️ Gua Gelap. A cave with one enemy per floor and a boss every 5th floor: Malaysian pests (Lipas Gergasi,
+  Tikus Mondok, Monyet Pencuri, Biawak Besar) and folklore spirits (Toyol, Pocong, Hantu Galah, Jerangkung), bosses
+  Orang Minyak (5), Pontianak (10), Hantu Raya (15+). All drawn in code (`client/src/ui/dungeon/dungeonArt.ts`).
+- Each turn: ⚔️ STRIKE when the sweeping marker is in the zone (gold middle = critical), then 🛡️ BLOCK when the red
+  ring meets the white one (perfect = parry). Tap the big button or press Space.
+- After each floor: go deeper (heal 25%) or cash out. Falling or fleeing keeps half; disconnecting between floors
+  pays it all. 5 runs a day.
+- Loot per floor scales with your wealth stage and the floor (a 5-floor run ≈ a few minutes of income at that
+  stage); bosses ×3 and 💎 shards; XP every floor. Titles: Pemburu Hantu (3 bosses), Penjelajah Gua (floor 10).
+- Server-authoritative (`server/src/systems/dungeon`): the server picks enemies, issues each turn and grades the
+  taps, refusing impossible ones (before the turn, later than real time, faster than 120 ms). Rules and balance in
+  `shared/src/dungeon` + `shared/config/dungeon.json`; a test checks sloppy play falls around floor 4, good play
+  around 9, great play around 14, at any level.
+- Not in the balance sim yet (5 runs a day is small next to the rest of the income).
 
 ## Player reports, round 1 (2026-11-19)
 

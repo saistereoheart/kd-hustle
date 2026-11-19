@@ -1193,3 +1193,15 @@ body:has(.title-screen) .panel-backdrop { z-index: 55; }
 .feedback-pic { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .feedback-thumb { max-width: 160px; max-height: 100px; border-radius: 8px; border: 1px solid var(--line); object-fit: contain; background: #000; }
 .feedback-pic-full { display: block; max-width: 100%; margin-top: 6px; border-radius: 8px; border: 1px solid var(--line); cursor: zoom-in; }
+
+/* ---- ⚔️ Gua Gelap ---- */
+.dungeon-canvas { display: block; margin: 0 auto 10px; border-radius: 14px; border: 1px solid var(--line); touch-action: none; }
+.dungeon-controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.dungeon-action { width: min(360px, 100%); min-height: 64px; font-size: 22px; font-weight: 900; letter-spacing: 0.04em; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.dungeon-action.block { background: #e03131; color: #fff; }
+.dungeon-hint { text-align: center; min-height: 34px; }
+.dungeon-how { padding-left: 20px; line-height: 1.55; }
+.dungeon-enter { margin-top: 10px; }
+.dungeon-cleared { text-align: center; }
+.dungeon-cleared h4 { font-size: 18px; text-transform: none; letter-spacing: 0; color: #fff; margin: 6px 0; }
+.dungeon-stat { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
