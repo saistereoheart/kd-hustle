@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import gradesJson from '../../config/grades.json';
-import { bestVariant, chefStats, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
+import { bestVariant, chefStats, mergeOutcome, pityForces, rerollVariantOutcome, rollGradeLuck, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
+import { joinVariants, topVariant, variantParts, variantProduct } from './variants';
 
 const cfg = gradesConfigSchema.parse(gradesJson);
 let seed = 11;
@@ -73,5 +74,44 @@ describe('head chef stats', () => {
   });
   it('chefs are not counted twice as plain gear', () => {
     expect(gearBonuses(cfg, [{ type: 'chef', rarity: 'epic', variant: 'normal' }])).toEqual({});
+  });
+});
+
+describe('multi-variant items, luck rerolls, pity and merging', () => {
+  const variants = [
+    { id: 'normal', oneIn: 1 }, { id: 'shiny', oneIn: 20 }, { id: 'golden', oneIn: 100 }, { id: 'rainbow', oneIn: 1000 },
+  ];
+  it('variants stack, sorted rarest last, and multiply', () => {
+    expect(joinVariants(variants.map((v) => v.id), ['golden', 'shiny', 'golden', 'normal'])).toBe('shiny+golden');
+    expect(variantParts('normal')).toEqual([]);
+    expect(topVariant('shiny+golden')).toBe('golden');
+    expect(variantProduct(cfg.buffs.variantMult, 'shiny+golden')).toBeCloseTo(cfg.buffs.variantMult.shiny * cfg.buffs.variantMult.golden);
+  });
+  it('luck makes better tiers likelier', () => {
+    const share = (luck: number) => {
+      let r = 3;
+      const rnd = (max: number) => (r = (r * 16807) % 2147483647) % max;
+      let up = 0;
+      for (let i = 0; i < 20000; i++) if (rollGradeLuck(cfg, rnd, luck) !== 'D') up++;
+      return up / 20000;
+    };
+    expect(share(3)).toBeGreaterThan(share(1) * 1.8);
+  });
+  it('hard pity forces an upgrade; a variant reroll adds instead of replacing', () => {
+    const p = cfg.rerollPity.variant;
+    const o = rerollVariantOutcome(cfg, variants, 'golden', () => 999_999, 1, p.hard - 1);
+    expect(o).toMatchObject({ forced: true, improved: true, result: 'shiny+golden' });
+    const miss = rerollVariantOutcome(cfg, variants, 'golden', () => 999_999, 1, 0);
+    expect(miss).toMatchObject({ improved: false, result: 'golden' });
+    expect(pityForces(cfg.rerollPity.grade, 0, () => 0)).toBe(false);
+  });
+  it('merging: a tier above the lowest (not below the highest), every variant kept, maybe a bonus', () => {
+    const none = mergeOutcome(cfg, variants, [{ grade: 'D', variant: 'shiny' }, { grade: 'D', variant: 'normal' }, { grade: 'B', variant: 'golden' }], () => 999_999);
+    expect(none).toEqual({ grade: 'B', variant: 'shiny+golden', bonus: null });
+    const lucky = mergeOutcome(cfg, variants, [{ grade: 'C', variant: 'shiny' }, { grade: 'C', variant: 'normal' }, { grade: 'C', variant: 'normal' }], () => 0);
+    expect(lucky.grade).toBe('B');
+    expect(lucky.bonus).not.toBeNull();
+    expect(variantParts(lucky.variant)).toContain('shiny');
+    expect(variantParts(lucky.variant)).toHaveLength(2);
   });
 });

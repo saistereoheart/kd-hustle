@@ -36,7 +36,9 @@
       "color": "#ffd43b"
     }
   ],
-  "mergeCount": 5,
+  "mergeCount": 3,
+  "mergeVariantBonus": 0.2,
+  "rerollPity": { "grade": { "soft": 6, "hard": 15, "softStep": 0.12 }, "variant": { "soft": 8, "hard": 20, "softStep": 0.1 } },
   "buffs": {
     "byRarity": {
       "common": 0.01,
@@ -97,25 +99,7 @@
     }
   },
   "shards": {
-    "rerollGrade": {
-      "common": 10,
-      "uncommon": 20,
-      "rare": 40,
-      "epic": 80,
-      "legendary": 160,
-      "mythic": 320,
-      "divine": 640,
-      "secret": 1000
-    },
-    "rerollVariant": {
-      "common": 15,
-      "uncommon": 30,
-      "rare": 60,
-      "epic": 120,
-      "legendary": 240,
-      "mythic": 480,
-      "divine": 960,
-      "secret": 1500
-    }
+    "rerollGrade": { "common":  5, "uncommon":  10, "rare":  20, "epic":  40, "legendary":  80, "mythic":  160, "divine":  320, "secret":  500 },
+    "rerollVariant": { "common":  8, "uncommon":  15, "rare":  30, "epic":  60, "legendary":  120, "mythic":  240, "divine":  480, "secret":  750 }
   }
 }

@@ -2,9 +2,9 @@ import crypto from 'node:crypto';
 // Phase 2 socket handlers: crates, inventory, pawn shop, jobs, vehicles and admin /give.
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
-import {
+import { variantLabel,
   C2S, collides, setBoxes, stallFootprint, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
-  type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid,
+  type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid, type RerollPity
 } from '@kh/shared';
 import type { Socket } from 'socket.io';
 import { RateLimiter } from '../auth/rateLimit';
@@ -129,7 +129,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const announce = (p: OnlinePlayer, r: { itemId: string; tier: string; variant: string; serial: number | null; oneIn: number }) => {
     const def = cfg.itemById.get(r.itemId)!;
     const tierName = cfg.rarities.tiers.find((t) => t.id === r.tier)?.name.toUpperCase() ?? r.tier;
-    const variant = r.variant !== 'normal' ? `${cfg.rarities.variants.find((v) => v.id === r.variant)?.name ?? r.variant} ` : '';
+    const variant = r.variant !== 'normal' ? `${variantLabel(cfg.rarities.variants, r.variant)} ` : '';
     const serial = r.serial ? ` #${r.serial}` : '';
     const text = `🔥 ${p.name} rolled [${tierName}] ${variant}${def.name}${serial} (${formatOneIn(r.oneIn)})!`;
     repos.announcements.add(text, r.tier);
@@ -404,15 +404,22 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       prog.onEquip(me);
       return {};
     });
-    handle(socket, 'inv:merge', C2S.invMerge, ({ itemId, grade }) => {
-      const r = inv.merge(me, itemId, grade);
-      return { removed: r.removed, item: r.item };
+    handle(socket, 'inv:merge', C2S.invMerge, ({ iids }) => {
+      const r = inv.merge(me, iids, (max) => crypto.randomInt(Math.max(1, max)));
+      prog.check(me);
+      return { removed: r.removed, item: r.item, bonus: r.bonus };
     });
+    // Reroll pity (misses in a row) lives in player_data, per player.
+    const pityOf = (): RerollPity => ({ grade: 0, variant: 0, ...(repos.playerData.load<Partial<RerollPity>>(me.id, 'reroll') ?? {}) });
+    handle(socket, 'inv:pity', null, () => ({ pity: pityOf() }));
     handle(socket, 'inv:reroll', C2S.invReroll, ({ iid, what }) => {
-      const r = inv.reroll(me, iid, what, (max) => crypto.randomInt(Math.max(1, max)));
+      const pity = pityOf();
+      const r = inv.reroll(me, iid, what, (max) => crypto.randomInt(Math.max(1, max)), prog.mods(me).luck, pity[what]);
+      pity[what] = r.improved ? 0 : pity[what] + 1;
+      repos.playerData.save(me.id, 'reroll', pity);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, 0, 'reroll');
-      return { item: r.item, improved: r.improved, shards: me.shards };
+      return { item: r.item, improved: r.improved, shards: me.shards, rolled: r.rolled, forced: r.forced, pity };
     });
     handle(socket, 'item:use', C2S.itemUse, ({ iid }) => {
       const r = prog.useItem(me, iid);

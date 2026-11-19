@@ -273,6 +273,8 @@ describe('staff', () => {
     s.run(5 * 60_000); // 5 in-game hours
     const staffDishes = s.p.prog.stats.staffDishes ?? 0;
     expect(staffDishes).toBeGreaterThan(5);
+    // Their dishes count towards mastery (started at 0; the starter stock isn't cooked by hand here).
+    expect(s.stalls.selfOf(s.p)!.mastery.nasi_lemak ?? 0).toBe(staffDishes);
     const base = dishBaseSen(cfg.stalls, cfg.recipeById.get('nasi_lemak')!, { tier: 1, mastery: {} }, false);
     const wages = 5 * Math.round(cfg.stalls.tiers[0].wagePerDaySen / 24);
     // Income from cooks (at ~50%, some at rush-hour prices) minus 5 hours of wages.

@@ -1,3 +1,4 @@
+import { topVariant } from '@kh/shared';
 // Item art, drawn in code. The same shape functions draw inventory/reel icons and the
 // cosmetics worn on characters (baked into the character spritesheet).
 //
@@ -967,7 +968,7 @@ function drawChefPortrait(ctx: Ctx, shape: string, paint: Paint, skin: string, c
 
 /** Draws an item icon centred in a size×size box (for inventory, reel, index). */
 export function drawItemIcon(ctx: Ctx, def: ItemDef, variant: string, size: number, silhouette = false) {
-  const paint: Paint = { c1: def.color, c2: def.color2 ?? shadeHex(def.color, -0.3), variant };
+  const paint: Paint = { c1: def.color, c2: def.color2 ?? shadeHex(def.color, -0.3), variant: topVariant(variant) }; // several variants: the art shows the rarest
   ctx.save();
   ctx.translate(size / 2, size / 2);
   ctx.scale(size / 36, size / 36);

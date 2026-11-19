@@ -144,7 +144,7 @@ describe('values', () => {
     expect(itemValueSen(rar, duck, cap, 'normal')).toBe(600); // RM 20 × 0.3
     expect(itemValueSen(rar, duck, cap, 'golden')).toBe(3000);
     expect(pawnPriceSen(rar, duck, cap, 'normal', 0.5)).toBe(300);
-    expect(scrapShards(rar, duck, 'rainbow')).toBe(25);
+    expect(scrapShards(rar, duck, 'rainbow')).toBe(rar.tiers.find((t) => t.id === 'common')!.shards * 25);
   });
   it('the house keeps an edge: expected pawn value of a roll is below the crate price', () => {
     for (const c of crates.crates) {

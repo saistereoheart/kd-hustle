@@ -12,6 +12,7 @@
 //   table is renormalised, so luck makes good tiers more likely and Commons/Uncommons less likely.
 //   Tiers that have no items in a crate's pool get weight 0 (a crate never shows odds for things
 //   it can't drop).
+import { variantParts } from './items/variants';
 import type { CrateDef, ItemDef, RaritiesConfig } from './economy/schemas';
 
 export const LUCK_SOURCE_TYPES = ['upgrade', 'potion', 'item', 'title', 'rebirth', 'event', 'index', 'gear'] as const;
@@ -170,8 +171,9 @@ export function nextPity(rar: RaritiesConfig, pity: PityState, tierIndex: number
 }
 
 // ------------------------------------------------------------------ values
+/** Value multiplier of an item's variants (several multiply: Shiny + Golden = 2 × 5). */
 export function variantMult(rar: RaritiesConfig, variant: string): number {
-  return rar.variants.find((v) => v.id === variant)?.valueMult ?? 1;
+  return variantParts(variant).reduce((m, id) => m * (rar.variants.find((v) => v.id === id)?.valueMult ?? 1), 1);
 }
 
 /** An item's value in sen: crate price × rarity factor × variant multiplier (or its fixed

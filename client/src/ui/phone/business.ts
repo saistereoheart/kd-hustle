@@ -145,7 +145,7 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
             el('h4', {}, r.name, el('span', { class: 'lv-badge' }, `Mastery ${lv}`)),
             on
               ? el('p', {}, `Sells for ${formatMoney(dishBaseSen(cfg, r, st, false, app.mods().stall))} (Good) · ${stockCount(st, r.id)} portions in stock`)
-              : el('p', {}, `🔒 Cook ${cfg.mastery.thresholds[r.unlock!.mastery - 1]} ${unlock?.name ?? r.unlock!.recipe} to unlock.`),
+              : el('p', {}, `🔒 Sell ${cfg.mastery.thresholds[r.unlock!.mastery - 1]} ${unlock?.name ?? r.unlock!.recipe} (you or your cooks) to unlock.`),
             el('div', { class: 'muted small' }, `${dishes} cooked${nextAt ? ` · next mastery at ${nextAt} (+${Math.round(cfg.mastery.pricePerLevel * 100)}% price)` : ' · max mastery'} · ${r.steps.length} steps`),
           ),
         ),

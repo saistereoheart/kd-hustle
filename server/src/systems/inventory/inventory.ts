@@ -1,5 +1,5 @@
 // Equipping cosmetics, the pawn shop (sell for RM / scrap for shards) and the Shard Shop.
-import { bestVariant, EQUIP_SLOTS, gradeDef, gradeMult, isCollectible, nextGrade, pawnPriceSen, rerollGrade, scrapShards, type EquipSlot, type InventoryItem } from '@kh/shared';
+import { EQUIP_SLOTS, gradeMult, isCollectible, mergeOutcome, nextGrade, pawnPriceSen, rerollGradeOutcome, rerollVariantOutcome, scrapShards, variantParts, type EquipSlot, type InventoryItem } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
@@ -66,63 +66,60 @@ export class InventorySystem {
   }
 
   /**
-   * Merge: `mergeCount` copies of an item at one tier (not worn, not limited) become one copy at
-   * the next tier, keeping the best variant among them.
+   * Merge: `mergeCount` copies of the same item, picked by the player (any tiers and variants;
+   * not worn, not placed, not limited) become one: a tier up (see mergeOutcome), with every
+   * variant of the inputs and a chance of one more.
    */
-  merge(p: OnlinePlayer, itemId: string, grade: string) {
+  merge(p: OnlinePlayer, iids: number[], rand: (max: number) => number) {
     const g = this.cfg.prog.grades;
-    const next = nextGrade(g, grade);
-    if (!next) throw new GameError("That's already the top tier.");
+    if (new Set(iids).size !== iids.length || iids.length !== g.mergeCount) throw new GameError(`Pick ${g.mergeCount} different copies.`);
     const equipped = new Set(Object.values(p.equipped));
     const locked = this.lockedIids(p);
-    const pool = p.inventory.filter((i) => i.itemId === itemId && (i.grade ?? 'D') === grade && i.serial === null && !equipped.has(i.iid) && !locked.has(i.iid));
-    if (pool.length < g.mergeCount) throw new GameError(`You need ${g.mergeCount} of them at ${gradeDef(g, grade).name} (not worn).`);
-    const order = this.cfg.rarities.variants.map((v) => v.id);
-    // Use the plainest copies first, but the result takes the best variant among the ones used.
-    const used = [...pool].sort((a, b) => order.indexOf(a.variant) - order.indexOf(b.variant)).slice(0, g.mergeCount);
-    const variant = bestVariant(order, used.map((i) => i.variant));
+    const used = iids.map((iid) => p.inventory.find((i) => i.iid === iid));
+    if (used.some((i) => !i)) throw new GameError('You no longer have one of those.');
+    const items = used as InventoryItem[];
+    const itemId = items[0].itemId;
+    if (items.some((i) => i.itemId !== itemId)) throw new GameError('Merge copies of the same item.');
+    if (!this.cfg.crateOfItem.get(itemId)) throw new GameError("That item can't be merged.");
+    if (items.some((i) => i.serial !== null)) throw new GameError("Limited items can't be merged.");
+    if (items.some((i) => equipped.has(i.iid) || locked.has(i.iid))) throw new GameError('Take it off (or out of your home) first.');
+    const out = mergeOutcome(g, this.cfg.rarities.variants, items.map((i) => ({ grade: i.grade, variant: i.variant })), rand);
     return this.econ.run(p, () => {
-      for (const i of used) this.econ.remove(p, i.iid);
-      const { item } = this.econ.grant(p, itemId, variant, null, next);
-      this.econ.change(p, 0, 0, 'merge', `${itemId}:${grade}->${next}`);
+      for (const i of items) this.econ.remove(p, i.iid);
+      const { item } = this.econ.grant(p, itemId, out.variant, null, out.grade);
+      this.econ.change(p, 0, 0, 'merge', `${itemId}->${out.grade}:${out.variant}`);
       this.econ.saveState(p);
-      return { removed: used.map((i) => i.iid), item };
+      return { removed: items.map((i) => i.iid), item, bonus: out.bonus };
     });
   }
 
-  /** Spend shards for a chance at a better tier or variant (never worse). */
-  reroll(p: OnlinePlayer, iid: number, what: 'grade' | 'variant', rand: (max: number) => number) {
+  /** Spend shards for a chance at a better tier, or another variant (never worse). Luck makes
+   *  better rolls likelier; `fails` (misses in a row) drives the soft / hard pity. */
+  reroll(p: OnlinePlayer, iid: number, what: 'grade' | 'variant', rand: (max: number) => number, luck = 1, fails = 0) {
     const it = p.inventory.find((i) => i.iid === iid);
     if (!it) throw new GameError('You no longer have that item.');
     if (it.serial !== null) throw new GameError('Limited items keep their looks.');
     const def = this.cfg.itemById.get(it.itemId);
     if (!def || !this.cfg.crateOfItem.get(it.itemId)) throw new GameError("That item can't be rerolled.");
     const g = this.cfg.prog.grades;
+    if (what === 'grade' && !nextGrade(g, it.grade)) throw new GameError("It's already the top tier.");
+    if (what === 'variant' && this.cfg.rarities.variants.every((v) => v.oneIn <= 1 || variantParts(it.variant).includes(v.id))) throw new GameError('It already has every variant.');
     const cost = (what === 'grade' ? g.shards.rerollGrade : g.shards.rerollVariant)[def.rarity] ?? 100;
     if (p.shards < cost) throw new GameError(`That takes ${cost} 💎 shards.`);
-    let grade = it.grade ?? 'D', variant = it.variant;
-    if (what === 'grade') grade = rerollGrade(g, grade, rand);
-    else {
-      // Roll a variant the usual way (1 in N); keep yours if the new one isn't rarer.
-      const vs = this.cfg.rarities.variants;
-      let rolled = vs[0].id;
-      for (const v of [...vs].reverse()) if (v.oneIn > 1 && rand(v.oneIn) === 0) {
-        rolled = v.id;
-        break;
-      }
-      const order = vs.map((v) => v.id);
-      if (order.indexOf(rolled) > order.indexOf(variant)) variant = rolled;
-    }
-    const improved = grade !== (it.grade ?? 'D') || variant !== it.variant;
+    const o = what === 'grade'
+      ? rerollGradeOutcome(g, it.grade, rand, luck, fails)
+      : rerollVariantOutcome(g, this.cfg.rarities.variants, it.variant, rand, luck, fails);
+    const grade = what === 'grade' ? o.result : (it.grade ?? 'D');
+    const variant = what === 'variant' ? o.result : it.variant;
     return this.econ.run(p, () => {
       this.econ.change(p, 0, -cost, `reroll-${what}`, `${it.itemId}#${iid}`);
-      if (improved) {
+      if (o.improved) {
         this.econ.setLook(p, iid, grade, variant);
         it.grade = grade;
         it.variant = variant;
       }
-      const cosmeticsChanged = improved && this.econ.refreshCosmetics(p);
-      return { item: { ...it }, improved, cosmeticsChanged };
+      const cosmeticsChanged = o.improved && this.econ.refreshCosmetics(p);
+      return { item: { ...it }, improved: o.improved, rolled: o.rolled, forced: o.forced, cosmeticsChanged };
     });
   }
 

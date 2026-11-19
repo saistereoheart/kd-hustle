@@ -1,5 +1,5 @@
 // Shared UI bits: a modal panel shell with optional tabs, and item cards.
-import { formatMoney, type ItemDef, type RaritiesConfig } from '@kh/shared';
+import { topVariant, variantParts, formatMoney, type ItemDef, type RaritiesConfig } from '@kh/shared';
 import { drawItemIcon } from '../items/itemArt';
 import { el, uiRoot } from './dom';
 
@@ -96,12 +96,12 @@ export function itemCard(
   const img = el('img', { src: iconUrl(def, variant, opts.size ?? 72, opts.silhouette), alt: opts.silhouette ? '???' : def.name, draggable: 'false' });
   const card = el(
     'div',
-    { class: `item-card tier-${def.rarity}${opts.silhouette ? ' unknown' : ''}${variant !== 'normal' ? ` v-${variant}` : ''}`, title: opts.silhouette ? '???' : def.name },
+    { class: `item-card tier-${def.rarity}${opts.silhouette ? ' unknown' : ''}${variant !== 'normal' ? ` v-${topVariant(variant)}` : ''}`, title: opts.silhouette ? '???' : def.name },
     img,
     el('div', { class: 'item-name' }, opts.silhouette ? '???' : def.name),
     opts.caption ? el('div', { class: 'item-caption' }, opts.caption) : null,
     opts.count && opts.count > 1 ? el('span', { class: 'item-count' }, `×${opts.count}`) : null,
-    variant !== 'normal' && !opts.silhouette ? el('span', { class: 'item-variant' }, variant) : null,
+    variant !== 'normal' && !opts.silhouette ? el('span', { class: 'item-variant' }, variantParts(variant).join(' + ')) : null,
     opts.serial ? el('span', { class: 'item-serial' }, `#${opts.serial}`) : null,
     opts.equipped ? el('span', { class: 'item-equipped' }, '✓ worn') : null,
     opts.grade && !opts.silhouette ? el('span', { class: `item-grade g-${opts.grade}`, title: `Tier ${opts.grade}` }, opts.grade) : null,

@@ -181,6 +181,7 @@ export class StallSystem {
         if (!left.length) break;
         const r = left[rr++ % left.length];
         takeStock(l.s, r.id);
+        l.s.mastery = { ...l.s.mastery, [r.id]: (l.s.mastery[r.id] ?? 0) + 1 }; // cooks build mastery offline too
         pay += Math.round(orderBaseSen(st, r, l.s, rush, [], b) * staffPayRate(st, l.s) * (1 + cashierBonus(st, l.s, b).tips * st.tips.max));
         served++;
       }
@@ -472,6 +473,19 @@ export class StallSystem {
     this.hooks.wallet(p, -spent, 'stock');
     this.hooks.event(p, { kind: 'restocked', text: `🔄 Auto restock: ${names.join(', ')} (${formatMoney(spent)})`, sen: -spent });
     this.touch(l);
+  }
+
+  /** Mastery from a cook's dish (with the level-up note). */
+  private addMastery(p: OnlinePlayer, l: Live, recipeId: string, n: number) {
+    const st = this.cfg.stalls;
+    const before = masteryLevel(st, l.s.mastery[recipeId] ?? 0);
+    l.s.mastery = { ...l.s.mastery, [recipeId]: (l.s.mastery[recipeId] ?? 0) + n };
+    const after = masteryLevel(st, l.s.mastery[recipeId]);
+    if (after > before) {
+      const name = this.cfg.recipeById.get(recipeId)?.name ?? recipeId;
+      this.hooks.event(p, { kind: 'staffServed', text: `⭐ ${name} mastery ${after}! Prices up.` });
+      this.prog.check(p);
+    }
   }
 
   /** Perfect Cook Token: the next N dishes are auto-Perfect. */
@@ -770,6 +784,8 @@ export class StallSystem {
           // The cashier collects tips on your cooks' sales too.
           staffSen += Math.round(sale * (1 + cashierBonus(st, l.s, b).tips * st.tips.max));
           staffDishes++;
+          // Your cooks' dishes count towards recipe mastery too (you don't have to cook by hand).
+          this.addMastery(owner, l, recipe.id, 1);
           l.queue = l.queue.filter((x) => x.id !== c.customer.id);
           l.cooks[i] = null;
         }

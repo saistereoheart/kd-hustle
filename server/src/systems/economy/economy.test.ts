@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { RandInt } from '@kh/shared';
+import { variantMult, type RandInt } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -132,7 +132,7 @@ describe('inventory, pawn shop and shards', () => {
       for (let i = 0; i < 12; i++) econ.grant(p, 'rubber_duck', 'normal', null);
     });
     const r = inv.scrap(p, 'rubber_duck', 'normal', 12);
-    expect(r.gainedShards).toBe(12);
+    expect(r.gainedShards).toBe(12 * cfg.rarities.tiers.find((t) => t.id === 'common')!.shards);
     expect(() => inv.shardBuy(p, 'bucket_hat')).toThrow(/Discover/); // not found yet
     expect(() => inv.scrap(p, 'rubber_duck', 'normal', 1)).toThrow(GameError);
     const shardsBefore = p.shards;
@@ -152,18 +152,22 @@ describe('inventory, pawn shop and shards', () => {
     expect(cfg.itemById.get(r.results[0].itemId)!.type).toBe('chef');
   });
 
-  it('merging 5 copies at one tier makes 1 at the next, keeping the best variant', () => {
+  it('merging 3 copies of an item (any tiers) goes a tier up and keeps every variant', () => {
     const { p, econ, inv } = setup(0);
-    econ.run(p, () => {
-      for (let i = 0; i < 4; i++) econ.grant(p, 'rubber_duck', 'normal', null, 'D');
-      econ.grant(p, 'rubber_duck', 'golden', null, 'D');
-      econ.grant(p, 'rubber_duck', 'normal', null, 'C'); // a different tier: not used
-    });
-    const r = inv.merge(p, 'rubber_duck', 'D');
-    expect(r.removed).toHaveLength(5);
-    expect(r.item).toMatchObject({ itemId: 'rubber_duck', grade: 'C', variant: 'golden' });
-    expect(p.inventory.filter((i) => i.itemId === 'rubber_duck')).toHaveLength(2);
-    expect(() => inv.merge(p, 'rubber_duck', 'D')).toThrow(/need 5/);
+    const ids = econ.run(p, () => [
+      econ.grant(p, 'rubber_duck', 'normal', null, 'D').item.iid,
+      econ.grant(p, 'rubber_duck', 'shiny', null, 'D').item.iid,
+      econ.grant(p, 'rubber_duck', 'golden', null, 'C').item.iid,
+      econ.grant(p, 'party_hat', 'normal', null, 'D').item.iid,
+    ]);
+    expect(() => inv.merge(p, [ids[0], ids[1], ids[3]], () => 0)).toThrow(/same item/);
+    expect(() => inv.merge(p, [ids[0], ids[1]], () => 0)).toThrow(/Pick 3/);
+    const never = () => 999_999; // no bonus variant
+    const r = inv.merge(p, [ids[0], ids[1], ids[2]], never);
+    expect(r.removed).toHaveLength(3);
+    // One above the lowest (D → C), never below the highest (C); Shiny + Golden both kept.
+    expect(r.item).toMatchObject({ itemId: 'rubber_duck', grade: 'C', variant: 'shiny+golden' });
+    expect(variantMult(cfg.rarities, 'shiny+golden')).toBe(variantMult(cfg.rarities, 'shiny') * variantMult(cfg.rarities, 'golden'));
   });
 
   it('a tier multiplies what the pawn shop pays; rerolls cost shards and never make it worse', () => {
@@ -178,11 +182,19 @@ describe('inventory, pawn shop and shards', () => {
     const { item } = econ.run(p, () => econ.grant(p, 'rubber_duck', 'shiny', null, 'B'));
     expect(() => inv.reroll(p, item.iid, 'grade', () => 0)).toThrow(/shards/);
     p.shards = 1000;
-    for (let k = 0; k < 20; k++) {
+    let n = 0;
+    for (let k = 0; k < 20 && item.grade !== 'S'; k++, n++) {
       const r = inv.reroll(p, item.iid, 'grade', (max) => Math.floor(Math.random() * max));
       expect(['B', 'A', 'S']).toContain(r.item.grade);
+      item.grade = r.item.grade;
     }
-    expect(p.shards).toBe(1000 - 20 * cfg.prog.grades.shards.rerollGrade.common);
+    expect(p.shards).toBe(1000 - n * cfg.prog.grades.shards.rerollGrade.common);
+    // Hard pity: after enough misses the next reroll always upgrades.
+    const hard = cfg.prog.grades.rerollPity.grade.hard;
+    const { item: low } = econ.run(p, () => econ.grant(p, 'rubber_duck', 'normal', null, 'D'));
+    const r = inv.reroll(p, low.iid, 'grade', () => 0, 1, hard - 1);
+    expect(r).toMatchObject({ improved: true, forced: true });
+    expect(r.item.grade).toBe('C');
   });
 
   it("can't sell more than you have", () => {

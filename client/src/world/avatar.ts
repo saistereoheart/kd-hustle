@@ -1,6 +1,6 @@
 // A character in the world: baked spritesheet + nameplate + speech bubble + emotes.
 import Phaser from 'phaser';
-import { appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
+import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import { hasDriver, vehicleTexturePrefix } from '../items/vehicleArt';
@@ -18,7 +18,7 @@ export function wornFrom(cos: Cosmetics, items: Map<string, ItemDef>): WornCosme
   for (const slot of ['hat', 'face', 'back'] as const) {
     const ref = cos[slot];
     const def = ref ? items.get(ref.itemId) : undefined;
-    if (ref && def) worn[slot] = { shape: def.shape, paint: { c1: def.color, c2: def.color2 ?? def.color, variant: ref.variant } };
+    if (ref && def) worn[slot] = { shape: def.shape, paint: { c1: def.color, c2: def.color2 ?? def.color, variant: topVariant(ref.variant) } };
   }
   return worn;
 }
@@ -134,8 +134,8 @@ export class Avatar {
   private applyCosmeticExtras() {
     // Name colour
     const nc = this.cosmetics.namecolor ? this.items.get(this.cosmetics.namecolor.itemId) : undefined;
-    this.rainbowName = !!nc && (nc.id === 'rainbow_name' || this.cosmetics.namecolor?.variant === 'rainbow');
-    const color = !nc ? this.baseNameColor : this.cosmetics.namecolor?.variant === 'golden' ? '#fcc419' : nc.color;
+    this.rainbowName = !!nc && (nc.id === 'rainbow_name' || hasVariant(this.cosmetics.namecolor?.variant, 'rainbow'));
+    const color = !nc ? this.baseNameColor : hasVariant(this.cosmetics.namecolor?.variant, 'golden') ? '#fcc419' : nc.color;
     this.nameText.setColor(color);
     // Aura
     this.auraFx?.remove();
@@ -144,7 +144,7 @@ export class Avatar {
     this.auraGlow = null;
     const aura = this.cosmetics.aura ? this.items.get(this.cosmetics.aura.itemId) : undefined;
     if (!aura) return;
-    const variant = this.cosmetics.aura!.variant;
+    const variant = topVariant(this.cosmetics.aura!.variant);
     const col = Phaser.Display.Color.HexStringToColor(variant === 'golden' ? '#fcc419' : aura.color).color;
     this.auraGlow = this.scene.add.ellipse(0, -2, 46, 16, col, 0.35);
     this.container.addAt(this.auraGlow, 0);

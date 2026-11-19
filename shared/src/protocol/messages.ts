@@ -88,7 +88,7 @@ export const C2S = {
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
   /** Merge N copies of an item at one tier into one at the next tier. */
-  invMerge: z.object({ itemId: z.string().max(40), grade: z.string().max(2) }),
+  invMerge: z.object({ iids: z.array(z.number().int().positive()).min(2).max(10) }),
   /** Spend shards on a chance at a better tier or variant for one item. */
   invReroll: z.object({ iid: z.number().int().positive(), what: z.enum(['grade', 'variant']) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
@@ -440,6 +440,11 @@ export interface SnapshotPayload {
 }
 
 type Ack<T> = (res: T) => void;
+/** Misses in a row since the last upgrade, per reroll kind (soft / hard pity). */
+export interface RerollPity {
+  grade: number;
+  variant: number;
+}
 export interface LedgerRow {
   reason: string;
   inSen: number;
@@ -492,8 +497,10 @@ export interface ClientToServerEvents {
   'welcome:spin': (ack: Ack<Result<{ bonusSen: number }>>) => void;
   'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number } }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
-  'inv:merge': (msg: { itemId: string; grade: string }, ack: Ack<Result<{ removed: number[]; item: InventoryItem }>>) => void;
-  'inv:reroll': (msg: { iid: number; what: 'grade' | 'variant' }, ack: Ack<Result<{ item: InventoryItem; improved: boolean; shards: number }>>) => void;
+  'inv:merge': (msg: { iids: number[] }, ack: Ack<Result<{ removed: number[]; item: InventoryItem; bonus: string | null }>>) => void;
+  'inv:reroll': (msg: { iid: number; what: 'grade' | 'variant' }, ack: Ack<Result<{ item: InventoryItem; improved: boolean; shards: number; rolled: string; forced: boolean; pity: RerollPity }>>) => void;
+  /** Reroll pity: misses in a row for tier and variant rerolls. */
+  'inv:pity': (ack: Ack<Result<{ pity: RerollPity }>>) => void;
   'inv:unequip': (msg: { slot: EquipSlot }, ack: Ack<SimpleResult>) => void;
   'pawn:sell': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
   'pawn:scrap': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
