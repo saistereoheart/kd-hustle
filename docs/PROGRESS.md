@@ -86,6 +86,12 @@ Compared with the spec's content checklist (§19):
   drag pieces to move them; wall items turn to face out from the wall you point at; keys: R / E rotate, Q back,
   arrows (or WASD) move, Enter / Space place, X pick up, Esc / Del put away, Ctrl+Z / Y. The game's Esc / Q / E don't
   fire while decorating. Each piece in the list shows its size.
+- **Furniture looks more real:** materials drawn with light and depth (wood grain with bevels, soft fabric, glossy
+  porcelain, speckled stone, dark glass with reflections). Beds have a headboard, duvet folds and pillows; sofas arms,
+  back and seat cushions; the toilet a tank, bowl and water; showers tiles, a drain and a glass screen; kitchens a stone
+  counter, a sink with a tap and ringed burners; TVs a glossy screen; plants layered leaves in clay pots; rugs a border,
+  pattern and fringe. Each piece casts a soft shadow from its own outline (drawn off-screen, then stamped down), always
+  falling the same way however it's turned.
 
 ## 📍 Place markers (2026-11-19)
 

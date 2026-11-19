@@ -296,7 +296,7 @@ export class App {
     /** Decorating a home: its keys (Q/E/R rotate, WASD move, Esc put away) win over the game's. */
     const decorating = () => !!this.home?.isDecorating;
     this.keyboard.onPress('Enter', (e) => {
-      if (!inTown()) return;
+      if (!inTown() || decorating()) return; // Enter places furniture while decorating
       e.preventDefault();
       this.chat?.open();
     });
