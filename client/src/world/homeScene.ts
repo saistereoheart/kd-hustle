@@ -6,7 +6,7 @@
 // the server), then Save. From here you can also clean the unit (Airbnb) and fix requests.
 import Phaser from 'phaser';
 import {
-  formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomSuits, suggestions, wallBetween,
+  formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomStatus, roomSuits, suggestions, wallBetween,
   type FloorPlan, type Placed, type PropSelf, type RatingCfg, type RoomKind,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -47,6 +47,8 @@ export class HomeScene extends Phaser.Scene {
   private ghostText: Phaser.GameObjects.Text | null = null;
   private dim: Phaser.GameObjects.Graphics | null = null;
   private roomLabels: Phaser.GameObjects.Text[] = [];
+  /** Per room: what belongs there and how complete it is (while decorating). */
+  private roomSubs: Phaser.GameObjects.Text[] = [];
   private banner: Phaser.GameObjects.Text | null = null;
   private ui: HTMLElement | null = null;
   private side: HTMLElement | null = null;
@@ -78,6 +80,7 @@ export class HomeScene extends Phaser.Scene {
     this.leaving = false;
     this.room = -1;
     this.roomLabels = [];
+    this.roomSubs = [];
   }
 
   private get self(): PropSelf | undefined {
@@ -203,6 +206,7 @@ export class HomeScene extends Phaser.Scene {
       const sub = this.add.text(cx, cy + 2, BELONGS[r.kind], { fontFamily: 'system-ui, sans-serif', fontSize: '10px', fontStyle: 'bold', color: 'rgba(255,255,255,0.8)', stroke: '#11131f', strokeThickness: 3, align: 'center', resolution: 3, wordWrap: { width: r.w * C - 8 } })
         .setOrigin(0.5, 0).setDepth(DIM_DEPTH + 5).setVisible(false);
       this.roomLabels.push(t, sub);
+      this.roomSubs.push(sub);
     }
   }
 
@@ -300,6 +304,18 @@ export class HomeScene extends Phaser.Scene {
     // floor pieces (rugs) first, then the rest, wall items last
     const order = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : furniturePiece(p.item)?.wall ? 2 : 1);
     for (const p of [...this.layout].sort((a, b) => order(a) - order(b))) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
+    // Each room's label: what it still needs, or ✓ complete.
+    if (this.decorating) {
+      const st = roomStatus(this.ratingCfg(), this.plan, this.layout);
+      this.plan.rooms.forEach((r, i) => {
+        const s = st.find((x) => x.room === i);
+        const sub = this.roomSubs[i];
+        if (!sub) return;
+        if (!s || this.plan.rooms.length < 2) return void sub.setText(BELONGS[r.kind]).setColor('rgba(255,255,255,0.8)');
+        if (!s.missing.length) sub.setText('✓ complete').setColor('#8ce99a');
+        else sub.setText(`needs: ${s.missing.map((m) => m.name).join(' · ')}`).setColor('#ffe066');
+      });
+    }
     // While decorating: pieces in the wrong room get a yellow outline, ones that break a rule
     // (e.g. now across a wall) a red one.
     if (this.decorating) {
@@ -697,9 +713,9 @@ export class HomeScene extends Phaser.Scene {
       ...(bad.length ? [el('div', { class: 'deco-missing' }, `⚠️ ${bad.length} piece${bad.length > 1 ? 's' : ''} outlined in red: ${bad.length > 1 ? 'they' : 'it'} cross a wall or block a doorway. Pick ${bad.length > 1 ? 'them' : 'it'} up and move ${bad.length > 1 ? 'them' : 'it'} before saving.`)] : []),
       bar('Comfort', r.factors.comfort), bar('Style & theme', r.factors.style), bar('Rarity', r.factors.rarity),
       bar('Amenities', r.factors.amenities), bar('Cleanliness', r.factors.clean), bar(r.blocked ? 'Space (walkway blocked!)' : 'Space', r.factors.space),
-      bar(r.misplaced.length ? `Rooms (${r.misplaced.length} in the wrong room)` : 'Rooms (right things, right rooms)', r.factors.rooms),
+      bar(`Rooms (${r.rooms.filter((x) => !x.missing.length).length}/${r.rooms.length} complete${r.misplaced.length ? ` · ${r.misplaced.length} in the wrong room` : ''})`, r.factors.rooms),
       el('h4', {}, '💡 Suggestions'),
-      ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → +${x.gain.toFixed(1)}★${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')]),
+      ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → ${x.gain > 0 ? `+${x.gain.toFixed(1)}★` : 'a small boost'}${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')]),
       el('h4', {}, `🛋️ Your furniture (${free.length})`),
       el('div', { class: 'deco-pieces' }, ...(pieces.length ? pieces : [el('p', { class: 'muted small' }, `Nothing to place. Buy at ${this.app.cfg.furniture.storeName} or win some from the Mall Mystery Box.`)])),
       el('p', { class: 'muted small deco-keys' }, keys),

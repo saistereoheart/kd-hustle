@@ -29,6 +29,13 @@
     "shoe_rack": ["living"],
     "bar_counter": ["kitchen", "living"]
   },
+  "roomSets": {
+    "bedroom": [{ "name": "a bed", "any": ["beds"] }, { "name": "storage", "any": ["storage"] }, { "name": "a lamp", "any": ["lighting"] }],
+    "bath": [{ "name": "a toilet", "any": ["toilet"] }, { "name": "a shower or bath", "any": ["shower", "bathtub", "jacuzzi"] }],
+    "kitchen": [{ "name": "a cooker", "any": ["kitchen"] }, { "name": "a fridge", "any": ["fridge"] }],
+    "living": [{ "name": "a sofa", "any": ["sofas"] }, { "name": "a table", "any": ["tables"] }, { "name": "a TV or console", "any": ["tv", "console"] }],
+    "office": [{ "name": "a desk", "any": ["tables"] }, { "name": "a chair", "any": ["chairs"] }]
+  },
   "pieces": {
     "basic_bed":        { "category": "beds", "w": 2, "h": 2, "comfort": 6, "style": 2, "theme": "scandi", "essential": "bed", "storeSen": 120000 },
     "queen_bed":        { "category": "beds", "w": 2, "h": 3, "comfort": 10, "style": 4, "theme": "japandi", "essential": "bed", "storeSen": 380000 },

@@ -13,6 +13,9 @@ export const furnitureConfigSchema = z.object({
   /** Which rooms things belong in (the Rooms factor): keyed by piece id, else by category. Things
    *  not listed (lamps, plants, aircond...) are fine anywhere. */
   roomFor: z.record(z.string(), z.array(z.enum(['living', 'bedroom', 'kitchen', 'bath', 'office']))).default({}),
+  /** What makes each kind of room complete: a list of needs, each met by any one of its tokens
+   *  (a piece id, a category, an essential or an amenity). */
+  roomSets: z.record(z.string(), z.array(z.object({ name: z.string(), any: z.array(z.string()).min(1) }))).default({}),
   /** Keyed by item id (the item itself lives in items.json, type "furniture"). */
   pieces: z.record(
     z.string(),

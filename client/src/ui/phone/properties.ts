@@ -78,7 +78,7 @@ export function renderProperties({ app, rerender }: PhoneCtx): HTMLElement[] {
       lines.push(priceInput('Per night', s.nightSen, s.fairNightSen, 'nightSen'));
       lines.push(el('div', {}, s.guest ? `🧳 Guest staying${s.guest.vip ? ' (VIP!)' : ''} · pays ${formatMoney(s.guest.paySen)}` : '🛎️ Waiting for a booking'));
       lines.push(el('div', { class: 'muted small' }, `Cleanliness ${Math.round(s.cleanliness)}% · ${s.fiveStars} five-star reviews`));
-      if (s.suggestions[0]) lines.push(el('div', { class: 'deco-sugg' }, `💡 ${s.suggestions[0].text} → +${s.suggestions[0].gain.toFixed(1)}★`));
+      if (s.suggestions[0]) lines.push(el('div', { class: 'deco-sugg' }, `💡 ${s.suggestions[0].text} → ${s.suggestions[0].gain > 0 ? `+${s.suggestions[0].gain.toFixed(1)}★` : 'a small boost'}`));
       for (const r of s.reviews.slice(0, 3)) lines.push(el('div', { class: 'review' }, `${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)} “${r.text}”`));
     } else if (s.mode === 'home') lines.push(el('div', { class: 'muted' }, 'Your own place: decorate it and show it off.'));
     else lines.push(el('div', { class: 'muted' }, 'Empty. Pick what to do with it above.'));

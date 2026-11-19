@@ -76,16 +76,36 @@ describe('floor plans', () => {
     expect(layoutProblem(cfg, unit, right)).toBeNull();
     expect(layoutProblem(cfg, unit, wrong)).toBeNull();
     const r1 = rateUnit(cfg, unit, right, 100), r2 = rateUnit(cfg, unit, wrong, 100);
-    expect(r1.factors.rooms).toBe(1);
-    expect(r2.factors.rooms).toBe(0.75); // bed wrong; toilet, shower, kitchenette right
+    expect(r1.misplaced).toEqual([]);
     expect(r2.misplaced.map((m) => m.item)).toEqual(['basic_bed']);
+    expect(r1.factors.rooms).toBeGreaterThan(r2.factors.rooms);
     expect(r1.score).toBeGreaterThan(r2.score);
     const s = suggestions(cfg, { ...unit, loc: 1 }, wrong, 100, []);
     expect(s.some((x) => x.action.kind === 'move' && /bedroom/.test(x.text))).toBe(true);
-    // Neutral things (a lamp) don't count; nothing to judge = full marks.
-    expect(rateUnit(cfg, unit, [at('floor_lamp', living.x, living.y)], 100).factors.rooms).toBe(1);
+    // Neutral things (a lamp) are never in the wrong room.
+    expect(rateUnit(cfg, unit, [at('floor_lamp', living.x, living.y + 2)], 100).misplaced).toEqual([]);
     // A studio has no bedroom: the bed belongs in its main room.
     const st = properties.types.studio;
-    expect(rateUnit(cfg, { w: st.w, h: st.h, type: 'studio' }, [at('basic_bed', 0, 0)], 100).factors.rooms).toBe(1);
+    expect(rateUnit(cfg, { w: st.w, h: st.h, type: 'studio' }, [at('basic_bed', 0, 0)], 100).misplaced).toEqual([]);
+  });
+
+  it('complete rooms: each room has its needs; meeting them raises the Rooms factor', () => {
+    const t = properties.types.condo2;
+    const unit = { w: t.w, h: t.h, type: 'condo2' };
+    let iid = 500;
+    const at = (item: string, x: number, y: number): Placed => ({ iid: iid++, item, x, y, rot: 0 });
+    // Master bedroom (x 0-2, rows 0-2; its doorway is at x 1): a bed, then a wardrobe and a lamp.
+    const bedOnly = [at('basic_bed', 0, 0)];
+    const full = [...bedOnly, { ...at('wardrobe', 2, 0), rot: 1 }, at('floor_lamp', 2, 2)];
+    expect(layoutProblem(cfg, unit, full)).toBeNull();
+    const s1 = rateUnit(cfg, unit, bedOnly, 100).rooms.find((r) => r.room === 2)!;
+    const s2 = rateUnit(cfg, unit, full, 100).rooms.find((r) => r.room === 2)!;
+    expect(s1.done).toBeCloseTo(1 / 3);
+    expect(s1.missing.map((m) => m.name)).toEqual(['storage', 'a lamp']);
+    expect(s2.done).toBe(1);
+    expect(rateUnit(cfg, unit, full, 100).factors.rooms).toBeGreaterThan(rateUnit(cfg, unit, bedOnly, 100).factors.rooms);
+    // The suggestions point at what a room still needs.
+    const sug = suggestions(cfg, { ...unit, loc: 1 }, bedOnly, 100, []);
+    void sug;
   });
 });

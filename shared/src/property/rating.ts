@@ -42,6 +42,8 @@ export interface Rating {
   blocked: boolean;
   /** Pieces in a room they don't belong in (and where they'd fit). */
   misplaced: Array<{ iid: number; item: string; want: RoomKind[] }>;
+  /** How complete each room is. */
+  rooms: RoomStatus[];
 }
 
 /** What the rating needs from a layout, so "what if I add X" is cheap to try. */
@@ -171,9 +173,38 @@ export function roomSuits(plan: FloorPlan, kind: RoomKind, want: RoomKind[]): bo
   return false;
 }
 
-/** Share of room-specific pieces that are in a suitable room (1 with nothing to judge). */
-function roomsFit(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): { factor: number; misplaced: Rating['misplaced'] } {
-  if (plan.rooms.length < 2) return { factor: 1, misplaced: [] };
+/** Does a placed piece meet a room need's token (id, category, essential or amenity)? */
+function meets(cfg: RatingCfg, item: string, any: string[]): boolean {
+  const p = cfg.furniture.pieces[item];
+  return !!p && any.some((t) => t === item || t === p.category || t === p.essential || t === p.amenity);
+}
+
+export interface RoomStatus {
+  room: number;
+  /** Needs met / needs (1 = complete). */
+  done: number;
+  missing: Array<{ name: string; any: string[] }>;
+}
+
+/** How complete each room is (rooms whose kind has no list don't count). */
+export function roomStatus(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): RoomStatus[] {
+  const out: RoomStatus[] = [];
+  plan.rooms.forEach((r, i) => {
+    const needs = cfg.furniture.roomSets[r.kind];
+    if (!needs?.length) return;
+    const inRoom = placed.filter((pl) => roomIndex(plan, pl.x, pl.y) === i);
+    const missing = needs.filter((n) => !inRoom.some((pl) => meets(cfg, pl.item, n.any)));
+    out.push({ room: i, done: (needs.length - missing.length) / needs.length, missing });
+  });
+  return out;
+}
+
+/**
+ * The Rooms factor: 60% the right things in the right rooms, 40% how complete the rooms are.
+ * (One open room, e.g. an unknown home type, has nothing to judge: full marks.)
+ */
+function roomsFit(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): { factor: number; fit: number; complete: number; misplaced: Rating['misplaced']; status: RoomStatus[] } {
+  if (plan.rooms.length < 2) return { factor: 1, fit: 1, complete: 1, misplaced: [], status: [] };
   let n = 0, ok = 0;
   const misplaced: Rating['misplaced'] = [];
   for (const pl of placed) {
@@ -185,7 +216,10 @@ function roomsFit(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): { factor: 
     if (roomSuits(plan, plan.rooms[i].kind, want)) ok++;
     else misplaced.push({ iid: pl.iid, item: pl.item, want });
   }
-  return { factor: n ? ok / n : 1, misplaced };
+  const fit = n ? ok / n : 1;
+  const status = roomStatus(cfg, plan, placed);
+  const complete = status.length ? status.reduce((a, s) => a + s.done, 0) / status.length : 1;
+  return { factor: 0.6 * fit + 0.4 * complete, fit, complete, misplaced, status };
 }
 
 export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[], cleanliness: number): Rating {
@@ -193,7 +227,7 @@ export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: st
   const blocked = walkwayBlocked(cfg, unitPlan(cfg, unit), placed);
   const plan = unitPlan(cfg, unit);
   const rf = roomsFit(cfg, plan, placed);
-  return { ...score(cfg, unit, a, cleanliness, blocked, rf.factor), themes: a.themes, blocked, misplaced: rf.misplaced };
+  return { ...score(cfg, unit, a, cleanliness, blocked, rf.factor), themes: a.themes, blocked, misplaced: rf.misplaced, rooms: rf.status };
 }
 
 // ------------------------------------------------------------------ layout rules
@@ -304,9 +338,9 @@ export function suggestions(
     addPiece(cfg, a, item);
     return score(cfg, unit, a, cleanliness, base.blocked, base.factors.rooms).stars;
   };
-  const push = (text: string, stars: number, action: Suggestion['action']) => {
-    const gain = Math.round((stars - base.stars) * 10) / 10;
-    if (gain <= 0) return;
+  const push = (text: string, stars: number, action: Suggestion['action'], keep = false) => {
+    const gain = Math.max(0, Math.round((stars - base.stars) * 10) / 10);
+    if (gain <= 0 && !keep) return; // `keep`: free moves stay even when the gain rounds to 0
     out.push({ text, gain, nightGainSen: fairNightSen(cfg.properties, unit.type, stars, unit.loc) - fair0, action });
   };
   const ownedSet = new Set(owned);
@@ -351,8 +385,25 @@ export function suggestions(
     const m0 = base.misplaced[0];
     const a1 = aggregate(cfg, placed);
     const n = placed.filter((pl) => roomKindsFor(cfg, pl.item)).length || 1;
-    const stars = score(cfg, unit, a1, cleanliness, base.blocked, Math.min(1, base.factors.rooms + 1 / n)).stars;
-    push(`Move the ${name(m0.item)} into ${roomNames(m0.want)}`, stars, { kind: 'move', iid: m0.iid, item: m0.item });
+    // The Rooms factor is 60% "right rooms": one more piece in place adds 0.6 / n.
+    const stars = score(cfg, unit, a1, cleanliness, base.blocked, Math.min(1, base.factors.rooms + 0.6 / n)).stars;
+    push(`Move the ${name(m0.item)} into ${roomNames(m0.want)}`, stars, { kind: 'move', iid: m0.iid, item: m0.item }, true);
+  }
+  // A room that's almost there: add what it's missing.
+  {
+    const plan = unitPlan(cfg, unit);
+    const todo = base.rooms.filter((r) => r.missing.length).sort((x, y) => y.done - x.done)[0];
+    if (todo) {
+      const need = todo.missing[0];
+      const c = pick((p, id) => need.any.some((t) => t === id || t === p.category || t === p.essential || t === p.amenity));
+      if (c) {
+        // One more need met: its share of that room, of all the rooms.
+        const per = 1 / Math.max(1, base.rooms.length) / (cfg.furniture.roomSets[plan.rooms[todo.room].kind]?.length ?? 1);
+        const a1 = aggregate(cfg, [...placed, { iid: -1, item: c.item, x: 0, y: 0, rot: 0 }]);
+        const stars = score(cfg, unit, a1, cleanliness, base.blocked, Math.min(1, base.factors.rooms + 0.4 * per)).stars;
+        push(`Complete the ${plan.rooms[todo.room].name.toLowerCase()}: ${c.owned ? 'place your' : 'add a'} ${name(c.item)} (${need.name})`, stars, { kind: c.owned ? 'place' : 'buy', item: c.item });
+      }
+    }
   }
   // Cramped or blocked: take out the piece whose removal helps most.
   if (base.blocked || base.fill > cfg.properties.rating.idealFill[1]) {

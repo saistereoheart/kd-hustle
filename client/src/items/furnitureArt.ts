@@ -19,17 +19,6 @@ function shade(hex: string, f: number): string {
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)));
   return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`;
 }
-function rr(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill: string, stroke?: string) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
-  ctx.fillStyle = fill;
-  ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.04);
-    ctx.stroke();
-  }
-}
 function circle(ctx: Ctx, x: number, y: number, r: number, fill: string | CanvasGradient) {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -56,152 +45,239 @@ const LOOKS_LIKE: Record<string, string> = {
 
 /** Signature pieces with their own drawing. Returns true if it drew `item`. */
 function drawSpecial(ctx: Ctx, item: string, w: number, h: number, col: string, dk: string, m: number): boolean {
+  void dk;
   switch (item) {
     case 'canopy_bed': {
-      rr(ctx, 1, 1, w - 2, h - 2, m * 0.08, '#7f5539');
-      rr(ctx, w * 0.08, h * 0.08, w * 0.84, h * 0.84, m * 0.06, '#fff9db');
-      rr(ctx, w * 0.1, h * 0.3, w * 0.8, h * 0.6, m * 0.06, '#c92a2a', '#862e2e');
-      for (let i = 0; i < 3; i++) rr(ctx, w * (0.14 + i * 0.25), h * 0.1, w * 0.22, h * 0.14, m * 0.05, '#ffffff', '#ffd43b');
-      for (const [x, y] of [[0.05, 0.05], [0.95, 0.05], [0.05, 0.95], [0.95, 0.95]]) circle(ctx, w * x, h * y, m * 0.06, '#fcc419');
-      ctx.strokeStyle = 'rgba(255, 236, 153, 0.55)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(w * 0.05, h * 0.05, w * 0.9, h * 0.9);
-      ctx.setLineDash([]);
+      // carved dark wood frame, gold posts, cream sheets, a deep red quilt, sheer curtains
+      wood(ctx, 1, 1, w - 2, h - 2, m * 0.08, '#6b3f26');
+      wood(ctx, 1, 1, w - 2, h * 0.12, m * 0.06, '#4e2c19');
+      fillRR(ctx, w * 0.08, h * 0.12, w * 0.84, h * 0.82, m * 0.06, lit(ctx, 0, 0, w, h, '#fff9db', 0.08));
+      fabric(ctx, w * 0.08, h * 0.36, w * 0.84, h * 0.58, m * 0.06, '#a61e4d');
+      ctx.strokeStyle = 'rgba(255, 212, 59, 0.6)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(w * 0.1, h * (0.36 + i * 0.14));
+        ctx.lineTo(w * 0.9, h * (0.36 + i * 0.14));
+        ctx.stroke();
+      }
+      fillRR(ctx, w * 0.08, h * 0.34, w * 0.84, h * 0.05, 2, '#f1f3f5');
+      for (let i = 0; i < 3; i++) pillow(ctx, w * (0.12 + i * 0.26), h * 0.14, w * 0.22, h * 0.15, i === 1 ? '#ffd8a8' : '#ffffff');
+      for (const [x, y] of [[0.05, 0.05], [0.95, 0.05], [0.05, 0.95], [0.95, 0.95]]) {
+        const g = ctx.createRadialGradient(w * x - 1, h * y - 1, 0.5, w * x, h * y, m * 0.07);
+        g.addColorStop(0, '#fff3bf');
+        g.addColorStop(1, '#e8a700');
+        circle(ctx, w * x, h * y, m * 0.065, g);
+      }
+      ctx.fillStyle = 'rgba(255, 244, 230, 0.28)'; // sheer curtains along the sides
+      ctx.fillRect(w * 0.02, h * 0.08, w * 0.06, h * 0.84);
+      ctx.fillRect(w * 0.92, h * 0.08, w * 0.06, h * 0.84);
       return true;
     }
     case 'jacuzzi': {
-      circle(ctx, w / 2, h / 2, m * 0.48, '#e9ecef');
-      circle(ctx, w / 2, h / 2, m * 0.4, '#4dabf7');
-      for (let i = 0; i < 10; i++) circle(ctx, w / 2 + Math.cos(i * 1.7) * m * 0.25, h / 2 + Math.sin(i * 2.3) * m * 0.22, m * 0.04, 'rgba(255,255,255,0.85)');
-      circle(ctx, w / 2, h / 2, m * 0.08, '#fcc419');
+      const c = w / 2, r = m * 0.48;
+      const rim = ctx.createRadialGradient(c - r * 0.3, c - r * 0.3, 1, c, c, r);
+      rim.addColorStop(0, '#ffffff');
+      rim.addColorStop(1, '#ced4da');
+      circle(ctx, c, h / 2, r, rim);
+      const water = ctx.createRadialGradient(c, h / 2, 1, c, h / 2, r * 0.82);
+      water.addColorStop(0, '#99e9f2');
+      water.addColorStop(1, '#1c7ed6');
+      circle(ctx, c, h / 2, r * 0.82, water);
+      for (let i = 0; i < 6; i++) ring(ctx, c, h / 2, r * (0.2 + i * 0.1), 'rgba(255,255,255,0.18)', 1);
+      for (let i = 0; i < 16; i++) circle(ctx, c + Math.cos(i * 1.7) * r * 0.55, h / 2 + Math.sin(i * 2.3) * r * 0.5, m * (0.015 + (i % 3) * 0.01), 'rgba(255,255,255,0.85)');
+      for (let i = 0; i < 6; i++) circle(ctx, c + Math.cos((i * Math.PI) / 3) * r * 0.72, h / 2 + Math.sin((i * Math.PI) / 3) * r * 0.72, m * 0.025, '#adb5bd'); // jets
       return true;
     }
     case 'vanity_sink': {
-      rr(ctx, 1, 1, w - 2, h - 2, 3, col, dk);
-      rr(ctx, w * 0.3, h * 0.2, w * 0.4, h * 0.6, m * 0.25, '#f8f9fa', '#adb5bd');
-      circle(ctx, w / 2, h * 0.5, m * 0.08, '#a5d8ff');
-      rr(ctx, w * 0.47, h * 0.08, w * 0.06, h * 0.18, 1, '#868e96');
+      wood(ctx, 1, 1, w - 2, h - 2, 3, col);
+      stone(ctx, 2, 2, w - 4, h * 0.6, 3, '#f1f3f5');
+      const basin = ctx.createRadialGradient(w / 2, h * 0.32, 1, w / 2, h * 0.32, m * 0.3);
+      basin.addColorStop(0, '#ffffff');
+      basin.addColorStop(1, '#ced4da');
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h * 0.34, w * 0.2, h * 0.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = basin;
+      ctx.fill();
+      circle(ctx, w / 2, h * 0.36, m * 0.035, '#868e96');
+      gloss(ctx, w * 0.47, h * 0.05, w * 0.06, h * 0.13, 1, '#adb5bd');
+      for (const x of [0.25, 0.75]) fillRR(ctx, w * x - 2, h * 0.78, 4, h * 0.1, 1, '#dee2e6'); // drawer pulls
       return true;
     }
     case 'fridge': {
-      rr(ctx, w * 0.1, 2, w * 0.8, h - 4, 4, '#f1f3f5', '#adb5bd');
-      ctx.strokeStyle = '#adb5bd';
-      ctx.beginPath();
-      ctx.moveTo(w / 2, 4);
-      ctx.lineTo(w / 2, h - 4);
-      ctx.stroke();
-      rr(ctx, w * 0.4, h * 0.3, 2, h * 0.3, 1, '#868e96');
-      rr(ctx, w * 0.58, h * 0.3, 2, h * 0.3, 1, '#868e96');
+      gloss(ctx, w * 0.08, 2, w * 0.84, h - 4, 4, '#e9ecef');
+      fillRR(ctx, w / 2 - 0.5, 4, 1, h - 8, 0, 'rgba(0,0,0,0.25)');
+      for (const x of [0.4, 0.58]) gloss(ctx, w * x, h * 0.3, 2.5, h * 0.35, 1, '#868e96');
+      glass(ctx, w * 0.62, h * 0.08, w * 0.22, h * 0.14, 2, '#1864ab'); // the little display
       return true;
     }
     case 'kampung_dapur':
     case 'chef_kitchen': {
-      rr(ctx, 1, 1, w - 2, h - 2, 3, item === 'chef_kitchen' ? '#212529' : '#8d6e63', item === 'chef_kitchen' ? '#fcc419' : '#5d4037');
-      rr(ctx, w * 0.05, h * 0.18, w * 0.25, h * 0.64, 2, '#a5d8ff');
-      const n = item === 'chef_kitchen' ? 4 : 2;
-      for (let i = 0; i < n; i++) circle(ctx, w * (0.42 + i * (0.5 / n)), h * 0.5, m * 0.13, '#343a40');
-      if (item === 'kampung_dapur') circle(ctx, w * 0.55, h * 0.5, m * 0.2, '#495057');
+      const chef = item === 'chef_kitchen';
+      if (chef) stone(ctx, 1, 1, w - 2, h - 2, 3, '#343a40');
+      else wood(ctx, 1, 1, w - 2, h - 2, 3, '#8d6e63');
+      const sink = ctx.createLinearGradient(0, h * 0.2, 0, h * 0.8);
+      sink.addColorStop(0, '#868e96');
+      sink.addColorStop(1, '#dee2e6');
+      fillRR(ctx, w * 0.05, h * 0.2, w * 0.24, h * 0.6, 2, sink);
+      gloss(ctx, w * 0.15, h * 0.06, w * 0.04, h * 0.16, 1, '#adb5bd');
+      const n = chef ? 4 : 2;
+      for (let i = 0; i < n; i++) {
+        const x = w * (0.42 + i * (0.5 / n)), y = h / 2;
+        circle(ctx, x, y, m * 0.14, chef ? '#111' : '#495057');
+        ring(ctx, x, y, m * 0.1, chef ? '#ff6b6b' : '#868e96', 1.5);
+        ring(ctx, x, y, m * 0.05, chef ? '#ff8787' : '#868e96', 1);
+      }
+      if (!chef) {
+        // a clay pot of rendang bubbling on the wood stove
+        circle(ctx, w * 0.55, h / 2, m * 0.17, '#7a3e1b');
+        circle(ctx, w * 0.55, h / 2, m * 0.12, '#5a2d0f');
+      } else fillRR(ctx, w * 0.06, h * 0.86, w * 0.88, h * 0.06, 1, '#fcc419');
       return true;
     }
     case 'bar_counter': {
-      rr(ctx, 1, h * 0.1, w - 2, h * 0.55, 4, '#343a40', '#868e96');
-      for (let i = 0; i < 3; i++) circle(ctx, w * (0.2 + i * 0.3), h * 0.82, m * 0.14, '#c92a2a');
-      for (let i = 0; i < 4; i++) rr(ctx, w * (0.12 + i * 0.2), h * 0.18, m * 0.08, m * 0.22, 1, ['#2f9e44', '#e8590c', '#1c7ed6', '#fab005'][i]);
+      wood(ctx, 1, h * 0.08, w - 2, h * 0.56, 4, '#3b2a20');
+      stone(ctx, 2, h * 0.08, w - 4, h * 0.14, 3, '#adb5bd');
+      for (let i = 0; i < 4; i++) {
+        const bx = w * (0.12 + i * 0.2);
+        gloss(ctx, bx, h * 0.22, m * 0.09, m * 0.24, 2, ['#2f9e44', '#e8590c', '#1c7ed6', '#fab005'][i]);
+      }
+      for (let i = 0; i < 3; i++) {
+        const sx = w * (0.2 + i * 0.3);
+        circle(ctx, sx, h * 0.83, m * 0.14, '#212529');
+        const seat = ctx.createRadialGradient(sx - 2, h * 0.81, 1, sx, h * 0.83, m * 0.12);
+        seat.addColorStop(0, '#ff8787');
+        seat.addColorStop(1, '#c92a2a');
+        circle(ctx, sx, h * 0.83, m * 0.11, seat);
+      }
       return true;
     }
     case 'console_set': {
-      rr(ctx, w * 0.05, h * 0.25, w * 0.9, h * 0.5, 3, '#212529');
-      rr(ctx, w * 0.12, h * 0.35, w * 0.3, h * 0.3, 2, '#495057');
-      circle(ctx, w * 0.7, h * 0.5, m * 0.14, '#be4bdb');
-      circle(ctx, w * 0.85, h * 0.5, m * 0.08, '#4dabf7');
+      wood(ctx, 1, h * 0.2, w - 2, h * 0.6, 3, '#343a40');
+      glass(ctx, w * 0.08, h * 0.3, w * 0.34, h * 0.4, 3, '#212529');
+      circle(ctx, w * 0.36, h * 0.36, 1.5, '#4dabf7');
+      // a controller
+      fillRR(ctx, w * 0.55, h * 0.36, w * 0.3, h * 0.26, h * 0.13, lit(ctx, w * 0.55, h * 0.36, w * 0.3, h * 0.26, '#495057'));
+      circle(ctx, w * 0.62, h * 0.49, m * 0.05, '#212529');
+      for (const [dx, dy, c] of [[0.76, 0.43, '#ff6b6b'], [0.8, 0.5, '#51cf66'], [0.72, 0.5, '#4dabf7'], [0.76, 0.56, '#ffd43b']] as const) circle(ctx, w * dx, h * dy, 1.5, c);
       return true;
     }
     case 'robot_vacuum': {
-      circle(ctx, w / 2, h / 2, m * 0.4, '#343a40');
-      circle(ctx, w / 2, h / 2, m * 0.3, '#22b8cf');
-      circle(ctx, w / 2, h * 0.32, m * 0.06, '#51cf66');
+      const g = ctx.createRadialGradient(w * 0.42, h * 0.4, 1, w / 2, h / 2, m * 0.42);
+      g.addColorStop(0, '#495057');
+      g.addColorStop(1, '#16181d');
+      circle(ctx, w / 2, h / 2, m * 0.42, g);
+      ring(ctx, w / 2, h / 2, m * 0.33, '#22b8cf', 2);
+      circle(ctx, w / 2, h * 0.3, m * 0.06, '#51cf66');
+      fillRR(ctx, w * 0.35, h * 0.72, w * 0.3, h * 0.06, 2, '#868e96');
       return true;
     }
     case 'bbq_pit': {
-      rr(ctx, w * 0.05, h * 0.15, w * 0.9, h * 0.7, m * 0.3, '#212529');
-      ctx.strokeStyle = '#868e96';
-      ctx.lineWidth = 1.5;
-      for (let i = 1; i < 6; i++) {
+      fillRR(ctx, w * 0.04, h * 0.12, w * 0.92, h * 0.76, m * 0.3, lit(ctx, 0, 0, w, h, '#2b2b2b'));
+      const coals = ctx.createRadialGradient(w / 2, h / 2, 1, w / 2, h / 2, m * 0.5);
+      coals.addColorStop(0, '#ff922b');
+      coals.addColorStop(1, '#5c0a0a');
+      fillRR(ctx, w * 0.1, h * 0.22, w * 0.8, h * 0.56, m * 0.22, coals);
+      ctx.strokeStyle = '#ced4da';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 9; i++) {
         ctx.beginPath();
-        ctx.moveTo(w * (0.1 + i * 0.13), h * 0.2);
-        ctx.lineTo(w * (0.1 + i * 0.13), h * 0.8);
+        ctx.moveTo(w * (0.12 + i * 0.095), h * 0.2);
+        ctx.lineTo(w * (0.12 + i * 0.095), h * 0.8);
         ctx.stroke();
       }
-      for (let i = 0; i < 4; i++) rr(ctx, w * (0.2 + i * 0.17), h * 0.38, w * 0.1, h * 0.24, 2, '#c2410c');
+      for (let i = 0; i < 4; i++) fillRR(ctx, w * (0.18 + i * 0.17), h * 0.36, w * 0.11, h * 0.28, 3, lit(ctx, 0, 0, w, h, '#c2410c')); // satay sticks
       return true;
     }
     case 'hammock': {
-      for (const x of [0.04, 0.96]) circle(ctx, w * x, h / 2, m * 0.08, '#8d6e63');
-      ctx.fillStyle = '#e03131';
+      for (const x of [0.04, 0.96]) wood(ctx, w * x - m * 0.07, h / 2 - m * 0.07, m * 0.14, m * 0.14, 2, '#6d4c41');
+      ctx.strokeStyle = '#a0826d';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(w * 0.08, h / 2);
-      ctx.quadraticCurveTo(w / 2, h * 1.05, w * 0.92, h / 2);
-      ctx.quadraticCurveTo(w / 2, -h * 0.05, w * 0.08, h / 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffd43b';
-      ctx.lineWidth = 2;
-      for (let i = 1; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(w * (0.08 + i * 0.21), h * 0.2);
-        ctx.lineTo(w * (0.08 + i * 0.21), h * 0.8);
-        ctx.stroke();
-      }
+      ctx.moveTo(w * 0.06, h / 2);
+      ctx.lineTo(w * 0.18, h * 0.3);
+      ctx.moveTo(w * 0.06, h / 2);
+      ctx.lineTo(w * 0.18, h * 0.7);
+      ctx.moveTo(w * 0.94, h / 2);
+      ctx.lineTo(w * 0.82, h * 0.3);
+      ctx.moveTo(w * 0.94, h / 2);
+      ctx.lineTo(w * 0.82, h * 0.7);
+      ctx.stroke();
+      fabric(ctx, w * 0.16, h * 0.24, w * 0.68, h * 0.52, m * 0.25, col);
+      for (let i = 1; i < 5; i++) fillRR(ctx, w * 0.18, h * (0.24 + i * 0.1), w * 0.64, 1, 0, 'rgba(255,255,255,0.3)');
       return true;
     }
     case 'rooftop_lounge': {
-      rr(ctx, 1, 1, w - 2, h - 2, 4, '#dee2e6', '#adb5bd');
-      for (const [x, y] of [[0.12, 0.12], [0.62, 0.12]]) rr(ctx, w * x, h * y, w * 0.28, h * 0.5, m * 0.08, '#fff9db', '#fcc419');
-      circle(ctx, w / 2, h * 0.78, m * 0.14, '#4dabf7');
-      circle(ctx, w * 0.85, h * 0.8, m * 0.16, '#2f9e44');
+      wood(ctx, 1, 1, w - 2, h - 2, 4, '#c8a27a');
+      for (let i = 1; i < 8; i++) fillRR(ctx, 2, (h * i) / 8, w - 4, 1, 0, 'rgba(0,0,0,0.18)');
+      fabric(ctx, w * 0.06, h * 0.1, w * 0.38, h * 0.3, m * 0.08, '#f8f9fa'); // loungers
+      fabric(ctx, w * 0.56, h * 0.1, w * 0.38, h * 0.3, m * 0.08, '#f8f9fa');
+      const pool = ctx.createLinearGradient(0, h * 0.5, 0, h * 0.95);
+      pool.addColorStop(0, '#66d9e8');
+      pool.addColorStop(1, '#1098ad');
+      fillRR(ctx, w * 0.08, h * 0.52, w * 0.84, h * 0.4, 4, pool);
+      for (let i = 0; i < 4; i++) ring(ctx, w * (0.25 + i * 0.17), h * 0.72, m * 0.05, 'rgba(255,255,255,0.45)', 1);
+      plant(ctx, w * 0.5, h * 0.25, m * 0.12, '#2f9e44');
       return true;
     }
     case 'cyber_sofa': {
-      rr(ctx, 1, 1, w - 2, h - 2, m * 0.25, '#212529');
-      rr(ctx, w * 0.08, h * 0.3, w * 0.84, h * 0.62, m * 0.18, '#343a40');
-      ctx.strokeStyle = '#22b8cf';
-      ctx.lineWidth = 2.5;
+      fabric(ctx, 1, 1, w - 2, h - 2, m * 0.2, '#16181d');
+      fabric(ctx, w * 0.06, h * 0.08, w * 0.88, h * 0.3, m * 0.12, '#212529');
+      const seats = Math.max(2, Math.round(w / h));
+      for (let i = 0; i < seats; i++) fabric(ctx, w * 0.08 + (i * w * 0.84) / seats + 1, h * 0.4, (w * 0.84) / seats - 2, h * 0.5, m * 0.1, '#2b2f3a');
+      ctx.save();
+      ctx.shadowColor = '#22b8cf';
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = '#66d9e8';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(2, 2, w - 4, h - 4, m * 0.25);
+      ctx.roundRect(2, 2, w - 4, h - 4, m * 0.2);
       ctx.stroke();
+      ctx.restore();
       return true;
     }
     case 'pendant_lights':
     case 'pelita_lamp': {
-      circle(ctx, w / 2, h / 2, m * 0.44, 'rgba(255,212,59,0.35)');
-      if (item === 'pelita_lamp') {
-        rr(ctx, w * 0.3, h * 0.45, w * 0.4, h * 0.35, 3, '#b08968');
-        ctx.fillStyle = '#ff922b';
-        ctx.beginPath();
-        ctx.moveTo(w * 0.42, h * 0.46);
-        ctx.quadraticCurveTo(w / 2, h * 0.05, w * 0.58, h * 0.46);
-        ctx.fill();
-      } else for (const x of [0.28, 0.5, 0.72]) {
-        circle(ctx, w * x, h * 0.55, m * 0.12, '#343a40');
-        circle(ctx, w * x, h * 0.58, m * 0.06, '#fff3bf');
+      const pelita = item === 'pelita_lamp';
+      const n = pelita ? 1 : 3;
+      for (let i = 0; i < n; i++) {
+        const x = w * (n === 1 ? 0.5 : 0.2 + i * 0.3), y = h / 2;
+        const glow = ctx.createRadialGradient(x, y, 1, x, y, m * (pelita ? 0.5 : 0.3));
+        glow.addColorStop(0, 'rgba(255, 224, 140, 0.7)');
+        glow.addColorStop(1, 'rgba(255, 224, 140, 0)');
+        circle(ctx, x, y, m * (pelita ? 0.5 : 0.3), glow);
+        if (pelita) {
+          circle(ctx, x, y, m * 0.18, lit(ctx, x - m * 0.18, y - m * 0.18, m * 0.36, m * 0.36, '#b08968'));
+          circle(ctx, x, y - m * 0.02, m * 0.06, '#ffd43b');
+        } else {
+          circle(ctx, x, y, m * 0.11, lit(ctx, x - m * 0.11, y - m * 0.11, m * 0.22, m * 0.22, '#343a40'));
+          circle(ctx, x, y, m * 0.05, '#fff3bf');
+        }
       }
       return true;
     }
     case 'rgb_strip': {
+      fillRR(ctx, 1, h * 0.4, w - 2, h * 0.2, 2, '#212529');
       const g = ctx.createLinearGradient(0, 0, w, 0);
-      for (const [k, c] of [[0, '#ff6b6b'], [0.25, '#ffd43b'], [0.5, '#51cf66'], [0.75, '#4dabf7'], [1, '#cc5de8']] as const) g.addColorStop(k, c);
-      ctx.fillStyle = 'rgba(190, 75, 219, 0.25)';
-      ctx.fillRect(0, h * 0.25, w, h * 0.5);
-      ctx.fillStyle = g;
-      ctx.fillRect(2, h * 0.44, w - 4, h * 0.12);
+      for (const [k, c] of [[0, '#ff6b6b'], [0.25, '#ffd43b'], [0.5, '#51cf66'], [0.75, '#4dabf7'], [1, '#be4bdb']] as const) g.addColorStop(k, c);
+      ctx.save();
+      ctx.shadowColor = '#be4bdb';
+      ctx.shadowBlur = 8;
+      fillRR(ctx, 3, h * 0.44, w - 6, h * 0.12, 2, g);
+      ctx.restore();
       return true;
     }
     case 'wau_kite': {
-      ctx.fillStyle = '#e03131';
+      // the moon kite: a crescent tail, wings, painted in kampung colours
+      ctx.save();
+      const body = ctx.createLinearGradient(0, 0, w, h);
+      body.addColorStop(0, '#e03131');
+      body.addColorStop(1, '#a61e4d');
+      ctx.fillStyle = body;
       ctx.beginPath();
       ctx.moveTo(w / 2, h * 0.05);
       ctx.quadraticCurveTo(w * 0.98, h * 0.3, w * 0.62, h * 0.55);
-      ctx.lineTo(w / 2, h * 0.95);
+      ctx.lineTo(w / 2, h * 0.62);
       ctx.lineTo(w * 0.38, h * 0.55);
       ctx.quadraticCurveTo(w * 0.02, h * 0.3, w / 2, h * 0.05);
       ctx.fill();
@@ -209,65 +285,113 @@ function drawSpecial(ctx: Ctx, item: string, w: number, h: number, col: string, 
       ctx.beginPath();
       ctx.arc(w / 2, h * 0.78, m * 0.22, Math.PI * 1.1, Math.PI * 1.9, true);
       ctx.fill();
-      circle(ctx, w / 2, h * 0.38, m * 0.1, '#1c7ed6');
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(w / 2, h * 0.08);
+      ctx.lineTo(w / 2, h * 0.6);
+      ctx.stroke();
+      circle(ctx, w / 2, h * 0.36, m * 0.09, '#1c7ed6');
+      ring(ctx, w / 2, h * 0.36, m * 0.13, '#ffd43b', 1.5);
+      ctx.restore();
       return true;
     }
     case 'aquarium': {
-      rr(ctx, 1, h * 0.1, w - 2, h * 0.8, 3, '#74c0fc', '#1c7ed6');
-      rr(ctx, 3, h * 0.7, w - 6, h * 0.16, 2, '#e9c46a');
-      for (const [x, y, c] of [[0.25, 0.4, '#ff922b'], [0.6, 0.3, '#fcc419'], [0.78, 0.55, '#f06595']] as const) {
+      wood(ctx, 1, h * 0.08, w - 2, h * 0.84, 3, '#343a40');
+      const water = ctx.createLinearGradient(0, h * 0.12, 0, h * 0.88);
+      water.addColorStop(0, '#99e9f2');
+      water.addColorStop(1, '#1971c2');
+      fillRR(ctx, 4, h * 0.14, w - 8, h * 0.72, 2, water);
+      fillRR(ctx, 4, h * 0.72, w - 8, h * 0.14, 2, lit(ctx, 0, h * 0.7, w, h * 0.2, '#e9c46a'));
+      for (const x of [0.12, 0.42, 0.85]) {
+        ctx.strokeStyle = '#2f9e44';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(w * x, h * 0.84);
+        ctx.quadraticCurveTo(w * x + 3, h * 0.6, w * x - 2, h * 0.4);
+        ctx.stroke();
+      }
+      for (const [x, y, c] of [[0.28, 0.4, '#ff922b'], [0.6, 0.32, '#fcc419'], [0.75, 0.55, '#f06595']] as const) {
         ctx.fillStyle = c;
         ctx.beginPath();
-        ctx.ellipse(w * x, h * y, m * 0.12, m * 0.07, 0, 0, Math.PI * 2);
+        ctx.ellipse(w * x, h * y, m * 0.11, m * 0.065, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(w * x - m * 0.1, h * y);
-        ctx.lineTo(w * x - m * 0.2, h * y - m * 0.07);
-        ctx.lineTo(w * x - m * 0.2, h * y + m * 0.07);
+        ctx.moveTo(w * x - m * 0.09, h * y);
+        ctx.lineTo(w * x - m * 0.19, h * y - m * 0.07);
+        ctx.lineTo(w * x - m * 0.19, h * y + m * 0.07);
         ctx.fill();
+        circle(ctx, w * x + m * 0.06, h * y - m * 0.01, 1, '#111');
       }
-      for (const x of [0.12, 0.45]) rr(ctx, w * x, h * 0.45, m * 0.06, h * 0.3, 2, '#2f9e44');
+      for (let i = 0; i < 6; i++) circle(ctx, w * 0.9, h * (0.2 + i * 0.08), 1.2, 'rgba(255,255,255,0.8)');
+      glass(ctx, 4, h * 0.14, w - 8, h * 0.72, 2, 'rgba(0,0,0,0)');
       return true;
     }
     case 'gold_statue': {
-      circle(ctx, w / 2, h * 0.58, m * 0.34, '#fcc419');
-      circle(ctx, w / 2, h * 0.3, m * 0.24, '#ffd43b');
+      // a lucky cat on a plinth
+      wood(ctx, w * 0.12, h * 0.6, w * 0.76, h * 0.34, 3, '#3b2a20');
+      const gold = (x: number, y: number, r: number) => {
+        const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, 1, x, y, r);
+        g.addColorStop(0, '#fff3bf');
+        g.addColorStop(0.5, '#fcc419');
+        g.addColorStop(1, '#b08500');
+        circle(ctx, x, y, r, g);
+      };
+      gold(w / 2, h * 0.55, m * 0.3);
+      gold(w / 2, h * 0.3, m * 0.22);
       for (const s of [-1, 1]) {
-        ctx.fillStyle = '#fcc419';
+        ctx.fillStyle = '#e8a700';
         ctx.beginPath();
         ctx.moveTo(w / 2 + s * m * 0.08, h * 0.14);
-        ctx.lineTo(w / 2 + s * m * 0.22, h * 0.02);
-        ctx.lineTo(w / 2 + s * m * 0.24, h * 0.2);
+        ctx.lineTo(w / 2 + s * m * 0.2, h * 0.04);
+        ctx.lineTo(w / 2 + s * m * 0.22, h * 0.2);
         ctx.fill();
       }
-      rr(ctx, w * 0.62, h * 0.18, m * 0.12, m * 0.3, 3, '#ffe066');
-      circle(ctx, w / 2, h * 0.62, m * 0.1, '#e03131');
+      gold(w * 0.7, h * 0.22, m * 0.08); // the waving paw
+      circle(ctx, w / 2, h * 0.56, m * 0.08, '#e03131');
       return true;
     }
     case 'hologram': {
-      rr(ctx, w * 0.25, h * 0.65, w * 0.5, h * 0.25, 3, '#343a40');
-      ctx.fillStyle = 'rgba(102, 217, 232, 0.45)';
+      wood(ctx, w * 0.25, h * 0.68, w * 0.5, h * 0.24, 3, '#343a40');
+      const beam = ctx.createLinearGradient(0, h * 0.68, 0, h * 0.05);
+      beam.addColorStop(0, 'rgba(102, 217, 232, 0.65)');
+      beam.addColorStop(1, 'rgba(102, 217, 232, 0.05)');
+      ctx.fillStyle = beam;
       ctx.beginPath();
-      ctx.moveTo(w * 0.4, h * 0.68);
-      ctx.lineTo(w * 0.1, h * 0.08);
-      ctx.lineTo(w * 0.9, h * 0.08);
-      ctx.lineTo(w * 0.6, h * 0.68);
+      ctx.moveTo(w * 0.4, h * 0.7);
+      ctx.lineTo(w * 0.08, h * 0.06);
+      ctx.lineTo(w * 0.92, h * 0.06);
+      ctx.lineTo(w * 0.6, h * 0.7);
       ctx.fill();
-      circle(ctx, w / 2, h * 0.3, m * 0.14, 'rgba(197, 246, 250, 0.9)');
+      ring(ctx, w / 2, h * 0.3, m * 0.16, 'rgba(197, 246, 250, 0.9)', 1.5);
+      circle(ctx, w / 2, h * 0.3, m * 0.08, 'rgba(197, 246, 250, 0.8)');
+      for (let i = 0; i < 4; i++) fillRR(ctx, w * 0.2, h * (0.12 + i * 0.12), w * 0.6, 0.8, 0, 'rgba(197, 246, 250, 0.35)');
       return true;
     }
     case 'throne':
     case 'gaming_chair': {
       const throne = item === 'throne';
-      rr(ctx, w * 0.1, h * 0.05, w * 0.8, h * 0.4, m * 0.15, throne ? '#fcc419' : '#212529');
-      rr(ctx, w * 0.15, h * 0.32, w * 0.7, h * 0.6, m * 0.12, throne ? '#862e9c' : '#be4bdb');
-      if (!throne) rr(ctx, w * 0.42, h * 0.08, w * 0.16, h * 0.34, 2, '#be4bdb');
-      else for (const x of [0.25, 0.5, 0.75]) circle(ctx, w * x, h * 0.1, m * 0.06, '#e03131');
+      if (throne) {
+        wood(ctx, w * 0.06, h * 0.02, w * 0.88, h * 0.44, m * 0.15, '#e8a700');
+        for (const x of [0.25, 0.5, 0.75]) circle(ctx, w * x, h * 0.1, m * 0.06, '#e03131');
+        fabric(ctx, w * 0.14, h * 0.3, w * 0.72, h * 0.62, m * 0.12, '#862e9c');
+        for (const x of [0.06, 0.82]) wood(ctx, w * x, h * 0.3, w * 0.12, h * 0.6, 3, '#d49a00');
+      } else {
+        fabric(ctx, w * 0.12, h * 0.02, w * 0.76, h * 0.44, m * 0.15, '#212529');
+        fillRR(ctx, w * 0.42, h * 0.06, w * 0.16, h * 0.36, 2, '#be4bdb');
+        fabric(ctx, w * 0.16, h * 0.34, w * 0.68, h * 0.58, m * 0.12, '#343a40');
+        for (const x of [0.08, 0.84]) fillRR(ctx, w * x, h * 0.4, w * 0.08, h * 0.4, 3, '#be4bdb');
+      }
       return true;
     }
     case 'shoe_rack': {
-      rr(ctx, 1, 1, w - 2, h - 2, 2, '#8d6e63', '#5d4037');
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) rr(ctx, w * (0.12 + j * 0.42), h * (0.12 + i * 0.28), w * 0.34, h * 0.18, 3, ['#e03131', '#1c7ed6', '#f8f9fa'][(i + j) % 3]);
+      wood(ctx, 1, 1, w - 2, h - 2, 2, '#8d6e63');
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 2; j++) {
+          const c = ['#e03131', '#1c7ed6', '#f8f9fa'][(i + j) % 3];
+          fillRR(ctx, w * (0.1 + j * 0.44), h * (0.1 + i * 0.29), w * 0.36, h * 0.2, h * 0.1, lit(ctx, 0, 0, w, h, c));
+          fillRR(ctx, w * (0.1 + j * 0.44), h * (0.1 + i * 0.29) + h * 0.14, w * 0.36, h * 0.04, 1, 'rgba(255,255,255,0.8)'); // soles
+        }
       return true;
     }
   }
