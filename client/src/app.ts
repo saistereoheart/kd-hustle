@@ -55,6 +55,7 @@ import { PhoneButton } from './ui/phoneButton';
 import { Radio } from './ui/radio';
 import { EventBanner } from './ui/eventBanner';
 import { DebugOverlay } from './ui/debugOverlay';
+import { watchGraphics } from './ui/graphicsGuard';
 import { showTrade, showTradeRequest } from './ui/trade';
 import { showCoinflipChallenge, showCoinflipResult } from './ui/coinflip';
 import { rememberLook, showTitleScreen } from './ui/titleScreen';
@@ -87,6 +88,7 @@ export class App {
   radio: Radio | null = null;
   eventBanner: EventBanner | null = null;
   debugOverlay: DebugOverlay | null = null;
+  private gfxWatched = false;
   progressHud: ProgressHud | null = null;
   /** The dish being cooked right now (debug/tests). */
   cookingDish: import('@kh/shared').DishState | null = null;
@@ -678,6 +680,11 @@ export class App {
         this.cfg.chat.maxLength,
       );
       this.minimap = new Minimap(this.map);
+      // Blank map + characters = the browser threw the graphics away: notice and reload.
+      if (!this.gfxWatched) {
+        this.gfxWatched = true;
+        watchGraphics(this.game.canvas, () => this.minimap?.baseCanvas ?? null);
+      }
       this.emotes = new EmoteWheel(this.cfg.chat.emotes, (id) => this.triggerEmote(id));
     }
     for (const m of p.chat) this.chat?.add(m);

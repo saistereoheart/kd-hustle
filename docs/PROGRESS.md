@@ -69,6 +69,16 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## Green screen: lost graphics (2026-11-19)
+
+- Reported from Firefox (2519×1280): only green, text floating (names, signs), no map, characters, trees or minimap.
+  Not reproducible from a fresh start (Chrome and Firefox both draw fine at that size): the browser had thrown away
+  the page's graphics memory (graphics card busy or reset, or a long time in a background tab). Pictures drawn
+  once go blank; text and things redrawn every frame survive.
+- New watchdog (`client/src/ui/graphicsGuard.ts`): a lost WebGL context, or the minimap's painted map going blank,
+  shows "The browser reset the graphics" and reloads after 2.5 s (progress is on the server). If it happens twice
+  within 5 minutes it stops auto-reloading and suggests Graphics → Battery saver / Chrome or Edge.
+
 ## Lag, missed clicks, music cuts (2026-11-19)
 
 - **Real bug: resizing broke the town.** When the window size changed enough to redraw the map at a new sharpness

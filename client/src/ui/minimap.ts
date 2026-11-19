@@ -56,6 +56,11 @@ export class Minimap {
     uiRoot().append(this.canvas);
   }
 
+  /** The painted map (the graphics watchdog checks it hasn't been wiped). */
+  get baseCanvas(): HTMLCanvasElement {
+    return this.base;
+  }
+
   setPois(pois: Poi[]) {
     this.pois = pois;
   }
