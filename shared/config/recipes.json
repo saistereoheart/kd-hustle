@@ -43,7 +43,12 @@
         { "kind": "path", "label": "Fold the corners", "hint": "Each corner into the middle", "art": "fold", "shape": "corners", "points": 8, "radius": 0.09 },
         { "kind": "assemble", "label": "Serve it with…", "hint": "Tap the curries the customer asked for (any order)", "art": "curry", "pick": [1, 2], "fastMs": 4500, "maxMs": 12000,
           "options": [ { "id": "dhal", "name": "Dhal", "icon": "🥣" }, { "id": "kari_ayam", "name": "Kari ayam", "icon": "🍗" }, { "id": "kari_ikan", "name": "Kari ikan", "icon": "🐠" }, { "id": "sambal", "name": "Sambal", "icon": "🌶️" } ] }
-      ]
+      ],
+      "addons": [
+        { "id": "telur_roti", "name": "Roti telur (egg)", "icon": "🍳", "basePriceSen": 300, "ingredientCostSen": 90 },
+        { "id": "kari_kambing", "name": "Kari kambing", "icon": "🍖", "basePriceSen": 650, "ingredientCostSen": 220 }
+      ],
+      "addonChance": 0.35, "maxAddons": 1
     },
     {
       "id": "nasi_goreng", "name": "Nasi Goreng Kampung", "icon": "🍚", "basePriceSen": 1700, "ingredientCostSen": 425,
@@ -83,7 +88,12 @@
           "options": [ { "id": "daging_cincang", "name": "Daging", "icon": "🥩" }, { "id": "ayam_cincang", "name": "Ayam", "icon": "🍗" }, { "id": "bawang", "name": "Bawang", "icon": "🧅" }, { "id": "telur_pecah", "name": "Telur", "icon": "🥚" }, { "id": "daun_bawang", "name": "Daun bawang", "icon": "🌿" } ] },
         { "kind": "path", "label": "Fold it into a parcel", "hint": "Each corner into the middle", "art": "fold", "shape": "corners", "points": 8, "radius": 0.09 },
         { "kind": "timing", "label": "Flip it!", "hint": "Flip when it's golden underneath", "art": "murtabak", "targetMs": [1600, 2800], "maxMs": 5400 }
-      ]
+      ],
+      "addons": [
+        { "id": "keju", "name": "Keju (cheese)", "icon": "🧀", "basePriceSen": 500, "ingredientCostSen": 160 },
+        { "id": "sardin", "name": "Sardin", "icon": "🐟", "basePriceSen": 550, "ingredientCostSen": 180 }
+      ],
+      "addonChance": 0.3, "maxAddons": 1
     }
   ],
   "windows": {

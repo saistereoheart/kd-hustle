@@ -668,7 +668,9 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           ctx.ellipse(cx, pcy, prx, pry, 0, 0, Math.PI * 2);
           ctx.fill();
           drawRoti(ctx, cx - prx * 0.25, pcy, pry * 0.78, 0.95);
-          picked.forEach((id, i) => drawBowl(ctx, id, cx + prx * (0.42 + (i % 2) * 0.02), pcy + (i % 2 ? 0.42 : -0.42) * pry * (i > 1 ? 0.2 : 1), pry * 0.42));
+          // Roti telur: the egg goes on the roti; everything else comes in a little bowl.
+          if (picked.includes('telur_roti')) drawFood(ctx, 'telur_mata', cx - prx * 0.25 - pry * 0.4, pcy - pry * 0.36, pry * 0.8, pry * 0.72, 0.6);
+          picked.filter((id) => id !== 'telur_roti').forEach((id, i) => drawBowl(ctx, id, cx + prx * (0.42 + (i % 2) * 0.02), pcy + (i % 2 ? 0.42 : -0.42) * pry * (i > 1 ? 0.2 : 1), pry * 0.42));
         } else if (s.art === 'filling') {
           // Murtabak: the stretched dough sheet on the counter, the fillings spread on top.
           drawCounter(ctx, W, H);

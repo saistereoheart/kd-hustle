@@ -75,7 +75,7 @@ export function drawTray(ctx: Ctx, x: number, y: number, w: number, h: number) {
  * One food, filling a box (x, y, w, h). `amount`: 1 = a full tray, ~0.35 = a serving on a plate.
  */
 /** Ingredients that look like another one. */
-const LOOKS_LIKE: Record<string, string> = { ayam_kunyit: 'ayam_goreng', udang_mee: 'udang' };
+const LOOKS_LIKE: Record<string, string> = { ayam_kunyit: 'ayam_goreng', udang_mee: 'udang', telur_roti: 'telur_mata' };
 
 export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, h: number, amount = 1) {
   if (LOOKS_LIKE[id]) return drawFood(ctx, LOOKS_LIKE[id], x, y, w, h, amount);
@@ -237,8 +237,10 @@ export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, 
       // fried egg sunny side up: lacy crisp edge, glossy yolk
       const k = Math.max(1, Math.round(2 * amount));
       for (let i = 0; i < k; i++) {
-        const [px, py] = amount < 1 ? [cx, cy] : spot();
         const s = Math.min(w, h) * (amount < 1 ? 0.42 : 0.3);
+        // Side by side (not random spots), so the eggs stay inside the tray.
+        const px = amount < 1 ? cx : cx + (i - (k - 1) / 2) * Math.min(s * 2.15, (w - s * 2.4) / Math.max(1, k - 1)) + (r() - 0.5) * s * 0.15;
+        const py = amount < 1 ? cy : cy + (i % 2 ? 1 : -1) * Math.min(h * 0.08, s * 0.2);
         blob(ctx, px, py, s * 1.15, s, r, '#c77a2a');
         blob(ctx, px, py, s * 1.05, s * 0.9, r, '#fffdf5');
         ellipse(ctx, px + s * 0.12, py - s * 0.05, s * 0.42, s * 0.38, 0, '#f59f00');
@@ -301,6 +303,66 @@ export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, 
         ellipse(ctx, px, py, Math.min(w, h) * 0.09, Math.min(w, h) * 0.07, 0, '#f2c14e');
       }
       ellipse(ctx, cx - rx * 0.35, cy - ry * 0.35, rx * 0.25, ry * 0.1, -0.4, 'rgba(255,255,255,0.3)');
+      break;
+    }
+    case 'kari_kambing': {
+      // mutton curry: deep red-brown gravy, bone-in mutton chunks, a slick of chilli oil
+      const g = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#b5461a');
+      g.addColorStop(1, '#5c1d0a');
+      blob(ctx, cx, cy, rx * 0.95, ry * 0.9, r, g);
+      for (let i = 0; i < n(5); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.14;
+        blob(ctx, px, py, s * 1.15, s * 0.9, r, '#6e3214');
+        ellipse(ctx, px + s * 0.55, py - s * 0.2, s * 0.32, s * 0.16, 0.5, '#efe3cf'); // bone
+        ellipse(ctx, px - s * 0.3, py - s * 0.3, s * 0.35, s * 0.18, 0, 'rgba(230, 140, 80, 0.5)');
+      }
+      for (let i = 0; i < n(6); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 2.2, 1.4, r() * 3, 'rgba(250, 82, 82, 0.55)');
+      }
+      ellipse(ctx, cx - rx * 0.35, cy - ry * 0.35, rx * 0.25, ry * 0.1, -0.4, 'rgba(255,255,255,0.25)');
+      break;
+    }
+    case 'keju': {
+      // shredded cheese: pale-yellow strands, some melted into glossy pools
+      for (let i = 0; i < n(3); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.2;
+        blob(ctx, px, py, s * 1.2, s * 0.8, r, '#ffe066');
+        ellipse(ctx, px - s * 0.3, py - s * 0.25, s * 0.4, s * 0.15, -0.3, 'rgba(255,255,255,0.55)');
+      }
+      ctx.lineCap = 'round';
+      for (let i = 0; i < n(16); i++) {
+        const [px, py] = spot();
+        const a = r() * Math.PI, l = Math.min(w, h) * (0.1 + r() * 0.1);
+        ctx.strokeStyle = r() < 0.5 ? '#fcc419' : '#ffd43b';
+        ctx.lineWidth = Math.max(1.5, Math.min(w, h) * 0.035);
+        ctx.beginPath();
+        ctx.moveTo(px - Math.cos(a) * l, py - Math.sin(a) * l * 0.6);
+        ctx.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l * 0.6);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'sardin': {
+      // canned sardines in tomato sauce: a red sauce pool with silver-backed fish halves
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, Math.max(rx, ry));
+      g.addColorStop(0, '#e03131');
+      g.addColorStop(1, '#a51111');
+      blob(ctx, cx, cy, rx * 0.9, ry * 0.85, r, g);
+      for (let i = 0; i < n(3); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.16, a = (r() - 0.5) * 1.2;
+        ellipse(ctx, px, py, s * 1.5, s * 0.55, a, '#868e96');
+        ellipse(ctx, px, py + s * 0.12, s * 1.35, s * 0.36, a, '#dee2e6');
+        ellipse(ctx, px - Math.cos(a) * s * 0.4, py - Math.sin(a) * s * 0.4 - s * 0.1, s * 0.5, s * 0.12, a, 'rgba(255,255,255,0.75)');
+      }
+      for (let i = 0; i < n(6); i++) {
+        const [px, py] = spot();
+        ellipse(ctx, px, py, 2, 1.4, 0, '#ffe3e3');
+      }
       break;
     }
     case 'kari_ikan': {
