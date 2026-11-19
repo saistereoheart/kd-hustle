@@ -53,6 +53,10 @@ window.__kh = {
   inv: () => app.store.inventory.map((i) => ({ iid: i.iid, itemId: i.itemId })),
   myProps: () => app.store.myProps,
   home: () => app.home?.debugInfo() ?? null,
+  /** Dev/tests: homes of a type (id and door), and going into one you own. */
+  units: (type: string) => app.listings.filter((u) => u.type === type).slice(0, 5).map((u) => ({ id: u.id, x: u.x, y: u.y })),
+  enterHome: (unit: string) => app.enterHome(unit),
+  homeGoto: (x: number, y: number) => app.home?.debugGoto(x, y),
   /** Tests: place furniture in the home you're in (decorate mode). */
   homePlace: (iid: number, item: string, x: number, y: number, rot = 0) => app.home?.debugPlace(iid, item, x, y, rot),
   /** Tests: buy one piece of furniture (you must be inside the store; the server checks). */

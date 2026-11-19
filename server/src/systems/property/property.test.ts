@@ -237,7 +237,8 @@ describe('Airbnb', () => {
       s.props.buy(s.p, s.studio.id);
       s.props.setMode(s.p, s.studio.id, 'airbnb');
       const items = give(s, ['basic_bed', 'toilet', 'shower', 'kitchenette', 'aircond', 'wifi_router', ...(decorate ? ['japandi_sofa', 'low_table', 'paper_lantern', 'bonsai', 'smart_tv', 'coffee_machine'] : [])]);
-      const spots: Array<[number, number]> = [[0, 1], [6, 1], [6, 2], [3, 1], [2, 0], [0, 0], [2, 3], [3, 2], [5, 4], [6, 4], [4, 0], [5, 1]];
+      // The studio's rooms: living room (x 0-4), bathroom (x 5-6, y 0-2), kitchenette (x 5-6, y 3-5).
+      const spots: Array<[number, number]> = [[0, 0], [6, 0], [6, 2], [5, 5], [2, 0], [0, 3], [0, 4], [1, 3], [3, 3], [4, 0], [0, 2], [6, 3]];
       s.props.setLayout(s.p, s.studio.id, items.map((it, k) => ({ iid: it.iid, item: it.itemId, x: spots[k][0], y: spots[k][1], rot: 0 })));
       const me = () => s.props.selfOf(s.p)[0];
       s.props.setPrices(s.p, s.studio.id, undefined, me().fairNightSen);

@@ -48,6 +48,8 @@ export const propertiesConfigSchema = z.object({
       requires: z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({}),
       rentPerDaySen: z.number().int().positive(),
       nightBaseSen: z.number().int().positive(),
+      /** Bedrooms in the floor plan (0 = a small home: one main room, a bathroom, a kitchenette). */
+      bedrooms: z.number().int().min(0).max(6).default(0),
     }),
   ),
   /** Building kind → its homes. `perM2`: one unit per this much floor (capped at `units`), so a

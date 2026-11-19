@@ -8,6 +8,7 @@
 // Every factor is 0..1. Suggestions are found by trying a change (buy a piece, clean, remove
 // one) and re-rating, so the predicted gain is exactly what the change would do.
 import type { FurnitureConfig, FurniturePiece, Placed, PropertiesConfig } from './schemas';
+import { doorwayCells, openPlan, planForType, roomIndex, wallBetween, type FloorPlan } from './floorPlan';
 
 export interface RatingCfg {
   furniture: FurnitureConfig;
@@ -100,9 +101,15 @@ function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanline
   return { stars, score: total, factors, missing, fill };
 }
 
-/** Free floor cells that can't be reached from the doorway (bottom middle). */
-function walkwayBlocked(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[]): boolean {
-  const W = unit.w, H = unit.h;
+/** The unit's floor plan: rooms for a known home type, else one open room. */
+export function unitPlan(cfg: RatingCfg, unit: { w: number; h: number; type?: string }): FloorPlan {
+  const t = unit.type ? cfg.properties.types[unit.type] : undefined;
+  return t && t.w === unit.w && t.h === unit.h ? planForType(t, unit.type!) : openPlan(unit.w, unit.h);
+}
+
+/** Free floor cells that can't be reached from the front door (walls and doorways count). */
+function walkwayBlocked(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): boolean {
+  const W = plan.w, H = plan.h;
   const solid = new Uint8Array(W * H);
   for (const pl of placed) {
     const p = cfg.furniture.pieces[pl.item];
@@ -110,7 +117,7 @@ function walkwayBlocked(cfg: RatingCfg, unit: { w: number; h: number }, placed: 
     const [w, h] = footprint(p, pl.rot);
     for (let y = pl.y; y < pl.y + h; y++) for (let x = pl.x; x < pl.x + w; x++) if (x >= 0 && y >= 0 && x < W && y < H) solid[y * W + x] = 1;
   }
-  const start = (H - 1) * W + Math.floor(W / 2);
+  const start = (H - 1) * W + plan.front[1];
   if (solid[start]) return true;
   const seen = new Uint8Array(W * H);
   const q = [start];
@@ -120,7 +127,7 @@ function walkwayBlocked(cfg: RatingCfg, unit: { w: number; h: number }, placed: 
     const x = i % W, y = (i - x) / W;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || wallBetween(plan, x, y, nx, ny)) continue;
       const j = ny * W + nx;
       if (!seen[j] && !solid[j]) {
         seen[j] = 1;
@@ -137,19 +144,21 @@ function walkwayBlocked(cfg: RatingCfg, unit: { w: number; h: number }, placed: 
   return free > 0 && reached / free < 0.85;
 }
 
-export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[], cleanliness: number): Rating {
+export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[], cleanliness: number): Rating {
   const a = aggregate(cfg, placed);
-  const blocked = walkwayBlocked(cfg, unit, placed);
+  const blocked = walkwayBlocked(cfg, unitPlan(cfg, unit), placed);
   return { ...score(cfg, unit, a, cleanliness, blocked), themes: a.themes, blocked };
 }
 
 // ------------------------------------------------------------------ layout rules
-/** Why a layout is invalid (out of the room, overlapping, blocking the door, wall item off a wall), or null. */
-export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number }, placed: Placed[]): string | null {
-  const W = unit.w, H = unit.h;
+/** Why a layout is invalid (out of the home, across a wall, overlapping, blocking a doorway, a
+ *  wall item not on a wall), or null. */
+export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[]): string | null {
+  const plan = unitPlan(cfg, unit);
+  const W = plan.w, H = plan.h;
   const grid = new Int32Array(W * H).fill(-1);
   const wallGrid = new Int32Array(W * H).fill(-1);
-  const door = [Math.floor(W / 2) - 1, Math.floor(W / 2)];
+  const keepClear = new Set(doorwayCells(plan).map(([x, y]) => y * W + x));
   const iids = new Set<number>();
   for (let k = 0; k < placed.length; k++) {
     const pl = placed[k];
@@ -159,14 +168,27 @@ export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number }, pl
     iids.add(pl.iid);
     const [w, h] = footprint(p, pl.rot);
     if (pl.x < 0 || pl.y < 0 || pl.x + w > W || pl.y + h > H) return 'Something sticks out of the room.';
-    if (p.wall && pl.y !== 0 && pl.x !== 0 && pl.x + w !== W) return 'Wall items have to touch a wall.';
+    // One room only (it can't go through a wall).
+    const room = roomIndex(plan, pl.x, pl.y);
+    for (let y = pl.y; y < pl.y + h; y++) for (let x = pl.x; x < pl.x + w; x++) if (roomIndex(plan, x, y) !== room) return `It can't go through a wall: keep it inside one room.`;
+    if (p.wall) {
+      // Must hang on a wall: the back or side walls of its room (not the front wall you look from).
+      let onWall = false;
+      for (let y = pl.y; y < pl.y + h && !onWall; y++)
+        for (let x = pl.x; x < pl.x + w && !onWall; x++)
+          for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
+            if (dy === 1 && y === H - 1) continue; // the outside front wall
+            if (wallBetween(plan, x, y, x + dx, y + dy)) onWall = true;
+          }
+      if (!onWall) return 'Wall items have to touch a wall.';
+    }
     if (p.floor) continue;
     const g = p.wall ? wallGrid : grid;
     for (let y = pl.y; y < pl.y + h; y++)
       for (let x = pl.x; x < pl.x + w; x++) {
         if (g[y * W + x] >= 0) return 'Two pieces overlap.';
         g[y * W + x] = k;
-        if (!p.wall && y === H - 1 && door.includes(x)) return 'Keep the doorway clear.';
+        if (!p.wall && keepClear.has(y * W + x)) return 'Keep the doorway clear.';
       }
   }
   return null;

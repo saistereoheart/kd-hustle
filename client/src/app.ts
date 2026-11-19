@@ -293,15 +293,17 @@ export class App {
 
   private bindKeys() {
     const inTown = () => document.body.dataset.state === 'town' && !this.creatorOpen;
+    /** Decorating a home: its keys (Q/E/R rotate, WASD move, Esc put away) win over the game's. */
+    const decorating = () => !!this.home?.isDecorating;
     this.keyboard.onPress('Enter', (e) => {
       if (!inTown()) return;
       e.preventDefault();
       this.chat?.open();
     });
-    this.keyboard.onPress('KeyQ', () => inTown() && this.emotes?.toggle());
+    this.keyboard.onPress('KeyQ', () => inTown() && !decorating() && this.emotes?.toggle());
     this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
     this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
-    this.keyboard.onPress('KeyE', () => inTown() && !isPanelOpen() && this.interact());
+    this.keyboard.onPress('KeyE', () => inTown() && !decorating() && !isPanelOpen() && this.interact());
     // Tab or P: the HustlePhone (spec §16). Settings live in the phone and behind the ⚙️ button.
     this.keyboard.onPress('Tab', (e) => {
       if (!inTown()) return;
@@ -313,7 +315,7 @@ export class App {
     this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && this.openPhone());
     this.keyboard.onPress('Escape', () => {
       if (this.interior && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen) this.interior.leave();
-      else if (this.home && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen && !document.querySelector('.modal-backdrop')) this.home.leave();
+      else if (this.home && !decorating() && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen && !document.querySelector('.modal-backdrop')) this.home.leave();
       this.emotes?.close();
       this.minimap?.closeFull();
     });

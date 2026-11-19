@@ -1,17 +1,17 @@
 {
   "types": {
-    "studio":   { "name": "Studio flat",      "icon": "🏢", "w": 7,  "h": 6,  "priceSen": 2500000,   "requires": { "stage": 2 }, "rentPerDaySen": 30000,   "nightBaseSen": 70000 },
-    "condo2":   { "name": "2-bedroom condo",  "icon": "🏙️", "w": 9,  "h": 7,  "priceSen": 9000000,   "requires": { "stage": 3 }, "rentPerDaySen": 100000,  "nightBaseSen": 230000 },
-    "condo3":   { "name": "3-bedroom condo",  "icon": "🏙️", "w": 11, "h": 8,  "priceSen": 22000000,  "requires": { "stage": 3 }, "rentPerDaySen": 230000,  "nightBaseSen": 520000 },
-    "terrace":  { "name": "Terrace house",    "icon": "🏠", "w": 12, "h": 8,  "priceSen": 45000000,  "requires": { "stage": 4 }, "rentPerDaySen": 450000,  "nightBaseSen": 1000000 },
-    "semid":    { "name": "Semi-D",           "icon": "🏡", "w": 13, "h": 9,  "priceSen": 120000000, "requires": { "stage": 4 }, "rentPerDaySen": 1100000, "nightBaseSen": 2400000 },
-    "bungalow": { "name": "Bungalow",         "icon": "🏰", "w": 14, "h": 10, "priceSen": 350000000, "requires": { "stage": 5 }, "rentPerDaySen": 3000000, "nightBaseSen": 6500000 },
-    "loft":     { "name": "Shoplot loft",     "icon": "🏬", "w": 9,  "h": 7,  "priceSen": 4000000,   "requires": {},         "rentPerDaySen": 36000,   "nightBaseSen": 80000 },
-    "sublet":   { "name": "Sublet room",      "icon": "🛏️", "w": 6,  "h": 5,  "priceSen": 800000,    "requires": {},         "rentPerDaySen": 9000,    "nightBaseSen": 20000 },
-    "lowcost":  { "name": "Low-cost flat",    "icon": "🏢", "w": 8,  "h": 6,  "priceSen": 6000000,   "requires": { "stage": 3 }, "rentPerDaySen": 70000,   "nightBaseSen": 160000 },
-    "penthouse": { "name": "Penthouse",       "icon": "🌆", "w": 16, "h": 11, "priceSen": 1500000000, "requires": { "stage": 5 }, "rentPerDaySen": 13000000, "nightBaseSen": 28000000 },
-    "office":   { "name": "Office suite",     "icon": "🏙️", "w": 20, "h": 14, "priceSen": 60000000000, "requires": { "stage": 6 }, "rentPerDaySen": 400000000, "nightBaseSen": 800000000 },
-    "duplex": { "name": "Duplex condo", "icon": "🏙️", "w": 12, "h": 9, "priceSen": 70000000, "requires": { "stage": 4 }, "rentPerDaySen": 700000, "nightBaseSen": 1500000 }
+    "studio":   { "name": "Studio flat",      "icon": "🏢", "w": 7,  "h": 6,  "priceSen": 2500000,   "requires": { "stage": 2 }, "rentPerDaySen": 30000,   "nightBaseSen": 70000, "bedrooms": 0 },
+    "condo2":   { "name": "2-bedroom condo",  "icon": "🏙️", "w": 9,  "h": 7,  "priceSen": 9000000,   "requires": { "stage": 3 }, "rentPerDaySen": 100000,  "nightBaseSen": 230000, "bedrooms": 2 },
+    "condo3":   { "name": "3-bedroom condo",  "icon": "🏙️", "w": 11, "h": 8,  "priceSen": 22000000,  "requires": { "stage": 3 }, "rentPerDaySen": 230000,  "nightBaseSen": 520000, "bedrooms": 3 },
+    "terrace":  { "name": "Terrace house",    "icon": "🏠", "w": 12, "h": 8,  "priceSen": 45000000,  "requires": { "stage": 4 }, "rentPerDaySen": 450000,  "nightBaseSen": 1000000, "bedrooms": 3 },
+    "semid":    { "name": "Semi-D",           "icon": "🏡", "w": 13, "h": 9,  "priceSen": 120000000, "requires": { "stage": 4 }, "rentPerDaySen": 1100000, "nightBaseSen": 2400000, "bedrooms": 3 },
+    "bungalow": { "name": "Bungalow",         "icon": "🏰", "w": 14, "h": 10, "priceSen": 350000000, "requires": { "stage": 5 }, "rentPerDaySen": 3000000, "nightBaseSen": 6500000, "bedrooms": 4 },
+    "loft":     { "name": "Shoplot loft",     "icon": "🏬", "w": 9,  "h": 7,  "priceSen": 4000000,   "requires": {},         "rentPerDaySen": 36000,   "nightBaseSen": 80000, "bedrooms": 1 },
+    "sublet":   { "name": "Sublet room",      "icon": "🛏️", "w": 6,  "h": 5,  "priceSen": 800000,    "requires": {},         "rentPerDaySen": 9000,    "nightBaseSen": 20000, "bedrooms": 0 },
+    "lowcost":  { "name": "Low-cost flat",    "icon": "🏢", "w": 8,  "h": 6,  "priceSen": 6000000,   "requires": { "stage": 3 }, "rentPerDaySen": 70000,   "nightBaseSen": 160000, "bedrooms": 1 },
+    "penthouse": { "name": "Penthouse",       "icon": "🌆", "w": 16, "h": 11, "priceSen": 1500000000, "requires": { "stage": 5 }, "rentPerDaySen": 13000000, "nightBaseSen": 28000000, "bedrooms": 3 },
+    "office":   { "name": "Office suite",     "icon": "🏙️", "w": 20, "h": 14, "priceSen": 60000000000, "requires": { "stage": 6 }, "rentPerDaySen": 400000000, "nightBaseSen": 800000000, "bedrooms": 4 },
+    "duplex": { "name": "Duplex condo", "icon": "🏙️", "w": 12, "h": 9, "priceSen": 70000000, "requires": { "stage": 4 }, "rentPerDaySen": 700000, "nightBaseSen": 1500000, "bedrooms": 2 }
   },
   "byKind": {
     "flat": { "type": "studio", "units": 8 },

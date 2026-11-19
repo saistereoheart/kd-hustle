@@ -140,7 +140,7 @@ export class PropertySystem {
 
   ratingOf(s: PropState): Rating {
     const t = this.cfg.properties.types[s.type];
-    return rateUnit(this.rating, { w: t.w, h: t.h }, s.layout, s.cleanliness);
+    return rateUnit(this.rating, { w: t.w, h: t.h, type: s.type }, s.layout, s.cleanliness);
   }
 
   all(): PropPublic[] {
@@ -342,7 +342,7 @@ export class PropertySystem {
       if (!inst || inst.itemId !== pl.item) throw new GameError("You don't own one of those pieces any more.");
       if (elsewhere.has(pl.iid)) throw new GameError('That piece is already in another of your homes.');
     }
-    const problem = layoutProblem(this.rating, { w: t.w, h: t.h }, layout);
+    const problem = layoutProblem(this.rating, { w: t.w, h: t.h, type: s.type }, layout);
     if (problem) throw new GameError(problem);
     s.layout = layout.map((pl) => ({ iid: pl.iid, item: pl.item, x: pl.x, y: pl.y, rot: ((pl.rot % 4) + 4) % 4 }));
     this.save(s);

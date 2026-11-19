@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 314 unit tests |
+| `npm test` (Vitest) | ✅ 327 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -68,6 +68,24 @@ Compared with the spec's content checklist (§19):
 - **Reading them:** admins get an 📥 Inbox tab in the same window (unread count on the button, a toast when one
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
+
+## 🏠 Rooms and better decorating (2026-11-19)
+
+- **Homes have rooms** (`shared/src/property/floorPlan.ts`). Each type's floor is split into rooms with inner walls and
+  doorways: bedrooms and the bathroom across the back, the living room (front door) and the kitchen across the front;
+  small homes (studio, sublet) are a main room with a bathroom and kitchenette. `bedrooms` per type in
+  properties.json; the office suite gets an open office, offices, a pantry and a restroom. Saved furniture keeps its
+  coordinates (rooms only add inner walls).
+- **Walking in:** the front door opens into the living room; doorways lead to the others. The camera frames the room
+  you're in, the rest go dark, and the room's name pops up. Floors differ by room (wood, carpet, kitchen tiles,
+  bathroom tiles).
+- **Rules (server too):** furniture stays inside one room, doorways stay clear, wall items hang on any wall (inner
+  ones too). The walkway check follows walls and doorways. Pieces from before that now cross a wall or block a
+  doorway are outlined red in Decorate with a note to move them.
+- **Decorating:** a see-through preview of the real piece, green or red with the reason ("Keep the doorway clear");
+  drag pieces to move them; wall items turn to face out from the wall you point at; keys: R / E rotate, Q back,
+  arrows (or WASD) move, Enter / Space place, X pick up, Esc / Del put away, Ctrl+Z / Y. The game's Esc / Q / E don't
+  fire while decorating. Each piece in the list shows its size.
 
 ## 📍 Place markers (2026-11-19)
 

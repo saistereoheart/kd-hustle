@@ -21,6 +21,7 @@ export * from './world/npcs';
 export * from './property/schemas';
 export * from './property/rating';
 export * from './property/listings';
+export * from './property/floorPlan';
 export * from './items/grades';
 export * from './items/variants';
 export * from './business/business';
