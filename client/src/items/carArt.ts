@@ -9,7 +9,9 @@ import type Phaser from 'phaser';
 import type { GarageConfig, VehicleLook } from '@kh/shared';
 
 type Ctx = CanvasRenderingContext2D;
-export type View = 'side' | 'front' | 'back';
+/** side / front / back, plus the 45° views (dfront: going down-left, dback: going up-left). */
+export type View = 'side' | 'front' | 'back' | 'dfront' | 'dback';
+export const VIEWS: readonly View[] = ['side', 'front', 'back', 'dfront', 'dback'];
 export interface Look {
   paint: string; // colour
   wheel: string; // colour
@@ -19,10 +21,13 @@ export interface Look {
 /** The classic side profile's layout (the car shapes below are drawn in it). */
 const CAR_SIZE_OLD = { w: 96, h: 56, ground: 52 };
 /** Car canvases: the ¾ side view (room above for the roof seen from above) and the front/back view. */
-export const CAR_SIDE = { w: 96, h: 68, ground: 64 };
-export const CAR_END = { w: 64, h: 104, ground: 100 };
+// `center` is where the middle of the vehicle meets the ground (the sprite's anchor in town).
+export const CAR_SIDE = { w: 96, h: 68, ground: 64, center: 57 };
+export const CAR_END = { w: 64, h: 104, ground: 100, center: 66 };
+export const CAR_DIAG = { w: 100, h: 96, ground: 92, center: 64 };
 export const CAR_SIZE = CAR_SIDE;
-export const BIKE_SIZE = { w: 64, h: 44, ground: 40 };
+export const BIKE_SIZE = { w: 64, h: 44, ground: 40, center: 40 };
+export const BIKE_DIAG = { w: 56, h: 72, ground: 68, center: 60 };
 
 function rgb(hex: string): [number, number, number] {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
@@ -564,10 +569,88 @@ function carEnd3q(ctx: Ctx, id: string, look: Look, back: boolean) {
   }
 }
 
-/** Canvas size for a vehicle in a view (cars: a wide side canvas and a tall front/back one). */
-export function viewSize(id: string, view: View): { w: number; h: number; ground: number } {
-  if (!id.startsWith('car_')) return BIKE_SIZE;
-  return view === 'side' ? CAR_SIDE : CAR_END;
+// ------------------------------------------------------------------ 45° views (8 directions)
+/** Turned 45°: going down-left (`back` false: the front and left side show) or up-left (`back`
+ *  true: the rear and left side show). Going right is the same picture, mirrored. */
+function carDiag(ctx: Ctx, id: string, look: Look, back: boolean) {
+  const c = CARS[id] ?? CARS.car_sega;
+  const th = ((back ? 1 : -1) * Math.PI) / 4;
+  const cs = Math.cos(th), sn = Math.sin(th);
+  const K = 0.55, CZ = 0.8, HW = 20;
+  const cx = CAR_DIAG.w / 2, cy = CAR_DIAG.center;
+  // Profile point (px, py) at depth y across the car → canvas.
+  const P = (px: number, py: number, y: number): Pt => {
+    const X = px - 48, Z = 52 - py;
+    return [cx + X * cs - y * sn, cy + (X * sn + y * cs) * K - Z * CZ];
+  };
+  const quad = (pts: Pt[], fill: string | CanvasGradient) => fillPath(ctx, pts.flat(), fill);
+  const xs = ptsOf(c.body).map((q) => q[0]);
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  quad([P(xmin - 1, 52, -HW - 2), P(xmax + 1, 52, -HW - 2), P(xmax + 1, 52, HW + 2), P(xmin - 1, 52, HW + 2)], 'rgba(0,0,0,0.22)');
+  const gs = glassSpan(c);
+  const beltZ = 52 - gs.belt;
+  // The faces you can see (the top, and the end facing you), far ones first.
+  const faces = edges(c.body)
+    .filter((e) => e.nx * sn - e.ny * 1.2 > 0.05)
+    .sort((e1, e2) => ((e1.a[0] + e1.b[0]) / 2 - 48) * sn - ((e2.a[0] + e2.b[0]) / 2 - 48) * sn);
+  for (const e of faces) {
+    const mid: Pt = [(e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2];
+    const cabin = 52 - mid[1] > beltZ && mid[0] > gs.x0 && mid[0] < gs.x1;
+    const roofish = Math.abs(e.ny) >= 0.97;
+    const facingEnd = Math.abs(e.nx) > 0.75;
+    const pts = [P(e.a[0], e.a[1], -HW), P(e.b[0], e.b[1], -HW), P(e.b[0], e.b[1], HW), P(e.a[0], e.a[1], HW)];
+    const ys = pts.map((q) => q[1]);
+    const fill = cabin && !roofish ? glassGrad(ctx, Math.min(...ys), Math.max(...ys) + 0.01) : facingEnd ? shade(look.paint, -0.12) : shade(look.paint, roofish ? (cabin ? 0.3 : 0.16) : 0.05);
+    quad(pts, fill);
+    line(ctx, [...pts[0], ...pts[1]], 'rgba(0,0,0,0.15)', 0.5);
+    if (roofish && cabin) {
+      const a = P(mid[0] - 6, mid[1], -8), b = P(mid[0] + 6, mid[1], 8);
+      line(ctx, [...a, ...b], 'rgba(255,255,255,0.3)', 1.2);
+    }
+  }
+  // The end facing you: lights (and the plate and exhaust at the back).
+  const lamp = (px: number, z: number, y: number, col: string, r = 2.6) => {
+    const [x, yy] = P(px, 52 - z, y);
+    ell(ctx, x, yy, r, r * 0.75, col);
+  };
+  if (back) {
+    lamp(xmax, c.hatch ? 20 : 19, -HW + 4, '#e03131');
+    lamp(xmax, c.hatch ? 20 : 19, HW - 4, '#e03131');
+    const [px, py] = P(xmax, 52 - 13, 0);
+    rrect(ctx, px - 4, py - 1.5, 8, 3, 0.6, '#f8f9fa');
+    const [tx, ty] = P(xmax, 52 - 7.5, 12);
+    backTip(ctx, tx, ty, look.tip);
+  } else {
+    const col = c.sleek ? '#e7f5ff' : '#fff3bf';
+    lamp(xmin + 1, 18, -HW + 5, col, 3);
+    lamp(xmin + 1, 18, HW - 5, col, 3);
+    const [gx, gy] = P(xmin, 52 - 15, 0);
+    rrect(ctx, gx - 5, gy - 2, 10, 4, 1.2, '#2b2d31');
+  }
+  // The near side last: the detailed side profile, laid onto the side of the turned car.
+  ctx.save();
+  ctx.transform(cs, K * sn, 0, CZ, cx - 48 * cs - HW * sn, cy - 48 * K * sn + HW * cs * K - 52 * CZ);
+  carSide(ctx, id, look);
+  ctx.restore();
+}
+
+/** A bike turned 45°: its side drawing laid onto the ground at an angle. */
+function bikeDiag(ctx: Ctx, id: string, look: Look, back: boolean) {
+  const th = ((back ? 1 : -1) * Math.PI) / 4;
+  const cs = Math.cos(th), sn = Math.sin(th);
+  const K = 0.55;
+  const cx = BIKE_DIAG.w / 2, cy = BIKE_DIAG.center;
+  ctx.save();
+  ctx.transform(cs, K * sn, 0, 1, cx - 32 * cs, cy - 32 * K * sn - 40);
+  bikeSide(ctx, id, look);
+  ctx.restore();
+}
+
+/** Canvas size for a vehicle in a view (cars: a wide side canvas, a tall front/back one, a 45° one). */
+export function viewSize(id: string, view: View): { w: number; h: number; ground: number; center: number } {
+  const diag = view === 'dfront' || view === 'dback';
+  if (!id.startsWith('car_')) return diag ? BIKE_DIAG : BIKE_SIZE;
+  return diag ? CAR_DIAG : view === 'side' ? CAR_SIDE : CAR_END;
 }
 
 /** Draws a showroom vehicle into a canvas laid out as viewSize(id, view). */
@@ -576,7 +659,8 @@ export function drawShowroomVehicle(ctx: Ctx, id: string, look: Look, view: View
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   const car = id.startsWith('car_');
-  if (car) {
+  if (view === 'dfront' || view === 'dback') (car ? carDiag : bikeDiag)(ctx, id, look, view === 'dback');
+  else if (car) {
     if (view === 'side') carSide3q(ctx, id, look);
     else carEnd3q(ctx, id, look, view === 'back');
   } else if (view === 'side') bikeSide(ctx, id, look);
@@ -605,12 +689,12 @@ export function resolveLook(id: string, look: VehicleLook | null | undefined): L
 }
 
 const RES = 2.5; // drawn bigger in town now, so a little sharper
-/** Makes <key>_side / _front / _back for this vehicle and look (once) and returns the key. */
+/** Makes <key>_side / _front / _back / _dfront / _dback for this vehicle and look (once) and returns the key. */
 export function ensureShowroomTextures(scene: Phaser.Scene, id: string, look: VehicleLook | null | undefined): string {
   const key = `sr_${id}_${look?.paint ?? '-'}_${look?.wheel ?? '-'}_${look?.exhaust ?? '-'}`;
   if (scene.textures.exists(`${key}_side`)) return key;
   const colours = resolveLook(id, look);
-  for (const view of ['side', 'front', 'back'] as const) {
+  for (const view of VIEWS) {
     const size = viewSize(id, view);
     const c = document.createElement('canvas');
     c.width = size.w * RES;

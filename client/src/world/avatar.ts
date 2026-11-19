@@ -5,6 +5,7 @@ import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, OR
 import type { View, WornCosmetics } from '../character/draw';
 import type { VehicleLook } from '@kh/shared';
 import { hasDriver, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
+import { isShowroomVehicle } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
@@ -292,7 +293,45 @@ export class Avatar {
   private onDeck = false;
   private rainbowAt = 0;
 
+  /** 🚗 Showroom cars and bikes turn in 8 directions: the 45° view while heading diagonally. */
+  private diag: 'dfront' | 'dback' | null = null;
+  private diagRight = false;
+  private hx = 0;
+  private hy = 0;
+  private lastX = NaN;
+  private lastY = NaN;
+
+  /** Works out the heading from how the avatar moves (ours and other players' alike). */
+  private trackHeading(x: number, y: number) {
+    const dx = x - this.lastX, dy = y - this.lastY;
+    this.lastX = x;
+    this.lastY = y;
+    if (!this.vehicle || !isShowroomVehicle(this.vehicle)) {
+      if (this.diag) {
+        this.diag = null;
+        this.applyAnim();
+      }
+      return;
+    }
+    const d = Math.hypot(dx, dy);
+    if (!(d > 0.15) || d > 120) return; // standing still (keep the last view), or a teleport
+    this.hx = this.hx * 0.7 + (dx / d) * 0.3;
+    this.hy = this.hy * 0.7 + (dy / d) * 0.3;
+    const h = Math.hypot(this.hx, this.hy) || 1;
+    const ux = this.hx / h, uy = this.hy / h;
+    // A little hysteresis so it doesn't flicker on the boundary between views.
+    const lim = this.diag ? 0.32 : 0.42;
+    const diag = Math.abs(ux) > lim && Math.abs(uy) > lim ? (uy > 0 ? 'dfront' : 'dback') : null;
+    const right = ux > 0;
+    if (diag !== this.diag || (diag && right !== this.diagRight)) {
+      this.diag = diag;
+      this.diagRight = right;
+      this.applyAnim();
+    }
+  }
+
   setPosition(x: number, y: number) {
+    this.trackHeading(x, y);
     this.container.setPosition(x, y);
     // Sort by feet y so people further down the screen stand in front. World y is relative to
     // Menara Mitraland and goes negative up north, so lift it above the ground layers.
@@ -345,10 +384,17 @@ export class Avatar {
     let key: string;
     if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
     // On a bike: the riding pose (hands on the handlebar, or holding on to the Ronda rider).
-    else if (this.vehicle) key = `${this.texKey}:ride_${VIEW_OF[this.dir]}`;
+    else if (this.vehicle) key = `${this.texKey}:ride_${this.diag && !this.driver ? 'side' : VIEW_OF[this.dir]}`;
     else key = `${this.texKey}:${this.moving ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
-    this.sprite.setFlipX(!this.emoteUntil && this.dir === 'right');
-    if (this.bike) {
+    this.sprite.setFlipX(!this.emoteUntil && (this.diag && this.vehicle && !this.driver ? this.diagRight : this.dir === 'right'));
+    if (this.bike && this.diag && !this.driver) {
+      // 45°: the turned vehicle, the rider sitting on it seen from the side.
+      this.bike.setTexture(`${this.bikeTex}_${this.diag}`);
+      this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle!, this.diag));
+      this.bike.setFlipX(this.diagRight);
+      this.layer(this.bike, this.auraGlow ? 1 : 0);
+      if (this.fit?.riderX) this.sprite.setX((this.diagRight ? -1 : 1) * this.fit.riderX * 0.7);
+    } else if (this.bike) {
       const view = VIEW_OF[this.dir];
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       if (this.vehicle) this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'));

@@ -136,7 +136,7 @@ describe('gearbox (drive model)', () => {
     }
   });
 
-  it('every stock car and bike spends at least 2 s in each gear on a full-throttle run', () => {
+  it('the low gears fly by and each higher gear takes longer (stock, full throttle)', () => {
     for (const [id, m] of Object.entries(gc.models)) {
       const { spec } = run(id);
       const st = newDriveState(spec, true);
@@ -153,7 +153,8 @@ describe('gearbox (drive model)', () => {
         }
       }
       expect(times, id).toHaveLength(m.engine.gears - 1);
-      for (const x of times) expect(x, id).toBeGreaterThanOrEqual(2);
+      expect(times[0], id).toBeGreaterThanOrEqual(0.6); // first gear is quick, but not instant
+      for (let i = 1; i < times.length; i++) expect(times[i], `${id} gear ${i + 1}`).toBeGreaterThanOrEqual(times[i - 1] * 0.95);
     }
   });
 

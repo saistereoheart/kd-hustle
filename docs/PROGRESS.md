@@ -25,6 +25,36 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 
 ---
 
+## 🏎️ Faster rides, a fading torque curve, a rev-limiter switch, 8 directions (2026-11-20, your request)
+
+- **Top speeds about 12% higher:**
+  - cars: Sega 128 km/h, Bezzo 125, Mivy 134, S7O 147;
+  - bikes: ZX-25 147, 500RR 155, Dukati 169, Harlee 141.
+- **Torque is strongest in first gear and fades gear by gear.** The low gears fly by and each higher gear takes
+  longer. This replaces the earlier "at least 2 s in every gear" rule.
+
+  | Model | Seconds in each gear (the last is top gear) | 0 to top |
+  |---|---|---|
+  | Sega | 1.0 / 1.6 / 2.2 / 2.9 / 6.3 | 14.0 s |
+  | Bezzo | 1.1 / 2.5 / 3.6 / 8.0 | 15.3 s |
+  | Mivy | 1.0 / 1.6 / 2.2 / 2.9 / 6.3 | 13.9 s |
+  | S7O | 0.8 / 0.9 / 1.1 / 1.4 / 1.7 / 2.0 / 4.7 | 12.6 s |
+  | ZX-25 | 0.9 / 1.1 / 1.5 / 1.8 / 2.3 / 4.0 | 11.6 s |
+  | 500RR | 0.8 / 1.0 / 1.3 / 1.6 / 2.1 / 3.5 | 10.3 s |
+  | Dukati | 0.7 / 0.9 / 1.3 / 1.7 / 2.1 / 3.7 | 10.4 s |
+  | Harlee | 0.9 / 1.3 / 1.7 / 2.3 / 2.9 / 5.2 | 14.3 s |
+
+  A test checks that each gear takes at least as long as the one before, and that first gear is never under 0.6 s.
+  The spacing and boost are `GEAR` in `shared/src/garage/drive.ts`; the times are `accelSec` in `garage.json`.
+- **Settings → 🏁 Rev limiter bounce.** On (default): the engine bounces off the limiter at the top of a gear. Off:
+  it holds one flat high note there.
+- **8 directions:** heading diagonally, cars and bikes show a 45° view (down-left / up-left, mirrored for the right).
+  - Cars are the 3D body turned 45°: bonnet or boot, roof, windscreen, the end facing you with its lights, and the
+    detailed side.
+  - Bikes are their side drawing angled onto the ground, with the rider on it.
+  - Other players' rides turn too: the heading comes from how they move, so nothing new goes over the network.
+  - Every view is now anchored at the vehicle's middle on the ground, so it doesn't jump when it turns.
+
 ## 🏁 v1.0.0: the final round (2026-11-20, your requests)
 
 Rebuild and restart to get it (`npm run build`, Ctrl+C the server, `npm start`). No database migration: the new

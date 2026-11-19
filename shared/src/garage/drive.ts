@@ -10,7 +10,7 @@
 //
 // Automatic: shifts up near the redline and down when the revs drop low. Manual: you shift with
 // R / F or the dashboard buttons; a downshift that would over-rev the engine is refused, and
-// staying in a gear past its top bounces off the rev limiter.
+// staying in a gear past its top bounces off the rev limiter (or holds a flat note with it off).
 import type { GarageModel } from './garage';
 
 export interface DriveSpec {
@@ -84,7 +84,7 @@ export function wheelRpm(spec: DriveSpec, speed: number, gear: number): number {
 }
 
 /** Advances the car/bike by dt. `cap` is the most the ground allows right now (grass is slower). */
-export function stepDrive(spec: DriveSpec, st: DriveState, input: { throttle: boolean; cap: number }, dt: number): ShiftEvent {
+export function stepDrive(spec: DriveSpec, st: DriveState, input: { throttle: boolean; cap: number; bounce?: boolean }, dt: number): ShiftEvent {
   const n = spec.gearTop.length;
   let ev: ShiftEvent = null;
   st.shiftLeft = Math.max(0, st.shiftLeft - dt);
@@ -117,7 +117,8 @@ export function stepDrive(spec: DriveSpec, st: DriveState, input: { throttle: bo
   st.load = input.throttle && st.shiftLeft <= 0 ? 1 : 0;
   // Revs: follow the wheels (or the slipping clutch), never faster than the engine can spin up.
   let target = input.throttle ? Math.max(wheelRpm(spec, st.speed, st.gear), launching ? spec.launchRpm : spec.idle) : Math.max(spec.idle, wheelRpm(spec, st.speed, st.gear));
-  if (st.limiter) target = spec.redline * (0.97 + 0.03 * Math.random());
+  // At the end of a gear: bounce off the rev limiter, or (limiter off in Settings) hold one flat high note.
+  if (st.limiter) target = input.bounce === false ? spec.redline : spec.redline * (0.97 + 0.03 * Math.random());
   target = Math.min(spec.redline, target);
   const fast = st.shiftLeft > 0; // a gear change snaps the revs to the new gear quickly
   const up = fast ? spec.riseRate * 4 : spec.riseRate;
@@ -168,7 +169,8 @@ export function followDrive(spec: DriveSpec, st: DriveState, speed: number, thro
   return ev;
 }
 
-const BIKE_FIRST = 0.25, BIKE_P = 0.8, BIKE_M = 0.35;
+/** First gear's top (share of top speed) and how much a low gear multiplies the torque. */
+const GEAR = { carFirst: 0.22, bikeFirst: 0.2, boost: 0.75, spread: 1 };
 const specs = new Map<string, DriveSpec>();
 
 /** Seconds from standing to 97% of top speed with full throttle and the automatic (a test drive). */
@@ -195,11 +197,12 @@ export function driveSpec(m: GarageModel, top: number, accelSec: number): DriveS
   const e = m.engine;
   const bike = m.kind === 'bike';
   const n = e.gears;
-  // Gears spaced fairly evenly (a longer first gear, gaps that shrink gently) with a mild boost in the
-  // low gears, so every gear lasts a while (at least 2 s stock: see the garage tests).
-  const first = bike ? BIKE_FIRST : 0.27;
-  const gearTop = Array.from({ length: n }, (_, i) => top * (first + (1 - first) * (i / Math.max(1, n - 1)) ** (bike ? BIKE_P : 0.85)));
-  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** (bike ? BIKE_M : 0.3));
+  // Real-style ratios: geometric, so the low gears are short. Torque is multiplied most in first and
+  // less in every gear after it: the low gears fly by and each higher gear takes longer (see the
+  // garage tests).
+  const first = bike ? GEAR.bikeFirst : GEAR.carFirst;
+  const gearTop = Array.from({ length: n }, (_, i) => top * (first + (1 - first) * (i / Math.max(1, n - 1)) ** GEAR.spread));
+  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** GEAR.boost);
   const range = e.redline - e.idleRpm;
   const spec: DriveSpec = {
     top, gearTop, gearMult, accel: 1,

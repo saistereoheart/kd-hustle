@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 (2026-11-20)
+- **Speed:** cars and bikes are about 12% faster at the top.
+- **Torque:** strongest in first gear and fading gear by gear. The low gears fly by and the high gears take
+  longer. 0-to-top: cars 12.6–15.3 s, bikes 10.3–14.3 s.
+- **Settings → 🏁 Rev limiter bounce:** turn it off for a flat high note at the top of each gear.
+- **8 directions:** cars and bikes show a 45° view when heading diagonally, for other players' rides too.
+
 ## 1.0.0 (2026-11-20)
 
 The first complete version: every phase of the spec (`docs/GAME_SPEC.md` §20) is built and the §19 content list

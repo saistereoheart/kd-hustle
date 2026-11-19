@@ -479,7 +479,7 @@ export class TownScene extends Phaser.Scene {
       const terrain = i >= 0 ? this.vehicleSpeed[i] : 0.4;
       const cap = top * Math.max(v.minTerrainMult, tireGrip(cfg.garage, terrain, setup));
       const st = this.drive.st;
-      const ev = stepDrive(spec, st, { throttle, cap }, dt);
+      const ev = stepDrive(spec, st, { throttle, cap, bounce: loadPrefs().revLimiter }, dt);
       if (!throttle && st.speed > 0) st.speed = Math.max(0, st.speed - (spec.top / 1.1) * dt); // brakes + engine braking
       if (ev) this.onShift(ev);
       this.rideSpeed = st.speed;
@@ -862,7 +862,7 @@ export class TownScene extends Phaser.Scene {
     if (m && this.engine?.voice && this.drive) {
       const st = this.drive.st;
       try {
-        this.engine.voice.set(st.rpm, throttleOn ? st.load : 0, 1, { pan: 0, limiter: st.limiter && throttleOn });
+        this.engine.voice.set(st.rpm, throttleOn ? st.load : 0, 1, { pan: 0, limiter: st.limiter && throttleOn && loadPrefs().revLimiter });
       } catch {
         /* sound is optional */
       }

@@ -48,17 +48,17 @@ export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string, look?
 export function vehicleFit(vehicle: string): { originY: number; riderY: number; riderX: number; hideRider: boolean; scale: number } {
   if (isShowroomVehicle(vehicle)) {
     // A car is drawn a bit smaller (about 4.5 m long next to a person).
-    if (isCarId(vehicle)) return { originY: CAR_SIZE.ground / CAR_SIZE.h, riderY: -9, riderX: 0, hideRider: true, scale: 0.52 };
+    if (isCarId(vehicle)) return { originY: CAR_SIZE.center / CAR_SIZE.h, riderY: -9, riderX: 0, hideRider: true, scale: 0.52 };
     return { originY: BIKE_SIZE.ground / BIKE_SIZE.h, riderY: vehicle === 'bike_harlee' ? -13 : -15, riderX: vehicle === 'bike_harlee' ? 7 : 5, hideRider: false, scale: 0.5 };
   }
   return { originY: 36 / 40, riderY: vehicle === 'bicycle' ? -8 : -9, riderX: 0, hideRider: false, scale: 0.5 };
 }
 
-/** Where the ground line is in a view's texture (cars have a taller front/back canvas). */
-export function vehicleOriginY(vehicle: string, view: 'side' | 'front' | 'back'): number {
+/** Where the vehicle's middle meets the ground in a view's texture (its anchor in town). */
+export function vehicleOriginY(vehicle: string, view: 'side' | 'front' | 'back' | 'dfront' | 'dback'): number {
   if (isShowroomVehicle(vehicle)) {
     const s = viewSize(vehicle, view);
-    return s.ground / s.h;
+    return s.center / s.h;
   }
   return vehicleFit(vehicle).originY;
 }

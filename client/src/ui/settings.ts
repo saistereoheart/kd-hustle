@@ -24,9 +24,11 @@ export interface Prefs {
   ambience: boolean;
   /** 🏍️ Change gear yourself (R up, F down) instead of the automatic. */
   manualGears: boolean;
+  /** 🏍️ Bounce off the rev limiter at the end of a gear (off: the engine holds one flat high note). */
+  revLimiter: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -113,6 +115,12 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  const revLim = el('input', { type: 'checkbox', 'aria-label': 'Rev limiter', 'data-pref': 'revLimiter', checked: prefs.revLimiter });
+  revLim.addEventListener('change', () => {
+    prefs.revLimiter = revLim.checked;
+    savePrefs(prefs);
+  });
+
   const amb = el('input', { type: 'checkbox', 'aria-label': 'Ambient sounds', 'data-pref': 'ambience', checked: prefs.ambience });
   amb.addEventListener('change', () => {
     prefs.ambience = amb.checked;
@@ -155,6 +163,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money sounds (coins)'), moneySound),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money pop-ups (+RM)'), moneyPopups),
     el('div', { class: 'setting-row' }, el('span', {}, '🚗 Engine & exhaust sounds'), engine),
+    el('div', { class: 'setting-row' }, el('span', {}, '🏁 Rev limiter bounce (off: a flat high note at the top of each gear)'), revLim),
     el('div', { class: 'setting-row' }, el('span', {}, '🏙️ Ambient sounds (city, casino, cooking)'), amb),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),

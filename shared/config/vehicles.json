@@ -38,7 +38,7 @@
     "car_sega": {
       "name": "Protan Sega",
       "icon": "🚗",
-      "speed": 510,
+      "speed": 570,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -50,7 +50,7 @@
     "car_bezzo": {
       "name": "Peroduo Bezzo",
       "icon": "🚗",
-      "speed": 495,
+      "speed": 555,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -62,7 +62,7 @@
     "car_mivy": {
       "name": "Peroduo Mivy",
       "icon": "🚙",
-      "speed": 530,
+      "speed": 595,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -74,7 +74,7 @@
     "car_s7o": {
       "name": "Protan S7O",
       "icon": "🚘",
-      "speed": 585,
+      "speed": 655,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -86,7 +86,7 @@
     "bike_zx25": {
       "name": "Kawasaky ZX-25",
       "icon": "🏍️",
-      "speed": 585,
+      "speed": 655,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -98,7 +98,7 @@
     "bike_500rr": {
       "name": "ZXMotto 500RR",
       "icon": "🏍️",
-      "speed": 615,
+      "speed": 690,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -110,7 +110,7 @@
     "bike_dukati": {
       "name": "Dukati Panigalo V2",
       "icon": "🏍️",
-      "speed": 670,
+      "speed": 750,
       "hitbox": {
         "w": 18,
         "h": 12
@@ -122,7 +122,7 @@
     "bike_harlee": {
       "name": "Harlee-Davisson Road Kingo",
       "icon": "🏍️",
-      "speed": 560,
+      "speed": 625,
       "hitbox": {
         "w": 18,
         "h": 12
