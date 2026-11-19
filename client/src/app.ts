@@ -961,19 +961,11 @@ export class App {
       lastSavedAt: () => this.lastSavedAt,
       onEditCharacter: () => this.openCreator(false),
       onLogout: () => void this.logout(),
-    });
-    this.settings = {
-      close: () => {
-        s.close();
-      },
-    };
-    // openSettings removes itself on close; track that so movement resumes.
-    const check = window.setInterval(() => {
-      if (!document.querySelector('.modal-backdrop')) {
+      onClosed: () => {
         this.settings = null;
-        clearInterval(check);
-      }
-    }, 200);
+      },
+    });
+    this.settings = { close: () => s.close() };
   }
 
   async logout() {

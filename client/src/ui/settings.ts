@@ -1,4 +1,5 @@
-import { el, uiRoot } from './dom';
+import { el } from './dom';
+import { closePanel, openPanel } from './panel';
 
 const PREFS_KEY = 'kh_prefs';
 export interface Prefs {
@@ -41,6 +42,8 @@ export function openSettings(opts: {
   /** In the game: edit your look and log out. Not shown on the start screen. */
   onEditCharacter?: () => void;
   onLogout?: () => void;
+  /** Called once the window has closed. */
+  onClosed?: () => void;
 }) {
   const prefs = loadPrefs();
   const savedLabel = el('span', { class: 'muted', 'data-testid': 'last-saved' }, ago(opts.lastSavedAt?.() ?? null));
@@ -88,12 +91,11 @@ export function openSettings(opts: {
 
   const edit = el('button', { class: 'btn', type: 'button' }, '👕 Edit character');
   const logout = el('button', { class: 'btn danger', type: 'button', 'data-action': 'logout' }, 'Log out');
-  const close = el('button', { class: 'btn', type: 'button' }, 'Close');
+  const close = el('button', { class: 'btn', type: 'button', 'data-action': 'settings-close' }, '‹ Done');
 
-  const modal = el(
-    'div',
-    { class: 'modal', role: 'dialog', 'aria-label': 'Settings' },
-    el('h3', {}, '⚙️ Settings'),
+  // A normal window (opened from the phone, ‹ Back goes back to it).
+  const panel = openPanel('⚙️ Settings', { testId: 'settings-panel', cls: 'settings-panel' });
+  panel.body.append(
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, 'Last saved'), savedLabel)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Volume'), volume),
     el('div', { class: 'setting-row' }, el('span', {}, '🎵 Music (lofi / shared radio)'), musicOn),
@@ -101,25 +103,17 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),
-    el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · P or Tab HustlePhone · B bag · 1–0 hotbar (with Q: emotes) · − manifest · M map · N minimap')),
+    el('div', { class: 'setting-row' }, el('span', { class: 'muted' }, 'Keys: WASD/arrows move · E interact · Enter chat · P or Tab HustlePhone · B bag · 1–0 hotbar (with Q: emotes) · − manifest · M map · N minimap · Esc back')),
     el('div', { class: 'actions' }, ...(opts.onEditCharacter ? [edit] : []), ...(opts.onLogout ? [logout] : []), close),
   );
-  const backdrop = el('div', { class: 'modal-backdrop' }, modal);
-  const dismiss = () => {
+  const dismiss = () => panel.close();
+  panel.onClose = () => {
     clearInterval(timer);
-    backdrop.remove();
-    window.removeEventListener('keydown', onKey);
+    opts.onClosed?.();
   };
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') dismiss();
-  };
-  window.addEventListener('keydown', onKey);
-  backdrop.addEventListener('click', (e) => {
-    if (e.target === backdrop) dismiss();
-  });
   close.addEventListener('click', dismiss);
   edit.addEventListener('click', () => {
-    dismiss();
+    closePanel();
     opts.onEditCharacter?.();
   });
   logout.addEventListener('click', () => {
@@ -127,6 +121,5 @@ export function openSettings(opts: {
     logout.textContent = 'Saving…';
     opts.onLogout?.();
   });
-  uiRoot().append(backdrop);
   return { close: dismiss };
 }

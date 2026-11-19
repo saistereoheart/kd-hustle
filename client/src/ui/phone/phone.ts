@@ -46,6 +46,9 @@ interface PhoneApp {
   render?: (ctx: PhoneCtx) => Array<HTMLElement | null>;
   /** Opens something outside the phone instead. */
   open?: (app: App) => void;
+  /** `open` shows a window on top of the phone (‹ Back returns to the phone); otherwise the
+   *  phone closes first (the full map, settings). */
+  stacks?: boolean;
   /** Not built yet: shows this note. */
   soon?: string;
   /** Red badge on the icon (e.g. "!" when something is claimable). */
@@ -54,7 +57,7 @@ interface PhoneApp {
 
 const APPS: PhoneApp[] = [
   { id: 'rolls', name: 'Quick Rolls', icon: '🎰', color: '#f03e3e', render: renderRolls },
-  { id: 'jobs', name: 'Jobs', icon: '📋', color: '#2b8a3e', open: (app) => openJobsPanel(app, { remote: true }) },
+  { id: 'jobs', name: 'Jobs', icon: '📋', color: '#2b8a3e', open: (app) => openJobsPanel(app, { remote: true }), stacks: true },
   {
     id: 'daily', name: 'Daily', icon: '🎁', color: '#e64980', render: renderDaily,
     badge: (app) => (app.store.progress.daily.canClaim ? '!' : null),
@@ -80,7 +83,7 @@ const APPS: PhoneApp[] = [
   { id: 'titles', name: 'Titles', icon: '🏷️', color: '#1c7ed6', render: renderTitles },
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
   { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
-  { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0) },
+  { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0), stacks: true },
   { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
   {
     id: 'properties', name: 'Properties', icon: '🏠', color: '#0b7285', render: renderProperties,
@@ -109,7 +112,7 @@ const APPS: PhoneApp[] = [
     badge: (app) => (app.store.bank?.owesAhLong ? '🦈' : app.store.bank?.loans.some((l) => l.missed) ? '!' : null),
   },
   { id: 'rebirth', name: 'Rebirth', icon: '⭐', color: '#5f3dc4', render: renderRebirth, badge: (app) => (app.store.rebirth?.can ? '⭐' : null) },
-  { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings() },
+  { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings(), stacks: true },
 ];
 
 /** How many apps want your attention (for the badge on the phone button). */
@@ -138,7 +141,8 @@ export function openPhone(app: App, startApp?: string) {
   function go(id: string | null) {
     const def = id ? APPS.find((a) => a.id === id) : null;
     if (def?.open) {
-      closePanel();
+      if (!def.stacks) closePanel();
+      sfx.click();
       def.open(app);
       return;
     }

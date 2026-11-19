@@ -10,7 +10,7 @@ import { openMergeWindow, openRerollWindow } from './forge';
 import { sfx } from './sound';
 
 export function openInventoryPanel(app: App, startTab = 0) {
-  const panel = openPanel('🎒 Bag', { wide: true, testId: 'bag-panel' });
+  const panel = openPanel('🎒 Bag', { wide: true, testId: 'bag-panel', cls: 'bag-panel' });
   const rar = app.cfg.rarities;
   let tab = startTab;
   let selected: string | null = null; // stack key
@@ -58,55 +58,97 @@ export function openInventoryPanel(app: App, startTab = 0) {
     }
   };
 
+  /** What you're wearing (and your head chef / cashier): its own box beside the bag, so the
+   *  grid only shows what's spare. Tap one for its details. */
+  const wornBox = panel.side('👕 Wearing');
+  const SLOT_LABEL: Record<EquipSlot, string> = { hat: '🎩 Head', face: '🕶️ Face', back: '🎒 Back', aura: '✨ Aura', namecolor: '🌈 Name colour', chef: '👨‍🍳 Head chef', cashier: '💵 Cashier' };
+  const renderWorn = () => {
+    const st = app.store;
+    const rows = EQUIP_SLOTS.map((slot) => {
+      const iid = st.equipped[slot];
+      const inst = iid !== undefined ? st.inventory.find((i) => i.iid === iid) : undefined;
+      const def = inst && app.items.get(inst.itemId);
+      if (!inst || !def) return el('div', { class: 'worn-row empty', 'data-slot': slot }, el('span', { class: 'worn-slot' }, SLOT_LABEL[slot]), el('span', { class: 'muted small' }, 'nothing'));
+      const key = `worn|${inst.iid}`;
+      const tier = tierOf(rar, def.rarity).tier;
+      const off = el('button', { class: 'btn small worn-off', type: 'button', 'data-action': 'unequip', title: 'Take it off (back into the bag)' }, '✕');
+      off.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (selected === key) selected = null;
+        unequip(slot);
+      });
+      const name = el('b', { class: 'worn-name' }, def.name);
+      name.style.color = tier.color;
+      const row = el(
+        'button',
+        { class: `worn-row${selected === key ? ' selected' : ''}`, type: 'button', 'data-slot': slot, 'data-item': def.id },
+        el('img', { src: iconUrl(def, inst.variant, 44), alt: '' }),
+        el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, SLOT_LABEL[slot]), name, el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
+        off,
+      );
+      row.addEventListener('click', () => {
+        if (tab !== 0) return;
+        selected = selected === key ? null : key;
+        render();
+        panel.body.scrollTop = 0;
+      });
+      return row;
+    });
+    const none = EQUIP_SLOTS.every((slot) => st.equipped[slot] === undefined);
+    wornBox.replaceChildren(
+      el('div', { class: 'muted small worn-hint' }, 'Worn items are kept here, out of the bag grid. ✕ takes one off.'),
+      ...(none ? [el('div', { class: 'muted small worn-none' }, 'Nothing worn yet: tap an outfit piece in the bag, then Wear.')] : []),
+      ...rows,
+    );
+  };
+
   const renderItems = () => {
     const st = app.store;
-    const stacks = st.stacks().sort(
-      (a, b) =>
-        tierOf(rar, app.items.get(b.itemId)!.rarity).index - tierOf(rar, app.items.get(a.itemId)!.rarity).index || a.itemId.localeCompare(b.itemId),
-    );
-    if (!stacks.length) {
-      content.replaceChildren(el('p', { class: 'empty' }, 'Your bag is empty. Roll a crate: the Capsule Machine is inside Kedai Runcit Pak Abu, just north of the square.'));
-      return;
-    }
+    renderWorn();
     const equippedIids = new Set(Object.values(st.equipped));
+    const byRarity = (a: { itemId: string }, b: { itemId: string }) =>
+      tierOf(rar, app.items.get(b.itemId)!.rarity).index - tierOf(rar, app.items.get(a.itemId)!.rarity).index || a.itemId.localeCompare(b.itemId);
+    // The grid: only what you're NOT wearing (worn copies are in the side box).
+    const stacks = st
+      .stacks()
+      .map((s) => ({ ...s, items: s.items.filter((i) => !equippedIids.has(i.iid)) }))
+      .filter((s) => s.items.length)
+      .sort(byRarity);
+    // The one you tapped in the side box, if any.
+    const wornSel = selected?.startsWith('worn|') ? st.inventory.find((i) => `worn|${i.iid}` === selected && equippedIids.has(i.iid)) : undefined;
     const cards = new Map<(typeof stacks)[number], HTMLElement>();
     let detail: HTMLElement | null = null;
-    for (const s of stacks) {
+    const gcfg = app.cfg.grades;
+
+    const detailFor = (s: (typeof stacks)[number], key: string, worn: boolean) => {
       const def = app.items.get(s.itemId)!;
-      const key = `${s.itemId}|${s.variant}|${s.grade}|${s.serial ?? ''}`;
-      const worn = s.items.some((i) => equippedIids.has(i.iid));
-      const gcfg = app.cfg.grades;
-      const card = itemCard(rar, def, s.variant, { count: s.items.length, equipped: worn, serial: s.serial, grade: s.grade, gradeColor: gradeDef(gcfg, s.grade).color });
-      card.dataset.item = s.itemId;
-      card.dataset.key = key;
-      card.tabIndex = 0;
-      if (selected === key) card.classList.add('selected');
-      card.addEventListener('click', () => {
-        selected = selected === key ? null : key;
-        keepInPlace(key, () => render());
-      });
-      cards.set(s, card);
-      if (selected === key) {
-        const crate = app.cratesOfItem.get(def.id);
-        const tier = tierOf(rar, def.rarity).tier;
-        const slot = (EQUIP_SLOTS as readonly string[]).includes(def.type) ? (def.type as EquipSlot) : null;
-        const actions = el('div', { class: 'detail-actions' });
-        if (def.effect) {
-          const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'use' }, `Use (${s.items.length} left)`);
-          b.addEventListener('click', () => app.useItem(s.items[0].iid));
+      const crate = app.cratesOfItem.get(def.id);
+      const tier = tierOf(rar, def.rarity).tier;
+      const slot = (EQUIP_SLOTS as readonly string[]).includes(def.type) ? (def.type as EquipSlot) : null;
+      const actions = el('div', { class: 'detail-actions' });
+      if (def.effect) {
+        const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'use' }, `Use (${s.items.length} left)`);
+        b.addEventListener('click', () => app.useItem(s.items[0].iid));
+        actions.append(b);
+      }
+      if (slot) {
+        if (worn) {
+          const b = el('button', { class: 'btn', type: 'button', 'data-action': 'unequip' }, 'Take off');
+          b.addEventListener('click', () => {
+            selected = null;
+            unequip(slot);
+          });
+          actions.append(b);
+        } else {
+          const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'equip' }, slot === 'chef' ? '👨‍🍳 Make head chef' : slot === 'cashier' ? '💵 Make cashier' : `Wear (${slot})`);
+          b.addEventListener('click', () => {
+            selected = null;
+            equip(s.items[0].iid);
+          });
           actions.append(b);
         }
-        if (slot) {
-          if (worn) {
-            const b = el('button', { class: 'btn', type: 'button', 'data-action': 'unequip' }, 'Take off');
-            b.addEventListener('click', () => unequip(slot));
-            actions.append(b);
-          } else {
-            const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'equip' }, slot === 'chef' ? '👨‍🍳 Make head chef' : slot === 'cashier' ? '💵 Make cashier' : `Wear (${slot})`);
-            b.addEventListener('click', () => equip(s.items[0].iid));
-            actions.append(b);
-          }
-        }
+      }
+      if (!worn) {
         // Hotbar: put this stack in the first free slot (or say where it already is).
         const ref = { kind: 'item' as const, itemId: s.itemId, variant: s.variant };
         const inSlot = app.store.hotbar.findIndex((h) => h?.kind === 'item' && h.itemId === s.itemId && h.variant === s.variant);
@@ -120,11 +162,10 @@ export function openInventoryPanel(app: App, startTab = 0) {
         });
         actions.append(hb);
         // The forge: merge copies (a tier up, variants stack) and shard rerolls (with a reel).
-        const fromCrate = !!crate && s.serial === null;
-        if (fromCrate) {
+        if (crate && s.serial === null) {
           const copies = st.inventory.filter((i) => i.itemId === s.itemId && i.serial === null && !equippedIids.has(i.iid)).length;
           const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', title: `${gcfg.mergeCount} copies → 1, a tier up, variants stack` }, `⚒️ Merge`, el('small', {}, `${copies}/${gcfg.mergeCount} copies`));
-          m.addEventListener('click', () => openMergeWindow(app, s.items.find((i) => !equippedIids.has(i.iid))?.iid));
+          m.addEventListener('click', () => openMergeWindow(app, s.items[0]?.iid));
           actions.append(m);
           for (const what of ['grade', 'variant'] as const) {
             const cost = (what === 'grade' ? gcfg.shards.rerollGrade : gcfg.shards.rerollVariant)[def.rarity] ?? 100;
@@ -133,37 +174,64 @@ export function openInventoryPanel(app: App, startTab = 0) {
             actions.append(b);
           }
         }
-        const buff = gearBuff(gcfg, { type: def.type, rarity: def.rarity, grade: s.grade, variant: s.variant });
-        const nameEl = el('h4', {}, def.name);
-        nameEl.style.color = tier.color;
-        const close = el('button', { class: 'icon-btn item-detail-close', type: 'button', 'aria-label': 'Close details' }, '✕');
-        close.addEventListener('click', () => {
-          selected = null;
-          keepInPlace(key, () => render());
-        });
-        detail = el(
+      } else actions.append(el('div', { class: 'muted small' }, 'Take it off to merge, reroll, sell or put it on the hotbar.'));
+      const buff = gearBuff(gcfg, { type: def.type, rarity: def.rarity, grade: s.grade, variant: s.variant });
+      const nameEl = el('h4', {}, worn ? '✓ Wearing · ' : '', def.name);
+      nameEl.style.color = tier.color;
+      const close = el('button', { class: 'icon-btn item-detail-close', type: 'button', 'aria-label': 'Close details' }, '✕');
+      close.addEventListener('click', () => {
+        selected = null;
+        if (worn) render();
+        else keepInPlace(key, () => render());
+      });
+      return el(
+        'div',
+        { class: `item-detail sticky${worn ? ' worn' : ''}`, 'data-testid': 'item-detail' },
+        close,
+        el('img', { src: iconUrl(def, s.variant, 96), alt: def.name }),
+        el(
           'div',
-          { class: 'item-detail sticky', 'data-testid': 'item-detail' },
-          close,
-          el('img', { src: iconUrl(def, s.variant, 96), alt: def.name }),
-          el(
-            'div',
-            {},
-            nameEl,
-            el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${variantLabel(rar.variants, s.variant)}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
-            def.desc ? el('p', {}, def.desc) : null,
-            def.type === 'cashier'
-              ? el('div', { class: 'item-buff' }, `As kopitiam cashier: ${CASHIER_STATS.map((k) => { const v = cashierStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().cashier?.boost ?? app.mods().chef?.boost ?? 0)[k]; return `${CASHIER_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CASHIER_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
-              : def.type === 'chef'
-              ? el('div', { class: 'item-buff' }, `As head chef: ${CHEF_STATS.map((k) => { const v = chefStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().chef?.boost ?? 0)[k]; return `${CHEF_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CHEF_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
-              : buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
-            el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant, gradeMult(gcfg, s.grade)))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gradeMult(gcfg, s.grade)))}`),
-            el('div', { class: 'muted' }, 'Sell or scrap at Kedai Pajak Untung (next to Kedai Runcit).'),
-            def.type === 'furniture' ? furnitureHelp(app, def.id) : null,
-            actions,
-          ),
-        );
-      }
+          {},
+          nameEl,
+          el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${variantLabel(rar.variants, s.variant)}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
+          def.desc ? el('p', {}, def.desc) : null,
+          def.type === 'cashier'
+            ? el('div', { class: 'item-buff' }, `As kopitiam cashier: ${CASHIER_STATS.map((k) => { const v = cashierStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().cashier?.boost ?? app.mods().chef?.boost ?? 0)[k]; return `${CASHIER_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CASHIER_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
+            : def.type === 'chef'
+            ? el('div', { class: 'item-buff' }, `As head chef: ${CHEF_STATS.map((k) => { const v = chefStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().chef?.boost ?? 0)[k]; return `${CHEF_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CHEF_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
+            : buff ? el('div', { class: 'item-buff' }, `When worn: +${(buff.value * 100).toFixed(buff.value < 0.1 ? 1 : 0)}% ${STAT_NAME[buff.stat]}`) : null,
+          el('div', {}, `Value ${formatMoney(itemValueSen(rar, def, crate, s.variant, gradeMult(gcfg, s.grade)))} · pawn pays ${formatMoney(pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gradeMult(gcfg, s.grade)))}`),
+          worn ? null : el('div', { class: 'muted' }, 'Sell or scrap at Kedai Pajak Untung (next to Kedai Runcit).'),
+          def.type === 'furniture' ? furnitureHelp(app, def.id) : null,
+          actions,
+        ),
+      );
+    };
+
+    if (wornSel) {
+      detail = detailFor({ itemId: wornSel.itemId, variant: wornSel.variant, grade: wornSel.grade ?? 'D', serial: wornSel.serial, items: [wornSel] }, `worn|${wornSel.iid}`, true);
+    } else if (selected?.startsWith('worn|')) selected = null; // taken off meanwhile
+
+    for (const s of stacks) {
+      const def = app.items.get(s.itemId)!;
+      const key = `${s.itemId}|${s.variant}|${s.grade}|${s.serial ?? ''}`;
+      const card = itemCard(rar, def, s.variant, { count: s.items.length, serial: s.serial, grade: s.grade, gradeColor: gradeDef(gcfg, s.grade).color });
+      card.dataset.item = s.itemId;
+      card.dataset.key = key;
+      card.tabIndex = 0;
+      if (selected === key) card.classList.add('selected');
+      card.addEventListener('click', () => {
+        selected = selected === key ? null : key;
+        keepInPlace(key, () => render());
+      });
+      cards.set(s, card);
+      if (selected === key) detail = detailFor(s, key, false);
+    }
+    if (!stacks.length) {
+      content.replaceChildren(...(detail ? [detail] : []), el('p', { class: 'empty' }, Object.keys(st.equipped).length
+        ? 'Nothing spare in your bag: everything you own is worn (see 👕 Wearing). Roll a crate for more: the Capsule Machine is inside Kedai Runcit Pak Abu, just north of the square.'
+        : 'Your bag is empty. Roll a crate: the Capsule Machine is inside Kedai Runcit Pak Abu, just north of the square.'));
+      return;
     }
     // Grouped by what it's for: outfit (head, face, back...), potions, collectibles, furniture.
     const grouped = groupedItems(stacks, (s) => app.items.get(s.itemId)!.type, (s) => cards.get(s)!);
@@ -171,6 +239,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
   };
 
   const renderIndex = () => {
+    renderWorn();
     const st = app.store;
     const collectibles = app.cfg.items.items.filter(isCollectible);
     const total = collectibles.length;
@@ -197,6 +266,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
   const render = () => (tab === 0 ? renderItems() : renderIndex());
   const off = app.store.on(() => keepUiState(panel.body, render));
   panel.onClose = () => off();
+  panel.onResume = () => keepUiState(panel.body, render); // back from the forge: counts changed
   render();
 }
 

@@ -303,12 +303,31 @@ body.touch .osm-credit { bottom: auto; top: calc(190px + var(--safe-t)); }
 @keyframes float-up { to { transform: translateY(-36px); opacity: 0; } }
 
 .panel-backdrop { z-index: 8; }
-.panel { width: min(460px, 100%); max-height: min(88vh, 900px); display: flex; flex-direction: column; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-.panel.wide { width: min(760px, 100%); }
+.panel { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+/* Windows have a fixed size (they never grow or shrink as their content changes; it scrolls). */
+.panel-frame { display: flex; gap: 10px; width: min(460px, 100%); height: min(88vh, 760px); }
+.panel-frame.wide { width: min(760px, 100%); }
+.panel-frame.has-side { width: min(720px, 100%); }
+.panel-frame.wide.has-side { width: min(1030px, 100%); }
+.panel-hidden { display: none !important; }
+.panel-back { flex: 0 0 auto; margin-right: 10px; min-height: 36px; font-weight: 800; }
+.panel-head h3 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The side box: its own window beside the main one (stock counts, what you're wearing...). */
+.panel-side { flex: 0 0 250px; height: 100%; display: flex; flex-direction: column; min-height: 0; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.panel-side-title { margin: 0; padding: 13px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.panel-side-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 14px; -webkit-overflow-scrolling: touch; }
+/* Not enough room beside it: the side box becomes a strip above the window. */
+@media (max-width: 900px) {
+  .panel-frame.has-side { flex-direction: column; gap: 8px; }
+  .panel-frame.has-side .panel-side { order: -1; flex: 0 0 auto; height: auto; max-height: 30%; }
+  .panel-frame.has-side .panel { min-height: 0; }
+  .panel-side-title { padding: 8px 12px; font-size: 13px; }
+  .panel-side-body { padding: 8px 10px; }
+}
 .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .panel-head h3 { margin: 0; font-size: 18px; }
 .panel-close { width: 36px; height: 36px; font-size: 16px; }
-.panel-body { overflow-y: auto; padding: 12px 14px 16px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.panel-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 12px 14px 16px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 .panel-body h4 { margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .muted { color: var(--muted); font-size: 13px; }
 .empty { color: var(--muted); text-align: center; padding: 30px 10px; }
@@ -536,7 +555,8 @@ body.touch .goal-text { font-size: 12px; }
 @keyframes confetti-fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 0.8; } }
 
 /* --- the HustlePhone --- */
-.panel.phone-frame { width: min(390px, 100%); height: min(780px, 94vh); max-height: none; border-radius: 38px; border: 10px solid #0b0d16; box-shadow: 0 0 0 2px #3b4060, 0 30px 80px rgba(0,0,0,0.6); background: linear-gradient(160deg, #23284a, #151826 55%, #1f1630); }
+.panel-frame.phone-frame-frame { width: min(390px, 100%); height: min(780px, 94vh); }
+.panel.phone-frame { width: 100%; height: 100%; max-height: none; border-radius: 38px; border: 10px solid #0b0d16; box-shadow: 0 0 0 2px #3b4060, 0 30px 80px rgba(0,0,0,0.6); background: linear-gradient(160deg, #23284a, #151826 55%, #1f1630); }
 .phone-frame .panel-head { padding: 10px 14px 6px; border: 0; }
 .phone-frame .panel-head h3 { font-size: 15px; }
 .phone-frame .panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; overflow: hidden; }
@@ -561,6 +581,7 @@ body.touch .goal-text { font-size: 12px; }
 .small { font-size: 12px; }
 @media (max-width: 520px), (max-height: 640px) {
   .panel-backdrop:has(.phone-frame) { padding: 0; }
+  .panel-frame.phone-frame-frame { width: 100%; height: 100%; }
   .panel.phone-frame { width: 100%; height: 100%; border-radius: 0; border: 0; box-shadow: none; padding-top: var(--safe-t); padding-bottom: var(--safe-b); }
 }
 
@@ -836,18 +857,15 @@ body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; b
 .cook-tray:hover::after, .cook-tray:focus-visible::after { opacity: 1; }
 @media (max-width: 759px) { .cook-side { display: none; } }
 
-/* ---- your stall's stock: separate boxes lined up outside the stall window ---- */
-.stall-wrap { position: relative; width: min(460px, 100%); display: flex; flex-direction: column; align-items: stretch; }
-.stall-wrap > .panel { width: 100%; }
+/* ---- your stall's stock: in the stall window's side box ---- */
 .stall-main { min-width: 0; }
-/* Wide screens: down the panel's left side, each box stretching out to the left on hover. */
-.stall-stock-rail { position: absolute; right: calc(100% + 10px); top: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: none; padding: 2px 2px 2px 40px; }
-.stall-stock-rail .stock-pill { transform-origin: right center; flex: 0 0 auto; }
-.stall-stock-rail:empty { display: none; }
-/* Phones / narrow windows: no room beside it, so a row of boxes above the panel. */
-@media (max-width: 1000px) {
-  .stall-stock-rail { position: static; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; max-height: none; overflow: visible; margin-bottom: 8px; }
-  .stall-wrap > .panel { max-height: calc(88vh - 64px); }
+.stall-stock-rail { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.stall-stock-rail .stock-pill-name { max-width: none; margin-right: auto; }
+.stall-stock-rail .stock-pill:hover, .stall-stock-rail .stock-pill.open { transform: none; }
+@media (max-width: 900px) {
+  .stall-stock-rail { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .stall-stock-rail .stock-pill-name { max-width: 0; margin-right: 0; }
+  .stall-stock-rail .stock-pill.open .stock-pill-name { max-width: 180px; margin-right: 4px; }
 }
 .stock-pill { display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.25); background: rgba(17,19,31,0.92); color: #fff; touch-action: manipulation; box-shadow: 0 4px 12px rgba(0,0,0,0.45); cursor: pointer; transition: transform 0.15s; }
 .stock-pill:hover, .stock-pill.open { transform: scale(1.08); }
@@ -1118,3 +1136,48 @@ body.touch.portrait .feedback-btn { top: 42%; }
 body.touch:not(.portrait) .feedback-btn { top: 58%; }
 /* Out of the way while the emote wheel (same spot) is open. */
 body:has(.emote-wheel:not(.hidden)) .feedback-btn { opacity: 0; pointer-events: none; }
+
+/* ---- cooking: one fixed-size window for every step, stock in its own box beside it ---- */
+.cook-frame { display: flex; gap: 10px; align-items: stretch; width: min(1240px, calc(100vw - 16px)); height: min(calc(100vh - 16px), 860px); min-height: 0; }
+.cook-frame > .cook-box, .cook-frame > .cook-box.assemble, .cook-frame > .cook-box.track { flex: 1 1 auto; width: auto; min-width: 0; height: 100%; max-height: none; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; justify-content: flex-start; }
+.cook-stock-side { flex: 0 0 210px; display: flex; flex-direction: column; min-height: 0; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.cook-stock-side h4 { margin: 0; padding: 11px 12px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.cook-stock-side .cook-stock { flex: 1; min-height: 0; overflow-y: auto; flex-direction: column; flex-wrap: nowrap; align-items: stretch; margin: 0; padding: 8px; border: 0; border-radius: 0; background: none; }
+.cook-stock-side .cook-stock-chip { justify-content: flex-start; white-space: normal; border-radius: 12px; padding: 4px 8px 4px 4px; }
+.cook-stock-side .cook-stock-chip b { margin-left: auto; }
+.cook-stock-name { font-size: 13px; font-weight: 700; line-height: 1.15; }
+.cook-stock-sub { font-size: 11px; font-weight: 900; color: #ffa94d; text-transform: uppercase; letter-spacing: 0.06em; margin: 6px 2px 0; }
+@media (max-width: 899px) {
+  .cook-frame { flex-direction: column; gap: 6px; }
+  .cook-stock-side { order: -1; flex: 0 0 auto; flex-direction: row; align-items: center; }
+  .cook-stock-side h4 { border: 0; padding: 6px 4px 6px 10px; font-size: 13px; white-space: nowrap; }
+  .cook-stock-side .cook-stock { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 5px 6px; overflow: visible; }
+  .cook-stock-side .cook-stock-chip { border-radius: 999px; }
+  .cook-stock-side .cook-stock-chip:not(.main) .cook-stock-name, .cook-stock-sub { display: none; }
+  .cook-frame > .cook-box { min-height: 0; }
+}
+
+/* ---- bag: what you're wearing, in the side box ---- */
+.worn-hint { margin-bottom: 8px; }
+.worn-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 8px; margin-bottom: 6px; border-radius: 12px; border: 2px solid rgba(105, 219, 124, 0.55); background: rgba(105, 219, 124, 0.1); color: inherit; cursor: pointer; }
+.worn-row.selected { border-color: var(--accent); background: rgba(245, 159, 0, 0.18); }
+.worn-row.empty { border-style: dashed; border-color: var(--line); background: none; cursor: default; justify-content: space-between; padding: 8px 10px; }
+.worn-row img { width: 44px; height: 44px; flex: 0 0 auto; }
+.worn-info { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.2; }
+.worn-slot { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.worn-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worn-off { flex: 0 0 auto; min-height: 30px; padding: 2px 9px; }
+.item-detail.worn { border-color: rgba(105, 219, 124, 0.7); }
+@media (max-width: 900px) {
+  /* A compact strip above the bag: only the slots that have something in them. */
+  .bag-panel-frame .panel-side-body { display: flex; flex-wrap: wrap; gap: 6px; }
+  .worn-hint, .worn-row.empty { display: none; }
+  .worn-row { width: auto; flex: 1 1 150px; margin: 0; padding: 4px 6px; }
+  .worn-row img { width: 34px; height: 34px; }
+}
+/* Settings opened from the start screen sits above it. */
+body:has(.title-screen) .panel-backdrop { z-index: 55; }
+.settings-panel .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+/* In the fixed cooking window: the step sits in the middle, the buttons as wide as the drawing. */
+.cook-frame > .cook-box { justify-content: safe center; }
+.cook-frame > .cook-box:not(.assemble) .cw-foot { max-width: 560px; }

@@ -112,7 +112,8 @@ export class TownScene extends Phaser.Scene {
 
   /** The canvas changed size (window resize / fullscreen): fit the camera and recentre on us. */
   onViewportResize(w: number, h: number) {
-    const cam = this.cameras.main;
+    const cam = this.cameras?.main;
+    if (!cam) return; // the scene has shut down (left it, or not built yet)
     cam.setSize(w, h);
     cam.setZoom(this.zoomFor());
     cam.centerOn(this.pos.x, this.pos.y);

@@ -16,7 +16,8 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
   const feeMult = remote && !shardPrice ? 1 + app.cfg.economy.phoneRollFee : 1;
   const priceText = (n: number) => (shardPrice ? `${shardPrice * n} 💎` : formatMoney(Math.round(crate.priceSen * n * feeMult)));
   const canAfford = (n: number) => (shardPrice ? app.store.shards >= shardPrice * n : app.store.walletSen >= Math.round(crate.priceSen * n * feeMult));
-  const panel = openPanel(`${remote ? '📱 ' : ''}${crate.name}`, { wide: true, testId: 'crate-panel' });
+  const panel = openPanel(`${remote ? '📱 ' : ''}${crate.name}`, { wide: true, testId: 'crate-panel', cls: 'crate-panel' });
+  const oddsBox = panel.side('🎲 Odds & pity');
   let busy = false;
   /** Auto-Roll (a Hustle Skill): keep rolling the same count until stopped. */
   let auto = false;
@@ -80,7 +81,9 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
       actions.append(a);
     }
     const luckNote = mods.luck > 1.0001 ? ` · ${mods.luckSources.map((x) => (x.type === 'potion' ? app.items.get(x.label ?? '')?.name ?? 'potion' : x.label ?? x.type)).join(', ')}` : '';
-    panel.body.replaceChildren(head, ...(lock ? [el('div', { class: 'crate-lock', 'data-testid': 'crate-lock' }, `🔒 ${lock}`)] : []), actions, el('h4', {}, `Odds (luck ×${mods.luck.toFixed(2)}${luckNote})`), table, pityBox, el('h4', {}, `Items (${crate.pool.filter((id) => st.index.has(id)).length}/${crate.pool.length} found)`), pool, el('p', { class: 'hint' }, 'All odds are shown. Rolls happen on the server.'));
+    // Odds and pity: their own box beside the crate (a strip above it on a phone).
+    oddsBox.replaceChildren(el('div', { class: 'muted small' }, `Luck ×${mods.luck.toFixed(2)}${luckNote}`), table, pityBox, el('p', { class: 'hint' }, 'All odds are shown. Rolls happen on the server.'));
+    panel.body.replaceChildren(head, ...(lock ? [el('div', { class: 'crate-lock', 'data-testid': 'crate-lock' }, `🔒 ${lock}`)] : []), actions, el('h4', {}, `Items (${crate.pool.filter((id) => st.index.has(id)).length}/${crate.pool.length} found)`), pool);
   };
 
   const roll = (count: 1 | 5 | 10) => {

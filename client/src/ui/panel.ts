@@ -6,47 +6,126 @@ import { el, uiRoot } from './dom';
 export interface Panel {
   root: HTMLElement;
   body: HTMLElement;
+  /** Go back to the window this one was opened from (or close it if there is none). */
   close: () => void;
+  /** Close this window and every window behind it. */
+  closeAll: () => void;
   onClose?: () => void;
+  /** Called when you come back to this window from one opened on top of it. */
+  onResume?: () => void;
+  /**
+   * A separate box beside the window (to its right on a wide screen, a strip above it on a
+   * phone) for things you want to see while using the window: stock counts, what you're
+   * wearing... Created on first use; `title` labels it.
+   */
+  side: (title: string) => HTMLElement;
 }
 
-let open: Panel | null = null;
+interface Entry extends Panel {
+  key: string;
+  title: string;
+  destroy: () => void;
+}
+
+/**
+ * Windows form a stack: opening one from another hides the first and gives the new one a
+ * ‹ Back button, so you can always step back to where you were. ✕ (or tapping outside) closes
+ * the lot; Esc goes back one. Opening a window that's already in the stack goes back to it
+ * (no loops of copies). Every window has a fixed size; long content scrolls inside it.
+ */
+const stack: Entry[] = [];
 
 export function isPanelOpen() {
-  return open !== null;
+  return stack.length > 0;
 }
 
+/** Closes every open window. */
 export function closePanel() {
-  open?.close();
+  while (stack.length) stack[stack.length - 1].destroy();
 }
 
-/** Opens a modal panel (closing any other). Esc or ✕ closes it. */
+function top() {
+  return stack[stack.length - 1] ?? null;
+}
+
+function showTop() {
+  const t = top();
+  if (!t) return;
+  t.root.classList.remove('panel-hidden');
+  t.onResume?.();
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !stack.length) return;
+  // Typing in a box: Esc just leaves the box.
+  const a = document.activeElement as HTMLElement | null;
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && top()?.root.contains(a)) return void a.blur();
+  top()!.close();
+});
+
+/** Opens a window on top of the current one (see the stack above). */
 export function openPanel(title: string, opts: { wide?: boolean; testId?: string; cls?: string } = {}): Panel {
-  open?.close();
-  const closeBtn = el('button', { class: 'icon-btn panel-close', type: 'button', 'aria-label': 'Close' }, '✕');
+  const key = opts.testId ?? title;
+  // Already open somewhere in the stack: go back to that point and open it fresh there.
+  const at = stack.findIndex((p) => p.key === key);
+  if (at >= 0) while (stack.length > at) stack[stack.length - 1].destroy();
+  const prev = top();
+  prev?.root.classList.add('panel-hidden');
+
+  const closeBtn = el('button', { class: 'icon-btn panel-close', type: 'button', 'aria-label': 'Close', title: 'Close (all windows)' }, '✕');
+  const backBtn = prev
+    ? el('button', { class: 'btn small panel-back', type: 'button', 'data-action': 'panel-back', 'aria-label': `Back to ${prev.title}`, title: `Back to ${prev.title} (Esc)` }, '‹ Back')
+    : null;
   const body = el('div', { class: 'panel-body' });
-  const box = el('div', { class: `panel${opts.wide ? ' wide' : ''}${opts.cls ? ` ${opts.cls}` : ''}`, role: 'dialog', 'aria-label': title, 'data-testid': opts.testId }, el('div', { class: 'panel-head' }, el('h3', {}, title), closeBtn), body);
-  const root = el('div', { class: 'modal-backdrop panel-backdrop' }, box);
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') panel.close();
-  };
-  const panel: Panel = {
+  const box = el(
+    'div',
+    { class: `panel${opts.wide ? ' wide' : ''}${opts.cls ? ` ${opts.cls}` : ''}`, role: 'dialog', 'aria-label': title, 'data-testid': opts.testId },
+    el('div', { class: 'panel-head' }, backBtn, el('h3', {}, title), closeBtn),
+    body,
+  );
+  const frame = el('div', { class: `panel-frame${opts.wide ? ' wide' : ''}${opts.cls ? ` ${opts.cls}-frame` : ''}` }, box);
+  const root = el('div', { class: 'modal-backdrop panel-backdrop' }, frame);
+  let sideBox: HTMLElement | null = null;
+  let sideBody: HTMLElement | null = null;
+  let sideTitle: HTMLElement | null = null;
+
+  const panel: Entry = {
+    key,
+    title,
     root,
     body,
     close: () => {
+      const wasTop = top() === panel;
+      panel.destroy();
+      if (wasTop) showTop();
+    },
+    closeAll: () => closePanel(),
+    side: (t: string) => {
+      if (!sideBox) {
+        sideTitle = el('h4', { class: 'panel-side-title' });
+        sideBody = el('div', { class: 'panel-side-body' });
+        sideBox = el('aside', { class: 'panel-side', 'aria-label': t }, sideTitle, sideBody);
+        frame.append(sideBox);
+        frame.classList.add('has-side');
+      }
+      sideTitle!.textContent = t;
+      return sideBody!;
+    },
+    destroy: () => {
+      const i = stack.indexOf(panel);
+      if (i < 0) return;
+      stack.splice(i, 1);
       root.remove();
-      window.removeEventListener('keydown', onKey);
-      if (open === panel) open = null;
       panel.onClose?.();
     },
   };
-  closeBtn.addEventListener('click', () => panel.close());
+  closeBtn.addEventListener('click', () => closePanel());
+  backBtn?.addEventListener('click', () => panel.close());
   root.addEventListener('click', (e) => {
-    if (e.target === root) panel.close();
+    if (e.target === root) closePanel();
   });
-  window.addEventListener('keydown', onKey);
   uiRoot().append(root);
-  open = panel;
+  stack.push(panel);
   return panel;
 }
 

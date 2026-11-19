@@ -40,13 +40,10 @@ export function openStallPanel(app: App, plotId: string) {
   const mine = () => pub()?.owner === myId;
   const tier = tierDef(app.cfg.stalls, plot.tier);
   const panel = openPanel(`${tier.icon} ${tier.name}`, { testId: 'stall-panel' });
-  // Your stock: separate little boxes lined up OUTSIDE the stall window (down its left side on a
-  // wide screen, in a row above it on a phone). Empty unless it's your stall.
+  // Your stock: its own box beside the stall window (a strip above it on a phone). Only for
+  // your own stall.
   const rail = el('div', { class: 'stall-stock-rail', 'data-testid': 'stall-stock' });
-  const box = panel.root.querySelector<HTMLElement>('.panel')!;
-  const wrap = el('div', { class: 'stall-wrap' });
-  box.before(wrap);
-  wrap.append(rail, box);
+  if (pub()?.owner === myId) panel.side('📦 Your stock').append(rail);
   let busy = false;
   /** Patience bars to refresh in place (no re-render, so buttons never move under a click). */
   let bars: Array<{ fill: HTMLElement; arrivedAt: number; patienceMs: number; serving: boolean }> = [];
@@ -220,7 +217,7 @@ export function cookStock(app: App, recipeId: string): CookStock | null {
 /** Your stock as separate boxes beside the stall window: a big drawn icon per dish and add-on
  *  with "x 12" (orange when low, red when out). Each box is only as wide as its icon and count;
  *  hover or tap one and it stretches out to show the name. */
-function fillStockRail(app: App, col: HTMLElement) {
+export function fillStockRail(app: App, col: HTMLElement, restock = true) {
   col.replaceChildren();
   const st = app.store.stall;
   if (!st) return;
@@ -241,7 +238,7 @@ function fillStockRail(app: App, col: HTMLElement) {
   }
   const buy = el('button', { class: 'stock-pill restock', type: 'button', 'data-action': 'stall-restock', 'aria-label': 'Restock' }, el('b', { class: 'stock-pill-qty' }, '＋📦'), el('span', { class: 'stock-pill-name' }, 'Restock'));
   buy.addEventListener('click', () => app.openPhone('business'));
-  col.append(buy);
+  if (restock) col.append(buy);
 }
 
 function showResult(app: App, r: ServeResult, dish: DishState | null) {

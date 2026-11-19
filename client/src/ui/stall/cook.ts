@@ -50,12 +50,15 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     if (!canRestart) redo.classList.add('hidden');
     // Stock, big and always visible: portions left and every add-on.
     const stockBar = el('div', { class: 'cook-stock', 'data-testid': 'cook-stock' });
+    /** Stock gets its own box beside the cooking window (a strip above it on a phone). */
+    const stockSide = el('aside', { class: 'cook-stock-side hidden' }, el('h4', {}, '📦 Stock'), stockBar);
     const paintStock = () => {
       const st = stock?.();
       if (!st) return void stockBar.classList.add('hidden');
+      stockSide.classList.remove('hidden');
       const chip = (id: string, name: string, qty: number, main = false) =>
-        el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${main ? ' main' : ''}`, title: name }, foodIcon(id, 24), el('b', {}, `x ${qty}`), main ? ` ${name}` : '');
-      stockBar.replaceChildren(el('span', { class: 'cook-stock-label' }, '📦'), chip(st.dish.id, st.dish.name, st.dish.qty, true), ...st.addons.map((a) => chip(a.id, a.name, a.qty)));
+        el('span', { class: `cook-stock-chip${qty <= 0 ? ' out' : qty <= 5 ? ' low' : ''}${main ? ' main' : ''}`, title: name }, foodIcon(id, 28), el('span', { class: 'cook-stock-name' }, name), el('b', {}, `x ${qty}`));
+      stockBar.replaceChildren(chip(st.dish.id, st.dish.name, st.dish.qty, true), ...(st.addons.length ? [el('div', { class: 'cook-stock-sub' }, '+ Add-ons')] : []), ...st.addons.map((a) => chip(a.id, a.name, a.qty)));
     };
     paintStock();
     const stockTimer = window.setInterval(paintStock, 1000);
@@ -63,7 +66,6 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       'div',
       { class: 'carwash-box cook-box' },
       el('h3', {}, title, dish.blogger ? el('span', { class: 'lv-badge blogger' }, '📸 Food blogger!') : null),
-      stockBar,
       el('div', { class: 'cw-stages' }, ...stepPills),
       label,
       hint,
@@ -71,7 +73,8 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       options,
       el('div', { class: 'cw-foot' }, action, redo, quit),
     );
-    const host = el('div', { class: 'reveal-overlay cook', 'data-testid': 'cook' }, box);
+    // A fixed-size frame: the window doesn't grow or shrink from step to step.
+    const host = el('div', { class: 'reveal-overlay cook', 'data-testid': 'cook' }, el('div', { class: 'cook-frame' }, box, stockSide));
     uiRoot().append(host);
 
     const t0 = performance.now();
@@ -240,14 +243,15 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
     function setupAssemble(s: Extract<StepParams, { kind: 'assemble' }>) {
       picked = [];
       const wide = innerWidth >= 760;
-      const boxW = Math.min(innerWidth - 16, 1100);
+      const boxW = box.clientWidth || Math.min(innerWidth - 16, 1100);
+      const boxH = box.clientHeight || innerHeight;
       const tw = wide ? Math.min(124, Math.max(92, Math.round((innerHeight - 330) / 3.6))) : Math.max(60, Math.min(110, Math.floor((boxW - 44) / 4) - 18)); // phone: 4 per row
       const th = Math.round(tw * 0.68);
       const addons = s.options.filter((o) => o.addon).length;
       const sideW = wide && addons ? 2 * (tw + 16) + 10 : 0; // two columns of trays
       // Room for: the header (title, stock, steps, hint ~210), the tray row(s), the footer (~80).
       const rows = wide ? 1 : Math.ceil(s.options.length / 4);
-      const spare = innerHeight - 210 - rows * (th + 36) - 80;
+      const spare = boxH - 190 - rows * (th + 36) - 80;
       const cw = boxW - 32 - sideW;
       sizeCanvas(cw, Math.max(170, Math.min(cw * 0.6, spare, wide && addons ? 3 * (th + 36) + 10 : Infinity)));
       side.classList.toggle('hidden', !sideW);

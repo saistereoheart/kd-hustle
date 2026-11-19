@@ -273,7 +273,8 @@ export class InteriorScene extends Phaser.Scene {
   fit() {
     const s = this.style;
     const W = s.w * T, H = s.h * T;
-    const cam = this.cameras.main;
+    const cam = this.cameras?.main;
+    if (!cam) return; // the scene has shut down (left it, or not built yet)
     cam.setSize(this.scale.width, this.scale.height);
     const fitZoom = Math.min((this.scale.width * 0.92) / (W + 60), (this.scale.height * 0.74) / (H + 120));
     const minZoom = 0.85 * this.app.dpr;

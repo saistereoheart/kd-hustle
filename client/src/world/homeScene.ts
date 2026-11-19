@@ -132,7 +132,8 @@ export class HomeScene extends Phaser.Scene {
   private gridG!: Phaser.GameObjects.Graphics;
 
   fit() {
-    const cam = this.cameras.main;
+    const cam = this.cameras?.main;
+    if (!cam) return; // the scene has shut down (left it, or not built yet)
     cam.setSize(this.scale.width, this.scale.height);
     const W = this.W * C + WALL * 2 + 40, H = this.H * C + WALL * 2 + 80;
     // Leave room for the side panel while decorating on wide screens.

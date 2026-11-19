@@ -69,6 +69,21 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## Windows: Back button, fixed size, side boxes (2026-11-19)
+
+- **Every window can go back.** Opening a window from another one (phone → Bag, Jobs, Settings, Quick Rolls → a crate;
+  Bag → Merge / Reroll; Business → spot picker...) hides the first and shows **‹ Back** in the new one's title bar.
+  Esc also goes back one step; ✕ or tapping outside closes them all. Opening a window that's already behind you jumps
+  back to it instead of stacking a copy. Settings is now a normal window too.
+- **Fixed size.** Every window has the same fixed height (wide ones are wider) and scrolls inside, so switching
+  tabs or loading content never makes it jump. The cooking screen is one fixed frame for every step (it used to change
+  width between steps).
+- **Side boxes.** A separate box beside the window (a strip above it on a phone):
+  📦 stock in the stall window, the cooking screen and the hypermarket; 🎲 odds & pity beside a crate;
+  👕 Wearing beside the bag.
+- **Bag: worn items are kept apart.** They're no longer in the bag grid; the 👕 Wearing box lists every slot (head,
+  face, back, aura, name colour, head chef, cashier) with ✕ to take one off. Tap one for its details.
+
 ## Polish after feedback (2026-11-19)
 
 - **Cooks serve food bloggers.** You get first go (5× pay for a Great dish, plus the reputation boost and the crowd).

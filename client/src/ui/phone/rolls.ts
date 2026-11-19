@@ -2,7 +2,6 @@
 import { formatMoney, stageDef } from '@kh/shared';
 import { openCratePanel } from '../cratePanel';
 import { el } from '../dom';
-import { closePanel } from '../panel';
 import type { PhoneCtx } from './phone';
 
 export function renderRolls({ app }: PhoneCtx): HTMLElement[] {
@@ -15,8 +14,7 @@ export function renderRolls({ app }: PhoneCtx): HTMLElement[] {
     const lock = r.stage && pr.stage < r.stage ? `Wealth stage ${r.stage} (${stageDef(app.cfg.stages, r.stage).name})` : r.level && pr.level < r.level ? `Level ${r.level}` : null;
     const open = el('button', { class: 'btn primary', type: 'button', 'data-action': `quick-roll-${c.id}`, disabled: !!lock }, lock ? '🔒' : 'Roll');
     open.addEventListener('click', () => {
-      closePanel();
-      openCratePanel(app, c.id, { remote: true });
+      openCratePanel(app, c.id, { remote: true }); // on top of the phone: ‹ Back returns to it
     });
     const found = c.pool.filter((id) => app.store.index.has(id)).length;
     return el(
