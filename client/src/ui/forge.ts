@@ -21,9 +21,15 @@ function itemLine(app: App, it: InventoryItem): string {
 }
 
 /** Items that can go in the forge (from a crate, not limited, not worn). */
+/** Furniture placed in your homes (can't be merged or rerolled until it's taken out). */
+export function placedIids(app: App): Set<number> {
+  return new Set(app.store.myProps.flatMap((p) => p.layout.map((l) => l.iid)));
+}
+
 function forgeable(app: App): InventoryItem[] {
   const worn = new Set(Object.values(app.store.equipped));
-  return app.store.inventory.filter((i) => i.serial === null && !worn.has(i.iid) && app.cratesOfItem.has(i.itemId));
+  const placed = placedIids(app);
+  return app.store.inventory.filter((i) => i.serial === null && !worn.has(i.iid) && !placed.has(i.iid) && app.cratesOfItem.has(i.itemId));
 }
 
 // ------------------------------------------------------------------ merge
@@ -111,10 +117,14 @@ export function openMergeWindow(app: App, firstIid?: number) {
         list.append(c);
       }
     }
+    // Copies placed in your homes don't show up here: say so (and where to take them out).
+    const placed = placedIids(app);
+    const inHomes = first ? app.store.inventory.filter((i) => i.itemId === first.itemId && placed.has(i.iid)).length : 0;
     panel.body.replaceChildren(
       row, preview, go,
       el('h4', {}, first ? `Your other ${def?.name ?? ''}s` : `Items you have ${n}+ of`),
       list.childElementCount ? list : el('p', { class: 'empty' }, first ? 'No more copies of this item (worn ones don\'t count).' : `You don't have ${n} copies of anything yet.`),
+      ...(inHomes ? [el('p', { class: 'merge-placed-note' }, `🏠 ${inHomes} more ${inHomes === 1 ? 'is' : 'are'} placed in your homes (see 🎒 Bag → 🏠 Placed). Take ${inHomes === 1 ? 'it' : 'them'} out first (inside the home → 🛠️ Decorate) to merge.`)] : []),
       el('p', { class: 'hint' }, 'The result: one tier above the lowest you put in, never below the highest. Every variant is kept and they multiply (Shiny + Golden = both bonuses).'),
     );
   };

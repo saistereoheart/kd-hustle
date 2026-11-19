@@ -3,7 +3,7 @@
 // the client adds your district, screen size, device and the last few script errors so the host
 // can reproduce bugs. Admins (the host) also get an 📥 Inbox tab to read and tick off reports
 // (or run `npm run admin -- feedback` on the server PC).
-import { FEEDBACK_MAX_CHARS, FEEDBACK_MIN_CHARS, type FeedbackKind, type FeedbackReport } from '@kh/shared';
+import { FEEDBACK_MAX_CHARS, FEEDBACK_MAX_IMAGE, FEEDBACK_MIN_CHARS, type FeedbackKind, type FeedbackReport } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast } from './dom';
 import { openPanel, tabs } from './panel';
@@ -27,7 +27,34 @@ window.addEventListener('error', (e) => noteError(`${e.message} @ ${(e.filename 
 window.addEventListener('unhandledrejection', (e) => noteError(`Unhandled: ${e.reason instanceof Error ? e.reason.message : String(e.reason)}`));
 
 /** What you were writing if you closed the window before sending (kept until it's sent). */
-let draft = { kind: 'bug' as FeedbackKind, text: '' };
+let draft = { kind: 'bug' as FeedbackKind, text: '', image: null as string | null };
+
+/** Shrinks a picture to a JPEG data URL small enough to send (≤ ~600 KB). */
+async function shrinkImage(src: CanvasImageSource & { width: number; height: number }): Promise<string> {
+  for (const [max, q] of [[1400, 0.8], [1100, 0.7], [800, 0.6]] as const) {
+    const k = Math.min(1, max / Math.max(src.width, src.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(src.width * k));
+    c.height = Math.max(1, Math.round(src.height * k));
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', q);
+    if (url.length <= FEEDBACK_MAX_IMAGE * 0.7) return url;
+  }
+  throw new Error('That picture is too big.');
+}
+
+function fileToImage(file: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => (URL.revokeObjectURL(url), resolve(img));
+    img.onerror = () => (URL.revokeObjectURL(url), reject(new Error('Not a picture.')));
+    img.src = url;
+  });
+}
 
 function ago(ts: number) {
   const m = Math.round((Date.now() - ts) / 60_000);
@@ -103,6 +130,56 @@ export function openFeedback(app: App, opts: { district?: string; inbox?: boolea
     draft.text = text.value;
     paint();
   });
+
+  // A picture: pick a file, paste one (Ctrl+V), or snap the game screen.
+  const picBox = el('div', { class: 'feedback-pic' });
+  const fileIn = el('input', { type: 'file', accept: 'image/*', class: 'hidden', 'data-testid': 'feedback-file' }) as HTMLInputElement;
+  const setPic = async (get: () => Promise<CanvasImageSource & { width: number; height: number }>) => {
+    try {
+      draft.image = await shrinkImage(await get());
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not use that picture.', 'bad');
+    }
+    paintPic();
+  };
+  fileIn.addEventListener('change', () => {
+    const f = fileIn.files?.[0];
+    if (f) void setPic(() => fileToImage(f));
+    fileIn.value = '';
+  });
+  text.addEventListener('paste', (e) => {
+    const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'));
+    const f = item?.getAsFile();
+    if (!f) return;
+    e.preventDefault();
+    void setPic(() => fileToImage(f));
+  });
+  const pick = el('button', { class: 'btn small', type: 'button', 'data-action': 'feedback-pick' }, '🖼️ Add a picture');
+  pick.addEventListener('click', () => fileIn.click());
+  const snap = el('button', { class: 'btn small', type: 'button', 'data-action': 'feedback-snap', title: 'A picture of the game screen (without this window)' }, '📸 Snap the game');
+  snap.addEventListener('click', () => {
+    const r = app.game?.renderer as unknown as { snapshot?: (cb: (img: HTMLImageElement | unknown) => void) => void } | undefined;
+    if (!r?.snapshot) return toast('Can\'t take a picture here.', 'bad');
+    r.snapshot((img) => {
+      if (img instanceof HTMLImageElement) {
+        const ready = img.complete ? Promise.resolve(img) : new Promise<HTMLImageElement>((res) => (img.onload = () => res(img)));
+        void setPic(() => ready);
+      } else toast('Can\'t take a picture here.', 'bad');
+    });
+  });
+  const paintPic = () => {
+    if (!draft.image) {
+      picBox.replaceChildren(pick, snap, el('span', { class: 'muted small' }, 'or paste one (Ctrl+V) into the box'), fileIn);
+      return;
+    }
+    const remove = el('button', { class: 'btn small', type: 'button', 'data-action': 'feedback-unpick' }, '✕ Remove');
+    remove.addEventListener('click', () => {
+      draft.image = null;
+      paintPic();
+    });
+    picBox.replaceChildren(el('img', { class: 'feedback-thumb', src: draft.image, alt: 'Attached picture' }), remove, fileIn);
+  };
+  paintPic();
   send.addEventListener('click', () => {
     if (!app.socket) return toast('Not connected right now. Try again in a moment.', 'bad');
     send.disabled = true;
@@ -113,12 +190,12 @@ export function openFeedback(app: App, opts: { district?: string; inbox?: boolea
       device: navigator.userAgent.slice(0, 300),
       errors: draft.kind === 'bug' && recentErrors.length ? [...recentErrors] : undefined,
     };
-    app.socket.timeout(8000).emit('feedback:send', { kind: draft.kind, text: text.value, client }, (err, res) => {
+    app.socket.timeout(15000).emit('feedback:send', { kind: draft.kind, text: text.value, client, ...(draft.image ? { image: draft.image } : {}) }, (err, res) => {
       if (err || !res.ok) {
         toast(err ? 'No reply from the server. Your note is kept; try again.' : res.ok ? '' : res.error, 'bad');
         return paint();
       }
-      draft = { kind: draft.kind, text: '' };
+      draft = { kind: draft.kind, text: '', image: null };
       toast(`Thanks! Report #${res.id} sent to the host 🙏`, 'good', 3200);
       panel.close();
     });
@@ -127,6 +204,7 @@ export function openFeedback(app: App, opts: { district?: string; inbox?: boolea
     el('p', { class: 'muted' }, 'Found something broken, or have an idea? Tell the host. Every report is read.'),
     chips,
     text,
+    picBox,
     el('div', { class: 'feedback-foot' }, count, el('span', { class: 'muted small' }, '📎 Your spot, level, screen size and device are attached automatically.')),
     send,
   );
@@ -189,7 +267,25 @@ export function openFeedback(app: App, opts: { district?: string; inbox?: boolea
       el('div', { class: 'muted small' }, contextLine(r)),
       ...(c.errors?.length ? [el('details', { class: 'small' }, el('summary', {}, `⚠ ${c.errors.length} script error${c.errors.length === 1 ? '' : 's'}`), ...c.errors.map((e) => el('div', { class: 'feedback-err' }, e)))] : []),
       ...(c.device ? [el('div', { class: 'muted small feedback-device' }, c.device)] : []),
+      ...(r.context.image ? [picButton(r.id)] : []),
     );
+  }
+  /** The report's picture: loaded when you tap (they can be a few hundred KB each). */
+  function picButton(id: number) {
+    const b = el('button', { class: 'btn small', type: 'button', 'data-action': 'feedback-show-pic' }, '🖼️ Show picture');
+    b.addEventListener('click', () => {
+      b.disabled = true;
+      app.socket?.timeout(10000).emit('feedback:image', { id }, (err, res) => {
+        if (err || !res.ok) {
+          b.disabled = false;
+          return toast(err ? 'No reply' : res.ok ? '' : res.error, 'bad');
+        }
+        const img = el('img', { class: 'feedback-pic-full', src: res.dataUrl, alt: `Report #${id}` });
+        img.addEventListener('click', () => window.open()?.document.write(`<img src="${res.dataUrl}" style="max-width:100%">`));
+        b.replaceWith(img);
+      });
+    });
+    return b;
   }
   if (opts.inbox) loadInbox();
 }

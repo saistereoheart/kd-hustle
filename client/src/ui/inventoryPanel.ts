@@ -60,7 +60,18 @@ export function openInventoryPanel(app: App, startTab = 0) {
 
   /** What you're wearing (and your head chef / cashier): its own box beside the bag, so the
    *  grid only shows what's spare. Tap one for its details. */
-  const wornBox = panel.side('👕 Wearing');
+  const wornBox = panel.side('👕 Wearing · 🏠 Placed');
+  /** Furniture placed in your homes: inventory iid → where it is. */
+  const placedIn = () => {
+    const m = new Map<number, { unit: string; label: string }>();
+    for (const pr of app.store.myProps) {
+      const u = app.listings.find((x) => x.id === pr.unit);
+      const t = app.cfg.properties.types[pr.type];
+      const label = `${t?.icon ?? '🏠'} ${t?.name ?? 'Home'}${u && u.n > 1 ? ` · unit ${u.n}` : ''}`;
+      for (const pl of pr.layout) m.set(pl.iid, { unit: pr.unit, label });
+    }
+    return m;
+  };
   const SLOT_LABEL: Record<EquipSlot, string> = { hat: '🎩 Head', face: '🕶️ Face', back: '🎒 Back', aura: '✨ Aura', namecolor: '🌈 Name colour', chef: '👨‍🍳 Head chef', cashier: '💵 Cashier' };
   const renderWorn = () => {
     const st = app.store;
@@ -95,10 +106,38 @@ export function openInventoryPanel(app: App, startTab = 0) {
       return row;
     });
     const none = EQUIP_SLOTS.every((slot) => st.equipped[slot] === undefined);
+    // Furniture placed in your homes: also out of the bag grid, listed with where it is.
+    const placed = placedIn();
+    const placedRows = st.inventory
+      .filter((i) => placed.has(i.iid))
+      .map((inst) => {
+        const def = app.items.get(inst.itemId);
+        if (!def) return null;
+        const key = `worn|${inst.iid}`;
+        const name = el('b', { class: 'worn-name' }, def.name);
+        name.style.color = tierOf(rar, def.rarity).tier.color;
+        const row = el(
+          'button',
+          { class: `worn-row placed${selected === key ? ' selected' : ''}`, type: 'button', 'data-placed': String(inst.iid), 'data-item': def.id },
+          el('img', { src: iconUrl(def, inst.variant, 44), alt: '' }),
+          el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, placed.get(inst.iid)!.label), name, el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
+        );
+        row.addEventListener('click', () => {
+          if (tab !== 0) return;
+          selected = selected === key ? null : key;
+          render();
+          panel.body.scrollTop = 0;
+        });
+        return row;
+      })
+      .filter((x): x is HTMLButtonElement => !!x);
     wornBox.replaceChildren(
       el('div', { class: 'muted small worn-hint' }, 'Worn items are kept here, out of the bag grid. ✕ takes one off.'),
       ...(none ? [el('div', { class: 'muted small worn-none' }, 'Nothing worn yet: tap an outfit piece in the bag, then Wear.')] : []),
       ...rows,
+      ...(placedRows.length
+        ? [el('h5', { class: 'worn-section' }, `🏠 In your homes (${placedRows.length})`), el('div', { class: 'muted small worn-hint' }, 'Placed furniture is kept out of the bag: take it out (inside the home → 🛠️ Decorate) to merge or sell it.'), ...placedRows]
+        : []),
     );
   };
 
@@ -106,21 +145,24 @@ export function openInventoryPanel(app: App, startTab = 0) {
     const st = app.store;
     renderWorn();
     const equippedIids = new Set(Object.values(st.equipped));
+    const placed = placedIn();
+    /** Worn or placed in a home: kept out of the grid. */
+    const aside = (iid: number) => equippedIids.has(iid) || placed.has(iid);
     const byRarity = (a: { itemId: string }, b: { itemId: string }) =>
       tierOf(rar, app.items.get(b.itemId)!.rarity).index - tierOf(rar, app.items.get(a.itemId)!.rarity).index || a.itemId.localeCompare(b.itemId);
     // The grid: only what you're NOT wearing (worn copies are in the side box).
     const stacks = st
       .stacks()
-      .map((s) => ({ ...s, items: s.items.filter((i) => !equippedIids.has(i.iid)) }))
+      .map((s) => ({ ...s, items: s.items.filter((i) => !aside(i.iid)) }))
       .filter((s) => s.items.length)
       .sort(byRarity);
     // The one you tapped in the side box, if any.
-    const wornSel = selected?.startsWith('worn|') ? st.inventory.find((i) => `worn|${i.iid}` === selected && equippedIids.has(i.iid)) : undefined;
+    const wornSel = selected?.startsWith('worn|') ? st.inventory.find((i) => `worn|${i.iid}` === selected && aside(i.iid)) : undefined;
     const cards = new Map<(typeof stacks)[number], HTMLElement>();
     let detail: HTMLElement | null = null;
     const gcfg = app.cfg.grades;
 
-    const detailFor = (s: (typeof stacks)[number], key: string, worn: boolean) => {
+    const detailFor = (s: (typeof stacks)[number], key: string, worn: boolean, home?: { unit: string; label: string }) => {
       const def = app.items.get(s.itemId)!;
       const crate = app.cratesOfItem.get(def.id);
       const tier = tierOf(rar, def.rarity).tier;
@@ -131,7 +173,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         b.addEventListener('click', () => app.useItem(s.items[0].iid));
         actions.append(b);
       }
-      if (slot) {
+      if (slot && !home) {
         if (worn) {
           const b = el('button', { class: 'btn', type: 'button', 'data-action': 'unequip' }, 'Take off');
           b.addEventListener('click', () => {
@@ -163,7 +205,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         actions.append(hb);
         // The forge: merge copies (a tier up, variants stack) and shard rerolls (with a reel).
         if (crate && s.serial === null) {
-          const copies = st.inventory.filter((i) => i.itemId === s.itemId && i.serial === null && !equippedIids.has(i.iid)).length;
+          const copies = st.inventory.filter((i) => i.itemId === s.itemId && i.serial === null && !aside(i.iid)).length;
           const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', title: `${gcfg.mergeCount} copies → 1, a tier up, variants stack` }, `⚒️ Merge`, el('small', {}, `${copies}/${gcfg.mergeCount} copies`));
           m.addEventListener('click', () => openMergeWindow(app, s.items[0]?.iid));
           actions.append(m);
@@ -174,9 +216,17 @@ export function openInventoryPanel(app: App, startTab = 0) {
             actions.append(b);
           }
         }
+      } else if (home) {
+        const go = el('button', { class: 'btn small', type: 'button', 'data-action': 'go-placed' }, '📍 Take me there');
+        go.addEventListener('click', () => {
+          const u = app.listings.find((x) => x.id === home.unit);
+          closePanel();
+          if (u) app.guide?.pointAt({ id: home.unit, label: 'YOUR HOME', icon: '🏠', x: u.x, y: u.y });
+        });
+        actions.append(go, el('div', { class: 'muted small' }, 'To merge, reroll or sell it, take it out first: go inside → 🛠️ Decorate → remove it.'));
       } else actions.append(el('div', { class: 'muted small' }, 'Take it off to merge, reroll, sell or put it on the hotbar.'));
       const buff = gearBuff(gcfg, { type: def.type, rarity: def.rarity, grade: s.grade, variant: s.variant });
-      const nameEl = el('h4', {}, worn ? '✓ Wearing · ' : '', def.name);
+      const nameEl = el('h4', {}, home ? `🏠 In your home (${home.label}) · ` : worn ? '✓ Wearing · ' : '', def.name);
       nameEl.style.color = tier.color;
       const close = el('button', { class: 'icon-btn item-detail-close', type: 'button', 'aria-label': 'Close details' }, '✕');
       close.addEventListener('click', () => {
@@ -209,7 +259,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
     };
 
     if (wornSel) {
-      detail = detailFor({ itemId: wornSel.itemId, variant: wornSel.variant, grade: wornSel.grade ?? 'D', serial: wornSel.serial, items: [wornSel] }, `worn|${wornSel.iid}`, true);
+      detail = detailFor({ itemId: wornSel.itemId, variant: wornSel.variant, grade: wornSel.grade ?? 'D', serial: wornSel.serial, items: [wornSel] }, `worn|${wornSel.iid}`, true, placed.get(wornSel.iid));
     } else if (selected?.startsWith('worn|')) selected = null; // taken off meanwhile
 
     for (const s of stacks) {

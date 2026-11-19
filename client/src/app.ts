@@ -1,4 +1,5 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
+import type { Poi } from '@kh/shared';
 import Phaser from 'phaser';
 import {
   buildMap, buildSnapshot, computeMods, rebirthMods, gearOf, EQUIP_SLOTS, formatMoney, randomAppearance,
@@ -666,6 +667,7 @@ export class App {
       this.jobHud = new DeliveryHud(this);
       this.guide = new Guide(this);
       this.minimap?.setPois(this.guide.pois);
+      if (this.minimap) this.minimap.mine = () => this.myPlaces();
       this.voteBanner = new VoteBanner(this);
       this.phoneBtn = new PhoneButton(this);
       this.radio ??= new Radio(this);
@@ -960,6 +962,23 @@ export class App {
     this.emotes?.destroy();
     this.hotbar?.destroy();
     this.hud = this.chat = this.minimap = this.emotes = this.hotbar = null;
+  }
+
+  /** Your homes and your stall, as gold pins on the minimap and the full map. */
+  myPlaces(): Poi[] {
+    const out: Poi[] = [];
+    for (const s of this.store.myProps) {
+      const u = this.listings.find((x) => x.id === s.unit);
+      const t = this.cfg.properties.types[s.type];
+      if (u) out.push({ id: `mine:${s.unit}`, label: `MY ${(t?.name ?? 'HOME').toUpperCase()}`, sub: '', icon: '🏠', kind: 'mine' as Poi['kind'], x: u.x, y: u.y } as Poi);
+    }
+    const st = this.store.stall;
+    const plot = st && this.map.stallPlots.find((p) => p.id === st.plot);
+    if (plot) {
+      const tier = this.cfg.stalls.tiers.find((t) => t.tier === plot.tier);
+      out.push({ id: 'mine:stall', label: `MY ${(tier?.name ?? 'STALL').toUpperCase()}`, sub: '', icon: tier?.icon ?? '🍳', kind: 'mine' as Poi['kind'], x: plot.x, y: plot.y } as Poi);
+    }
+    return out;
   }
 
   openSettings() {

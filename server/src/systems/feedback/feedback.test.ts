@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { C2S } from '@kh/shared';
 import { openDatabase } from '../../db/db';
@@ -58,5 +61,23 @@ describe('feedback', () => {
     expect(C2S.feedbackSend.safeParse({ kind: 'bug', text: 'x'.repeat(5000) }).success).toBe(false);
     const ok = C2S.feedbackSend.safeParse({ kind: 'idea', text: 'add a durian stall' });
     expect(ok.success && ok.data.client).toEqual({});
+  });
+
+  it('saves an attached picture next to the database and gives it back to the admin', () => {
+    const db = openDatabase(':memory:');
+    const repos = createRepos(db);
+    const id = repos.accounts.create('ali', 'h', false, { x: 0, y: 0 }, 2, 0);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-fb-'));
+    const desk = new FeedbackDesk(repos, 32, () => 1_000_000_000, dir);
+    const me = { id, name: 'ali', scene: 'town', x: 0, y: 0, interior: null, walletSen: 0, prog: { level: 1, stage: 1 } };
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const res = desk.send(me, 'bug', 'see the picture please', {}, `data:image/png;base64,${png}`);
+    expect(res.ok).toBe(true);
+    const rid = (res as { id: number }).id;
+    expect(fs.existsSync(path.join(dir, `${rid}.png`))).toBe(true);
+    expect(desk.image(rid)).toBe(`data:image/png;base64,${png}`);
+    const plain = desk.send(me, 'idea', 'no picture this time', {});
+    expect(desk.image((plain as { id: number }).id)).toBeNull();
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });

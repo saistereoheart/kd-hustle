@@ -27,7 +27,8 @@ export function openSlots(app: App) {
     // Spin the reels while the server decides.
     const t0 = performance.now();
     const anim = window.setInterval(() => reels.forEach((r) => (r.textContent = syms[Math.floor(Math.random() * syms.length)].icon)), 70);
-    app.socket?.timeout(5000).emit('casino:slots', { sen: picker.get() }, (err, res) => {
+    const bet = picker.get();
+    app.socket?.timeout(5000).emit('casino:slots', { sen: bet }, (err, res) => {
       const stopAt = Math.max(0, 900 - (performance.now() - t0));
       window.setTimeout(() => {
         clearInterval(anim);
@@ -43,9 +44,13 @@ export function openSlots(app: App) {
           sfx.tick();
         }, i * 220));
         window.setTimeout(() => {
-          if (res.paidSen > 0) {
+          if (res.paidSen > 0 && res.mult < 1) {
+            // Two cherries: part of the bet back. Not a win, so don't dress it up as one.
+            result.textContent = `${icon(syms[0].id)}${icon(syms[0].id)} ${formatMoney(res.paidSen)} back (${Math.round(res.mult * 100)}% of your bet)`;
+            result.className = 'slot-result';
+          } else if (res.paidSen > 0) {
             sfx.reveal(res.mult >= 25 ? 4 : res.mult >= 5 ? 3 : 2);
-            result.textContent = res.mult >= 100 ? `💥 JACKPOT! +${formatMoney(res.paidSen)}` : `+${formatMoney(res.paidSen)} (×${res.mult})`;
+            result.textContent = res.mult >= 100 ? `💥 JACKPOT! +${formatMoney(res.paidSen - bet)} profit (×${res.mult})` : `WIN ×${res.mult}: ${formatMoney(res.paidSen)} (+${formatMoney(res.paidSen - bet)} profit)`;
             result.className = 'slot-result win';
           } else {
             result.textContent = 'No luck. Again?';
@@ -56,7 +61,7 @@ export function openSlots(app: App) {
       }, stopAt);
     });
   });
-  const pays = el('div', { class: 'casino-pays muted small' }, ...syms.map((s) => el('span', {}, `${s.icon}${s.icon}${s.icon} ×${s.three}`)), el('span', {}, `${syms[0].icon}${syms[0].icon} ×${cc.slots.twoOfFirst}`), el('span', {}, `Returns ${(slotsRtp(cc) * 100).toFixed(1)}% on average`));
+  const pays = el('div', { class: 'casino-pays muted small' }, ...syms.map((s) => el('span', {}, `${s.icon}${s.icon}${s.icon} ×${s.three}`)), el('span', {}, `${syms[0].icon}${syms[0].icon} anywhere: ${Math.round(cc.slots.twoOfFirst * 100)}% back`), el('span', {}, `Returns ${(slotsRtp(cc) * 100).toFixed(1)}% on average`));
   const refresh = () =>
     app.socket?.timeout(5000).emit('casino:session', (err, res) => {
       if (err || !res.ok) return;

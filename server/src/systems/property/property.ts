@@ -278,12 +278,33 @@ export class PropertySystem {
   setMode(p: OnlinePlayer, unitId: string, mode: PropertyMode) {
     const s = this.mine(p, unitId);
     if (s.mode === mode) return;
-    if (s.tenant && mode !== 'rent') throw new GameError('Your tenant has to move out first (raise the rent or wait for them to leave).');
+    if (s.tenant && mode !== 'rent') throw new GameError('Your tenant has to move out first: 🚪 Ask them to leave (📱 → Properties).');
     if (s.guest && mode !== 'airbnb') throw new GameError('Wait for your guest to check out first.');
     s.mode = mode;
     this.save(s);
     this.hooks.publicChanged();
     this.hooks.selfChanged(p);
+  }
+
+  /** Ask your tenant to move out: you pay them `evictFeeDays` of rent to go, and anything they
+   *  still owe is written off. The home goes back to looking for a tenant (or switch it to
+   *  Airbnb / living in it). */
+  evict(p: OnlinePlayer, unitId: string): { feeSen: number } {
+    const s = this.mine(p, unitId);
+    if (!s.tenant) throw new GameError("There's no tenant to ask to leave.");
+    const fee = Math.round(s.rentSen * this.cfg.properties.rent.evictFeeDays);
+    if (p.walletSen < fee) throw new GameError(`You need ${formatMoney(fee)} to pay the tenant to move out.`);
+    const def = this.tenantDef(s.tenant.kind);
+    this.econ.run(p, () => {
+      if (fee) this.econ.change(p, -fee, 0, 'property-evict', unitId);
+      s.tenant = null; // repairs they reported still need fixing
+      this.save(s);
+    });
+    if (fee) this.hooks.wallet(p, -fee, 'property');
+    this.hooks.event(p, { unit: s.unit, kind: 'info', text: `🚪 Your ${def.name.toLowerCase()} tenant moved out${fee ? ` (you paid ${formatMoney(fee)})` : ''}.` });
+    this.hooks.publicChanged();
+    this.hooks.selfChanged(p);
+    return { feeSen: fee };
   }
 
   setPrices(p: OnlinePlayer, unitId: string, rentSen?: number, nightSen?: number) {

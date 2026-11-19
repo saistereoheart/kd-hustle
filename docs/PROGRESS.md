@@ -69,6 +69,27 @@ Compared with the spec's content checklist (§19):
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
 
+## Player reports, round 1 (2026-11-19)
+
+From the 🐞 inbox:
+- **"Which red chair is already in my rented home?"** Furniture placed in a home is now kept out of the bag grid (like
+  worn items) and listed in the side box under 🏠 In your homes, with which home it's in; tap one for 📍 Take me
+  there. The merge window leaves placed copies out and says how many are in your homes and how to take them out.
+- **"Need an indicator for property owned."** Your home's town sign is a bigger green 🏠 YOUR HOME drawn above the
+  FOR SALE signs, and your homes and stall are gold pins (MY STUDIO, MY PASAR MALAM STALL...) on the minimap and the
+  full map.
+- **"Kick a tenant out."** 📱 Properties → 🚪 Ask to leave: you pay them a day's rent (`rent.evictFeeDays`), anything
+  they owe is written off, open repair requests stay. Then a new tenant can move in, or switch to Airbnb.
+- **"Picture in reports."** 🖼️ Add a picture, paste one (Ctrl+V), or 📸 Snap the game. It's shrunk to a JPEG in the
+  browser, checked by the server and saved as `server/data/feedback/<id>.jpg` (never committed). Admins tap
+  🖼️ Show picture in the inbox; `npm run admin -- feedback` prints the path.
+- **"Casino rolls seem rigged."** Checked: every game uses the server's crypto RNG and the paytables match the odds
+  shown (slots ~95.6%, roulette 97.3%, crash 97%, wheel ~96%, high-low ~97%). A new test plays 50,000 spins and
+  25,000 high-low rounds through the real server code and checks the payback. One thing did look rigged: two
+  cherries (70% of the bet back, a loss) showed as "+RM … (×0.7)" like a win. It now says "RM … back (70% of your
+  bet)", and real wins show the profit.
+- **"A dungeon with enemies and bosses."** Not started: it's a whole new game mode (combat, enemies, loot). Noted.
+
 ## Green screen: lost graphics (2026-11-19)
 
 - Reported from Firefox (2519×1280): only green, text floating (names, signs), no map, characters, trees or minimap.

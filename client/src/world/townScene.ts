@@ -815,7 +815,17 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       }
       // Restyling a Text re-renders it, so only when it changed.
       if (t.text !== text) t.setText(text);
-      if (t.style.color !== color) t.setColor(color);
+      // Yours stands out: a bigger green sign, drawn above the FOR SALE signs around it.
+      const look = mine ? 'mine' : 'other';
+      if (t.getData('look') !== look) {
+        t.setData('look', look);
+        t.setFontSize(mine ? 16 : 12);
+        t.setBackgroundColor(mine ? 'rgba(43,138,62,0.95)' : 'rgba(17,19,31,0.75)');
+        t.setPadding(mine ? 9 : 6, mine ? 5 : 3);
+        t.setDepth(mine ? 998_600 : 998_000);
+      }
+      const want = mine ? '#ffffff' : color;
+      if (t.style.color !== want) t.setColor(want);
       t.setAlpha(kopi.has(bid) ? 0 : 1);
     }
   }

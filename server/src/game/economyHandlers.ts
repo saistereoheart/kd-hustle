@@ -472,6 +472,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return {};
     });
     handle(socket, 'prop:sell', C2S.propUnit, ({ unit }) => propSys.sell(me, unit));
+    handle(socket, 'prop:evict', C2S.propUnit, ({ unit }) => propSys.evict(me, unit));
     handle(socket, 'prop:mode', C2S.propMode, ({ unit, mode }) => {
       propSys.setMode(me, unit, mode);
       return {};

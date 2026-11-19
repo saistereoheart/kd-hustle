@@ -6,8 +6,8 @@ import type { BuiltMap, Poi } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { paintMap } from './mapPaint';
 
-const POI_COLOR: Record<string, string> = { work: '#2f9e44', crate: '#7048e8', shop: '#1c7ed6', stall: '#e8590c', soon: '#868e96' };
-const POI_TEXT: Record<string, string> = { work: '#8ce99a', crate: '#d0bfff', shop: '#a5d8ff', stall: '#ffc078', soon: '#ced4da' };
+const POI_COLOR: Record<string, string> = { mine: '#f59f00', work: '#2f9e44', crate: '#7048e8', shop: '#1c7ed6', stall: '#e8590c', soon: '#868e96' };
+const POI_TEXT: Record<string, string> = { mine: '#ffe066', work: '#8ce99a', crate: '#d0bfff', shop: '#a5d8ff', stall: '#ffc078', soon: '#ced4da' };
 
 /** Pixels per tile of the pre-painted base image. */
 const BASE_SCALE = 2;
@@ -61,6 +61,13 @@ export class Minimap {
     return this.base;
   }
 
+  /** Your own places (homes, stall), drawn in gold on top of the signposts. */
+  mine: () => Poi[] = () => [];
+
+  private allPois(): Poi[] {
+    return [...this.pois, ...this.mine()];
+  }
+
   setPois(pois: Poi[]) {
     this.pois = pois;
   }
@@ -97,7 +104,7 @@ export class Minimap {
     ctx.drawImage(this.base, ox * BASE_SCALE, oy * BASE_SCALE, viewW * BASE_SCALE, viewH * BASE_SCALE, 0, 0, this.size.w, this.size.h);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    for (const p of this.pois) {
+    for (const p of this.allPois()) {
       const px = (p.x - this.map.originTx - ox) * this.zoom;
       const py = (p.y - this.map.originTy - oy) * this.zoom;
       if (px < -8 || py < -8 || px > this.size.w + 8 || py > this.size.h + 8) continue;
@@ -404,7 +411,7 @@ export class Minimap {
       label(b.name, lx, ly, `600 ${Math.round(Math.min(15, 10 + zoomedIn))}px system-ui, sans-serif`, '#ffffff');
     }
     // Signposted places: a coloured pin with the icon, and the big label (JOBS BOARD, BUY STOCK...).
-    for (const p of this.pois) {
+    for (const p of this.allPois()) {
       const [lx, ly] = at(p.x, p.y);
       if (lx < -100 || ly < -60 || lx > r.width + 100 || ly > r.height + 60) continue;
       ctx.beginPath();

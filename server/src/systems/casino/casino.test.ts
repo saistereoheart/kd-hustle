@@ -200,3 +200,30 @@ describe('casino: shared tables', () => {
     expect(() => s.casino.dailySpin(p)).toThrow(/already spun/);
   });
 });
+
+describe('casino: fair over the long run', () => {
+  it('slots and high-low pay back what the odds screen says (within noise)', () => {
+    const s = setup(42);
+    const p = s.mk('grinder', 1e12, 4);
+    const bet = 100_000;
+    let paid = 0;
+    const N = 50_000;
+    for (let i = 0; i < N; i++) paid += s.casino.slots(p, bet).paidSen;
+    const rtp = paid / (N * bet);
+    // Expected ~0.956; the jackpots make it noisy (σ ≈ 0.04 at this many spins).
+    expect(rtp).toBeGreaterThan(0.85);
+    expect(rtp).toBeLessThan(1.07);
+    // High-low: one guess on the likelier side, then cash out.
+    let hlPaid = 0;
+    const M = 25_000;
+    for (let i = 0; i < M; i++) {
+      const st = s.casino.hlStart(p, bet).state;
+      const r = Math.floor(st.card / 4);
+      const res = s.casino.hlGuess(p, r <= 7 ? 'higher' : 'lower');
+      if (res.correct) hlPaid += s.casino.hlCashout(p).paidSen;
+    }
+    const hl = hlPaid / (M * bet);
+    expect(hl).toBeGreaterThan(0.93);
+    expect(hl).toBeLessThan(1.0);
+  }, 60_000);
+});

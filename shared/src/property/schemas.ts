@@ -78,6 +78,9 @@ export const propertiesConfigSchema = z.object({
     tenants: z.array(z.object({ id: z.string(), name: z.string(), icon: z.string(), rentTolerance: z.number().positive() })).min(1),
     requests: z.array(z.string()).min(1),
     diyMs: z.number().int().positive(),
+    /** Asking a tenant to leave: you pay them this many days of rent to go (and lose anything
+     *  they still owe). */
+    evictFeeDays: z.number().nonnegative().default(1),
   }),
   airbnb: z.object({
     minStars: z.number(),

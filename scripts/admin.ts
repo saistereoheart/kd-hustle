@@ -82,6 +82,8 @@ switch (cmd) {
       if (c.device) console.log(`   ${c.device}`);
       console.log(r.text.replace(/^/gm, '   > '));
       for (const e of c.errors ?? []) console.log(`   ⚠ ${e}`);
+      const img = (r.context as { image?: string }).image;
+      if (img) console.log(`   📎 picture: ${path.join(paths.dataDir, 'feedback', `${r.id}.${img}`)}`);
     }
     break;
   }

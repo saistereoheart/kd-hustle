@@ -15,6 +15,8 @@ import type { SaveManager } from '../save/saveManager';
 import { ChatHistory, sanitizeChat } from '../systems/chat/chat';
 import { newMoveState, validateMove } from '../systems/movement/moveValidator';
 import { placePlayer } from '../systems/movement/placement';
+import path from 'node:path';
+import { getPaths } from '../paths';
 import { FeedbackDesk } from '../systems/feedback/feedback';
 import { EmoteSystem } from '../systems/emotes/emotes';
 import { SkipNightVote } from '../systems/timeskip/timeskip';
@@ -54,7 +56,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   /** Players connected right now (not ones in their reconnect grace period). */
   const onlineCount = () => [...world.players.values()].filter((p) => p.hasCharacter && !offline.has(p.id)).length;
   const voteState = () => skip.state(onlineCount(), Date.now());
-  const feedback = new FeedbackDesk(repos, cfg.map.tileSize);
+  const feedback = new FeedbackDesk(repos, cfg.map.tileSize, Date.now, path.join(getPaths().dataDir, 'feedback'));
   const systemSay = (text: string) => io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
   const skipNight = () => {
     cfg.time.offsetGameMinutes += skip.skipMinutes(Date.now());
@@ -303,7 +305,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const reply = typeof ack === 'function' ? ack : () => {};
       const parsed = C2S.feedbackSend.safeParse(msg);
       if (!parsed.success) return reply({ ok: false, error: `Write between ${FEEDBACK_MIN_CHARS} and ${FEEDBACK_MAX_CHARS} characters.` });
-      const res = feedback.send(me, parsed.data.kind, parsed.data.text, parsed.data.client);
+      const res = feedback.send(me, parsed.data.kind, parsed.data.text, parsed.data.client, parsed.data.image);
       if (!res.ok) return reply(res);
       log.info(`🐞 ${parsed.data.kind} #${res.id} from ${me.name}: ${parsed.data.text.slice(0, 120).replace(/\s+/g, ' ')}`);
       reply({ ok: true, id: res.id });
@@ -314,6 +316,13 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       if (typeof ack !== 'function') return;
       if (!me.isAdmin) return ack({ ok: false, error: 'Only the host can read reports.' });
       ack({ ok: true, reports: repos.feedback.list(150) as FeedbackReport[], open: repos.feedback.countOpen() });
+    });
+    socket.on('feedback:image', (msg, ack) => {
+      if (typeof ack !== 'function') return;
+      const id = Number((msg as { id?: unknown })?.id);
+      if (!me.isAdmin || !Number.isInteger(id)) return ack({ ok: false, error: 'Bad request' });
+      const dataUrl = feedback.image(id);
+      ack(dataUrl ? { ok: true, dataUrl } : { ok: false, error: 'No picture.' });
     });
     socket.on('feedback:done', (msg, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};

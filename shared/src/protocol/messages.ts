@@ -23,6 +23,8 @@ export const FEEDBACK_KINDS = ['bug', 'idea', 'feedback'] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
 export const FEEDBACK_MIN_CHARS = 5;
 export const FEEDBACK_MAX_CHARS = 1500;
+/** A picture attached to a report (the client shrinks it to a JPEG first): max data-URL length. */
+export const FEEDBACK_MAX_IMAGE = 900_000;
 export interface FeedbackReport {
   id: number;
   username: string;
@@ -54,6 +56,8 @@ export const C2S = {
       device: z.string().max(300).optional(),
       errors: z.array(z.string().max(400)).max(5).optional(),
     }).default({}),
+    /** Optional picture: a data URL (JPEG / PNG / WebP). */
+    image: z.string().max(FEEDBACK_MAX_IMAGE).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   }),
   feedbackDone: z.object({ id: z.number().int().positive(), done: z.boolean() }),
   emote: z.object({ emote: z.string().min(1).max(32) }),
@@ -544,6 +548,8 @@ export interface ClientToServerEvents {
   'prop:buy': (msg: { unit: string }, ack: Ack<SimpleResult>) => void;
   'prop:sell': (msg: { unit: string }, ack: Ack<Result<{ gainedSen: number }>>) => void;
   'prop:mode': (msg: { unit: string; mode: PropertyMode }, ack: Ack<SimpleResult>) => void;
+  /** Ask your tenant to move out (you pay them a day's rent or so). */
+  'prop:evict': (msg: { unit: string }, ack: Ack<Result<{ feeSen: number }>>) => void;
   'prop:prices': (msg: { unit: string; rentSen?: number; nightSen?: number }, ack: Ack<SimpleResult>) => void;
   'prop:staff': (msg: { unit: string; role: 'manager' | 'cleaner'; on: boolean }, ack: Ack<SimpleResult>) => void;
   'prop:layout': (msg: { unit: string; layout: Placed[] }, ack: Ack<Result<{ stars: number }>>) => void;
@@ -629,7 +635,9 @@ export interface ClientToServerEvents {
   /** 💰 Money in/out per reason over the last hour and the last 24 hours. */
   'money:ledger': (ack: Ack<Result<{ hour: LedgerRow[]; day: LedgerRow[] }>>) => void;
   /** 🐞 Send a bug report / suggestion / feedback (stored for the host to read). */
-  'feedback:send': (msg: { kind: FeedbackKind; text: string; client?: { district?: string; screen?: string; device?: string; errors?: string[] } }, ack: Ack<Result<{ id: number }>>) => void;
+  'feedback:send': (msg: { kind: FeedbackKind; text: string; client?: { district?: string; screen?: string; device?: string; errors?: string[] }; image?: string }, ack: Ack<Result<{ id: number }>>) => void;
+  /** Admin: a report's picture (data URL). */
+  'feedback:image': (msg: { id: number }, ack: Ack<Result<{ dataUrl: string }>>) => void;
   /** Admin: the latest reports. */
   'feedback:list': (ack: Ack<Result<FeedbackInbox>>) => void;
   /** Admin: mark a report done (or open again). */

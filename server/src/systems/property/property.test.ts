@@ -144,6 +144,28 @@ describe('long-term rent', () => {
     expect(me().earnedSen).toBeGreaterThan(0);
   });
 
+  it('you can ask a tenant to leave: they get a day of rent, the home looks for a new one', () => {
+    const s = setup();
+    s.goTo(s.studio);
+    s.props.buy(s.p, s.studio.id);
+    s.props.setMode(s.p, s.studio.id, 'rent');
+    const me = () => s.props.selfOf(s.p)[0];
+    expect(() => s.props.evict(s.p, s.studio.id)).toThrow(/no tenant/);
+    for (let h = 0; h < 48 && !me().tenant; h++) {
+      s.setNow(s.now() + 60 * cfg.time.realMsPerGameMinute);
+      s.props.tick();
+    }
+    expect(me().tenant).not.toBeNull();
+    expect(() => s.props.setMode(s.p, s.studio.id, 'airbnb')).toThrow(/move out first/);
+    const w = s.p.walletSen;
+    const { feeSen } = s.props.evict(s.p, s.studio.id);
+    expect(feeSen).toBe(Math.round(me().rentSen * cfg.properties.rent.evictFeeDays));
+    expect(s.p.walletSen).toBe(w - feeSen);
+    expect(me().tenant).toBeNull();
+    s.props.setMode(s.p, s.studio.id, 'airbnb'); // free to change now
+    expect(me().mode).toBe('airbnb');
+  });
+
   it('happiness falls with overpriced rent, and unhappy tenants move out', () => {
     const s = setup();
     s.goTo(s.studio);

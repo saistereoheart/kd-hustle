@@ -54,7 +54,8 @@
       { "id": "expat", "name": "Expat", "icon": "🧳", "rentTolerance": 1.25 }
     ],
     "requests": ["Leaky pipe 💧", "Broken aircond 🥵", "Blocked toilet 🚽", "Flickering lights 💡", "Jammed door 🚪"],
-    "diyMs": 12000
+    "diyMs": 12000,
+    "evictFeeDays": 1
   },
   "airbnb": {
     "minStars": 0.5,

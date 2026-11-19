@@ -46,7 +46,20 @@ export function renderProperties({ app, rerender }: PhoneCtx): HTMLElement[] {
       lines.push(priceInput('Rent per day', s.rentSen, s.fairRentSen, 'rentSen'));
       if (s.tenant) {
         const def = app.cfg.properties.rent.tenants.find((x) => x.id === s.tenant!.kind);
-        lines.push(el('div', {}, `${def?.icon ?? '🙂'} Tenant: ${def?.name ?? s.tenant.kind} · happiness ${s.happiness ?? 0}%${s.tenant.owed ? ` · owes ${formatMoney(s.tenant.owed)}` : ''}`));
+        const fee = Math.round(s.rentSen * app.cfg.properties.rent.evictFeeDays);
+        const evict = el('button', { class: 'btn small danger', type: 'button', 'data-action': 'evict' }, '🚪 Ask to leave');
+        evict.addEventListener('click', () => {
+          if (!confirm(`Ask your ${def?.name.toLowerCase() ?? 'tenant'} to move out? You pay them ${formatMoney(fee)} (a day's rent)${s.tenant!.owed ? ` and the ${formatMoney(s.tenant!.owed)} they owe is written off` : ''}. Then a new tenant can move in, or switch the home to Airbnb.`)) return;
+          app.socket?.timeout(5000).emit('prop:evict', { unit: s.unit }, (err, res) => {
+            if (err || !res.ok) {
+              sfx.error();
+              return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+            }
+            toast('🚪 Your tenant moved out.', 'good');
+            rerender();
+          });
+        });
+        lines.push(el('div', { class: 'setting-row' }, el('span', {}, `${def?.icon ?? '🙂'} Tenant: ${def?.name ?? s.tenant.kind} · happiness ${s.happiness ?? 0}%${s.tenant.owed ? ` · owes ${formatMoney(s.tenant.owed)}` : ''}`), el('span', {}, evict, el('div', { class: 'muted small' }, `costs ${formatMoney(fee)}`))));
       } else lines.push(el('div', { class: 'muted' }, '🔎 Looking for a tenant… (lower rent = faster)'));
       lines.push(el('div', { class: 'muted small' }, `Condition ${Math.round(s.condition)}%`));
       for (const r of s.requests) {
