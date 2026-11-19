@@ -68,7 +68,7 @@ Compared with the spec's content checklist (§19):
   | Car | Peroduo Mivy | RM 52k | inline-4 hatch |
   | Car | Protan S7O | RM 85k | turbo 3-cylinder, 7 gears |
   | Bike | Kawasaky ZX-25 | RM 32k | inline-4 250 cc, revs to 17,000 |
-  | Bike | ZXMotto 500RR | RM 38k | parallel twin |
+  | Bike | ZXMotto 500RR | RM 38k | inline-4 500 cc, revs to 14,500 |
   | Bike | Dukati Panigalo V2 | RM 95k | 90° L-twin |
   | Bike | Harlee-Davisson Road Kingo | RM 130k | 45° V-twin |
 
@@ -99,8 +99,8 @@ Compared with the spec's content checklist (§19):
   themselves are in `shared/config/vehicles.json` (speeds, hitboxes).
 - Code: `shared/src/garage`, `server/src/systems/garage` (with tests), `client/src/items/carArt.ts`,
   `client/src/ui/engineSound.ts`, `client/src/ui/garage`.
-- **Decision:** I treated the ZXMotto 500RR as a parallel twin (180° crank). If the real bike has a different engine,
-  change `firing`, `cylinders` and `layout` in `garage.json`.
+- The ZXMotto 500RR is an inline-4 (you confirmed), so it fires evenly every 180° like the ZX-25, but lower and
+  deeper (500 cc, redline 14,500).
 
 ## 🐾 Teman (pets) and the turn-based Gua Gelap (2026-11-19, your request)
 

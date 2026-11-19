@@ -28,8 +28,8 @@
     },
     "bike_500rr": {
       "kind": "bike", "maker": "ZXMotto", "model": "500RR", "priceSen": 3800000, "accelSec": 1.4, "paint": "putih", "wheel": "biru",
-      "desc": "A sharp middleweight sportbike with a punchy parallel twin.",
-      "engine": { "cc": 499, "cylinders": 2, "layout": "parallel twin", "firing": [0, 180], "idleRpm": 1400, "redline": 12500, "gears": 6, "body": 180, "rough": 0.22 }
+      "desc": "A middleweight sportbike with a 500 cc inline-4: smooth, and it howls near the redline.",
+      "engine": { "cc": 499, "cylinders": 4, "layout": "inline-4", "firing": [0, 180, 360, 540], "idleRpm": 1500, "redline": 14500, "gears": 6, "body": 210, "rough": 0.1 }
     },
     "bike_dukati": {
       "kind": "bike", "maker": "Dukati", "model": "Panigalo V2", "priceSen": 9500000, "accelSec": 1.1, "paint": "merah_rosso", "wheel": "hitam",
