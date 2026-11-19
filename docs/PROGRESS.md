@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes, Property skills)_
+_Last updated: 2026-11-19 (Phase 8c: rebirth rework, recipes, furniture, money breakdown, head chef, intro + lofi, stock)_
 
 **Phase 1 (Foundation): done.** **Phase 1.5 (real-scale OSM map + character polish): done.**
 **Phase 2 (money, jobs and the gacha core): done**, plus three feedback rounds on it (2.1, 2.2, 2.3).
@@ -14,15 +14,17 @@ _Last updated: 2026-11-18 (feedback fixes: lag, stall traffic, bag, stock boxes,
 **Phase 6 (shops, businesses, loans): done** (6a businesses + shop, 6b loans, 6c the player-item boutique, plus offline
 income for stalls). **Phase 7 (casino and social economy): done** (7a casino, 7b-1 trading/gifting/leaderboards, 7b-2 events, coinflip, Pasar
 Online). Plus the shared radio.
-**Phase 8 (end game and polish): in progress.** Done: 8a (the higher crates, rebirth + the Rebirth Shop), 8b (admin
-commands, the debug overlay), part of 8c (titles, businesses, property types). Still open: see "Phase 8: what's left".
+**Phase 8 (end game and polish): in progress.** Done: 8a (the higher crates, rebirth, reworked in 8c), 8b (admin
+commands, the debug overlay), 8c (content, the money breakdown, head chefs, the intro and lofi music, stock upgrades,
+the extended simulator). Still open: the polish pass (see "Phase 8: what's left").
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 218 unit tests |
+| `npm test` (Vitest) | ✅ 289 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
+| `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
 | Real phone on the LAN | ⏳ needs you |
 
 ### Notes for you
@@ -45,15 +47,62 @@ Compared with the spec's content checklist (§19):
 | Casino games | 7 | 7 ✅ |
 | Business types | 10 idle + shop + Butik + 3 stall tiers | 14 ✅ |
 | Property types | 11 | 12 |
-| Recipes | 3 | 6 |
+| Recipes | 6 | 6 ✅ |
 | Starter jobs | 2 | 4 |
-| Furniture | 42 | 80+ |
+| Furniture | 88 | 80+ ✅ |
 
-- **Recipes, jobs and furniture** need new cooking steps / mini-games / drawings each, so they're worth designing
-  together: which dishes (mee goreng mamak? satay? cendol?), which jobs (flyers? mamak part-timer?).
-- **The balance simulator** still models the jobs-only path (stage 3 in ~9.5 h with jobs alone, target ~2 h; stalls,
-  homes and businesses get players there faster but aren't simulated yet).
-- **Polish passes** from the spec: sound, juice, mobile performance (texture atlases), a final bug sweep.
+- **Starter jobs (2 of 4)** and the 12th property type are still open.
+- **Polish pass:** sound, juice, mobile performance (texture atlases), a final bug sweep. Tell me what bothers you most.
+
+---
+
+## Phase 8c: your 2026-11-19 list
+
+### What changed
+- **Rebirth reworked.** Everything resets except **XP and level** (cash, items, Item Index, shards, skills, titles, job
+  levels, homes, businesses, stall, loans, wealth stage). Each rebirth **doubles your cash income** (×2, ×4, ×8...)
+  on jobs, stall prices, manifesting, Ventures, rent and Airbnb. Tokens and the Rebirth Shop are gone. The page reloads
+  after a rebirth. Blocked while you have Pasar Online bids or listings, or Butik items, out.
+- **3 recipes** on the nasi lemak / roti canai mini-games: **Nasi Goreng Kampung** (after Nasi Lemak mastery 2: scoop,
+  toss in the wok, plate up), **Mee Goreng Mamak** (after Roti Canai mastery 1: toss, off the fire at the right colour,
+  garnish), **Murtabak** (after Mee Goreng mastery 1: stretch, fill, fold, flip). New art: wok with flames, fried rice,
+  noodles, murtabak, 10 new ingredients.
+- **46 new furniture pieces (88 in total)**, all at IKEJA, across every category and theme. **Where to get / how to
+  use** is now explained in the Bag (stats, where it's sold, how to place it, Take me to IKEJA / Take me home), a new
+  Handbook chapter, the IKEJA store and the Properties app.
+- **💰 Money breakdown:** tap your cash. In/out per source for the last hour or 24 hours, each income split into base
+  pay + every bonus ("RM 100 base + RM 20 (Hustle Harder Lv 4)"), live rates (manifesting, Ventures, job multiplier) and
+  what you owe (loan instalments, stall wages, home running costs).
+- **👨‍🍳 Head chef:** 📱 Business → Head chef. Each chef has **Speed** (cooks faster), **Flavour** (dish prices) and
+  **Charm** (customers), from their own profile × rarity × tier × variant. The new **Chef Academy** skill (Business
+  branch, +10% per level) boosts all three. The Bag shows a chef's stats too.
+- **Start-game intro:** the screen goes dark with a glowing dot while the town loads, then the town opens out of the
+  dot. **Lofi chiptune** made in code fades in once the town shows (follows the music setting; steps aside while the
+  shared radio plays a track).
+- **Bugs:** panels no longer lose your scroll position (the skill branch tabs) or what you typed (rent / nightly price)
+  when they refresh. An out-of-range price is now refused with the allowed range instead of being quietly changed (up to
+  3× the fair price).
+- **Skill maths checked:** values, costs and lock rules are consistent; rebirth now multiplies stall prices instead of
+  adding to them; chefs no longer count twice.
+- **Stall stock:** limit 600 → **2000** per item; new **Auto restock** upgrade (tops up at the plain hypermarket price,
+  also while you're away); **🛒 Buy all** at Gergasi Hypermarket (a 200-pack of everything at −20%).
+- **Balance simulator** now models the stall, homes and Ventures (`npm run sim`; `--jobs-only` for the old model).
+
+### Decisions (pick-the-simple-option)
+- **Rebirth cash multiplier** compounds (×2 per rebirth: `rebirth.cashMultPerRebirth`). Daily streak and today's quests
+  are kept (they're about logging in, not progress).
+- **Auto restock** refills anything at ≤ a quarter of its target (100 portions per level) in tens, at the
+  hypermarket price without bulk discount. It runs while the stall is open, and in the offline replay.
+- **Buy all** buys up to one 200-pack of each item (up to the limit) and skips what you can't afford.
+- **Sim:** Ventures carry the late game (55% of income over 30 h), and stages 4–5 land at the fast end of the window.
+  The model assumes you always collect Ventures, so real players will be a little slower.
+
+### How to test it
+- `/setstage me 6` then 📱 → ⭐ Rebirth. Tap your cash for 💰 Money. 📱 Business → Head chef (roll chefs in Quick Rolls).
+- Cook the new dishes after their unlocks (or `/give` money and grind mastery). IKEJA has the new furniture.
+- In the hypermarket: 📱 Business → Stock or the BUY STOCK spot → 🛒 Buy all. Upgrades → 🔄 Auto restock.
+
+---
 
 ## Phase 8b: admin tools
 
