@@ -12,7 +12,7 @@
 import {
   ageStock, customerRate, dayKey, dishPay, orderBaseSen, stockItems, dishQuality, gameTime, gradeStep, makeDish, masteryLevel, menuRecipes,
   queueCapacity, rushHour, staffPayRate, stallAssetSen, stallOpenNow, stockCount, stockPriceSen, takeStock, tierDef, upgradeCostSen, upgradeLevel,
-  validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES,
+  validateDishInputs, wagePerHourSen, windowMult, staffCookMs, formatMoney, STALL_UPGRADES, restockNeeds, wholesalePackQty, wholesalePriceSen,
   type DishState, type RandInt, type ServeResult, type StallCustomer, type StallPublic, type StallSelf, type StallState, type StallUpgrade,
   type StepInput,
 } from '@kh/shared';
@@ -59,7 +59,7 @@ interface Live {
 export interface StallHooks {
   publicChanged: (stalls: StallPublic[]) => void;
   selfChanged: (p: OnlinePlayer, stall: StallSelf | null) => void;
-  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  event: (p: OnlinePlayer, ev: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid' | 'restocked'; text: string; sen?: number }) => void;
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   /** A stall is gone from its plot (rebirth). */
   removed?: (plot: string) => void;
@@ -72,6 +72,8 @@ const nextId = (() => {
 
 export class StallSystem {
   private stalls = new Map<number, Live>();
+  /** Auto restock: when each stall last checked its stock. */
+  private restockAt = new Map<number, number>();
 
   constructor(
     private readonly cfg: ServerConfig,
@@ -146,7 +148,7 @@ export class StallSystem {
    * Stock is used up but doesn't go off (it only ages during play time).
    * Capped at `capHours`. Returns null if the stall was closed or had no cooks.
    */
-  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): { sen: number; dishes: number; wagesSen: number; soldOut: boolean } | null {
+  offline(p: OnlinePlayer, awayMs: number, capHours: number, efficiency: number): { sen: number; dishes: number; wagesSen: number; soldOut: boolean; restockSen: number } | null {
     const l = this.stalls.get(p.id);
     if (!l || !l.s.open || l.s.staff <= 0 || awayMs < 60_000) return null;
     const st = this.cfg.stalls;
@@ -155,9 +157,15 @@ export class StallSystem {
     const span = Math.min(awayMs, capHours * 3_600_000);
     const stepMs = 60 * this.cfg.time.realMsPerGameMinute; // one in-game hour
     const cookMs = staffCookMs(st, l.s, b);
-    let pay = 0, wages = 0, dishes = 0, carry = 0, rr = 0;
+    let pay = 0, wages = 0, dishes = 0, carry = 0, rr = 0, restockSen = 0;
     for (let t = now - span; t < now; t += stepMs) {
       const len = Math.min(stepMs, now - t);
+      // Auto restock keeps going while you're away (paid from what you have plus what's earned).
+      for (const n of restockNeeds(st, this.cfg.recipes.recipes, l.s)) {
+        if (p.walletSen + Math.round((pay - wages) * efficiency) - restockSen < n.priceSen) continue;
+        restockSen += n.priceSen;
+        l.s.stock = { ...l.s.stock, [n.id]: [...(l.s.stock[n.id] ?? []), { qty: n.qty, age: 0 }] };
+      }
       const menu = menuRecipes(st, this.cfg.recipes.recipes, l.s).filter((r) => stockCount(l.s, r.id) > 0);
       if (!menu.length) break; // sold out: the cooks go home
       const hourF = this.hourF(t);
@@ -183,7 +191,7 @@ export class StallSystem {
     }
     const income = Math.round(pay * efficiency);
     const wagesSen = Math.round(wages * efficiency);
-    let net = income - wagesSen;
+    let net = income - wagesSen - restockSen; // auto restock is paid out of it too
     if (net < 0) net = -Math.min(-net, p.walletSen); // wages never push the wallet below zero
     if (net) {
       this.econ.run(p, () => this.econ.change(p, net, 0, 'stall-offline', `${dishes} dishes`));
@@ -194,7 +202,7 @@ export class StallSystem {
     this.save(l);
     this.touch(l);
     const soldOut = !menuRecipes(st, this.cfg.recipes.recipes, l.s).some((r) => stockCount(l.s, r.id) > 0);
-    return { sen: net, dishes, wagesSen, soldOut };
+    return { sen: net, dishes, wagesSen, soldOut, restockSen };
   }
 
   all(): StallPublic[] {
@@ -367,6 +375,64 @@ export class StallSystem {
     this.touch(l);
     this.flush();
     this.prog.check(p);
+  }
+
+  /** Buy all (in person at the hypermarket): a wholesale pack of every dish and add-on on the
+   *  menu, at the biggest pack's discount, up to the stock limit. Buys what you can afford. */
+  buyStockAll(p: OnlinePlayer): { portions: number; spentSen: number; skipped: number } {
+    const l = this.mine(p);
+    const st = this.cfg.stalls;
+    let portions = 0, spentSen = 0, skipped = 0;
+    this.econ.run(p, () => {
+      for (const it of stockItems(st, this.cfg.recipes.recipes, l.s)) {
+        const qty = Math.min(wholesalePackQty(st), st.stock.maxPerRecipe - stockCount(l.s, it.id));
+        if (qty <= 0) continue;
+        const price = wholesalePriceSen(st, it, l.s, qty);
+        if (p.walletSen < price) {
+          skipped++;
+          continue;
+        }
+        this.econ.change(p, -price, 0, 'stall-stock', `${it.id}x${qty}:all`);
+        l.s.stock = { ...l.s.stock, [it.id]: [...(l.s.stock[it.id] ?? []), { qty, age: 0 }] };
+        portions += qty;
+        spentSen += price;
+      }
+      this.save(l);
+    });
+    if (!portions) throw new GameError(skipped ? "You can't afford any wholesale packs right now." : 'Your shelves are full.');
+    l.outOfStockWarned = false;
+    this.hooks.wallet(p, -spentSen, 'stock');
+    this.prog.bump(p, 'stockBought', portions);
+    this.touch(l);
+    this.flush();
+    this.prog.check(p);
+    return { portions, spentSen, skipped };
+  }
+
+  /** Auto restock (upgrade): the supplier tops up anything at a quarter of the target or less. */
+  private autoRestock(p: OnlinePlayer, l: Live) {
+    const needs = restockNeeds(this.cfg.stalls, this.cfg.recipes.recipes, l.s);
+    let spent = 0;
+    const names: string[] = [];
+    for (const n of needs) {
+      if (p.walletSen < n.priceSen) continue;
+      try {
+        this.econ.run(p, () => {
+          this.econ.change(p, -n.priceSen, 0, 'stall-restock', `${n.id}x${n.qty}`);
+          l.s.stock = { ...l.s.stock, [n.id]: [...(l.s.stock[n.id] ?? []), { qty: n.qty, age: 0 }] };
+        });
+        spent += n.priceSen;
+        names.push(`${n.qty} ${n.name}`);
+      } catch {
+        /* can't afford: try again later */
+      }
+    }
+    if (!spent) return;
+    l.outOfStockWarned = false;
+    this.save(l);
+    this.hooks.wallet(p, -spent, 'stock');
+    this.hooks.event(p, { kind: 'restocked', text: `🔄 Auto restock: ${names.join(', ')} (${formatMoney(spent)})`, sen: -spent });
+    this.touch(l);
   }
 
   /** Perfect Cook Token: the next N dishes are auto-Perfect. */
@@ -589,6 +655,11 @@ export class StallSystem {
       if (spoiled > 0) {
         this.hooks.event(owner, { kind: 'spoiled', text: `🗑️ ${spoiled} portions of ingredients went off.` });
         this.touch(l);
+      }
+      // Auto restock (upgrade): every few seconds, top up what's running low.
+      if (now - (this.restockAt.get(l.owner) ?? 0) >= 5000) {
+        this.restockAt.set(l.owner, now);
+        this.autoRestock(owner, l);
       }
 
       // A dish left too long is thrown away; the customer leaves unhappy.

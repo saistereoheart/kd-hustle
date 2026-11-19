@@ -527,6 +527,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       stalls.buyStock(me, recipe, qty, delivery);
       return {};
     });
+    handle(socket, 'stall:stockAll', null, () => {
+      if (!nearInteractable(me, 'market')) throw new GameError('Buy all is for in person, inside Gergasi Hypermarket.');
+      return stalls.buyStockAll(me);
+    });
     handle(socket, 'inv:unequip', C2S.unequip, ({ slot }) => {
       if (inv.unequip(me, slot as EquipSlot)) broadcastCosmetics(me);
       return {};
@@ -855,7 +859,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         const st = stalls.offline(p, awayMs, o.capHours, o.efficiency);
         const tier = st && stalls.get(p.id) ? cfg.stalls.tiers.find((t) => t.tier === stalls.get(p.id)!.s.tier) : undefined;
         if (st && (st.sen || st.dishes)) {
-          extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.soldOut ? ' · ⚠️ SOLD OUT: restock in 📱 → Business, or no customers will come' : ''}` });
+          extra.push({ label: `${tier?.icon ?? '🍳'} Your ${tier?.name ?? 'stall'}`, sen: st.sen, detail: `${st.dishes} dishes by your cooks · wages ${formatMoney(st.wagesSen)}${st.restockSen ? ` · auto restock ${formatMoney(st.restockSen)}` : ''}${st.soldOut ? ' · ⚠️ SOLD OUT: restock in 📱 → Business, or no customers will come' : ''}` });
         }
         extra.push(...ventures.offline(p, awayMs, o));
       }

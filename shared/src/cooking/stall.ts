@@ -6,7 +6,7 @@ import { inHours } from '../time/clock';
 import type { AddonDef, RecipeDef } from './cooking';
 
 const money = z.number().int().nonnegative();
-export const STALL_UPGRADES = ['level', 'equipment', 'signage', 'queue', 'supplier', 'training'] as const;
+export const STALL_UPGRADES = ['level', 'equipment', 'signage', 'queue', 'supplier', 'training', 'restock'] as const;
 export type StallUpgrade = (typeof STALL_UPGRADES)[number];
 
 export const stallsConfigSchema = z.object({
@@ -198,6 +198,45 @@ export function stockPriceSen(cfg: StallsConfig, recipe: Pick<RecipeDef, 'ingred
   if (!pack) return NaN;
   const supplier = 1 - upgradeLevel(s, 'supplier') * cfg.upgrades.supplier!.perLevel;
   return Math.round(recipe.ingredientCostSen * packQty * (1 - pack.discount) * Math.max(0.3, supplier) * (delivery ? 1 + cfg.stock.deliveryFee : 1));
+}
+
+/** What one portion costs from the supplier (Supplier contract applies), after a discount. */
+function portionSen(cfg: StallsConfig, item: Pick<RecipeDef, 'ingredientCostSen'>, s: Pick<StallState, 'upgrades'>, discount: number): number {
+  const supplier = Math.max(0.3, 1 - upgradeLevel(s, 'supplier') * cfg.upgrades.supplier!.perLevel);
+  return item.ingredientCostSen * (1 - discount) * supplier;
+}
+
+/** Buy-all at the hypermarket: any quantity at the biggest pack's (wholesale) discount. */
+export function wholesalePriceSen(cfg: StallsConfig, item: Pick<RecipeDef, 'ingredientCostSen'>, s: Pick<StallState, 'upgrades'>, qty: number): number {
+  const best = Math.max(0, ...cfg.stock.packs.map((p) => p.discount));
+  return Math.round(portionSen(cfg, item, s, best) * qty);
+}
+
+/** The biggest pack size (what Buy all buys of each item). */
+export function wholesalePackQty(cfg: StallsConfig): number {
+  return Math.max(...cfg.stock.packs.map((p) => p.qty));
+}
+
+/** Auto restock (upgrade): how many portions of each item the supplier keeps you at (0 = off). */
+export function restockTarget(cfg: StallsConfig, s: Pick<StallState, 'upgrades'>): number {
+  const lv = upgradeLevel(s, 'restock');
+  return lv ? Math.min(cfg.stock.maxPerRecipe, lv * (cfg.upgrades.restock?.perLevel ?? 0)) : 0;
+}
+
+/** Auto restock: what to top up now (items at or below a quarter of the target), at the plain
+ *  hypermarket price (no delivery fee, no bulk discount), in tens. */
+export function restockNeeds(cfg: StallsConfig, recipes: RecipeDef[], s: Pick<StallState, 'upgrades' | 'mastery' | 'stock'>): Array<{ id: string; name: string; qty: number; priceSen: number }> {
+  const target = restockTarget(cfg, s);
+  if (!target) return [];
+  const out: Array<{ id: string; name: string; qty: number; priceSen: number }> = [];
+  for (const it of stockItems(cfg, recipes, s)) {
+    const have = stockCount(s, it.id);
+    if (have > Math.max(cfg.stock.lowWarn, target / 4)) continue;
+    const qty = Math.floor((target - have) / 10) * 10;
+    if (qty <= 0) continue;
+    out.push({ id: it.id, name: it.name, qty, priceSen: Math.round(portionSen(cfg, it, s, 0) * qty) });
+  }
+  return out;
 }
 
 export interface StallBonuses {

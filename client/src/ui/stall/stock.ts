@@ -1,5 +1,5 @@
 // Buying ingredients: the same list in the hypermarket (in person) and the phone (delivered, +fee).
-import { formatMoney, stockCount, stockItems, stockPriceSen } from '@kh/shared';
+import { formatMoney, restockTarget, stockCount, stockItems, stockPriceSen, upgradeLevel, wholesalePackQty, wholesalePriceSen } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
 import { sfx } from '../sound';
@@ -42,9 +42,42 @@ export function stockList(app: App, delivery: boolean): HTMLElement {
     );
   });
   const shelf = cfg.stock.shelfLifeGameHours / 24;
+  const top: HTMLElement[] = [];
+  // Buy all (in person): a wholesale pack of everything, at the biggest pack's discount.
+  if (!delivery) {
+    const items = stockItems(cfg, app.cfg.recipes.recipes, st);
+    const pack = wholesalePackQty(cfg);
+    let total = 0, portions = 0;
+    for (const it of items) {
+      const qty = Math.min(pack, cfg.stock.maxPerRecipe - stockCount(st, it.id));
+      if (qty <= 0) continue;
+      total += wholesalePriceSen(cfg, it, st, qty);
+      portions += qty;
+    }
+    const off = Math.round(Math.max(...cfg.stock.packs.map((p) => p.discount)) * 100);
+    const all = el('button', { class: 'btn primary', type: 'button', 'data-action': 'stock-all', disabled: !portions }, portions ? `🛒 Buy all (wholesale −${off}%)` : '🛒 Shelves full', portions ? el('small', {}, `${portions} portions · ${formatMoney(total)}`) : null);
+    all.addEventListener('click', () => {
+      all.disabled = true;
+      app.socket?.timeout(6000).emit('stall:stockAll', (err, res) => {
+        all.disabled = false;
+        if (err || !res.ok) {
+          sfx.error();
+          return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        }
+        sfx.coin();
+        toast(`🛒 +${res.portions} portions for ${formatMoney(res.spentSen)}${res.skipped ? ` (${res.skipped} item${res.skipped > 1 ? 's' : ''} skipped: not enough cash)` : ''}`, 'good', 5000);
+      });
+    });
+    top.push(el('div', { class: 'stock-all' }, all, el('div', { class: 'muted small' }, `Up to ${pack} of every dish and add-on on your menu (limit ${cfg.stock.maxPerRecipe} each). Buys what you can afford.`)));
+  }
+  const target = restockTarget(cfg, st);
+  top.push(el('p', { class: 'muted small' }, target
+    ? `🔄 Auto restock Lv ${upgradeLevel(st, 'restock')}: anything at ${Math.max(cfg.stock.lowWarn, Math.floor(target / 4))} or fewer is topped up to ${target} at the hypermarket price (also while you're away).`
+    : '🔄 Tip: the Auto restock upgrade (📱 Business → Upgrades) tops up your stock for you at the hypermarket price.'));
   return el(
     'div',
     { class: 'stock-list' },
+    ...top,
     ...rows,
     el('p', { class: 'hint' }, `${delivery ? `Delivery adds ${Math.round(cfg.stock.deliveryFee * 100)}%. Buy in person at Gergasi Hypermarket (The Strand) to save it. ` : ''}Ingredients keep ${shelf} in-game days (play time). Bigger packs are cheaper per portion.`),
   );

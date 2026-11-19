@@ -519,6 +519,8 @@ export interface ClientToServerEvents {
   'stall:hire': (ack: Ack<SimpleResult>) => void;
   'stall:fire': (ack: Ack<SimpleResult>) => void;
   'stall:stock': (msg: { recipe: string; qty: number; delivery: boolean }, ack: Ack<SimpleResult>) => void;
+  /** Buy all at the hypermarket: a wholesale pack of everything on the menu. */
+  'stall:stockAll': (ack: Ack<Result<{ portions: number; spentSen: number; skipped: number }>>) => void;
   'carwash:submit': (
     msg: { jobId: string; soap: number[]; rinse: number[]; polish: number[]; polishStartMs: number },
     ack: Ack<Result<{ cleaned: number; soap: number; rinse: number; polish: number; paidSen: number; levelUp?: number }>>,
@@ -622,7 +624,7 @@ export interface ServerToClientEvents {
   /** Your stall's private state changed. */
   'stall:self': (p: { stall: StallSelf | null }) => void;
   /** Something happened at your stall that's worth a toast (a cook served a dish, a customer left...). */
-  'stall:event': (p: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid'; text: string; sen?: number }) => void;
+  'stall:event': (p: { kind: 'staffServed' | 'staffSale' | 'lowStock' | 'lost' | 'blogger' | 'closed' | 'spoiled' | 'wagesUnpaid' | 'restocked'; text: string; sen?: number }) => void;
   snapshot: (p: SnapshotPayload) => void;
   'move:correct': (p: { x: number; y: number; seq: number }) => void;
   'chat:msg': (m: ChatMsg) => void;

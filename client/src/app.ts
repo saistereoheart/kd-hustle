@@ -515,7 +515,7 @@ export class App {
         return;
       }
       if (ev.kind === 'lowStock') sfx.error();
-      toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' ? 'good' : ev.kind === 'closed' || ev.kind === 'lowStock' ? 'info' : 'bad', ev.kind === 'lowStock' ? 6000 : 4500);
+      toast(ev.text, ev.kind === 'staffServed' || ev.kind === 'blogger' || ev.kind === 'restocked' ? 'good' : ev.kind === 'closed' || ev.kind === 'lowStock' ? 'info' : 'bad', ev.kind === 'lowStock' ? 6000 : 4500);
     });
     socket.on('progress', ({ progress, events }) => {
       this.store.setProgress(progress);

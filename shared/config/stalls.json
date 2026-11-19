@@ -135,7 +135,8 @@
       "costGrowth": 1.35,
       "perLevel": 0.1,
       "bonusPerLevel": 0.06
-    }
+    },
+    "restock": { "name": "Auto restock", "icon": "🔄", "desc": "Your supplier tops up every dish and add-on when it runs low (also while you're away), at the hypermarket price: no delivery fee, no bulk discount. Each level keeps 100 more portions of each.", "maxLevel": 8, "baseCostSen": 20000, "costGrowth": 1.55, "perLevel": 100 }
   },
   "staff": {
     "cookSec": 14,
@@ -194,7 +195,7 @@
     ],
     "shelfLifeGameHours": 72,
     "deliveryFee": 0.25,
-    "maxPerRecipe": 600,
+    "maxPerRecipe": 2000,
     "lowWarn": 5
   },
   "mastery": {

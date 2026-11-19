@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { customerRate, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { customerRate, restockNeeds, stockItems, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -329,9 +329,39 @@ describe('stock and upgrades', () => {
     const s = setup(5_000_000);
     s.stalls.buy(s.p, 1);
     expect(() => s.stalls.buyStock(s.p, 'teh_tarik', 10, true)).toThrow(/menu/);
-    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
-    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
+    const start = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak'); // the starter stock
+    const packs = Math.floor((cfg.stalls.stock.maxPerRecipe - start) / 200);
+    for (let i = 0; i < packs; i++) s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
     expect(() => s.stalls.buyStock(s.p, 'nasi_lemak', 200, true)).toThrow(/up to/);
+  });
+
+  it('buy all: a wholesale pack of everything on the menu at the biggest discount', () => {
+    const s = setup(50_000_000);
+    s.stalls.buy(s.p, 1);
+    const start = stockCount(s.stalls.selfOf(s.p)!, cfg.recipes.recipes[0].id);
+    const w = s.p.walletSen;
+    const r = s.stalls.buyStockAll(s.p);
+    const items = stockItems(cfg.stalls, cfg.recipes.recipes, s.stalls.selfOf(s.p)!);
+    expect(r.portions).toBe(200 * items.length);
+    expect(w - s.p.walletSen).toBe(r.spentSen);
+    const nasi = cfg.recipes.recipes[0];
+    expect(stockCount(s.stalls.selfOf(s.p)!, nasi.id)).toBe(start + 200);
+    // 20% off the plain price.
+    expect(r.spentSen).toBe(items.reduce((a, it) => a + Math.round(it.ingredientCostSen * 0.8 * 200), 0));
+  });
+
+  it('auto restock tops up low items at the plain hypermarket price', () => {
+    const s = setup(50_000_000);
+    s.stalls.buy(s.p, 1);
+    const st = s.stalls.selfOf(s.p)!;
+    expect(restockNeeds(cfg.stalls, cfg.recipes.recipes, st)).toEqual([]); // upgrade not bought
+    s.stalls.upgrade(s.p, 'restock');
+    const needs = restockNeeds(cfg.stalls, cfg.recipes.recipes, s.stalls.selfOf(s.p)!);
+    const nasi = cfg.recipes.recipes[0];
+    const n = needs.find((x) => x.id === nasi.id)!;
+    const have = stockCount(s.stalls.selfOf(s.p)!, nasi.id);
+    expect(n.qty).toBe(Math.floor((cfg.stalls.upgrades.restock!.perLevel - have) / 10) * 10);
+    expect(n.priceSen).toBe(nasi.ingredientCostSen * n.qty);
   });
 
   it('upgrades cost money, count towards the stall value, and persist', () => {
