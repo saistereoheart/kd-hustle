@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, engineRpm, rideAccelSec, tireGrip,
+  darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, engineRpm, rideAccelSec, tireGrip,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -11,6 +11,7 @@ import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { Avatar } from './avatar';
 import { startEngine, type EngineVoice } from '../ui/engineSound';
+import { ambience } from '../ui/ambience';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { NpcLayer } from './npcLayer';
@@ -283,7 +284,9 @@ export class TownScene extends Phaser.Scene {
       this.remotes.clear();
       this.collectors?.destroy();
       this.stopEngines();
+      ambience.set(null);
     });
+    ambience.set('town', () => darkness(this.app.cfg.time, gameTime(this.app.cfg.time, this.app.store.serverNow()).hourF));
     // Draw the chunks around the spawn point right away so the first frame isn't empty.
     this.cameras.main.centerOn(this.pos.x, this.pos.y);
     this.cameras.main.preRender();

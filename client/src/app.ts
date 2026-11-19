@@ -51,6 +51,7 @@ import { Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
 import { openSettings } from './ui/settings';
 import { TownScene } from './world/townScene';
+import { ambience } from './ui/ambience';
 import { InteriorScene, type ExtraStation } from './world/interiorScene';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
@@ -897,6 +898,7 @@ export class App {
       const T = this.map.tileSize, p = this.town.position;
       const door = [...b.doors].sort((d1, d2) => Math.hypot(d1.frontX + 0.5 - p.x / T, d1.frontY + 0.5 - p.y / T) - Math.hypot(d2.frontX + 0.5 - p.x / T, d2.frontY + 0.5 - p.y / T))[0] ?? b.door;
       this.game.scene.run('interior', { app: this, building: b, style, door, extra });
+      ambience.set(this.map.interactables.some((i) => i.building === b.id && i.type === 'casino') ? 'casino' : 'indoor');
       this.interior = this.game.scene.getScene('interior') as InteriorScene;
       document.body.dataset.inside = b.id;
       // Blur the town behind the room (WebGL only; the dark overlay alone works everywhere).
@@ -917,6 +919,7 @@ export class App {
     this.socket?.emit('interior', { building: u.building }, () => {});
     sfx.door();
     this.game.scene.run('home', { app: this, unit });
+    ambience.set('indoor');
     this.home = this.game.scene.getScene('home') as HomeScene;
     this.hud?.setPrompt(null, this.touch);
     document.body.dataset.inside = u.building;
@@ -935,6 +938,7 @@ export class App {
     this.interior = null;
     this.home = null;
     delete document.body.dataset.inside;
+    if (this.town) ambience.set('town');
     if (this.townBlur) this.town?.cameras.main.postFX?.remove(this.townBlur);
     this.townBlur = null;
     this.hud?.setPrompt(null, this.touch);

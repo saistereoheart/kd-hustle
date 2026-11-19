@@ -5,6 +5,7 @@
 import { gradeStep, meterLevel, meterZoneAt, type DishState, type Grade, type RecipesConfig, type StepInput, type StepParams } from '@kh/shared';
 import { el, uiRoot } from '../dom';
 import { sfx } from '../sound';
+import { sizzle } from '../ambience';
 import { foodIcon, drawBowl, drawCounter, drawDough, drawFood, drawGlass, drawGriddle, drawPlate, drawRice, drawRoti, drawSteelMug, trayCanvas, drawFriedRice, drawMurtabak, drawNoodles, drawWok } from './foodArt';
 
 const GRADE_TEXT: Record<Grade, string> = { perfect: 'PERFECT!', great: 'GREAT!', good: 'GOOD', miss: 'MISS' };
@@ -21,6 +22,7 @@ export interface CookStock {
  *  threw it away to start over (only offered when `canRestart`). */
 export function playDish(recipes: RecipesConfig, dish: DishState, title: string, onCancel: () => void, stock?: () => CookStock | null, canRestart = false): Promise<StepInput[] | null | 'restart'> {
   return new Promise((resolve) => {
+    const stopSizzle = sizzle();
     const W0 = Math.min(innerWidth - 28, 520);
     const H0 = Math.round(Math.min(W0 * 0.72, innerHeight * 0.48));
     let W = W0, H = H0;
@@ -97,6 +99,7 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKeyUp);
       host.remove();
+      stopSizzle();
       resolve(result);
     };
     quit.addEventListener('click', () => {

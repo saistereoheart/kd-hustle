@@ -20,9 +20,11 @@ export interface Prefs {
   pointers: boolean;
   /** 🚗 Engine and exhaust sounds (yours and nearby riders'). */
   engineSound: boolean;
+  /** 🏙️ Background sounds: traffic, birds and crickets, the casino crowd, the frying pan. */
+  ambience: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -109,6 +111,12 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  const amb = el('input', { type: 'checkbox', 'aria-label': 'Ambient sounds', 'data-pref': 'ambience', checked: prefs.ambience });
+  amb.addEventListener('change', () => {
+    prefs.ambience = amb.checked;
+    savePrefs(prefs);
+  });
+
   const stats = el('button', { class: 'btn small', type: 'button', 'data-action': 'toggle-stats' }, 'Show / hide');
   stats.addEventListener('click', () => window.dispatchEvent(new Event('kh-debug')));
 
@@ -145,6 +153,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money sounds (coins)'), moneySound),
     el('div', { class: 'setting-row' }, el('span', {}, '💰 Money pop-ups (+RM)'), moneyPopups),
     el('div', { class: 'setting-row' }, el('span', {}, '🚗 Engine & exhaust sounds'), engine),
+    el('div', { class: 'setting-row' }, el('span', {}, '🏙️ Ambient sounds (city, casino, cooking)'), amb),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
