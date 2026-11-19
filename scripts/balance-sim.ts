@@ -4,10 +4,13 @@
 // systems (Economy, Gacha, ProgressionSystem) against an in-memory database, so XP, levels,
 // stages, quests, the Hustle Path, potions, skills and crate rolls behave exactly like the game.
 // Only the player's hands are modelled: how long a delivery or a car wash takes, how clean the
-// car gets, and what they choose to buy.
+// car gets, and what they choose to buy. Stalls, homes and Ventures are modelled with the real
+// shared formulas in sim/assets.ts (cooking yourself, hired cooks, rent, business income, and
+// offline income between sessions). --jobs-only turns them off (the old jobs-only model).
 //
 //   npm run sim                        12 hours, 2-hour sessions (one per day), 20 runs
-//   npm run sim -- --hours=30 --runs=10 --session=3 --budget=0.2 --verbose
+//   npm run sim -- --hours=30 --runs=10 --session=3 --budget=0.2 --cook=0.3 --verbose
+//   npm run sim -- --jobs-only
 //
 // Then it prints time to each wealth stage vs the pacing targets, the Hustle Path timeline
 // (is there always a next goal?), income by source, money sinks and inflation indicators.
@@ -26,6 +29,7 @@ import { Gacha } from '../server/src/systems/gacha/gacha';
 import { InventorySystem } from '../server/src/systems/inventory/inventory';
 import { emptyProgress, ProgressionSystem } from '../server/src/systems/progression/progression';
 import { log } from '../server/src/log';
+import { AssetModel } from './sim/assets';
 
 // The server logs every rare roll; thousands of simulated rolls would drown the report.
 log.info = () => {};
@@ -46,6 +50,10 @@ const OPTS = {
   /** Share of earnings the player spends on crates (for fun). */
   budget: arg('budget', 0.2),
   verbose: process.argv.includes('--verbose'),
+  /** Jobs and crates only (no stall, homes or Ventures). */
+  jobsOnly: process.argv.includes('--jobs-only'),
+  /** Once you have a stall: share of your actions that are a 5-minute cooking shift. */
+  cook: arg('cook', 0.3),
 };
 
 /** Pacing targets from spec §6 (hours of active play). */
@@ -143,7 +151,9 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
   const econ = new Economy(repos, cfg);
   const gacha = new Gacha(repos, cfg, econ, rand);
   const inv = new InventorySystem(cfg, econ);
+  let assets: AssetModel | null = null;
   const prog = new ProgressionSystem(cfg, repos, econ, rand, {
+    assetsOf: () => assets?.value() ?? 0,
     wallet: (_p, delta, reason) => book(reason === 'skill' ? 'skills' : reason === 'reward' || reason === 'daily' || reason === 'quest' ? `rewards (${reason === 'reward' ? 'levels/goals/stages' : reason})` : reason, delta),
     items: () => {},
     progress: () => {},
@@ -152,6 +162,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
     freeRoll: (pl, crateId) => ({ crateId, results: gacha.roll(pl, crateId, 1, { ...rollMods(crateId), free: true }).results }),
   }, clock);
   prog.load(p);
+  if (!OPTS.jobsOnly) assets = new AssetModel(cfg, p, econ, prog, book);
   const rollMods = (crateId: string) => {
     const m = prog.mods(p);
     return { luck: m.luck, variantChance: m.variantChance, pity: prog.crateFor(p, cfg.crateById.get(crateId)!).pity };
@@ -223,6 +234,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
     ['hustle_harder', 0.4], ['fast_learner', 0.2], ['elbow_grease', 0.1], ['manifest', 0.08], ['passive_income', 0.05],
     ['lucky_charm', 0.1], ['shiny_sense', 0.05], ['potion_brewer', 0.05], ['pity_pact', 0.05],
     ['fast_hands', 0.04], ['auto_roll', 0.04], ['kaki_lari', 0.04],
+    ...(OPTS.jobsOnly ? [] : ([['secret_recipe', 0.1], ['kaki_promo', 0.08], ['good_boss', 0.05], ['prime_landlord', 0.08], ['kerb_appeal', 0.05]] as Array<[string, number]>)),
   ];
   const buySkills = () => {
     // The Hustle Path asks for a skill level: buy it if it's affordable.
@@ -342,15 +354,19 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
     if (t - sessionStart >= SESSION) {
       // Log off; next session is tomorrow (buff timers pause while offline).
       prog.save(p);
+      assets?.offline((24 - OPTS.session) * 3600); // away until tomorrow's session
       day++;
       sessionStart = t;
       prog.load(p);
       startDay();
     }
     const walletBefore = p.walletSen;
+    const tBefore = t;
+    let cooked = false;
     claimQuests();
     wearTitle();
     buySkills();
+    assets?.invest();
     usePotions(['jobPay', 'xp']);
     if (t >= nextBreak) {
       // A short manifesting break (also covers the "manifest N minutes" quest).
@@ -366,7 +382,13 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
       nextBreak += 3600;
       continue;
     }
-    if (!rollCrates()) {
+    if (assets?.stall && r01() < OPTS.cook) {
+      // A cooking shift at your stall (your cooks help; they also work while you do other things).
+      assets.cook(300);
+      t += 300;
+      cooked = true;
+      crateBudget += Math.max(0, p.walletSen - walletBefore) * OPTS.budget;
+    } else if (!rollCrates()) {
       // Quests decide the job when one asks for it; otherwise the better-paying one.
       const open = (stat: string) => p.prog.quests.list.some((q) => !q.claimed && cfg.quests.daily.find((d) => d.id === q.id)?.stat === stat);
       // Otherwise players mix the two jobs, favouring the one that pays better (∝ rate³).
@@ -379,17 +401,20 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
       // A share of what the job paid goes into the fun (crate) budget.
       crateBudget += Math.max(0, p.walletSen - walletBefore) * OPTS.budget;
     }
+    // Everything you own keeps earning while you work (cooking shifts count their own).
+    if (assets && t > tBefore && !cooked) assets.tick(t - tBefore);
+    if (assets) prog.check(p);
     record();
     for (const c of checkpoints) if (t >= c && levelAt[c] === undefined) levelAt[c] = p.prog.level;
     while (t >= nextHour) {
-      netWorthByHour.push(netWorthSen(cfg.prog, p.walletSen, p.inventory));
+      netWorthByHour.push(netWorthSen(cfg.prog, p.walletSen, p.inventory, assets?.value() ?? 0));
       nextHour += 3600;
     }
   }
   record();
   return {
     stageAt, goalAt, levelAt, income2h, incomeAll, sinks, netWorthByHour,
-    jobRates, finalLevel: p.prog.level, finalNetWorth: netWorthSen(cfg.prog, p.walletSen, p.inventory), titles: p.prog.titles.length,
+    jobRates, finalLevel: p.prog.level, finalNetWorth: netWorthSen(cfg.prog, p.walletSen, p.inventory, assets?.value() ?? 0), titles: p.prog.titles.length,
     jobs: p.prog.stats.jobs ?? 0, rolls: p.prog.stats.rolls ?? 0,
   };
 }
@@ -398,7 +423,7 @@ function simulate(cfg: ServerConfig, seed: number): RunResult {
 function main() {
   const t0 = Date.now();
   const cfg = loadConfig(path.join(ROOT, 'shared/config'), path.join(ROOT, 'shared/map'));
-  console.log(`\nKota Hustle balance simulator: ${OPTS.runs} runs × ${OPTS.hours} h of play, ${OPTS.session} h sessions (one per day), ${Math.round(OPTS.budget * 100)}% of earnings spent on crates\n`);
+  console.log(`\nKota Hustle balance simulator: ${OPTS.runs} runs × ${OPTS.hours} h of play, ${OPTS.session} h sessions (one per day), ${Math.round(OPTS.budget * 100)}% of earnings spent on crates${OPTS.jobsOnly ? ', JOBS ONLY' : `, stall/homes/Ventures on (${Math.round(OPTS.cook * 100)}% cooking shifts)`}\n`);
   const runs: RunResult[] = [];
   for (let i = 0; i < OPTS.runs; i++) runs.push(simulate(cfg, OPTS.seed + i * 7919));
 
@@ -415,10 +440,10 @@ function main() {
     let verdict: string;
     if (Number.isFinite(med)) {
       const ratio = med / target;
-      verdict = ratio >= 0.5 && ratio <= 1.5 ? '✅ on target' : ratio < 0.5 ? '⚠️ too fast' : s.n >= 3 ? '⏳ slow on jobs alone: stalls (Phase 4) and property (Phase 5) carry this stage' : '⚠️ too slow';
+      verdict = ratio >= 0.5 && ratio <= 1.5 ? '✅ on target' : ratio < 0.5 ? '⚠️ too fast' : OPTS.jobsOnly && s.n >= 3 ? '⏳ slow on jobs alone (expected: stalls, homes and Ventures carry this stage)' : '⚠️ too slow';
     } else if (OPTS.hours * 3600 < target * 0.5) verdict = '… beyond the simulated hours';
-    else verdict = s.n >= 3 ? '⏳ needs Phase 4+ income (stalls, property, businesses)' : '⚠️ not reached';
-    if (s.n === 2) verdicts.push(verdict);
+    else verdict = OPTS.jobsOnly && s.n >= 3 ? '⏳ needs Phase 4+ income (stalls, property, businesses)' : '⚠️ not reached';
+    verdicts.push(`${s.n}: ${verdict.split(' ')[0]}`);
     const range = reached ? `${fmtT(Math.min(...times))} – ${fmtT(Math.max(...times))}` : '';
     console.log(`  ${pad(`${s.n}. ${s.name}`, 22)}${lpad(formatMoney(s.minNetWorthSen), 12)}${lpad(fmtT(med), 12)}${lpad(range, 22)}${lpad(fmtT(target), 10)}  ${verdict}${reached && reached < OPTS.runs ? ` (${reached}/${OPTS.runs} runs)` : ''}`);
   }
@@ -484,7 +509,7 @@ function main() {
   console.log(`  At the end: Level ${median(runs.map((r) => r.finalLevel))}, ${median(runs.map((r) => r.jobs))} jobs, ${median(runs.map((r) => r.rolls))} rolls, ${median(runs.map((r) => r.titles))} titles, net worth ${formatMoney(Math.round(median(runs.map((r) => r.finalNetWorth))))} (${stageDef(cfg.stages, Math.max(...Object.keys(runs[0].stageAt).map(Number))).name})`);
 
   if (OPTS.verbose) for (const [i, r] of runs.entries()) console.log(`  run ${i + 1}: stages ${JSON.stringify(Object.fromEntries(Object.entries(r.stageAt).map(([k, v]) => [k, fmtT(v)])))}`);
-  console.log(`\nVerdict: Stage 2 ${verdicts[0] ?? '?'} · Hustle Path ${pathOk ? '✅' : '⚠️'} · (${((Date.now() - t0) / 1000).toFixed(1)} s)\n`);
+  console.log(`\nVerdict: stages ${verdicts.join(' ')} · Hustle Path ${pathOk ? '✅' : '⚠️'} · (${((Date.now() - t0) / 1000).toFixed(1)} s)\n`);
 }
 
 main();
