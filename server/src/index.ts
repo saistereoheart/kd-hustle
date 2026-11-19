@@ -16,7 +16,7 @@ import { createHttpApp, errorHandler } from './http/app';
 import { log } from './log';
 import { lanAddresses } from './net/lanUrls';
 import { isPortFree } from './net/ports';
-import { getPaths } from './paths';
+import { getPaths, ROOT } from './paths';
 import { SaveManager } from './save/saveManager';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -121,7 +121,13 @@ async function main() {
 
   const addrs = lanAddresses();
   console.log('');
-  console.log(`  Kota Hustle server running (${isDev ? 'development' : 'production'})`);
+  let version = '';
+  try {
+    version = ` v${(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as { version?: string }).version ?? ''}`;
+  } catch {
+    /* no version shown */
+  }
+  console.log(`  Kota Hustle${version} server running (${isDev ? 'development' : 'production'})`);
   console.log(`  Local:            http://localhost:${boundPort}`);
   if (addrs.length === 0) console.log('  No LAN address found. Are you connected to WiFi?');
   for (const a of addrs) {
