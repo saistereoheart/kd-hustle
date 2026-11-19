@@ -76,9 +76,9 @@ class Lofi {
   /** Was it started (after the intro)? Then settings changes turn it on and off. */
   private wanted = false;
   begin() {
+    if (!this.wanted) window.addEventListener('kh-prefs', () => this.applyPrefs()); // once per page
     this.wanted = true;
     this.start(4);
-    window.addEventListener('kh-prefs', () => this.applyPrefs());
   }
 
   private applyPrefs() {

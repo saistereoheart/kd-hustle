@@ -22,7 +22,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
 | `npm test` (Vitest) | ✅ 297 unit tests |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
+| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
 | Real phone on the LAN | ⏳ needs you |
