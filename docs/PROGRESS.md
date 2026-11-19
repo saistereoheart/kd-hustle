@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 289 unit tests |
+| `npm test` (Vitest) | ✅ 295 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -53,6 +53,35 @@ Compared with the spec's content checklist (§19):
 
 - **Starter jobs (2 of 4)** and the 12th property type are still open.
 - **Polish pass:** sound, juice, mobile performance (texture atlases), a final bug sweep. Tell me what bothers you most.
+
+---
+
+## Phase 8d: kopitiam shoplots, cashiers, the forge (2026-11-19)
+
+### What changed
+- **Kopitiams in real shoplots.** Any free shoplot you can walk to (431 of them) can be a kopitiam, besides the 6
+  fixed spots. When you buy one (or any tier), pick a spot (closest to you first, 📍 Show) or 🎲 any free spot.
+  **📱 Business → 🚚 Move** moves you for the tier's moving fee only (kopitiam RM 2,000, pasar malam / truck free);
+  you keep stock, cooks, upgrades and reputation.
+- **Inside the kopitiam** (press E at its door): the kitchen (cook here), the till with your cashier, and stairs up to
+  any lofts above. A small entrance. The loft FOR SALE sign hides under the kopitiam signboard.
+- **Cashiers** (+1 staff, kopitiam only): 8 in the **Chef & Cashier Search**, with 💵 Tips (bigger tips, and tips on
+  your cooks' sales) and ⏳ Patience (customers wait longer). **Staff Academy** (was Chef Academy) boosts chefs and
+  cashiers. 📱 Business → Chef & cashier.
+- **Multi-variant items:** an item can be Shiny + Golden (+ Rainbow); the multipliers multiply.
+- **⚒️ Merge window:** 3 copies of the same item in slots (any tiers / variants). Result: one tier above the lowest,
+  never below the highest; keeps every variant; each variant put in gives a 20% chance of one more.
+- **🎲 Rerolls:** luck boosts the odds; a variant reroll adds a missing variant; soft pity (tier from 6 misses, +12% per
+  miss; variant from 8, +10%) and hard pity (15 / 20) with a bar; a CS:GO-style reel. Prices about halved.
+- **Scrap pays more** by rarity (common 2, uncommon 6, rare 15, epic 45, legendary 160, mythic 700...). Still far
+  below the Shard Shop prices, so there's no shard loop.
+- **Mastery from cooks:** dishes your cooks sell count towards recipe mastery (also offline).
+
+### Decisions
+- Merge result tier = max(lowest + 1, highest), capped at S. The bonus variant favours commoner variants.
+- Reroll pity is per player and per kind (tier / variant), not per item; it resets on any upgrade.
+- A variant reroll that lands on a variant the item already has is a miss.
+- The cashier only works at a kopitiam (tier 3); below that it does nothing.
 
 ---
 
