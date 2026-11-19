@@ -35,3 +35,4 @@ export * from './rebirth/rebirth';
 export * from './dungeon/dungeon';
 export * from './pets/pets';
 export * from './garage/garage';
+export * from './garage/drive';

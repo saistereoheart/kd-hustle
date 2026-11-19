@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { engineRpm, partCostSen, rideAccelSec, rideSpeed, tireGrip, newSetup } from '@kh/shared';
+import { driveSpec, engineRpm, newDriveState, partCostSen, rideAccelSec, rideSpeed, shiftGear, stepDrive, tireGrip, timeToTop, torqueShare, newSetup, wheelRpm } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -117,3 +117,76 @@ describe('garage (server)', () => {
     expect(s.garage.setup(s.p, 'bike_harlee')!.wheel).toBe('emas');
   });
 });
+
+describe('gearbox (drive model)', () => {
+  const run = (id: string) => {
+    const m = gc.models[id];
+    const top = cfg.vehicles.vehicles[id].speed;
+    return { m, spec: driveSpec(m, top, m.accelSec), top };
+  };
+
+  it('a full-throttle automatic run takes about the promised 0-to-top time, for every model', () => {
+    for (const id of Object.keys(gc.models)) {
+      const { m, spec } = run(id);
+      expect(timeToTop(spec), id).toBeGreaterThan(m.accelSec * 0.85);
+      expect(timeToTop(spec), id).toBeLessThan(m.accelSec * 1.15);
+      // Gears top out in order, the last one at top speed.
+      for (let g = 1; g < spec.gearTop.length; g++) expect(spec.gearTop[g]).toBeGreaterThan(spec.gearTop[g - 1]);
+      expect(spec.gearTop[spec.gearTop.length - 1]).toBeCloseTo(spec.top, 5);
+    }
+  });
+
+  it('the automatic shifts up through every gear, and the revs never jump or pass the redline', () => {
+    const { spec } = run('bike_500rr');
+    const st = newDriveState(spec, true);
+    const ups: number[] = [];
+    let last = st.rpm;
+    const dt = 1 / 60;
+    for (let i = 0; i < 60 * 8; i++) {
+      const ev = stepDrive(spec, st, { throttle: true, cap: Infinity }, dt);
+      if (ev === 'up') ups.push(st.gear);
+      expect(st.rpm).toBeLessThanOrEqual(spec.redline);
+      // At most a rev range per 0.8 s free-revving (4× that while a shift snaps the revs).
+      expect(Math.abs(st.rpm - last)).toBeLessThanOrEqual(spec.riseRate * 4 * dt + 1);
+      last = st.rpm;
+    }
+    expect(ups).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('manual: each gear has its own top speed (rev limiter), and over-revving downshifts are refused', () => {
+    const { spec } = run('bike_zx25');
+    const st = newDriveState(spec, false);
+    for (let i = 0; i < 600; i++) stepDrive(spec, st, { throttle: true, cap: Infinity }, 1 / 60);
+    expect(st.gear).toBe(0);
+    expect(st.speed).toBeCloseTo(spec.gearTop[0], 5);
+    expect(st.limiter).toBe(true);
+    expect(shiftGear(spec, st, 1)).toBe('up');
+    for (let i = 0; i < 600; i++) stepDrive(spec, st, { throttle: true, cap: Infinity }, 1 / 60);
+    expect(st.speed).toBeCloseTo(spec.gearTop[1], 5);
+    expect(shiftGear(spec, st, -1)).toBeNull(); // would pass the redline in first
+    expect(wheelRpm(spec, st.speed, 1)).toBeCloseTo(spec.redline, 0);
+  });
+
+  it('a low gear pulls harder than a high gear at the same speed; torque peaks mid-to-high revs', () => {
+    const { spec } = run('car_mivy');
+    const speed = spec.gearTop[0] * 0.8;
+    const pull = (g: number) => {
+      const st = { ...newDriveState(spec, false), speed, gear: g, rpm: wheelRpm(spec, speed, g) };
+      stepDrive(spec, st, { throttle: true, cap: Infinity }, 0.05);
+      return st.speed - speed;
+    };
+    expect(pull(0)).toBeGreaterThan(pull(3));
+    expect(torqueShare(spec, spec.redline * spec.peak)).toBeCloseTo(1, 5);
+    expect(torqueShare(spec, spec.idle)).toBeLessThan(0.8);
+  });
+
+  it('grass caps the speed, and a hard launch spins the tyres', () => {
+    const { spec } = run('bike_dukati');
+    const st = newDriveState(spec, true);
+    stepDrive(spec, st, { throttle: true, cap: Infinity }, 1 / 60);
+    expect(st.slip).toBeGreaterThan(0.5);
+    for (let i = 0; i < 600; i++) stepDrive(spec, st, { throttle: true, cap: 200 }, 1 / 60);
+    expect(st.speed).toBeLessThanOrEqual(200);
+  });
+});
+

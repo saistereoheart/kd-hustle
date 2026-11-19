@@ -22,9 +22,11 @@ export interface Prefs {
   engineSound: boolean;
   /** 🏙️ Background sounds: traffic, birds and crickets, the casino crowd, the frying pan. */
   ambience: boolean;
+  /** 🏍️ Change gear yourself (R up, F down) instead of the automatic. */
+  manualGears: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 

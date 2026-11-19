@@ -17,8 +17,13 @@ const exhaustSchema = z.object({
   /** Top speed bonus (share). */
   speed: z.number().min(0).max(0.2),
   /** Sound: loudness ×, low-pass cutoff (Hz), resonance peak (Hz) and its gain (dB), distortion 0..1,
-   *  pops & crackles when you let off the throttle 0..1. */
-  sound: z.object({ gain: z.number().positive(), cutoff: z.number().positive(), peak: z.number().positive(), peakDb: z.number(), drive: z.number().min(0).max(1), pops: z.number().min(0).max(1) }),
+   *  pops & crackles when you let off the throttle 0..1, how much the pipe rings (0..0.8), and how far
+   *  away other players still hear it (px). */
+  sound: z.object({
+    gain: z.number().positive(), cutoff: z.number().positive(), peak: z.number().positive(), peakDb: z.number(), drive: z.number().min(0).max(1), pops: z.number().min(0).max(1),
+    ring: z.number().min(0).max(0.8).default(0.3),
+    range: z.number().positive().default(380),
+  }),
   /** Drawn tip: stock (small, tucked in), sport (round chrome), racing (big carbon can), straight (bare pipe). */
   tip: z.enum(['stock', 'sport', 'racing', 'straight']),
 });

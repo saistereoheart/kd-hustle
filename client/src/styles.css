@@ -1324,3 +1324,18 @@ body.touch .pp-icon { font-size: 17px; }
   .garage-layout { grid-template-columns: 1fr; }
   .spec-sheet { grid-template-columns: 1fr; }
 }
+
+/* 🏍️ dashboard (riding a showroom car or bike) */
+.dash { position: absolute; right: calc(14px + var(--safe-r)); bottom: calc(28px + var(--safe-b)); display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 18px; background: rgba(10, 12, 22, 0.72); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 6px 18px rgba(0,0,0,0.45); pointer-events: auto; z-index: 2; }
+.dash.hidden { display: none; }
+.dash-canvas { width: 300px; height: 190px; display: block; }
+.dash-btns { display: flex; flex-direction: column; gap: 6px; }
+.dash-btn { width: 46px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; font-size: 20px; font-weight: 900; touch-action: none; cursor: pointer; }
+.dash-btn:active { background: rgba(245, 159, 0, 0.4); }
+.dash-btn.mode { font-size: 16px; color: #ffd43b; }
+.dash-btn.mode.manual { background: rgba(245, 159, 0, 0.3); border-color: var(--accent); }
+body.touch .dash { bottom: calc(122px + var(--safe-b)); right: calc(8px + var(--safe-r)); padding: 4px; gap: 4px; }
+body.touch .dash-canvas { width: 210px; height: 134px; }
+body.touch .dash-btn { width: 42px; height: 40px; font-size: 18px; }
+body.touch.portrait .dash { bottom: calc(210px + var(--safe-b)); }
+body.touch.portrait .dash-canvas { width: 180px; height: 116px; }

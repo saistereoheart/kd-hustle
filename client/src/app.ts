@@ -316,6 +316,10 @@ export class App {
       else if (!isPanelOpen()) this.openPhone();
     });
     this.keyboard.onPress('KeyB', () => inTown() && !isPanelOpen() && openInventoryPanel(this));
+    // 🏍️ Gears on a showroom car / bike: R up, F down, G switches automatic / manual.
+    this.keyboard.onPress('KeyR', () => inTown() && !decorating() && !isPanelOpen() && this.town?.shift(1));
+    this.keyboard.onPress('KeyF', () => inTown() && !decorating() && !isPanelOpen() && this.town?.shift(-1));
+    this.keyboard.onPress('KeyG', () => inTown() && !decorating() && !isPanelOpen() && this.town?.toggleGearbox());
     this.keyboard.onPress('KeyP', () => inTown() && !isPanelOpen() && this.openPhone());
     this.keyboard.onPress('Escape', () => {
       if (this.interior && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen) this.interior.leave();
