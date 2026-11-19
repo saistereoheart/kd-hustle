@@ -1,12 +1,12 @@
 // Jobs Board, the delivery objective HUD and the car wash mini-game.
-import { formatMoney, type JobState } from '@kh/shared';
+import { formatMoney, type JobKind, type JobState } from '@kh/shared';
+import { playDish } from './stall/cook';
 import type { App } from '../app';
 import { el, toast, uiRoot, keepUiState } from './dom';
 import { closePanel, openPanel } from './panel';
 import { sfx } from './sound';
 
 // ------------------------------------------------------------------ Jobs Board
-type JobKind = 'delivery' | 'carwash';
 
 /** One job's card: level, pay, progress, and a Start button (or where to go instead). */
 function jobCard(app: App, kind: JobKind, icon: string, desc: string, pay: string, startHere: boolean) {
@@ -55,6 +55,8 @@ export function openJobsPanel(app: App, opts: { remote?: boolean } = {}) {
     panel.body.replaceChildren(
       jobCard(app, 'delivery', '🛵', 'Pick up food and deliver it: walk, ride your 🚲 basikal, or order a 🛵 kapcai from your 📱 Phone (P) for faster trips and bigger tips.', `~${formatMoney(dPay)} + tips per 300 m`, true),
       jobCard(app, 'carwash', '🚿', `At Kilat Car Wash${opts.remote ? '' : ' (east of here)'}. ${carwashBlurb}`, carwashPayText(app), false),
+      jobCard(app, 'flyers', '📄', `Drop flyers at ${j.flyers.stops} houses near you, in any order. Done within ${Math.round(j.flyers.timeBudgetSec / 60 * 10) / 10} min: +${Math.round(j.flyers.speedBonus * 100)}%. Start near a housing area.`, `~${formatMoney(Math.round((j.flyers.baseSen + j.flyers.perStopSen * j.flyers.stops) * levelMult(app, 'flyers')))} a run`, true),
+      jobCard(app, 'mamak', '☕', `Help at the mamak: make ${j.mamak.drinks} teh tarik orders (the same mini-game as your stall, a bit easier). Paid per drink: Perfect pays most.`, `~${formatMoney(Math.round(j.mamak.perDrinkSen * levelMult(app, 'mamak')))} a drink (Good)`, true),
       ...(cancel ? [cancel] : []),
     );
   };
@@ -80,6 +82,30 @@ export function openCarwashPanel(app: App) {
 /** The jobs panel was opened from the phone (deliveries start anywhere). */
 let remoteJobs = false;
 
+/** Mamak Helper: make the drinks one after another (each is graded and paid by the server). */
+async function playMamak(app: App, job: Extract<JobState, { kind: 'mamak' }>) {
+  let cur: JobState | null = job;
+  while (cur && cur.kind === 'mamak') {
+    const j = cur;
+    const inputs = await playDish(app.cfg.recipes, j.drink, `☕ Mamak Helper · drink ${j.n}/${j.of}`, () => cancelJob(app));
+    if (!inputs || inputs === 'restart') return;
+    const res = await new Promise<{ job: JobState | null; quality: string; paidSen: number; totalSen?: number; levelUp?: number } | null>((resolve) =>
+      app.socket?.timeout(6000).emit('job:mamak', { jobId: j.jobId, inputs }, (err, r) => resolve(err || !r.ok ? (toast(err ? 'No response.' : r.ok ? '' : r.error, 'bad'), null) : r)),
+    );
+    if (!res) return;
+    sfx.coin();
+    app.store.job = res.job;
+    app.store.emit();
+    const q = app.cfg.recipes.quality.find((x) => x.id === res.quality)?.name ?? res.quality;
+    if (res.job) toast(`☕ ${q}! +${formatMoney(res.paidSen)}. Next order coming up…`, 'good', 2500);
+    else {
+      toast(`✅ Shift done! ${q} last drink · earned ${formatMoney(res.totalSen ?? res.paidSen)} in total`, 'good', 5000);
+      if (res.levelUp) toast(`⬆️ Mamak Helper level ${res.levelUp}! Better pay.`, 'good', 4500);
+    }
+    cur = res.job;
+  }
+}
+
 function startJob(app: App, kind: JobKind) {
   app.socket?.timeout(6000).emit('job:start', { kind, ...(remoteJobs && kind === 'delivery' ? { remote: true } : {}) }, (err, res) => {
     if (err || !res.ok) {
@@ -91,6 +117,8 @@ function startJob(app: App, kind: JobKind) {
     app.store.job = res.job;
     app.store.emit();
     if (res.job.kind === 'carwash') playCarwash(app, res.job);
+    else if (res.job.kind === 'mamak') void playMamak(app, res.job);
+    else if (res.job.kind === 'flyers') toast(`📄 Drop a flyer at each of the ${res.job.stops.length} marked houses (walk up to the door). Follow the arrow to the nearest one!`, 'info', 5000);
     else toast(`📦 Head to ${res.job.pickup.name} to pick up the order! (Faster: 🚲 key 1, or order a 🛵 from the 📱 Phone.)`, 'info', 5000);
   });
 }
@@ -125,12 +153,13 @@ export class DeliveryHud {
   /** Called ~7×/s by the town scene with the player's position (world px) and screen info. */
   update(px: number, py: number, screen: { x: number; y: number; zoom: number; cx: number; cy: number }) {
     const job = this.app.store.job;
-    if (!job || job.kind !== 'delivery') {
+    if (!job || (job.kind !== 'delivery' && job.kind !== 'flyers')) {
       this.root.classList.add('hidden');
       this.arrow.classList.add('hidden');
       return;
     }
     const T = this.app.map.tileSize;
+    if (job.kind === 'flyers') return this.updateFlyers(job, px, py, screen);
     const target = job.stage === 'pickup' ? job.pickup : job.dropoff;
     const dx = target.x * T - px;
     const dy = target.y * T - py;
@@ -161,20 +190,53 @@ export class DeliveryHud {
     if (tiles <= this.app.cfg.jobs.delivery.pickupRadiusTiles - 0.5 && !this.pending) this.advance();
   }
 
+  /** Flyer Run: the nearest house still to do, its distance, the time left; drop when there. */
+  private updateFlyers(job: Extract<JobState, { kind: 'flyers' }>, px: number, py: number, screen: { zoom: number; cx: number; cy: number }) {
+    const T = this.app.map.tileSize;
+    const left = job.stops.filter((s) => !s.done);
+    const target = left.sort((a, b) => Math.hypot(a.x * T - px, a.y * T - py) - Math.hypot(b.x * T - px, b.y * T - py))[0];
+    if (!target) return;
+    const dx = target.x * T - px, dy = target.y * T - py;
+    const meters = Math.round((Math.hypot(dx, dy) / T) * this.app.map.metersPerTile);
+    const secs = Math.round(job.timeBudgetSec - (Date.now() - job.startedAt) / 1000);
+    this.root.classList.remove('hidden');
+    this.root.classList.toggle('late', secs < 0);
+    this.title.textContent = `📄 Flyers ${job.stops.length - left.length}/${job.stops.length} · next: ${target.name}`;
+    this.meta.textContent = `${meters} m · ${secs >= 0 ? `⏱ ${secs}s (bonus!)` : 'no bonus'} · ~${formatMoney(job.baseSen)}`;
+    const sx = screen.cx + dx * screen.zoom, sy = screen.cy + dy * screen.zoom;
+    const offscreen = sx < 40 || sy < 80 || sx > innerWidth - 40 || sy > innerHeight - 40;
+    this.arrow.classList.toggle('hidden', !offscreen);
+    if (offscreen) {
+      const a = Math.atan2(dy, dx);
+      const r = Math.min(innerWidth, innerHeight) * 0.38;
+      this.arrow.style.left = `${innerWidth / 2 + Math.cos(a) * r}px`;
+      this.arrow.style.top = `${innerHeight / 2 + Math.sin(a) * r}px`;
+      this.arrow.style.transform = `translate(-50%, -50%) rotate(${a}rad)`;
+    }
+    if (Math.hypot(dx, dy) / T <= this.app.cfg.jobs.flyers.stopRadiusTiles - 0.4 && !this.pending) this.advance();
+  }
+
+  private lastKind = '';
   private advance() {
+    this.lastKind = this.app.store.job?.kind ?? '';
     this.pending = true;
     this.app.socket?.timeout(5000).emit('job:progress', (err, res) => {
       this.pending = false;
       if (err || !res.ok) return;
       this.app.store.job = res.job;
       this.app.store.emit();
-      if (res.job) {
+      if (res.job?.kind === 'flyers') {
+        sfx.click();
+        const left = res.job.stops.filter((s) => !s.done).length;
+        toast(`📄 Flyer dropped! ${left} to go.`, 'info', 2000);
+      } else if (res.job) {
         sfx.click();
         toast(`📦 Got it! Now deliver to ${res.job.kind === 'delivery' ? res.job.dropoff.name : ''}`, 'info', 4000);
       } else if (res.paidSen !== undefined) {
         sfx.coin();
-        toast(`✅ Delivered! +${formatMoney(res.paidSen)}${res.tipSen ? ` + ${formatMoney(res.tipSen)} tip` : ''}`, 'good', 4500);
-        if (res.levelUp) toast(`⬆️ Delivery Rider level ${res.levelUp}! Better pay.`, 'good', 4500);
+        const flyers = this.lastKind === 'flyers';
+        toast(`✅ ${flyers ? 'All flyers out' : 'Delivered'}! +${formatMoney(res.paidSen)}${res.tipSen ? ` + ${formatMoney(res.tipSen)} ${flyers ? 'speed bonus' : 'tip'}` : ''}`, 'good', 4500);
+        if (res.levelUp) toast(`⬆️ ${flyers ? 'Flyer Runner' : 'Delivery Rider'} level ${res.levelUp}! Better pay.`, 'good', 4500);
       }
     });
   }

@@ -93,7 +93,8 @@ export const C2S = {
   invReroll: z.object({ iid: z.number().int().positive(), what: z.enum(['grade', 'variant']) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
   /** `remote`: a delivery taken from the phone instead of a Jobs Board. */
-  jobStart: z.object({ kind: z.enum(['delivery', 'carwash']), remote: z.boolean().optional() }),
+  jobStart: z.object({ kind: z.enum(['delivery', 'carwash', 'flyers', 'mamak']), remote: z.boolean().optional() }),
+  jobMamak: z.object({ jobId: z.string().max(80), inputs: z.array(z.object({ startMs: z.number(), ev: z.array(z.number()).max(400) })).max(20) }),
   skillUpgrade: z.object({ skill: z.string().min(1).max(32) }),
   itemUse: z.object({ iid: z.number().int().positive() }),
   titleEquip: z.object({ title: z.string().max(32).nullable() }),
@@ -203,7 +204,30 @@ export type JobState =
       color: string;
       startedAt: number;
       timeLimitSec: number;
+    }
+  | {
+      kind: 'flyers';
+      jobId: string;
+      /** Houses to drop a flyer at (any order). */
+      stops: Array<{ x: number; y: number; name: string; done: boolean }>;
+      startedAt: number;
+      timeBudgetSec: number;
+      /** Pay for the whole run (before the speed bonus). */
+      baseSen: number;
+    }
+  | {
+      kind: 'mamak';
+      jobId: string;
+      /** The drink being made now (the cooking mini-game), and which one of how many. */
+      drink: DishState;
+      n: number;
+      of: number;
+      earnedSen: number;
+      startedAt: number;
     };
+
+export const JOB_KINDS = ['delivery', 'carwash', 'flyers', 'mamak'] as const;
+export type JobKind = (typeof JOB_KINDS)[number];
 
 export interface JobProgress {
   level: number;
@@ -505,7 +529,9 @@ export interface ClientToServerEvents {
   'pawn:sell': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
   'pawn:scrap': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
   'shard:buy': (msg: { itemId: string }, ack: Ack<Result<{ item: InventoryItem; isNew: boolean }>>) => void;
-  'job:start': (msg: { kind: 'delivery' | 'carwash'; remote?: boolean }, ack: Ack<Result<{ job: JobState }>>) => void;
+  'job:start': (msg: { kind: JobKind; remote?: boolean }, ack: Ack<Result<{ job: JobState }>>) => void;
+  /** Mamak Helper: hand over the drink just made (graded like stall cooking). */
+  'job:mamak': (msg: { jobId: string; inputs: Array<{ startMs: number; ev: number[] }> }, ack: Ack<Result<{ job: JobState | null; quality: string; paidSen: number; totalSen?: number; levelUp?: number }>>) => void;
   'job:progress': (ack: Ack<Result<{ job: JobState | null; paidSen?: number; tipSen?: number; levelUp?: number }>>) => void;
   'job:cancel': (ack: Ack<SimpleResult>) => void;
   'skill:upgrade': (msg: { skill: string }, ack: Ack<Result<{ level: number; walletSen: number; skills: Record<string, number> }>>) => void;

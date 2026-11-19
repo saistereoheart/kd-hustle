@@ -36,5 +36,7 @@
     "maxPointsPerSec": 90,
     "minCleanToPay": 0.3,
     "speedBonus": 0.3
-  }
+  },
+  "flyers": {"name": "Flyer Run", "stops": 5, "radiusMeters": 170, "baseSen": 1500, "perStopSen": 900, "stopRadiusTiles": 2.2, "timeBudgetSec": 150, "speedBonus": 0.3},
+  "mamak": {"name": "Mamak Helper", "recipe": "teh_tarik", "drinks": 3, "perDrinkSen": 1600, "windowMult": 1.2}
 }

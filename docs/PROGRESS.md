@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 295 unit tests |
+| `npm test` (Vitest) | ✅ 297 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (run one file at a time on a busy PC: they're slow) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -46,12 +46,12 @@ Compared with the spec's content checklist (§19):
 | Titles | 43 | 40+ ✅ |
 | Casino games | 7 | 7 ✅ |
 | Business types | 10 idle + shop + Butik + 3 stall tiers | 14 ✅ |
-| Property types | 11 | 12 |
+| Property types | 12 (+ Duplex condo) | 12 ✅ |
 | Recipes | 6 | 6 ✅ |
-| Starter jobs | 2 | 4 |
+| Starter jobs | 4 (+ Flyer Run, Mamak Helper) | 4 ✅ |
 | Furniture | 88 | 80+ ✅ |
 
-- **Starter jobs (2 of 4)** and the 12th property type are still open.
+- Content checklist complete. Starter jobs 3 and 4 (2026-11-19): **📄 Flyer Run** (drop flyers at 5 houses near you, any order, speed bonus) and **☕ Mamak Helper** (3 teh tarik orders with the cooking mini-game, paid per drink by quality). 12th property type: **Duplex condo** (a 17th unit in every condo block, stage 4, RM 700K).
 - **Polish pass:** sound, juice, mobile performance (texture atlases), a final bug sweep. Tell me what bothers you most.
 
 ---

@@ -1,6 +1,6 @@
 // Starter jobs from the Jobs Board (spec §8.1). The server picks the locations / mini-game
 // layout, keeps the timer, checks proximity and grades the inputs; the client just plays.
-import { districtAt, gridIndexAt, type BuiltBuilding, type BuiltMap, type JobProgress, type JobsConfig, type JobState, type RandInt } from '@kh/shared';
+import { dishQuality, districtAt, gradeStep, gridIndexAt, makeDish, validateDishInputs, type BuiltBuilding, type BuiltMap, type JobKind, type JobProgress, type JobsConfig, type JobState, type RandInt, type StepInput } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer, ServerJob } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
@@ -189,7 +189,7 @@ export class JobSystem {
     return p.jobs[kind] ?? { level: 1, done: 0 };
   }
 
-  start(p: OnlinePlayer, kind: 'delivery' | 'carwash', now = Date.now()): ServerJob {
+  start(p: OnlinePlayer, kind: JobKind, now = Date.now()): ServerJob {
     if (p.job) throw new GameError('Finish or cancel your current job first.');
     const T = this.cfg.map.tileSize;
     const jobId = `${kind}-${now.toString(36)}-${this.rand(1e6).toString(36)}`;
@@ -200,6 +200,8 @@ export class JobSystem {
       p.job = job;
       return p.job;
     }
+    if (kind === 'flyers') return (p.job = this.startFlyers(p, jobId, now));
+    if (kind === 'mamak') return (p.job = this.startMamak(p, jobId, now));
     // Delivery: a shop near the player, then a home a few hundred metres away.
     const d = this.cfg.jobs.delivery;
     const mpt = this.cfg.map.metersPerTile;
@@ -239,9 +241,93 @@ export class JobSystem {
     return p.job;
   }
 
-  /** Delivery: arrive at the pickup, then at the drop-off. */
+  // ---------------------------------------------------------------- Flyer Run
+  private startFlyers(p: OnlinePlayer, jobId: string, now: number): ServerJob {
+    const f = this.cfg.jobs.flyers;
+    const T = this.cfg.map.tileSize, mpt = this.cfg.map.metersPerTile;
+    const px = p.x / T, py = p.y / T;
+    const near = this.dropoffs
+      .map((b) => ({ b, m: Math.hypot(b.door!.frontX + 0.5 - px, b.door!.frontY + 0.5 - py) * mpt }))
+      .filter((x) => x.m > 15 && x.m < f.radiusMeters);
+    if (near.length < f.stops) throw new GameError('No houses around here: try near a housing area (terraces, condos).');
+    // A spread of houses: shuffle, then skip ones right next to a stop already picked.
+    const pool = near.map((x) => x.b);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const k = this.rand(i + 1);
+      [pool[i], pool[k]] = [pool[k], pool[i]];
+    }
+    const picked: BuiltBuilding[] = [];
+    for (const b of pool) {
+      if (picked.length >= f.stops) break;
+      if (picked.some((q) => Math.hypot(q.door!.frontX - b.door!.frontX, q.door!.frontY - b.door!.frontY) * mpt < 18)) continue;
+      picked.push(b);
+    }
+    for (const b of pool) if (picked.length < f.stops && !picked.includes(b)) picked.push(b);
+    const district = (b: BuiltBuilding) => districtAt(this.cfg.map, b.door!.frontX, b.door!.frontY)?.name ?? 'Kota Damansara';
+    const level = this.progress(p, 'flyers').level;
+    return {
+      kind: 'flyers', jobId, startedAt: now, timeBudgetSec: f.timeBudgetSec,
+      stops: picked.map((b) => ({ x: b.door!.frontX + 0.5, y: b.door!.frontY + 0.5, name: b.name ?? `No. ${1 + this.rand(60)}, ${district(b)}`, done: false })),
+      baseSen: Math.round((f.baseSen + f.perStopSen * picked.length) * levelMult(this.cfg.jobs, level) * this.modsFor(p).jobPay),
+    };
+  }
+
+  /** Flyer Run: drop one at the house you're standing at; the last one pays. */
+  private advanceFlyers(p: OnlinePlayer, now: number) {
+    const job = p.job as Extract<ServerJob, { kind: 'flyers' }>;
+    const f = this.cfg.jobs.flyers;
+    const T = this.cfg.map.tileSize;
+    const stop = job.stops.find((s) => !s.done && Math.hypot(p.x / T - s.x, p.y / T - s.y) <= f.stopRadiusTiles);
+    if (!stop) throw new GameError('Walk up to one of the marked houses.');
+    stop.done = true;
+    if (job.stops.some((s) => !s.done)) return { job, paidSen: undefined, tipSen: undefined, levelUp: undefined };
+    const fast = now - job.startedAt <= job.timeBudgetSec * 1000;
+    const tip = fast ? Math.round(job.baseSen * f.speedBonus) : 0;
+    const levelUp = this.complete(p, 'flyers', job.baseSen + tip, job.jobId);
+    return { job: null, paidSen: job.baseSen, tipSen: tip, levelUp };
+  }
+
+  // ---------------------------------------------------------------- Mamak Helper
+  private mamakDrink(n: number, now: number) {
+    const m = this.cfg.jobs.mamak;
+    const recipe = this.cfg.recipeById.get(m.recipe);
+    if (!recipe) throw new GameError('The mamak is closed today.');
+    return { dishId: `mamak-${now.toString(36)}-${n}-${this.rand(1e6).toString(36)}`, recipe: recipe.id, customerId: 0, steps: makeDish(recipe, this.rand, []), windowMult: m.windowMult, blogger: false };
+  }
+
+  private startMamak(_p: OnlinePlayer, jobId: string, now: number): ServerJob {
+    const m = this.cfg.jobs.mamak;
+    return { kind: 'mamak', jobId, drink: this.mamakDrink(1, now), n: 1, of: m.drinks, earnedSen: 0, startedAt: now };
+  }
+
+  /** Mamak Helper: grade the drink like stall cooking; pay by quality; then the next one. */
+  submitMamak(p: OnlinePlayer, jobId: string, inputs: StepInput[], now = Date.now()): { job: ServerJob | null; quality: string; paidSen: number; totalSen?: number; levelUp?: number; perfect: boolean } {
+    const job = p.job;
+    if (!job || job.kind !== 'mamak' || job.jobId !== jobId) throw new GameError('That shift has ended.');
+    const m = this.cfg.jobs.mamak;
+    const elapsed = now - job.startedAt;
+    const bad = validateDishInputs(job.drink.steps, inputs, elapsed + 1500);
+    const grades = bad ? job.drink.steps.map(() => 'miss' as const) : job.drink.steps.map((s, i) => gradeStep(this.cfg.recipes, s, inputs[i].ev, job.drink.windowMult).grade);
+    const q = dishQuality(this.cfg.recipes, grades);
+    const paySen = Math.round(m.perDrinkSen * q.mult * levelMult(this.cfg.jobs, this.progress(p, 'mamak').level) * this.modsFor(p).jobPay);
+    // Paid per drink, straight away.
+    this.econ.run(p, () => this.econ.change(p, paySen, 0, 'job-mamak', `${job.jobId}#${job.n}:${q.quality}`));
+    job.earnedSen += paySen;
+    if (job.n < job.of) {
+      job.n++;
+      job.drink = this.mamakDrink(job.n, now);
+      job.startedAt = now;
+      return { job, quality: q.quality, paidSen: paySen, perfect: q.quality === 'perfect' };
+    }
+    const total = job.earnedSen;
+    const levelUp = this.complete(p, 'mamak', 0, job.jobId);
+    return { job: null, quality: q.quality, paidSen: paySen, totalSen: total, levelUp, perfect: q.quality === 'perfect' };
+  }
+
+  /** Delivery: arrive at the pickup, then at the drop-off. Flyer Run: drop one at a house. */
   advance(p: OnlinePlayer, now = Date.now()) {
     const job = p.job;
+    if (job?.kind === 'flyers') return this.advanceFlyers(p, now);
     if (!job || job.kind !== 'delivery') throw new GameError('You have no delivery right now.');
     const T = this.cfg.map.tileSize;
     const r = this.cfg.jobs.delivery.pickupRadiusTiles;

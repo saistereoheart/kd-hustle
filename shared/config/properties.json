@@ -10,11 +10,12 @@
     "sublet":   { "name": "Sublet room",      "icon": "🛏️", "w": 6,  "h": 5,  "priceSen": 800000,    "requires": {},         "rentPerDaySen": 9000,    "nightBaseSen": 20000 },
     "lowcost":  { "name": "Low-cost flat",    "icon": "🏢", "w": 8,  "h": 6,  "priceSen": 6000000,   "requires": { "stage": 3 }, "rentPerDaySen": 70000,   "nightBaseSen": 160000 },
     "penthouse": { "name": "Penthouse",       "icon": "🌆", "w": 16, "h": 11, "priceSen": 1500000000, "requires": { "stage": 5 }, "rentPerDaySen": 13000000, "nightBaseSen": 28000000 },
-    "office":   { "name": "Office suite",     "icon": "🏙️", "w": 20, "h": 14, "priceSen": 60000000000, "requires": { "stage": 6 }, "rentPerDaySen": 400000000, "nightBaseSen": 800000000 }
+    "office":   { "name": "Office suite",     "icon": "🏙️", "w": 20, "h": 14, "priceSen": 60000000000, "requires": { "stage": 6 }, "rentPerDaySen": 400000000, "nightBaseSen": 800000000 },
+    "duplex": { "name": "Duplex condo", "icon": "🏙️", "w": 12, "h": 9, "priceSen": 70000000, "requires": { "stage": 4 }, "rentPerDaySen": 700000, "nightBaseSen": 1500000 }
   },
   "byKind": {
     "flat": { "type": "studio", "units": 8 },
-    "condo": { "types": ["studio", "condo2", "studio", "condo3", "studio", "condo2", "studio", "condo3", "studio", "condo2", "studio", "condo3", "sublet", "sublet", "lowcost", "lowcost"], "units": 16 },
+    "condo": { "types": ["studio", "condo2", "studio", "condo3", "studio", "condo2", "studio", "condo3", "studio", "condo2", "studio", "condo3", "sublet", "sublet", "lowcost", "lowcost", "duplex"], "units": 17 },
     "tower": { "type": "penthouse", "units": 2 },
     "office": { "type": "office", "units": 1 },
     "terrace": { "type": "terrace", "units": 1 },

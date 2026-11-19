@@ -586,12 +586,20 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return { job: visible };
     });
     handle(socket, 'job:progress', null, () => {
+      const kind = me.job?.kind === 'flyers' ? 'flyers' : 'delivery';
       const r = jobs.advance(me);
       if (r.paidSen !== undefined) pushWallet(me, r.paidSen + (r.tipSen ?? 0), 'job');
       const job = r.job ? (({ budgetMs: _b, ...v }) => v)(r.job) : null;
       socketOf(me)?.emit('job:update', { job, jobs: me.jobs });
-      if (r.paidSen !== undefined) prog.onJob(me, 'delivery', r.paidSen + (r.tipSen ?? 0), false);
+      if (r.paidSen !== undefined) prog.onJob(me, kind, r.paidSen + (r.tipSen ?? 0), false);
       return { job, paidSen: r.paidSen, tipSen: r.tipSen, levelUp: r.levelUp };
+    });
+    handle(socket, 'job:mamak', C2S.jobMamak, ({ jobId, inputs }) => {
+      const r = jobs.submitMamak(me, jobId, inputs);
+      pushWallet(me, r.paidSen, 'job');
+      socketOf(me)?.emit('job:update', { job: r.job, jobs: me.jobs });
+      if (!r.job) prog.onJob(me, 'mamak', r.totalSen ?? r.paidSen, false);
+      return { job: r.job, quality: r.quality, paidSen: r.paidSen, totalSen: r.totalSen, levelUp: r.levelUp };
     });
     handle(socket, 'job:cancel', null, () => {
       jobs.cancel(me);

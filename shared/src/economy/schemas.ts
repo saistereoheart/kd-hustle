@@ -153,6 +153,28 @@ export const jobsConfigSchema = z.object({
     minCleanToPay: z.number().min(0).max(1),
     speedBonus: z.number().nonnegative(),
   }),
+  /** Flyer Run: drop flyers at houses near you, in any order. */
+  flyers: z.object({
+    name: z.string(),
+    stops: z.number().int().min(2).max(12),
+    /** Houses within this many metres of where you start. */
+    radiusMeters: z.number().positive(),
+    baseSen: z.number().int().nonnegative(),
+    perStopSen: z.number().int().positive(),
+    stopRadiusTiles: z.number().positive(),
+    /** Done within this time: + speedBonus. */
+    timeBudgetSec: z.number().positive(),
+    speedBonus: z.number().nonnegative(),
+  }),
+  /** Mamak Helper: make drinks at the mamak with the cooking mini-game; paid per drink by quality. */
+  mamak: z.object({
+    name: z.string(),
+    recipe: z.string(),
+    drinks: z.number().int().min(1).max(10),
+    perDrinkSen: z.number().int().positive(),
+    /** Wider timing windows than at your own stall (it's a starter job). */
+    windowMult: z.number().positive(),
+  }),
 });
 export type JobsConfig = z.infer<typeof jobsConfigSchema>;
 

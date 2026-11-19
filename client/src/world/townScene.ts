@@ -656,7 +656,9 @@ export class TownScene extends Phaser.Scene {
       }
       // Delivery target marker + objective HUD.
       const job = this.app.store.job;
-      const target = job?.kind === 'delivery' ? (job.stage === 'pickup' ? job.pickup : job.dropoff) : null;
+      const T0 = map.tileSize;
+      const target = job?.kind === 'delivery' ? (job.stage === 'pickup' ? job.pickup : job.dropoff)
+        : job?.kind === 'flyers' ? (job.stops.filter((s) => !s.done).sort((a, b) => Math.hypot(a.x * T0 - this.pos.x, a.y * T0 - this.pos.y) - Math.hypot(b.x * T0 - this.pos.x, b.y * T0 - this.pos.y))[0] ?? null) : null;
       this.updateMarker(target);
       const cam = this.cameras.main;
       const dpr = this.app.dpr; // camera numbers are in device pixels; the DOM HUD uses CSS pixels
