@@ -136,6 +136,28 @@ describe('gearbox (drive model)', () => {
     }
   });
 
+  it('a stock car spends at least 2 s in every gear on a full-throttle run', () => {
+    for (const [id, m] of Object.entries(gc.models)) {
+      if (m.kind !== 'car') continue;
+      const { spec } = run(id);
+      const st = newDriveState(spec, true);
+      const dt = 1 / 120;
+      let t = 0, last = 0, g = 0;
+      const times: number[] = [];
+      while (st.speed < spec.top * 0.97 && t < 120) {
+        stepDrive(spec, st, { throttle: true, cap: Infinity }, dt);
+        t += dt;
+        if (st.gear !== g) {
+          times.push(t - last);
+          last = t;
+          g = st.gear;
+        }
+      }
+      expect(times, id).toHaveLength(m.engine.gears - 1);
+      for (const x of times) expect(x, id).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it('the automatic shifts up through every gear, and the revs never jump or pass the redline', () => {
     const { spec } = run('bike_500rr');
     const st = newDriveState(spec, true);

@@ -194,9 +194,14 @@ export function driveSpec(m: GarageModel, top: number, accelSec: number): DriveS
   const e = m.engine;
   const bike = m.kind === 'bike';
   const n = e.gears;
-  const first = bike ? 0.3 : 0.26;
-  const gearTop = Array.from({ length: n }, (_, i) => top * first ** ((n - 1 - i) / Math.max(1, n - 1)));
-  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** 0.75);
+  // Bikes: close, geometric ratios and a big torque boost in the low gears (they rip through them).
+  // Cars: a longer first gear, gaps that grow gently and a milder boost, so every gear lasts a while.
+  const first = bike ? 0.3 : 0.27;
+  const gearTop = Array.from({ length: n }, (_, i) => {
+    const k = i / Math.max(1, n - 1);
+    return bike ? top * first ** (1 - k) : top * (first + (1 - first) * k ** 0.85);
+  });
+  const gearMult = gearTop.map((g) => (gearTop[n - 1] / g) ** (bike ? 0.75 : 0.3));
   const range = e.redline - e.idleRpm;
   const spec: DriveSpec = {
     top, gearTop, gearMult, accel: 1,

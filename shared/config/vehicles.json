@@ -38,7 +38,7 @@
     "car_sega": {
       "name": "Protan Sega",
       "icon": "🚗",
-      "speed": 470,
+      "speed": 510,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -50,7 +50,7 @@
     "car_bezzo": {
       "name": "Peroduo Bezzo",
       "icon": "🚗",
-      "speed": 460,
+      "speed": 495,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -62,7 +62,7 @@
     "car_mivy": {
       "name": "Peroduo Mivy",
       "icon": "🚙",
-      "speed": 490,
+      "speed": 530,
       "hitbox": {
         "w": 24,
         "h": 12
@@ -74,7 +74,7 @@
     "car_s7o": {
       "name": "Protan S7O",
       "icon": "🚘",
-      "speed": 540,
+      "speed": 585,
       "hitbox": {
         "w": 24,
         "h": 12

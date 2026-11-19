@@ -18,7 +18,10 @@ is met. The full round-by-round log is in `docs/PROGRESS.md`.
   - per-cylinder pressure pulses and a ringing pipe;
   - an inline-4 howl, shift cuts with a clunk, and the rev-limiter chop;
   - nearby riders heard from their real speed, panned left/right, as far as their exhaust carries.
-- **🚘 Cars** are bigger and drawn ¾ from above in every direction.
+- **🚘 Cars:**
+  - bigger, and drawn ¾ from above in every direction;
+  - about 8% faster at the top, with less torque;
+  - at least 2 s in every gear (0-to-top 13.5–19.5 s).
 - **⚔️ Gua Gelap:**
   - HP carries over between floors;
   - rest rooms (heal, buff, or sacrifice HP for money);

@@ -2,22 +2,22 @@
   "name": "Motor Kota",
   "models": {
     "car_sega": {
-      "kind": "car", "maker": "Protan", "model": "Sega", "priceSen": 3500000, "accelSec": 5.0, "paint": "merah", "wheel": "perak",
+      "kind": "car", "maker": "Protan", "model": "Sega", "priceSen": 3500000, "accelSec": 13.7, "paint": "merah", "wheel": "perak",
       "desc": "The people's sedan. Cheap to run, easy to park, everybody's first car.",
       "engine": { "cc": 1332, "cylinders": 4, "layout": "inline-4", "firing": [0, 180, 360, 540], "idleRpm": 750, "redline": 6300, "gears": 5, "body": 110, "rough": 0.15 }
     },
     "car_bezzo": {
-      "kind": "car", "maker": "Peroduo", "model": "Bezzo", "priceSen": 3800000, "accelSec": 5.6, "paint": "perak", "wheel": "perak",
+      "kind": "car", "maker": "Peroduo", "model": "Bezzo", "priceSen": 3800000, "accelSec": 13.5, "paint": "perak", "wheel": "perak",
       "desc": "A small sedan with a big boot and a thrifty three-cylinder.",
       "engine": { "cc": 998, "cylinders": 3, "layout": "inline-3", "firing": [0, 240, 480], "idleRpm": 800, "redline": 6200, "gears": 4, "body": 125, "rough": 0.28 }
     },
     "car_mivy": {
-      "kind": "car", "maker": "Peroduo", "model": "Mivy", "priceSen": 5200000, "accelSec": 4.6, "paint": "biru", "wheel": "hitam",
+      "kind": "car", "maker": "Peroduo", "model": "Mivy", "priceSen": 5200000, "accelSec": 13.5, "paint": "biru", "wheel": "hitam",
       "desc": "The king of the road (it says so itself). A zippy hatchback that fits anywhere.",
       "engine": { "cc": 1496, "cylinders": 4, "layout": "inline-4", "firing": [0, 180, 360, 540], "idleRpm": 700, "redline": 6500, "gears": 5, "body": 100, "rough": 0.12 }
     },
     "car_s7o": {
-      "kind": "car", "maker": "Protan", "model": "S7O", "priceSen": 8500000, "accelSec": 4.0, "paint": "putih", "wheel": "gunmetal",
+      "kind": "car", "maker": "Protan", "model": "S7O", "priceSen": 8500000, "accelSec": 19.5, "paint": "putih", "wheel": "gunmetal",
       "desc": "A sleek sedan with a turbo three-cylinder and a seven-speed gearbox.",
       "engine": { "cc": 1477, "cylinders": 3, "layout": "inline-3 turbo", "firing": [0, 240, 480], "idleRpm": 750, "redline": 6000, "gears": 7, "body": 95, "rough": 0.2, "turbo": true }
     },
