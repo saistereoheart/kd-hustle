@@ -21,7 +21,7 @@ the extended simulator). Still open: the polish pass (see "Phase 8: what's left"
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 300 unit tests |
+| `npm test` (Vitest) | ✅ 301 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; run one file at a time: they're slow, phase 2 ~5 min) |
 | `npm run sim:stall` | ✅ Perfect cooking 12.7× passive mode; sloppy cooking still beats passive; passive makes money |
 | `npm run sim` (with stall, homes, Ventures) | ✅ stages 2–6 inside the target window (2: 22 min, 3: 2 h 05, 4: 4 h 05, 5: 14 h 20, 6: 46 h 48) |
@@ -68,6 +68,19 @@ Compared with the spec's content checklist (§19):
 - **Reading them:** admins get an 📥 Inbox tab in the same window (unread count on the button, a toast when one
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
   `npm run admin -- feedback all`.
+
+## Polish after feedback (2026-11-19)
+
+- **Cooks serve food bloggers.** You get first go (5× pay for a Great dish, plus the reputation boost and the crowd).
+  Once a blogger has waited 35% of their patience, a free cook serves them: 2× pay, no bad review, no buzz. Before,
+  cooks skipped bloggers, so a blogger you couldn't get to walked off and cost reputation.
+  Config: `blogger.staffWaitShare`, `blogger.staffPayMult` in `stalls.json`.
+- **Cook pay raised from 80% to 100% of the menu price** (`staff.passiveRate` 1): a cook's dish now pays the same as
+  your own Good dish. Staff level adds +6% per level (up to 160%, about what a Great dish plus tip earns you).
+  Your Perfect dishes (1.8×, combo up to +50%, tips) stay the best pay. Balance sim (60 h, 6 runs): every stage still on
+  target (Tycoon 14 h 18 → 14 h 11, Tan Sri 46 h 49 → 44 h 33).
+- **Add-ons for roti canai** (roti telur, kari kambing) **and murtabak** (keju, sardin), with drawn art. Fried eggs
+  in a tray no longer spill over its edge.
 
 ## Phase 8d: kopitiam shoplots, cashiers, the forge (2026-11-19)
 
@@ -1348,14 +1361,12 @@ Simple options picked where the spec was open, per CLAUDE.md:
 
 ## Known issues / limitations
 
-- **Phase 5.2:** the stock bar above the cooking screen still uses emoji; the trays and plate are drawn.
 
 - **Phase 5.1:** lamp shadows near a map chunk's edge are cut off at the edge (chunks are drawn separately).
 - **Phase 5.1:** about a third of Ronda trips (mostly at the map's edges, where roads only connect outside the
   map) still use the direct route, which can cross car parks.
 - **Phase 5.1:** a big interior (mall, hypermarket) starts you at the door; the counters are at the far back wall,
   so you walk up to them. Tell me if you'd rather the counters were near the door.
-- **Phase 5.1:** only the nasi lemak has add-ons so far; teh tarik and roti canai keep their old steps.
 
 - **Phase 5:** furniture art is simple top-down shapes; decorate mode uses taps/clicks (no drag). On a phone, the
   decorate panel covers the lower part of the room; scroll it or tap ✅ Done to see the whole room.

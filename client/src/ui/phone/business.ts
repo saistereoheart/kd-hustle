@@ -108,10 +108,10 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
     body.push(
       el('div', { class: 'job-card' }, el('div', { class: 'job-icon' }, '🧑‍🍳'), el('div', { class: 'job-info' },
         el('h4', {}, `Cooks: ${st.staff} / ${t.staffMax}`),
-        el('p', {}, `Each cook makes a dish every ${secs.toFixed(1)} s at ${Math.round(staffPayRate(cfg, st) * 100)}% of the normal price (Staff level raises it; no combo or tips), while the stall is open, even when you're elsewhere.`),
+        el('p', {}, `Each cook makes a dish every ${secs.toFixed(1)} s at ${Math.round(staffPayRate(cfg, st) * 100)}% of the normal price (a Good dish; Staff level raises it; no combo or tips), while the stall is open, even when you're elsewhere.`),
         el('div', { class: 'muted small' }, `Wage: ${formatMoney(wagePerHourSen(cfg, st.tier, b))} per cook per in-game hour (1 real minute) while open.`)), hire),
       el('div', { class: 'stall-actions' }, fire),
-      el('p', { class: 'hint' }, 'Food bloggers only trust the boss: cook those yourself. Staff level and equipment make cooks faster; Staff level also raises what their sales earn.'),
+      el('p', { class: 'hint' }, `📸 Food bloggers: cook for them yourself for ${cfg.blogger.payMult}× pay and a reputation boost. If you're busy or away, a cook serves them after a short wait (${cfg.blogger.staffPayMult}× pay, no change to reputation). Staff level and equipment make cooks faster; Staff level also raises what their sales earn.`),
     );
   } else if (tab === 'chef') {
     body.push(...chefTab(app));

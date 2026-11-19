@@ -766,7 +766,7 @@ export class StallSystem {
             id: nextId(), seed: this.rand(1 << 30), recipe: recipe.id, ...(addons.length ? { addons } : {}), arrivedAt: now,
             patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000 * (1 + cashierBonus(st, l.s, b).patience)), blogger, serving: null,
           });
-          if (blogger) this.hooks.event(owner, { kind: 'blogger', text: '📸 A food blogger is in your queue! Cook them something Great (5× pay).' });
+          if (blogger) this.hooks.event(owner, { kind: 'blogger', text: `📸 A food blogger is in your queue! Cook them something Great (${st.blogger.payMult}× pay)${l.s.staff ? ', or your cooks will serve them in a bit' : ''}.` });
         }
       }
 
@@ -775,12 +775,16 @@ export class StallSystem {
       l.cooks.length = l.s.staff;
       let staffSen = 0;
       let staffDishes = 0;
+      let staffBloggers = 0;
       for (let i = 0; i < l.cooks.length; i++) {
         const c = l.cooks[i];
         if (c && now >= c.doneAt) {
           const recipe = this.cfg.recipeById.get(c.customer.recipe)!;
-          // Cooks make "Good" food at the passive rate: no combo, no tips, no blogger bonus.
-          const sale = orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * staffPayRate(st, l.s);
+          // Cooks make "Good" food at the passive rate: no combo, no tips. A food blogger they
+          // serve pays a little extra (not the boss's 5×) and leaves reputation as it is.
+          const blog = c.customer.blogger ? st.blogger.staffPayMult : 1;
+          if (c.customer.blogger) staffBloggers++;
+          const sale = orderBaseSen(st, recipe, l.s, rush, c.customer.addons ?? [], b) * staffPayRate(st, l.s) * blog;
           // The cashier collects tips on your cooks' sales too.
           staffSen += Math.round(sale * (1 + cashierBonus(st, l.s, b).tips * st.tips.max));
           staffDishes++;
@@ -790,8 +794,9 @@ export class StallSystem {
           l.cooks[i] = null;
         }
         if (!l.cooks[i] && !l.unpaid && !(closing && now >= l.closingUntil)) {
-          // Cooks leave food bloggers to the boss.
-          const next = l.queue.find((x) => !x.serving && !x.blogger && stockCount(l.s, x.recipe) > 0);
+          // Food bloggers: the boss gets first go; once one has waited a while, a cook serves
+          // them (so they don't walk off and hurt your reputation).
+          const next = l.queue.find((x) => !x.serving && (!x.blogger || now - x.arrivedAt >= x.patienceMs * st.blogger.staffWaitShare) && stockCount(l.s, x.recipe) > 0);
           if (next && takeStock(l.s, next.recipe)) {
             this.takeAddons(l, next);
             next.serving = 'staff';
@@ -808,7 +813,7 @@ export class StallSystem {
           const r = st.reputation;
           if (l.s.rep < r.staffRepCap) l.s.rep = Math.min(r.staffRepCap, l.s.rep + r.perStaffDish * staffDishes);
           this.hooks.wallet(owner, staffSen, 'stall-staff');
-          this.hooks.event(owner, { kind: 'staffSale', text: `🧑‍🍳 Your cook sold ${staffDishes === 1 ? 'a dish' : `${staffDishes} dishes`}`, sen: staffSen });
+          this.hooks.event(owner, { kind: 'staffSale', text: staffBloggers ? `📸 Your cook served the food blogger (no bad review)${staffDishes > staffBloggers ? ` and ${staffDishes - staffBloggers} more` : ''}` : `🧑‍🍳 Your cook sold ${staffDishes === 1 ? 'a dish' : `${staffDishes} dishes`}`, sen: staffSen });
           this.prog.bump(owner, 'staffDishes', staffDishes);
           this.prog.bump(owner, 'stallEarnSen', staffSen);
         } catch {

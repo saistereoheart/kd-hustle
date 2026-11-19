@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cashierBonus, customerRate, NO_BONUS, restockNeeds, stockItems, dishBaseSen, orderBaseSen, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
+import { cashierBonus, customerRate, NO_BONUS, restockNeeds, stockItems, dishBaseSen, orderBaseSen, staffCookMs, staffPayRate, stockCount, type RandInt, type StepInput, type StepParams } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -285,6 +285,29 @@ describe('staff', () => {
     const dearest = [...nasi.addons].sort((a, b) => b.basePriceSen - a.basePriceSen).slice(0, nasi.maxAddons).map((a) => a.id);
     const top = orderBaseSen(cfg.stalls, nasi, { tier: 1, mastery: {} }, true, dearest);
     expect(delta).toBeLessThanOrEqual(staffDishes * Math.round(top * staffPayRate(cfg.stalls, { upgrades: {} })) - wages);
+  });
+
+  it('a cook serves a food blogger after the boss had first go, without a bad review', () => {
+    const s = setup(2_000_000);
+    s.stalls.buy(s.p, 1);
+    s.stalls.buyStock(s.p, 'nasi_lemak', 200, true);
+    s.stalls.hire(s.p);
+    type Q = { id: number; seed: number; recipe: string; arrivedAt: number; patienceMs: number; blogger: boolean; serving: string | null };
+    const live = (s.stalls as unknown as { stalls: Map<number, { queue: Q[]; s: { rep: number } }> }).stalls.get(s.p.id)!;
+    s.run(250); // open the stall
+    live.queue.length = 0;
+    const patienceMs = 60_000;
+    live.queue.push({ id: 999_001, seed: 1, recipe: 'nasi_lemak', arrivedAt: s.now(), patienceMs, blogger: true, serving: null });
+    const rep0 = live.s.rep;
+    // Not straight away: the boss gets first go.
+    s.run(patienceMs * cfg.stalls.blogger.staffWaitShare - 2000);
+    expect(live.queue.find((c) => c.id === 999_001)?.serving ?? null).toBeNull();
+    s.run(4000);
+    expect(live.queue.find((c) => c.id === 999_001)?.serving).toBe('staff');
+    s.run(staffCookMs(cfg.stalls, { upgrades: {} }) + 1000);
+    expect(live.queue.some((c) => c.id === 999_001)).toBe(false);
+    expect(live.s.rep).toBeGreaterThanOrEqual(rep0); // served, not walked off
+    expect(s.events).toContain('staffSale');
   });
 
   it('left open with a cook, the stall stays open while you are away and earns from real time', () => {

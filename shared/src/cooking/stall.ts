@@ -80,6 +80,10 @@ export const stallsConfigSchema = z.object({
     chance: z.number(), minReputation: z.number(), payMult: z.number(), repBonus: z.number(), repPenalty: z.number(),
     /** More customers for this many in-game hours after a happy blogger. */
     boostCustomers: z.number(), boostGameHours: z.number(),
+    /** Your cooks serve a blogger who has waited this share of their patience (the boss gets
+     *  first go at the big pay); a cook's dish pays `staffPayMult` × and leaves reputation as it is. */
+    staffWaitShare: z.number().min(0).max(1).default(0.35),
+    staffPayMult: z.number().min(0).default(2),
   }),
   stock: z.object({
     packs: z.array(z.object({ qty: z.number().int().positive(), discount: z.number().min(0).max(0.9) })).min(1),

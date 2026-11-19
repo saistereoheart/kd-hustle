@@ -140,7 +140,7 @@
   },
   "staff": {
     "cookSec": 14,
-    "passiveRate": 0.8
+    "passiveRate": 1
   },
   "reputation": {
     "start": 50,
@@ -176,7 +176,7 @@
     "repBonus": 10,
     "repPenalty": 10,
     "boostCustomers": 1.5,
-    "boostGameHours": 24
+    "boostGameHours": 24, "staffWaitShare": 0.35, "staffPayMult": 2
   },
   "stock": {
     "packs": [
