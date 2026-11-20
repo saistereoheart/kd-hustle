@@ -438,8 +438,17 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   });
 
   // --- snapshots ------------------------------------------------------------------------
+  let lastSnap = Date.now();
+  let lastStallWarn = 0;
   const snapshotTimer = setInterval(() => {
     const t = Date.now();
+    // The server was busy (something slow ran): everyone's updates paused that long.
+    const late = t - lastSnap - 1000 / cfg.net.snapshotRateHz;
+    lastSnap = t;
+    if (late > 250 && t - lastStallWarn > 10_000) {
+      lastStallWarn = t;
+      log.warn(`Server stalled ${Math.round(late)} ms (players' updates paused). If this repeats, tell the developer what was happening.`);
+    }
     for (const scene of world.scenes()) {
       const rows: SnapshotRow[] = world
         .inScene(scene)

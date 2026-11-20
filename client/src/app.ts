@@ -117,7 +117,6 @@ export class App {
   home: HomeScene | null = null;
   /** Every home for sale on the map (computed from the map + properties.json). */
   listings: Unit[] = [];
-  private townBlur: Phaser.FX.Blur | null = null;
   lastInit: InitPayload | null = null;
   lastSavedAt: number | null = null;
   private kicked = false;
@@ -722,7 +721,6 @@ export class App {
       if (this.home) this.game.scene.stop('home');
       this.interior = null;
       this.home = null;
-      this.townBlur = null;
       delete document.body.dataset.inside;
     }
     if (this.game.scene.isActive('town') || this.game.scene.isPaused('town')) this.game.scene.stop('town');
@@ -966,12 +964,9 @@ export class App {
       ambience.set(this.map.interactables.some((i) => i.building === b.id && i.type === 'casino') ? 'casino' : 'indoor');
       this.interior = this.game.scene.getScene('interior') as InteriorScene;
       document.body.dataset.inside = b.id;
-      // Blur the town behind the room (WebGL only; the dark overlay alone works everywhere).
-      try {
-        this.townBlur = this.town.cameras.main.postFX?.addBlur(1, 2, 2, 1.2) ?? null;
-      } catch {
-        this.townBlur = null;
-      }
+      // The town keeps running behind the room but isn't drawn (it used to be drawn every frame and
+      // blurred with a full-screen shader: costly on integrated graphics, and the room covers it).
+      this.town.cameras.main.setVisible(false);
     });
   }
 
@@ -988,11 +983,7 @@ export class App {
     this.home = this.game.scene.getScene('home') as HomeScene;
     this.hud?.setPrompt(null, this.touch);
     document.body.dataset.inside = u.building;
-    try {
-      this.townBlur = this.town.cameras.main.postFX?.addBlur(1, 2, 2, 1.2) ?? null;
-    } catch {
-      this.townBlur = null;
-    }
+    this.town.cameras.main.setVisible(false); // not drawn while you're inside (see enterBuilding)
   }
 
   exitBuilding() {
@@ -1004,8 +995,7 @@ export class App {
     this.home = null;
     delete document.body.dataset.inside;
     if (this.town) ambience.set('town');
-    if (this.townBlur) this.town?.cameras.main.postFX?.remove(this.townBlur);
-    this.townBlur = null;
+    this.town?.cameras.main.setVisible(true);
     this.hud?.setPrompt(null, this.touch);
     this.town?.refreshPrompt();
   }
@@ -1036,7 +1026,6 @@ export class App {
     if (this.home) this.game.scene.stop('home');
     this.interior = null;
     this.home = null;
-    this.townBlur = null;
     if (this.game?.scene.isActive('town')) this.game.scene.stop('town');
     this.town = null;
     this.settings?.close();

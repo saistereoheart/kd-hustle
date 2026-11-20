@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1 (2026-11-20)
+- **Inside buildings is fast again:** the town used to keep drawing behind every room, through a full-screen
+  blur filter (about three-quarters of each frame on weak graphics). The town now isn't drawn while you're
+  inside, and the room, counters and furniture are drawn once into pictures instead of being re-drawn every
+  frame. In the test browser: inside a building 6 FPS → 30 FPS.
+- **F3 says more:** the Graphics mode (Auto adjusts the resolution; Sharpest doesn't), and whether a pause in
+  updates happened at the server or on the way (WiFi / this device). The server also prints a warning in its
+  window if it ever stalls.
+
 ## 1.6.0 (2026-11-20)
 - **🏪 Ventures take real shoplots:** opening a business now takes the free shoplot nearest to you, like buying
   a home. It's yours alone: your gold sign over its door and its map pin, and everyone else sees

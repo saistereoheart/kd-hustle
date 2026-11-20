@@ -381,20 +381,28 @@ export class TownScene extends Phaser.Scene {
 
   /** For the F3 overlay: when snapshots arrived (WiFi trouble shows as gaps) and snap-backs. */
   private snapTimes: number[] = [];
+  /** The server's own timestamps on those snapshots (a gap there = the server paused). */
+  private snapServer: number[] = [];
   private corrections: number[] = [];
-  netStats(): { avgMs: number; maxGapMs: number; snapbacks: number } {
+  netStats(): { avgMs: number; maxGapMs: number; serverGapMs: number; snapbacks: number } {
     const now = performance.now();
-    const t = this.snapTimes.filter((x) => now - x < 5000);
-    let max = 0;
-    for (let i = 1; i < t.length; i++) max = Math.max(max, t[i] - t[i - 1]);
-    if (t.length) max = Math.max(max, now - t[t.length - 1]);
-    return { avgMs: t.length > 1 ? Math.round((t[t.length - 1] - t[0]) / (t.length - 1)) : 0, maxGapMs: Math.round(max), snapbacks: this.corrections.filter((x) => now - x < 30000).length };
+    const keep = this.snapTimes.map((x, i) => [x, this.snapServer[i]] as const).filter(([x]) => now - x < 5000);
+    let max = 0, smax = 0;
+    for (let i = 1; i < keep.length; i++) {
+      max = Math.max(max, keep[i][0] - keep[i - 1][0]);
+      smax = Math.max(smax, keep[i][1] - keep[i - 1][1]);
+    }
+    if (keep.length) max = Math.max(max, now - keep[keep.length - 1][0]);
+    const t = keep.map((k) => k[0]);
+    return { avgMs: t.length > 1 ? Math.round((t[t.length - 1] - t[0]) / (t.length - 1)) : 0, maxGapMs: Math.round(max), serverGapMs: Math.round(smax), snapbacks: this.corrections.filter((x) => now - x < 30000).length };
   }
 
   private onSnapshot(s: SnapshotPayload) {
     const now = performance.now();
     this.snapTimes.push(now);
     if (this.snapTimes.length > 120) this.snapTimes.splice(0, this.snapTimes.length - 120);
+    this.snapServer.push(s.t);
+    if (this.snapServer.length > 120) this.snapServer.splice(0, this.snapServer.length - 120);
     for (const [id, x, y, dirIdx, moving, rpm, eng] of s.p) {
       if (id === this.selfId) {
         // As a Ronda passenger the server drives us: follow its positions like a remote player.

@@ -13,6 +13,7 @@ import { loadPrefs } from '../ui/settings';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { DOOR_HALF, drawFurniture, drawHighlight, drawRoom, drawStation, FURNITURE_SIZE, stationSize, T, type RoomDoor } from './interiorArt';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
+import { bake, bakedPiece } from './bake';
 
 type Interactable = BuiltMap['interactables'][number];
 interface Rect {
@@ -99,13 +100,22 @@ export class InteriorScene extends Phaser.Scene {
     this.leaving = false;
   }
 
+  private roomKey = '';
+
   create() {
     const s = this.style;
     const W = s.w * T, H = s.h * T;
     const accent = parseInt(s.trim.slice(1), 16);
-    // Darken everything behind the room (the town keeps rendering underneath, blurred).
+    // Behind the room (the town isn't drawn while you're inside).
     this.add.rectangle(W / 2, H / 2, 40000, 40000, 0x05060c, 0.72).setDepth(-10);
-    drawRoom(this.add.graphics().setDepth(-5), s, this.door, this.doorHalf);
+    // The room is baked into one picture (static vector art is re-drawn every frame otherwise).
+    const pad = 3 * T;
+    this.roomKey = `room_${this.building.id}_${this.door.side}_${Math.round(this.door.pos)}_${s.w}x${s.h}`;
+    bake(this, this.roomKey, W + pad * 2, H + pad * 2, (g) => {
+      g.translateCanvas(pad, pad);
+      drawRoom(g, s, this.door, this.doorHalf);
+    });
+    this.add.image(-pad, -pad, this.roomKey).setOrigin(0, 0).setDepth(-5);
     // The back wall (top 2 rows) blocks, except the passage through it for a door in the top wall.
     const dr = this.door;
     if (dr.side === 'top') {
@@ -131,13 +141,15 @@ export class InteriorScene extends Phaser.Scene {
       const cy = vertical ? 2 * T + ((H - 2 * T) * (i + 1)) / (its.length + 1) : cyMid;
       const w = sw * T, h = sh * T;
       // the highlight on the floor, a pulsing ring and a soft glow
-      drawHighlight(this.add.graphics().setDepth(-4), cx, cy, w, h, glowCol);
+      bakedPiece(this, `hl_${Math.round(w)}x${Math.round(h)}_${glowCol}`, { w: w + 4 * T, h: h + 4 * T, padL: w / 2 + 2 * T, padT: h / 2 + 2 * T }, cx, cy, (g, x, y) => drawHighlight(g, x, y, w, h, glowCol)).setDepth(-4);
       const ring = this.add.ellipse(cx, cy + h * 0.15, w + 1.8 * T, h + 1.3 * T).setStrokeStyle(4, 0xfff3bf, 0.9).setDepth(-3);
       this.tweens.add({ targets: ring, scaleX: 1.12, scaleY: 1.12, alpha: 0.25, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       const glow = this.add.image(cx, cy, GLOW_TEXTURE).setDisplaySize(w + 4 * T, h + 3.2 * T).setTint(glowCol).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-3);
       this.tweens.add({ targets: glow, alpha: 0.15, duration: 1100, yoyo: true, repeat: -1 });
-      const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + h / 2);
-      drawStation(g, it.type, it.crate ?? it.game, cx, cy, it.type === 'carwash' ? 0x1971c2 : accent);
+      const stCol = it.type === 'carwash' ? 0x1971c2 : accent;
+      bakedPiece(this, `st_${it.type}_${it.crate ?? it.game ?? ''}_${stCol}`, { w: w + 6 * T, h: h + 8 * T, padL: w / 2 + 3 * T, padT: h / 2 + 5 * T }, cx, cy, (g, x, y) =>
+        drawStation(g, it.type, it.crate ?? it.game, x, y, stCol),
+      ).setDepth(AVATAR_DEPTH + cy + h / 2);
       this.blockers.push({ x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 });
       const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
       const label = this.add
@@ -200,6 +212,7 @@ export class InteriorScene extends Phaser.Scene {
       .setOrigin(exitAt[3], exitAt[4])
       .setDepth(999_000);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.roomKey && this.textures.exists(this.roomKey)) this.textures.remove(this.roomKey); // (furniture textures are shared, kept)
       this.me?.destroy();
       this.keeper?.destroy();
       for (const a of this.others.values()) a.destroy();
@@ -243,8 +256,9 @@ export class InteriorScene extends Phaser.Scene {
     cells.sort((a, b) => Math.hypot(a[0] - centre[0], a[1] - centre[1]) - Math.hypot(b[0] - centre[0], b[1] - centre[1]));
     const place = (f: Furniture, cx: number, cy: number) => {
       const [fw, fh] = FURNITURE_SIZE[f];
-      const g = this.add.graphics().setDepth(AVATAR_DEPTH + cy + (fh * T) / 2);
-      drawFurniture(g, f, cx, cy, accent);
+      bakedPiece(this, `fu_${f}_${accent}`, { w: (fw + 4) * T, h: (fh + 6) * T, padL: (fw / 2 + 2) * T, padT: (fh / 2 + 4) * T }, cx, cy, (g, x, y) =>
+        drawFurniture(g, f, x, y, accent),
+      ).setDepth(AVATAR_DEPTH + cy + (fh * T) / 2);
       this.blockers.push({ x0: cx - (fw * T) / 2, y0: cy - (fh * T) / 2, x1: cx + (fw * T) / 2, y1: cy + (fh * T) / 2 });
     };
     const pieces = bigList.length || fill.length ? cells.map((_, i) => (i < bigList.length ? bigList[i] : fill[(i - bigList.length) % fill.length])) : [];

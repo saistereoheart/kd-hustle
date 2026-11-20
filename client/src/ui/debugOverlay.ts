@@ -3,6 +3,7 @@
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
 import { governor } from '../perf/governor';
+import { loadPrefs } from './settings';
 
 export class DebugOverlay {
   private root = el('pre', { class: 'debug-overlay hidden', 'data-testid': 'debug-overlay' });
@@ -67,12 +68,15 @@ export class DebugOverlay {
     // A device busy drawing also reads the network late (gaps, slow pings): only blame the WiFi when
     // the delays are much longer than the device's own worst frame.
     const lateBy = Math.max(this.worstShown, 1000 / Math.max(1, this.fps));
-    const netBad = (this.ping ?? 0) > 150 + lateBy || (net?.maxGapMs ?? 0) > 400 + lateBy || (net?.snapbacks ?? 0) > 2;
-    const verdict = deviceSlow && netBad ? '⚠ both: device AND WiFi' : deviceSlow ? '⚠ this device is slow to draw' : netBad ? '⚠ WiFi / connection trouble' : '✓ smooth';
+    // A gap in the server's own timestamps means the SERVER paused (not the WiFi, not this device).
+    const serverBusy = (net?.serverGapMs ?? 0) > 300;
+    const netBad = !serverBusy && ((this.ping ?? 0) > 150 + lateBy || (net?.maxGapMs ?? 0) > 400 + lateBy || (net?.snapbacks ?? 0) > 2);
+    const verdict = [deviceSlow ? 'this device is slow to draw' : '', netBad ? 'WiFi / connection trouble' : '', serverBusy ? 'the server paused' : ''].filter(Boolean);
+    const q = loadPrefs().quality;
     this.root.textContent = [
-      `FPS ${this.fps}   worst frame ${this.worstShown} ms   ${governor.describe().replace(/^\d+ FPS · /, '')}`,
-      `ping ${this.ping ?? '?'} ms   updates every ${net?.avgMs ?? '?'} ms, longest gap ${net?.maxGapMs ?? '?'} ms`,
-      `snap-backs ${net?.snapbacks ?? 0} (last 30 s)   ${verdict}`,
+      `FPS ${this.fps}   worst frame ${this.worstShown} ms   ${governor.describe().replace(/^\d+ FPS · /, '')}   graphics: ${q === 'auto' ? 'Auto' : q === 'high' ? 'Sharpest (no auto-adjust)' : 'Battery saver'}`,
+      `ping ${this.ping ?? '?'} ms   updates every ${net?.avgMs ?? '?'} ms, longest gap ${net?.maxGapMs ?? '?'} ms (at the server ${net?.serverGapMs ?? '?'} ms)`,
+      `snap-backs ${net?.snapbacks ?? 0} (last 30 s)   ${verdict.length ? `⚠ ${verdict.join(' + ')}` : '✓ smooth'}`,
       self ? `pos ${(self.x / T).toFixed(1)}, ${(self.y / T).toFixed(1)} tiles${self.moving ? ' (moving)' : ''}` : 'pos -',
       `chunks ${self?.chunks ?? 0}   objects ${visible}/${objects}`,
       `players ${(town?.debugRemotes().length ?? 0) + 1}   ${this.app.interior ? 'inside a building' : this.app.home ? 'at home' : 'in town'}`,

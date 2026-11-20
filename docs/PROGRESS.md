@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.6.0: Ventures take real shoplots; stage 1 of 3)_
+_Last updated: 2026-11-20 (v1.6.1: interiors fast; F3 server-vs-network)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,17 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🐢 Your F3 reading: 20 FPS inside a building (2026-11-20, v1.6.1)
+- Cause: entering a building kept the town rendering and added a postFX blur on its camera (a multi-pass
+  full-screen shader). Now the town camera is hidden while inside (`enterBuilding` / `enterHome`), restored on exit.
+- `world/bake.ts`: static Graphics (room, highlights, stations, furniture) are generated into textures once
+  (furniture shared per kind + colour). Test browser, 1280×720: inside 6 → 30 FPS (town 34).
+- F3 shows the Graphics mode (your "resolution 100%" means Auto didn't lower it: check it's on Auto, since
+  Sharpest turns it off) and the gap in the server's own snapshot timestamps: a big one there = the server
+  paused; otherwise the WiFi or the device. The server logs `Server stalled N ms` when its loop is late.
 
 ---
 
