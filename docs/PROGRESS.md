@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.3.4: riders sit in the bike from the front/back; vehicle scale fix)_
+_Last updated: 2026-11-20 (v1.4.0: four premium dishes)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,14 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🍜 Premium dishes (2026-11-20, your request, v1.4.0)
+`recipes.json`: char_kuey_teow, nasi_goreng_seafood, nasi_kandar, nasi_briyani (prices RM 26–48, ingredient
+share ~19–20%). Steps reuse existing kinds and art (wok_mee / wok_rice / rice / mee / friedrice / boxes).
+`foodArt.ts`: kerang, ketam, papadom, acar, bendi drawings; look-alikes for the other new ids; dish icons.
+Balance: not re-run in the sim yet (the new dishes sit at the end of the mastery chain).
 
 ---
 

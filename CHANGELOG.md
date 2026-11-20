@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 (2026-11-20)
+- **🍜 Four premium dishes** for the stall, each pricier with a better margin (ingredients ~19–20% of the price,
+  vs 25% before), unlocked by mastering the dishes before them:
+  | Dish | Price | Ingredients | Unlocks after |
+  |---|---|---|---|
+  | Char Kuey Teow | RM 26 | RM 5.20 | Mee Goreng mastery 2 |
+  | Nasi Goreng Seafood | RM 29 | RM 5.80 | Nasi Goreng mastery 2 |
+  | Nasi Kandar | RM 36 | RM 7.20 | Murtabak mastery 1 |
+  | Nasi Briyani Kambing | RM 48 | RM 9.00 | Nasi Kandar mastery 1 |
+  They reuse the wok, rice and plating minigames, with new add-ons (tiger prawns, crab, ayam madu, kambing)
+  and new ingredients drawn (kerang, ketam, papadom, acar, bendi).
+
 ## 1.3.4 (2026-11-20)
 - **Riders sit IN the bike seen from the front or back:** the bike is drawn behind the rider and its lower part
   again in front, so the head and chest show over the bike and the legs are hidden behind it.

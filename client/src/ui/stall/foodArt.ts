@@ -75,7 +75,10 @@ export function drawTray(ctx: Ctx, x: number, y: number, w: number, h: number) {
  * One food, filling a box (x, y, w, h). `amount`: 1 = a full tray, ~0.35 = a serving on a plate.
  */
 /** Ingredients that look like another one. */
-const LOOKS_LIKE: Record<string, string> = { ayam_kunyit: 'ayam_goreng', udang_mee: 'udang', telur_roti: 'telur_mata' };
+const LOOKS_LIKE: Record<string, string> = {
+  ayam_kunyit: 'ayam_goreng', udang_mee: 'udang', telur_roti: 'telur_mata',
+  udang_besar: 'udang', kerang_extra: 'kerang', ayam_madu: 'ayam_goreng', kambing: 'rendang', kambing_extra: 'rendang',
+};
 
 export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, h: number, amount = 1) {
   if (LOOKS_LIKE[id]) return drawFood(ctx, LOOKS_LIKE[id], x, y, w, h, amount);
@@ -86,6 +89,76 @@ export function drawFood(ctx: Ctx, id: string, x: number, y: number, w: number, 
   const spot = () => [cx + (r() - 0.5) * rx * 1.6, cy + (r() - 0.5) * ry * 1.5] as const;
   ctx.save();
   switch (id) {
+    case 'kerang': {
+      // cockles: small ridged shells, some open with the brown meat showing
+      for (let i = 0; i < n(7); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.13;
+        ellipse(ctx, px + 1, py + 1.5, s, s * 0.82, 0, 'rgba(0,0,0,0.25)');
+        ellipse(ctx, px, py, s, s * 0.82, 0, '#d9c3a5');
+        ctx.strokeStyle = '#a68a64';
+        ctx.lineWidth = 0.8;
+        for (let k = -2; k <= 2; k++) {
+          ctx.beginPath();
+          ctx.moveTo(px + k * s * 0.3, py - s * 0.7);
+          ctx.lineTo(px + k * s * 0.38, py + s * 0.7);
+          ctx.stroke();
+        }
+        if (r() < 0.5) ellipse(ctx, px, py, s * 0.55, s * 0.42, 0, '#7a3e1d');
+      }
+      break;
+    }
+    case 'ketam': {
+      // a red crab: round shell, legs and two claws
+      const s = Math.min(w, h) * 0.3 * Math.min(1, 0.6 + amount * 0.4);
+      ctx.strokeStyle = '#c2410c';
+      ctx.lineWidth = s * 0.16;
+      ctx.lineCap = 'round';
+      for (const side of [-1, 1]) {
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          ctx.moveTo(cx + side * s * 0.6, cy + (k - 1) * s * 0.3);
+          ctx.lineTo(cx + side * s * 1.25, cy + (k - 1) * s * 0.45 + s * 0.25);
+          ctx.stroke();
+        }
+        ellipse(ctx, cx + side * s * 0.95, cy - s * 0.75, s * 0.36, s * 0.26, side * 0.6, '#e8590c');
+      }
+      ellipse(ctx, cx + 1, cy + 2, s, s * 0.72, 0, 'rgba(0,0,0,0.25)');
+      ellipse(ctx, cx, cy, s, s * 0.72, 0, '#e8590c');
+      ellipse(ctx, cx - s * 0.25, cy - s * 0.25, s * 0.45, s * 0.22, -0.3, 'rgba(255,255,255,0.3)');
+      break;
+    }
+    case 'papadom': {
+      // big round crackers, golden with blisters
+      for (let i = 0; i < n(2); i++) {
+        const [px, py] = amount < 1 ? [cx, cy] : spot();
+        const s = Math.min(w, h) * 0.34;
+        ellipse(ctx, px + 1, py + 2, s, s * 0.85, 0, 'rgba(0,0,0,0.2)');
+        ellipse(ctx, px, py, s, s * 0.85, 0, '#f2c96b');
+        for (let k = 0; k < 9; k++) ellipse(ctx, px + (r() - 0.5) * s * 1.4, py + (r() - 0.5) * s * 1.1, s * 0.09, s * 0.07, 0, '#e0a93a');
+      }
+      break;
+    }
+    case 'acar': {
+      // pickled vegetables: orange carrot and green cucumber sticks, yellow pineapple, in a sweet sauce
+      blob(ctx, cx, cy, rx * 0.85, ry * 0.8, r, '#d9822b');
+      for (let i = 0; i < n(12); i++) {
+        const [px, py] = spot();
+        const col = ['#f76707', '#74b816', '#ffd43b', '#f8f9fa'][Math.floor(r() * 4)];
+        ellipse(ctx, px, py, 2.6 + r() * 2, 1.2, r() * 3, col);
+      }
+      break;
+    }
+    case 'bendi': {
+      // okra: green ridged pods, some sliced into stars
+      for (let i = 0; i < n(5); i++) {
+        const [px, py] = spot();
+        const s = Math.min(w, h) * 0.2;
+        ellipse(ctx, px, py, s, s * 0.32, r() * 3, '#5c940d');
+        ellipse(ctx, px, py, s * 0.8, s * 0.14, r() * 3, '#82c91e');
+      }
+      break;
+    }
     case 'sambal': {
       // thick, glossy, dark red chilli paste with onion bits and oil sheen
       const g = ctx.createRadialGradient(cx - rx * 0.3, cy - ry * 0.3, 1, cx, cy, Math.max(rx, ry));
@@ -1047,6 +1120,23 @@ export function foodIcon(id: string, size: number): HTMLCanvasElement {
     drawFood(ctx, 'limau', m + m * 0.2, m - m * 0.5, m * 0.4, m * 0.36, 0.3);
   } else if (id === 'murtabak') {
     drawMurtabak(ctx, m, m, m * 1.15, 1);
+  } else if (id === 'char_kuey_teow') {
+    drawNoodles(ctx, m, m, m * 0.62, m * 0.5, 1.4);
+    drawFood(ctx, 'udang', m - m * 0.25, m - m * 0.5, m * 0.5, m * 0.4, 0.3);
+    drawFood(ctx, 'tauge', m + m * 0.1, m - m * 0.1, m * 0.5, m * 0.4, 0.4);
+  } else if (id === 'nasi_goreng_seafood') {
+    drawFriedRice(ctx, m, m + m * 0.05, m * 0.6, m * 0.48, 1);
+    drawFood(ctx, 'udang', m - m * 0.3, m - m * 0.55, m * 0.55, m * 0.45, 0.35);
+    drawFood(ctx, 'sotong', m + m * 0.1, m - m * 0.2, m * 0.5, m * 0.4, 0.3);
+  } else if (id === 'nasi_kandar') {
+    drawRice(ctx, m - m * 0.2, m + m * 0.1, m * 0.36, m * 0.36);
+    drawFood(ctx, 'kari_ayam', m - m * 0.2, m - m * 0.2, m * 0.8, m * 0.6, 0.5);
+    drawFood(ctx, 'ayam_goreng', m + m * 0.15, m - m * 0.45, m * 0.6, m * 0.5, 0.35);
+    drawFood(ctx, 'papadom', m + m * 0.2, m + m * 0.05, m * 0.5, m * 0.5, 0.4);
+  } else if (id === 'nasi_briyani') {
+    drawFriedRice(ctx, m, m + m * 0.05, m * 0.62, m * 0.5, 0.25);
+    drawFood(ctx, 'rendang', m - m * 0.15, m - m * 0.45, m * 0.6, m * 0.5, 0.4);
+    drawFood(ctx, 'acar', m + m * 0.2, m - m * 0.05, m * 0.45, m * 0.4, 0.4);
   } else drawFood(ctx, id, m - m * 0.68, m - m * 0.56, m * 1.36, m * 1.12, 0.6);
   return c;
 }
