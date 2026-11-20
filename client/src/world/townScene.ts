@@ -27,6 +27,7 @@ import { Culler } from './culler';
 import { Collectors } from './collectors';
 import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
+import { governor } from '../perf/governor';
 
 interface Sample {
   t: number;
@@ -933,7 +934,7 @@ export class TownScene extends Phaser.Scene {
     this.smokeAcc += dt;
     if (this.smokeAcc < 0.05) return;
     this.smokeAcc = 0;
-    const particles = loadPrefs().particles;
+    const particles = loadPrefs().particles && !governor.lite;
     if (particles) ensureGlowTexture(this);
     const burn = (id: number, av: Avatar, slip: number) => {
       const v = av.vehicle;

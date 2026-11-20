@@ -1,0 +1,891 @@
+// Paints the real-scale map as vector art (Canvas 2D: anti-aliased roads, lane markings,
+// polygon buildings) into chunk canvases: the ground, the tree canopies (drawn above characters)
+// and elevated roads. Pure drawing, no Phaser: it runs on the main thread or in a Web Worker
+// (chunkWorker.ts) on OffscreenCanvas, so drawing a chunk never stalls the game.
+//
+// Drawing happens in TILE units: the canvas transform maps 1 unit → 1 tile.
+import { CANOPY_DECOR, Decor, pointInPoly, Tile, tileHash, type Box, type BuiltBuilding, type BuiltMap, type BuiltRoad } from '@kh/shared';
+import { DECOR_SPRITE } from './tileset';
+
+export const CHUNK = 16; // tiles per chunk side (512 px)
+
+interface Bay {
+  x: number;
+  y: number;
+  angle: number;
+  /** Rows alternate which side their aisle is on (false: aisle at +v, true: at -v). */
+  flip: boolean;
+}
+/** Each chunk texture extends this many tiles past its edges so neighbours overlap (no seams). */
+export const BLEED = 0.25;
+
+export type Ctx = CanvasRenderingContext2D;
+
+const COLORS = {
+  grass: '#7cc456',
+  park: '#86cf5d',
+  forest: '#4f9a3e',
+  field: '#9bd36a',
+  golf: '#8fdc6a',
+  parking: '#9097a1',
+  plaza: '#e9d9b6',
+  construction: '#c8a878',
+  water: '#4aa3df',
+  sidewalk: '#d6cfc0',
+  kerb: '#a19c90',
+  path: '#dccaa0',
+  highway: '#3a3d45',
+  arterial: '#484c55',
+  street: '#4f535d',
+  service: '#5c606a',
+  marking: 'rgba(255,255,255,0.85)',
+  yellow: '#f2c94c',
+};
+
+interface RoofStyle {
+  roof: string;
+  wall: string;
+  levels: number;
+}
+const ROOF: Record<string, RoofStyle> = {
+  shoplot: { roof: '#e07a5f', wall: '#f3e5d3', levels: 3 },
+  office: { roof: '#7fa7c9', wall: '#dfe7ef', levels: 5 },
+  tower: { roof: '#5c6f91', wall: '#c9d6e8', levels: 20 },
+  mall: { roof: '#e8cfa0', wall: '#e9dcc9', levels: 4 },
+  terrace: { roof: '#c0583f', wall: '#f5e6d3', levels: 2 },
+  semid: { roof: '#a44a3f', wall: '#f0e1cc', levels: 2 },
+  bungalow: { roof: '#7a3e2b', wall: '#f7ecd9', levels: 2 },
+  flat: { roof: '#c9b18f', wall: '#e8dcc8', levels: 5 },
+  condo: { roof: '#8fb3c9', wall: '#e6eef3', levels: 15 },
+  hospital: { roof: '#f1f3f5', wall: '#dee2e6', levels: 8 },
+  station: { roof: '#868e96', wall: '#ced4da', levels: 2 },
+  casino: { roof: '#6a1b9a', wall: '#3c096c', levels: 5 },
+  hypermarket: { roof: '#d62828', wall: '#f1faee', levels: 3 },
+  bank: { roof: '#1d3557', wall: '#e9ecef', levels: 3 },
+  shop: { roof: '#2a9d8f', wall: '#e9f5db', levels: 2 },
+  clubhouse: { roof: '#386641', wall: '#f2e8cf', levels: 2 },
+  civic: { roof: '#577590', wall: '#e9ecef', levels: 3 },
+  furniture: { roof: '#1d4ed8', wall: '#facc15', levels: 3 },
+  school: { roof: '#b5838d', wall: '#f1e3d3', levels: 3 },
+  parking: { roof: '#adb5bd', wall: '#dee2e6', levels: 5 },
+  construction: { roof: '#d4a373', wall: '#e9c46a', levels: 2 },
+  roof: { roof: 'rgba(206,212,218,0.55)', wall: 'rgba(0,0,0,0)', levels: 0 },
+  religious: { roof: '#2b9348', wall: '#f8f9fa', levels: 2 },
+};
+const SHOPLOT_ROOFS = ['#e07a5f', '#f2cc8f', '#81b29a', '#e9c46a', '#f4a261', '#9bc1bc', '#d4a5a5', '#b5c99a'];
+
+export function roofColorOf(b: BuiltBuilding): string {
+  if (b.kind === 'shoplot' || b.kind === 'flat') {
+    const h = Math.floor(tileHash(Math.round(b.bbox.x0), Math.round(b.bbox.y0), 7) * SHOPLOT_ROOFS.length);
+    return b.kind === 'shoplot' ? SHOPLOT_ROOFS[h] : ROOF.flat.roof;
+  }
+  return (ROOF[b.kind] ?? ROOF.shoplot).roof;
+}
+
+// ------------------------------------------------------------------ geometry helpers
+function tracePoly(ctx: Ctx, p: number[]) {
+  ctx.beginPath();
+  ctx.moveTo(p[0], p[1]);
+  for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+  ctx.closePath();
+}
+function traceLine(ctx: Ctx, p: number[]) {
+  ctx.beginPath();
+  ctx.moveTo(p[0], p[1]);
+  for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+}
+/** Parallel polyline at distance d (left of travel direction for d < 0). */
+function offsetLine(p: number[], d: number): number[] {
+  const out: number[] = [];
+  const n = p.length / 2;
+  for (let i = 0; i < n; i++) {
+    const px = p[i * 2], py = p[i * 2 + 1];
+    let nx = 0, ny = 0;
+    if (i > 0) {
+      const dx = px - p[i * 2 - 2], dy = py - p[i * 2 - 1];
+      const l = Math.hypot(dx, dy) || 1;
+      nx += -dy / l;
+      ny += dx / l;
+    }
+    if (i < n - 1) {
+      const dx = p[i * 2 + 2] - px, dy = p[i * 2 + 3] - py;
+      const l = Math.hypot(dx, dy) || 1;
+      nx += -dy / l;
+      ny += dx / l;
+    }
+    const l = Math.hypot(nx, ny) || 1;
+    nx /= l;
+    ny /= l;
+    // miter correction, clamped so sharp bends don't explode
+    let k = 1;
+    if (i > 0 && i < n - 1) {
+      const dx = p[i * 2 + 2] - p[i * 2 - 2], dy = p[i * 2 + 3] - p[i * 2 - 1];
+      const l2 = Math.hypot(dx, dy) || 1;
+      const cos = Math.abs((-dy / l2) * nx + (dx / l2) * ny);
+      k = Math.min(2, 1 / Math.max(0.5, cos));
+    }
+    out.push(px + nx * d * k, py + ny * d * k);
+  }
+  return out;
+}
+/** Removes `trim` tiles from both ends of a polyline (keeps markings out of junctions). */
+function trimLine(p: number[], trim: number): number[] | null {
+  const segs: number[] = [];
+  let total = 0;
+  for (let i = 0; i + 3 < p.length; i += 2) {
+    const l = Math.hypot(p[i + 2] - p[i], p[i + 3] - p[i + 1]);
+    segs.push(l);
+    total += l;
+  }
+  if (total <= trim * 2 + 1) return null;
+  const at = (dist: number): [number, number, number] => {
+    let acc = 0;
+    for (let s = 0; s < segs.length; s++) {
+      if (acc + segs[s] >= dist) {
+        const t = (dist - acc) / (segs[s] || 1);
+        return [p[s * 2] + (p[s * 2 + 2] - p[s * 2]) * t, p[s * 2 + 1] + (p[s * 2 + 3] - p[s * 2 + 1]) * t, s];
+      }
+      acc += segs[s];
+    }
+    return [p[p.length - 2], p[p.length - 1], segs.length - 1];
+  };
+  const [sx, sy, ss] = at(trim);
+  const [ex, ey, es] = at(total - trim);
+  const out = [sx, sy];
+  for (let s = ss + 1; s <= es; s++) out.push(p[s * 2], p[s * 2 + 1]);
+  out.push(ex, ey);
+  return out;
+}
+function polyCentroid(p: number[]): [number, number] {
+  let x = 0, y = 0;
+  for (let i = 0; i < p.length; i += 2) {
+    x += p[i];
+    y += p[i + 1];
+  }
+  return [x / (p.length / 2), y / (p.length / 2)];
+}
+function polyArea(p: number[]) {
+  let a = 0;
+  for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) a += (p[j] + p[i]) * (p[j + 1] - p[i + 1]);
+  return Math.abs(a / 2);
+}
+function shade(color: string, f: number): string {
+  if (!color.startsWith('#')) return color;
+  const n = parseInt(color.slice(1), 16);
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)));
+  return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+
+// ------------------------------------------------------------------ spatial index
+interface Bucket {
+  areas: number[];
+  roads: number[];
+  paths: number[];
+  waters: number[];
+  rails: number[];
+  buildings: number[];
+  crossings: number[];
+  labels: number[];
+}
+interface RoadLabel {
+  text: string;
+  x: number;
+  y: number;
+  angle: number;
+  size: number;
+  italic?: boolean;
+}
+
+/** A canvas to paint into: a DOM canvas or an OffscreenCanvas (its context typed as the DOM one). */
+export interface Surface<C> {
+  canvas: C;
+  ctx: Ctx;
+}
+export interface Painted<C> {
+  /** Texture size (px, square). */
+  px: number;
+  ground: Surface<C>;
+  canopy: Surface<C> | null;
+  deck: Surface<C> | null;
+}
+
+/** Which cells of an n×n grid over a layer have anything drawn in them (1) or are empty (0). */
+export function occupancy(ctx: Ctx, px: number, n = 8): Uint8Array {
+  const cell = Math.ceil(px / n);
+  const data = ctx.getImageData(0, 0, px, px).data;
+  const occ = new Uint8Array(n * n);
+  for (let y = 0; y < px; y++) {
+    const row = Math.min(n - 1, Math.floor(y / cell)) * n;
+    const base = y * px * 4 + 3;
+    for (let x = 0; x < px; x += 2) if (data[base + x * 4] || data[base + x * 4 + 4]) occ[row + Math.min(n - 1, Math.floor(x / cell))] = 1;
+  }
+  return occ;
+}
+
+export class ChunkPainter {
+  private buckets = new Map<string, Bucket>();
+  private labels: RoadLabel[] = [];
+  /** Parking bays per parking area (index into map.areas), laid out along the lot's own angle. */
+  private bays = new Map<number, Bay[]>();
+
+  constructor(private map: BuiltMap, private decorSprites: CanvasImageSource) {
+    this.buildIndex();
+  }
+
+  /** Paints chunk (cx, cy) at `res` texels per world pixel. `make` hands out blank canvases. */
+  paint<C>(cx: number, cy: number, res: number, make: (px: number) => Surface<C>): Painted<C> {
+    const T = this.map.tileSize;
+    const px = Math.ceil((CHUNK + BLEED * 2) * T * res);
+    const g = make(px);
+    const c = make(px);
+    const b = this.buckets.get(`${cx},${cy}`);
+    const hasDeck = !!b && (b.roads.some((i) => this.map.roads[i].elevated) || b.rails.some((i) => this.map.rails[i].elevated));
+    const d = hasDeck ? make(px) : null;
+    const scale = T * res;
+    for (const s of [g, c, d]) s?.ctx.setTransform(scale, 0, 0, scale, -(cx * CHUNK - BLEED) * scale, -(cy * CHUNK - BLEED) * scale);
+    const hasCanopy = this.drawChunk(g.ctx, c.ctx, d?.ctx ?? null, cx, cy);
+    return { px, ground: g, canopy: hasCanopy ? c : null, deck: d };
+  }
+
+  private bucket(cx: number, cy: number): Bucket {
+    const k = `${cx},${cy}`;
+    let b = this.buckets.get(k);
+    if (!b) {
+      b = { areas: [], roads: [], paths: [], waters: [], rails: [], buildings: [], crossings: [], labels: [] };
+      this.buckets.set(k, b);
+    }
+    return b;
+  }
+  private addToBuckets(box: Box, list: keyof Bucket, i: number) {
+    for (let cy = Math.floor(box.y0 / CHUNK); cy <= Math.floor(box.y1 / CHUNK); cy++)
+      for (let cx = Math.floor(box.x0 / CHUNK); cx <= Math.floor(box.x1 / CHUNK); cx++) this.bucket(cx, cy)[list].push(i);
+  }
+
+  private buildIndex() {
+    const m = this.map;
+    m.areas.forEach((a, i) => this.addToBuckets(a.bbox, 'areas', i));
+    m.roads.forEach((r, i) => this.addToBuckets({ x0: r.bbox.x0 - 6, y0: r.bbox.y0 - 6, x1: r.bbox.x1 + 6, y1: r.bbox.y1 + 6 }, 'roads', i));
+    m.paths.forEach((p, i) => this.addToBuckets(p.bbox, 'paths', i));
+    m.waterways.forEach((w, i) => this.addToBuckets(w.bbox, 'waters', i));
+    m.rails.forEach((r, i) => this.addToBuckets({ x0: r.bbox.x0 - 6, y0: r.bbox.y0 - 6, x1: r.bbox.x1 + 6, y1: r.bbox.y1 + 6 }, 'rails', i));
+    m.buildings.forEach((b, i) => this.addToBuckets({ x0: b.bbox.x0, y0: b.bbox.y0, x1: b.bbox.x1 + 3, y1: b.bbox.y1 + 3 }, 'buildings', i));
+    m.crossings.forEach((c, i) => this.addToBuckets({ x0: c.x - 6, y0: c.y - 6, x1: c.x + 6, y1: c.y + 6 }, 'crossings', i));
+
+    // Street name labels: one per long named road, placed on its longest segment.
+    const seen = new Map<string, number>();
+    for (const r of m.roads) {
+      if (!r.name || r.elevated) continue;
+      let best = -1, bestLen = 0;
+      for (let s = 0; s + 3 < r.pts.length; s += 2) {
+        const l = Math.hypot(r.pts[s + 2] - r.pts[s], r.pts[s + 3] - r.pts[s + 1]);
+        if (l > bestLen) {
+          bestLen = l;
+          best = s;
+        }
+      }
+      if (bestLen < 14) continue;
+      const x = (r.pts[best] + r.pts[best + 2]) / 2;
+      const y = (r.pts[best + 1] + r.pts[best + 3]) / 2;
+      // Don't repeat the same street name within 60 tiles.
+      const prev = seen.get(r.name);
+      if (prev !== undefined) {
+        const pl = this.labels[prev];
+        if (Math.hypot(pl.x - x, pl.y - y) < 60) continue;
+      }
+      let angle = Math.atan2(r.pts[best + 3] - r.pts[best + 1], r.pts[best + 2] - r.pts[best]);
+      if (angle > Math.PI / 2) angle -= Math.PI;
+      if (angle < -Math.PI / 2) angle += Math.PI;
+      seen.set(r.name, this.labels.length);
+      this.labels.push({ text: r.name, x, y, angle, size: Math.min(1.3, Math.max(0.8, r.width * 0.32)) });
+    }
+    for (const a of m.areas) {
+      if (!a.name) continue;
+      const [x, y] = polyCentroid(a.poly);
+      this.labels.push({ text: a.name, x, y, angle: 0, size: 1.0, italic: true });
+    }
+    this.labels.forEach((l, i) => {
+      const half = l.text.length * l.size * 0.35 + 1;
+      this.addToBuckets({ x0: l.x - half, y0: l.y - half, x1: l.x + half, y1: l.y + half }, 'labels', i);
+    });
+  }
+
+  // ---------------------------------------------------------------- drawing
+  private drawChunk(g: Ctx, c: Ctx, d: Ctx | null, cx: number, cy: number): boolean {
+    const m = this.map;
+    const b = this.buckets.get(`${cx},${cy}`);
+    const x0 = cx * CHUNK, y0 = cy * CHUNK;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+
+    // 1. grass with soft blotches
+    g.fillStyle = COLORS.grass;
+    g.fillRect(x0 - BLEED, y0 - BLEED, CHUNK + BLEED * 2, CHUNK + BLEED * 2);
+    // Blotches are placed on a world grid (not per chunk) so they continue across chunk edges.
+    const BL = 4;
+    for (let by = Math.floor((y0 - 3) / BL); by <= Math.floor((y0 + CHUNK + 3) / BL); by++)
+      for (let bx = Math.floor((x0 - 3) / BL); bx <= Math.floor((x0 + CHUNK + 3) / BL); bx++) {
+        const h1 = tileHash(bx, by, 3), h2 = tileHash(bx, by, 5);
+        g.fillStyle = h1 > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,60,0,0.06)';
+        g.beginPath();
+        g.ellipse(bx * BL + h1 * BL, by * BL + h2 * BL, 0.8 + h1 * 1.8, 0.5 + h2 * 1.2, h1 * 3, 0, Math.PI * 2);
+        g.fill();
+      }
+    if (!b) {
+      this.drawDecor(g, c, x0, y0);
+      return this.drawCanopy(c, x0, y0);
+    }
+
+    // 2. areas
+    for (const i of b.areas) {
+      const a = m.areas[i];
+      tracePoly(g, a.poly);
+      g.fillStyle = COLORS[a.kind as keyof typeof COLORS] ?? COLORS.park;
+      g.fill();
+      if (a.kind === 'water') {
+        g.strokeStyle = '#3d8fc6';
+        g.lineWidth = 0.25;
+        g.stroke();
+      } else if (a.kind === 'field' || a.kind === 'golf') {
+        g.save();
+        g.clip();
+        g.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let x = x0 - (x0 % 4); x < x0 + CHUNK; x += 4) g.fillRect(x, y0, 2, CHUNK);
+        g.restore();
+      } else if (a.kind === 'parking') {
+        this.drawBayLines(g, i, x0, y0);
+      } else if (a.kind === 'plaza') {
+        g.save();
+        g.clip();
+        g.strokeStyle = 'rgba(160,130,90,0.25)';
+        g.lineWidth = 0.05;
+        for (let x = Math.floor(x0); x < x0 + CHUNK; x++) {
+          g.beginPath();
+          g.moveTo(x, y0);
+          g.lineTo(x, y0 + CHUNK);
+          g.stroke();
+        }
+        for (let y = Math.floor(y0); y < y0 + CHUNK; y++) {
+          g.beginPath();
+          g.moveTo(x0, y);
+          g.lineTo(x0 + CHUNK, y);
+          g.stroke();
+        }
+        g.restore();
+      }
+    }
+
+    // 3. waterways
+    for (const i of b.waters) {
+      const w = m.waterways[i];
+      traceLine(g, w.pts);
+      g.strokeStyle = COLORS.water;
+      g.lineWidth = w.width;
+      g.stroke();
+    }
+
+    // 4. footpaths (ground)
+    for (const i of b.paths) {
+      const p = m.paths[i];
+      if (p.bridge) continue;
+      traceLine(g, p.pts);
+      g.strokeStyle = shade(COLORS.path, -0.15);
+      g.lineWidth = p.width + 0.2;
+      g.stroke();
+      g.strokeStyle = COLORS.path;
+      g.lineWidth = p.width;
+      g.stroke();
+    }
+
+    // 5. roads — pass by pass so junctions merge cleanly
+    const roads = b.roads.map((i) => m.roads[i]).filter((r) => !r.elevated);
+    const order = { service: 0, street: 1, arterial: 2, highway: 3 } as const;
+    roads.sort((r1, r2) => order[r1.cls] - order[r2.cls]);
+    this.drawRoads(g, roads);
+    for (const i of b.crossings) this.drawCrossing(g, m.crossings[i]);
+
+    // 6. parked cars, each inside its bay
+    for (const i of b.areas) if (m.areas[i].kind === 'parking') this.drawParkedCars(g, i, x0, y0);
+
+    // 7. buildings (shadows first, then bodies)
+    const blds = b.buildings.map((i) => m.buildings[i]);
+    for (const bl of blds) this.drawBuildingShadow(g, bl);
+    for (const bl of blds) this.drawBuilding(g, bl);
+
+    // 8. small decor (lamps, benches, flowers, fountain, jobs board...)
+    this.drawDecor(g, c, x0, y0);
+
+    // 9. elevated: flyovers, the DASH viaduct and the MRT viaduct go on their own layer above
+    //    characters (you walk under them); footbridges stay on the ground layer (you walk on them).
+    const elevated = b.roads.map((i) => m.roads[i]).filter((r) => r.elevated);
+    if (d && elevated.length) {
+      for (const r of elevated) {
+        d.save();
+        d.translate(0.6, 0.9);
+        traceLine(d, r.pts);
+        d.strokeStyle = 'rgba(0,0,0,0.22)';
+        d.lineWidth = r.width + 0.6;
+        d.stroke();
+        d.restore();
+      }
+      d.lineJoin = 'round';
+      d.lineCap = 'round';
+      this.drawRoads(d, elevated, true);
+    }
+    for (const i of b.rails) {
+      const r = m.rails[i];
+      const ctx = r.elevated && d ? d : g;
+      ctx.save();
+      ctx.translate(0.6, 0.9);
+      traceLine(ctx, r.pts);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+      ctx.restore();
+      traceLine(ctx, r.pts);
+      ctx.strokeStyle = '#b8bec6';
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      for (const off of [-0.7, 0.7]) {
+        traceLine(ctx, offsetLine(r.pts, off));
+        ctx.strokeStyle = '#6c727b';
+        ctx.lineWidth = 0.18;
+        ctx.stroke();
+      }
+    }
+    for (const i of b.paths) {
+      const p = m.paths[i];
+      if (!p.bridge) continue;
+      traceLine(g, p.pts);
+      g.strokeStyle = '#8d939c';
+      g.lineWidth = p.width + 0.6;
+      g.stroke();
+      g.strokeStyle = '#d9d4ca';
+      g.lineWidth = p.width;
+      g.stroke();
+    }
+
+    // 10. labels (street + area names)
+    for (const i of b.labels) this.drawLabel(g, this.labels[i]);
+
+    return this.drawCanopy(c, x0, y0);
+  }
+
+  private drawRoads(g: Ctx, roads: BuiltRoad[], elevated = false) {
+    // sidewalks
+    for (const r of roads) {
+      if (r.sidewalk <= 0) continue;
+      traceLine(g, r.pts);
+      g.strokeStyle = COLORS.sidewalk;
+      g.lineWidth = r.width + r.sidewalk * 2;
+      g.stroke();
+    }
+    // kerbs / barriers
+    for (const r of roads) {
+      traceLine(g, r.pts);
+      g.strokeStyle = r.cls === 'highway' || elevated ? '#c3c7cc' : COLORS.kerb;
+      g.lineWidth = r.width + (r.cls === 'highway' || elevated ? 0.5 : 0.25);
+      g.stroke();
+    }
+    // asphalt
+    for (const r of roads) {
+      traceLine(g, r.pts);
+      g.strokeStyle = COLORS[r.cls];
+      g.lineWidth = r.width;
+      g.stroke();
+    }
+    // markings
+    const laneW = r0LaneWidth(roads[0]);
+    for (const r of roads) {
+      if (r.cls === 'service' && r.lanes < 2) continue;
+      const p = trimLine(r.pts, r.width * 0.9);
+      if (!p) continue;
+      const lw = (r.width - (r.cls === 'highway' ? 0.5 : 0)) / r.lanes || laneW;
+      const half = (lw * r.lanes) / 2;
+      g.lineCap = 'butt';
+      for (let k = 1; k < r.lanes; k++) {
+        const off = -half + k * lw;
+        const center = !r.oneway && Math.abs(off) < 0.01;
+        traceLine(g, offsetLine(p, off));
+        if (center) {
+          g.setLineDash([]);
+          g.strokeStyle = r.cls === 'street' ? COLORS.marking : COLORS.yellow;
+          g.lineWidth = 0.1;
+        } else {
+          g.setLineDash([1.5, 1.5]);
+          g.strokeStyle = COLORS.marking;
+          g.lineWidth = 0.09;
+        }
+        g.stroke();
+      }
+      g.setLineDash([]);
+      if (r.cls === 'highway' || r.cls === 'arterial') {
+        for (const s of [-1, 1]) {
+          traceLine(g, offsetLine(p, s * (half - 0.15)));
+          g.strokeStyle = 'rgba(255,255,255,0.6)';
+          g.lineWidth = 0.08;
+          g.stroke();
+        }
+      }
+      g.lineCap = 'round';
+    }
+  }
+
+  private drawCrossing(g: Ctx, c: { x: number; y: number; angle: number; width: number }) {
+    g.save();
+    g.translate(c.x, c.y);
+    g.rotate(c.angle);
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let p = -c.width / 2 + 0.2; p < c.width / 2 - 0.2; p += 0.7) g.fillRect(-0.9, p, 1.8, 0.38);
+    g.restore();
+  }
+
+  /** Bays for a parking area: rows along the lot's longest edge (2.5 m × 5 m bays, 6 m aisles
+   *  between double rows). A bay is kept only if it lies fully on parking ground. */
+  private baysOf(ai: number): Bay[] {
+    const cached = this.bays.get(ai);
+    if (cached) return cached;
+    const m = this.map;
+    const poly = m.areas[ai].poly;
+    let best = 0, angle = 0;
+    for (let i = 0, j = poly.length - 2; i < poly.length; j = i, i += 2) {
+      const l = Math.hypot(poly[i] - poly[j], poly[i + 1] - poly[j + 1]);
+      if (l > best) {
+        best = l;
+        angle = Math.atan2(poly[i + 1] - poly[j + 1], poly[i] - poly[j]);
+      }
+    }
+    const ux = Math.cos(angle), uy = Math.sin(angle);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (let i = 0; i < poly.length; i += 2) {
+      const u = poly[i] * ux + poly[i + 1] * uy, v = -poly[i] * uy + poly[i + 1] * ux;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+    }
+    const BW = 1.25, BD = 2.5, AISLE = 3;
+    const onLot = (x: number, y: number) => {
+      const gx = Math.floor(x) - m.originTx, gy = Math.floor(y) - m.originTy;
+      return gx >= 0 && gy >= 0 && gx < m.width && gy < m.height && m.terrain[gy * m.width + gx] === Tile.Parking && pointInPoly(x, y, poly);
+    };
+    const out: Bay[] = [];
+    // Row starts: bay | aisle | bay bay | aisle | bay bay ... (cars back onto each other).
+    let row = 0;
+    for (let v = v0 + 0.3; v + BD <= v1 - 0.2; row++) {
+      for (let u = u0 + 0.3; u + BW <= u1 - 0.3; u += BW) {
+        const corners = [[u, v], [u + BW, v], [u + BW, v + BD], [u, v + BD]].map(([cu, cv]) => [cu * ux - cv * uy, cu * uy + cv * ux]);
+        if (!corners.every(([x, y]) => onLot(x, y))) continue;
+        const cu = u + BW / 2, cv = v + BD / 2;
+        out.push({ x: cu * ux - cv * uy, y: cu * uy + cv * ux, angle, flip: row % 2 === 1 });
+      }
+      v += row % 2 === 0 ? BD + AISLE : BD;
+    }
+    this.bays.set(ai, out);
+    return out;
+  }
+
+  private drawBayLines(g: Ctx, ai: number, x0: number, y0: number) {
+    g.strokeStyle = 'rgba(255,255,255,0.7)';
+    g.lineWidth = 0.08;
+    g.lineCap = 'butt';
+    for (const b of this.baysOf(ai)) {
+      if (b.x < x0 - 3 || b.y < y0 - 3 || b.x > x0 + CHUNK + 3 || b.y > y0 + CHUNK + 3) continue;
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.angle);
+      g.beginPath();
+      for (const s of [-0.625, 0.625]) {
+        g.moveTo(s, -1.2);
+        g.lineTo(s, 1.2);
+      }
+      // the line at the bay's back (the side away from its aisle)
+      g.moveTo(-0.625, b.flip ? 1.2 : -1.2);
+      g.lineTo(0.625, b.flip ? 1.2 : -1.2);
+      g.stroke();
+      g.restore();
+    }
+    g.lineCap = 'round';
+  }
+
+  private drawParkedCars(g: Ctx, ai: number, x0: number, y0: number) {
+    const colors = ['#e03131', '#1c7ed6', '#f1f3f5', '#343a40', '#f59f00', '#adb5bd', '#2f9e44'];
+    for (const b of this.baysOf(ai)) {
+      if (b.x < x0 - 3 || b.y < y0 - 3 || b.x > x0 + CHUNK + 3 || b.y > y0 + CHUNK + 3) continue;
+      const h = tileHash(Math.round(b.x * 4), Math.round(b.y * 4), 11);
+      if (h > 0.55) continue;
+      const col = colors[Math.floor(h * 100) % colors.length];
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.angle + (b.flip ? 0 : Math.PI));
+      // car body is 0.92 × 2.2 tiles (1.8 m × 4.4 m) inside a 1.25 × 2.5 bay; nose towards the aisle
+      g.fillStyle = 'rgba(0,0,0,0.25)';
+      g.beginPath();
+      g.roundRect(-0.42, -1.04, 0.92, 2.2, 0.3);
+      g.fill();
+      g.fillStyle = col;
+      g.beginPath();
+      g.roundRect(-0.46, -1.1, 0.92, 2.2, 0.3);
+      g.fill();
+      g.fillStyle = 'rgba(30,40,60,0.75)';
+      g.fillRect(-0.34, -0.7, 0.68, 0.45);
+      g.fillRect(-0.34, 0.4, 0.68, 0.32);
+      g.restore();
+    }
+  }
+
+  private heightOf(b: BuiltBuilding) {
+    const lv = b.levels ?? (ROOF[b.kind] ?? ROOF.shoplot).levels;
+    return Math.min(6, 0.35 + lv * 0.22);
+  }
+
+  private drawBuildingShadow(g: Ctx, b: BuiltBuilding) {
+    if (b.kind === 'roof') return;
+    const h = this.heightOf(b);
+    g.save();
+    g.translate(h * 0.55, h * 0.8);
+    tracePoly(g, b.poly);
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.fill();
+    g.restore();
+  }
+
+  private drawBuilding(g: Ctx, b: BuiltBuilding) {
+    const style = ROOF[b.kind] ?? ROOF.shoplot;
+    const roof = roofColorOf(b);
+    const p = b.poly;
+    tracePoly(g, p);
+    g.fillStyle = roof;
+    g.fill();
+    if (b.kind === 'roof') {
+      g.strokeStyle = 'rgba(120,120,120,0.6)';
+      g.lineWidth = 0.12;
+      g.stroke();
+      return;
+    }
+    // South-facing walls: a facade band with windows gives a hint of height.
+    const facade = Math.min(1.6, 0.5 + this.heightOf(b) * 0.25);
+    for (let i = 0; i < p.length; i += 2) {
+      const j = (i + 2) % p.length;
+      const ax = p[i], ay = p[i + 1], bx = p[j], by = p[j + 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 0.8) continue;
+      // outward normal
+      let nx = (by - ay) / len, ny = -(bx - ax) / len;
+      if (pointInPoly((ax + bx) / 2 + nx * 0.05, (ay + by) / 2 + ny * 0.05, p)) {
+        nx = -nx;
+        ny = -ny;
+      }
+      if (ny < 0.4) continue;
+      const f = Math.min(facade, len * 0.5);
+      g.beginPath();
+      g.moveTo(ax, ay);
+      g.lineTo(bx, by);
+      g.lineTo(bx - nx * f, by - ny * f);
+      g.lineTo(ax - nx * f, ay - ny * f);
+      g.closePath();
+      g.fillStyle = style.wall;
+      g.fill();
+      // windows
+      g.fillStyle = b.kind === 'casino' ? '#ffd43b' : 'rgba(80,140,190,0.75)';
+      const ux = (bx - ax) / len, uy = (by - ay) / len;
+      for (let d = 0.5; d < len - 0.5; d += 1.1) {
+        const wx = ax + ux * d - nx * f * 0.7, wy = ay + uy * d - ny * f * 0.7;
+        g.beginPath();
+        g.moveTo(wx, wy);
+        g.lineTo(wx + ux * 0.55, wy + uy * 0.55);
+        g.lineTo(wx + ux * 0.55 + nx * f * 0.4, wy + uy * 0.55 + ny * f * 0.4);
+        g.lineTo(wx + nx * f * 0.4, wy + ny * f * 0.4);
+        g.closePath();
+        g.fill();
+      }
+    }
+    tracePoly(g, p);
+    g.strokeStyle = shade(roof, -0.3);
+    g.lineWidth = 0.14;
+    g.stroke();
+
+    // roof details
+    const area = polyArea(p);
+    const [mx, my] = polyCentroid(p);
+    if (b.kind === 'hospital') {
+      g.fillStyle = '#e03131';
+      g.fillRect(mx - 0.5, my - 1.6, 1, 3.2);
+      g.fillRect(mx - 1.6, my - 0.5, 3.2, 1);
+    } else if (b.kind === 'tower' && area > 60) {
+      g.strokeStyle = '#ffd43b';
+      g.lineWidth = 0.25;
+      g.beginPath();
+      g.arc(mx, my, 2.2, 0, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = '#ffd43b';
+      g.font = 'bold 2.4px sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('H', mx, my + 0.1);
+    } else if (b.kind === 'casino') {
+      tracePoly(g, p);
+      g.strokeStyle = '#ffd43b';
+      g.lineWidth = 0.35;
+      g.stroke();
+    } else if (area > 150 && b.kind !== 'parking') {
+      // parapet band + rooftop plant (AC units, skylights) spread over big roofs
+      g.save();
+      tracePoly(g, p);
+      g.clip();
+      tracePoly(g, p);
+      g.strokeStyle = shade(roof, 0.25);
+      g.lineWidth = 0.9;
+      g.stroke();
+      for (let ty = Math.ceil(b.bbox.y0 / 5) * 5; ty < b.bbox.y1; ty += 5) {
+        for (let tx = Math.ceil(b.bbox.x0 / 5) * 5; tx < b.bbox.x1; tx += 5) {
+          const hh = tileHash(tx, ty, 13);
+          if (hh > 0.55 || !pointInPoly(tx + 1, ty + 1, p)) continue;
+          if (hh < 0.2) {
+            g.fillStyle = 'rgba(170,215,240,0.8)';
+            g.fillRect(tx, ty, 2.2, 1.4);
+          } else {
+            g.fillStyle = 'rgba(205,210,215,0.95)';
+            g.fillRect(tx, ty, 1.1, 0.9);
+            g.fillStyle = 'rgba(120,125,130,0.9)';
+            g.beginPath();
+            g.arc(tx + 0.55, ty + 0.45, 0.28, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
+      }
+      g.restore();
+    } else if (area > 40 && b.kind !== 'parking') {
+      const h = tileHash(Math.round(mx), Math.round(my), 9);
+      g.fillStyle = 'rgba(200,205,210,0.9)';
+      g.fillRect(mx - 1.5 + h, my - 0.8, 1, 0.8);
+      g.fillRect(mx + 0.5 - h, my + 0.4, 0.8, 0.7);
+    }
+    if (b.kind === 'parking') {
+      g.strokeStyle = 'rgba(255,255,255,0.5)';
+      g.lineWidth = 0.08;
+      tracePoly(g, p);
+      g.save();
+      g.clip();
+      for (let x = Math.floor(b.bbox.x0); x < b.bbox.x1; x += 1.3) {
+        g.beginPath();
+        g.moveTo(x, b.bbox.y0);
+        g.lineTo(x, b.bbox.y1);
+        g.stroke();
+      }
+      g.restore();
+    }
+    // doors
+    for (const dr of b.doors) {
+      g.fillStyle = '#6b4a35';
+      g.strokeStyle = '#3d2a1e';
+      g.lineWidth = 0.08;
+      g.beginPath();
+      g.roundRect(dr.x - 0.4, dr.y - 0.4, 0.8, 0.8, 0.15);
+      g.fill();
+      g.stroke();
+    }
+  }
+
+  private drawDecor(g: Ctx, _c: Ctx, x0: number, y0: number) {
+    const m = this.map;
+    for (let ty = y0; ty < y0 + CHUNK; ty++) {
+      for (let tx = x0; tx < x0 + CHUNK; tx++) {
+        const gx = tx - m.originTx, gy = ty - m.originTy;
+        if (gx < 0 || gy < 0 || gx >= m.width || gy >= m.height) continue;
+        const d = m.decor[gy * m.width + gx];
+        if (!d || CANOPY_DECOR.has(d)) continue;
+        const spr = DECOR_SPRITE[d];
+        if (spr === undefined) continue;
+        const size = d === Decor.Fountain ? 4 : d === Decor.Stall ? 3 : d === Decor.JobsBoard || d === Decor.BusStop ? 2 : 1;
+        if (d === Decor.Lamp) {
+          // A long thin cast shadow (same sun as the buildings): pole, arm and head.
+          const bx = tx + 0.52, by = ty + 0.88, sx = 0.62, sy = 0.9;
+          g.save();
+          g.strokeStyle = 'rgba(0,0,0,0.2)';
+          g.lineCap = 'round';
+          g.lineWidth = 0.1;
+          g.beginPath();
+          g.moveTo(bx, by);
+          g.lineTo(bx + sx * 1.15, by + sy * 1.15);
+          g.lineTo(bx + sx * 1.15 + 0.32, by + sy * 1.15 - 0.04);
+          g.stroke();
+          g.fillStyle = 'rgba(0,0,0,0.2)';
+          g.beginPath();
+          g.ellipse(bx + sx * 1.15 + 0.36, by + sy * 1.15 - 0.02, 0.13, 0.08, 0.5, 0, Math.PI * 2);
+          g.fill();
+          g.restore();
+        }
+        g.drawImage(this.decorSprites, spr * 64, 0, 64, 64, tx + 0.5 - size / 2, ty + 0.5 - size / 2, size, size);
+      }
+    }
+  }
+
+  /** Tree canopies (drawn into the layer above characters). Trees near the edge of the
+   *  chunk are drawn too so canopies continue seamlessly across chunk borders. */
+  private drawCanopy(c: Ctx, x0: number, y0: number): boolean {
+    const m = this.map;
+    let any = false;
+    for (let ty = y0 - 3; ty < y0 + CHUNK + 3; ty++) {
+      for (let tx = x0 - 3; tx < x0 + CHUNK + 3; tx++) {
+        const gx = tx - m.originTx, gy = ty - m.originTy;
+        if (gx < 0 || gy < 0 || gx >= m.width || gy >= m.height) continue;
+        const d = m.decor[gy * m.width + gx];
+        if (!CANOPY_DECOR.has(d)) continue;
+        any = true;
+        const h = tileHash(tx, ty, 21);
+        const x = tx + 0.5, y = ty + 0.5;
+        if (d === Decor.Palm) {
+          c.strokeStyle = '#2f8f3c';
+          c.lineWidth = 0.35;
+          c.lineCap = 'round';
+          for (let k = 0; k < 7; k++) {
+            const a = (k / 7) * Math.PI * 2 + h;
+            c.beginPath();
+            c.moveTo(x, y - 1);
+            c.quadraticCurveTo(x + Math.cos(a) * 1, y - 1 + Math.sin(a) * 0.6 - 0.6, x + Math.cos(a) * 1.9, y - 1 + Math.sin(a) * 1.4);
+            c.stroke();
+          }
+          c.fillStyle = '#8a6a3c';
+          c.beginPath();
+          c.arc(x, y - 1, 0.25, 0, Math.PI * 2);
+          c.fill();
+        } else {
+          const r = 1.3 + h * 0.8;
+          const base = d === Decor.Pine ? '#245e2a' : h < 0.5 ? '#2f7d35' : '#3a8c3a';
+          c.fillStyle = 'rgba(0,0,0,0.12)';
+          c.beginPath();
+          c.arc(x + 0.4, y + 0.3, r, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = base;
+          c.beginPath();
+          c.arc(x, y - 0.6, r, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = shade(base.startsWith('#') ? base : '#2f7d35', 0.18);
+          c.beginPath();
+          c.arc(x - r * 0.25, y - 0.6 - r * 0.3, r * 0.55, 0, Math.PI * 2);
+          c.arc(x + r * 0.3, y - 0.6 - r * 0.05, r * 0.4, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+    }
+    return any;
+  }
+
+  private drawLabel(g: Ctx, l: RoadLabel) {
+    g.save();
+    g.translate(l.x, l.y);
+    g.rotate(l.angle);
+    g.font = `${l.italic ? 'italic ' : ''}700 ${l.size}px system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.strokeStyle = l.italic ? 'rgba(30,70,30,0.85)' : 'rgba(25,28,40,0.85)';
+    g.lineWidth = l.size * 0.28;
+    g.strokeText(l.text, 0, 0);
+    g.fillStyle = '#ffffff';
+    g.fillText(l.text, 0, 0);
+    g.restore();
+  }
+}
+
+function r0LaneWidth(r: BuiltRoad | undefined) {
+  return r ? r.width / r.lanes : 1.75;
+}
+

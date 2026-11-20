@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import type { BuiltMap } from '@kh/shared';
 import { ChunkRenderer } from './chunkRenderer';
 
-export { roofColorOf } from './chunkRenderer';
+export { roofColorOf } from './chunkPainter';
 
 export class MapView {
   private chunks: ChunkRenderer;

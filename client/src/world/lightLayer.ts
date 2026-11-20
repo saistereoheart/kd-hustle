@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { Decor } from '@kh/shared';
 import type { App } from '../app';
+import { governor } from '../perf/governor';
 
 export const GLOW_TEXTURE = 'kh-glow';
 const LIGHT_DEPTH = 1_600_000;
@@ -75,11 +76,13 @@ export class LightLayer {
     const tx0 = Math.floor(view.x / T) - pad, ty0 = Math.floor(view.y / T) - pad;
     const tx1 = Math.ceil((view.x + view.width) / T) + pad, ty1 = Math.ceil((view.y + view.height) / T) + pad;
     const col = hex(L.lampColor);
+    // Weak GPU (the frame-rate governor's lite mode): a third of the lamps glow.
+    const max = governor.lite ? Math.round(L.maxLamps / 3) : L.maxLamps;
     let n = 0;
-    for (let ty = ty0; ty <= ty1 && n < L.maxLamps; ty++) {
+    for (let ty = ty0; ty <= ty1 && n < max; ty++) {
       const gy = ty - m.originTy;
       if (gy < 0 || gy >= m.height) continue;
-      for (let tx = tx0; tx <= tx1 && n < L.maxLamps; tx++) {
+      for (let tx = tx0; tx <= tx1 && n < max; tx++) {
         const gx = tx - m.originTx;
         if (gx < 0 || gx >= m.width || m.decor[gy * m.width + gx] !== Decor.Lamp) continue;
         // The lamp head sits at the top right of its tile sprite; the pool lands just below it.

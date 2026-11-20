@@ -3,6 +3,7 @@ import { makeDish } from '@kh/shared';
 import { App } from './app';
 import { playDish } from './ui/stall/cook';
 import { cookStock } from './ui/stall/stallPanel';
+import { governor } from './perf/governor';
 
 const app = new App();
 void app.start();
@@ -15,6 +16,10 @@ declare global {
 }
 window.__kh = {
   state: () => document.body.dataset.state,
+  /** Dev/tests: the Phaser game and the town scene (performance probes). */
+  game: () => app.game,
+  governor: () => governor,
+  town: () => app.town,
   self: () => app.town?.debugSelf() ?? null,
   remotes: () => app.town?.debugRemotes() ?? [],
   chat: () => app.chat?.lines() ?? [],

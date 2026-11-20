@@ -160,7 +160,8 @@ function neutralStep(spec: DriveSpec, st: DriveState, input: { throttle: boolean
   st.load = input.throttle ? 1 : 0;
   st.slip = 0;
   st.launched = false;
-  st.limiter = input.throttle && st.rpm >= spec.redline * 0.985;
+  // On the limiter once it touches the redline, and still on while it bounces just below it.
+  st.limiter = input.throttle && st.rpm >= spec.redline * (st.limiter ? 0.94 : 0.985);
   let target = input.throttle ? spec.redline : spec.idle;
   if (st.limiter) target = input.bounce === false ? spec.redline : spec.redline * (0.95 + 0.05 * Math.random());
   // A free engine spins up faster than one turning the wheels.

@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.2.0: real engine sound for other riders, neutral, launch smoke + tyre marks, coasting)_
+_Last updated: 2026-11-20 (v1.3.0: steady frame rate on integrated graphics)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,42 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## ⚙️ Frame rate on devices without a graphics card (2026-11-20, your request, v1.3.0)
+
+### What was measured
+Headless Chromium with software WebGL (SwiftShader: far weaker than a real integrated GPU, so a good
+worst case), town at 1080p. JavaScript was only ~3 ms a frame; almost all the time was filling pixels:
+the ground chunks, a full extra layer of tree canopies and one of elevated roads (mostly empty pixels,
+blended anyway), MSAA, and at night the dark overlay and lamp glows. Map chunks took 8–17 ms each to paint
+on the main thread (a hitch every time a new one was needed while driving).
+
+| 1080p window | Before | Full resolution | Auto, lowest step |
+|---|---|---|---|
+| Day | 8 FPS | 18 FPS | 50 FPS |
+| Night | 7 FPS | 11 FPS | 36 FPS |
+| Teleporting 5× (new chunks) | — | — | 60 FPS avg, worst frame 50 ms |
+
+### What changed
+- `client/src/perf/governor.ts`: the frame-rate governor (2 s windows; < 40 FPS → a lower step, two steps when
+  very slow; > 56 FPS for 16 s → one step up; settles 3 s after a change; ignores windows with long freezes;
+  remembers the step in localStorage). `renderDpr()` multiplies by it. Lite effects on the last step.
+- Phaser `antialiasGL: false`; Auto's pixel budget 3.7 MP (Sharpest 8.3 MP); Battery saver caps at 1×.
+- `chunkPainter.ts` (pure drawing, from chunkRenderer) + `chunkWorker.ts` (paints on OffscreenCanvas, sends
+  ImageBitmaps and which 8×8 cells of the overlay layers are used) + `chunkRenderer.ts` (asks the worker for up
+  to 3 chunks at a time, nearest first, prefetching ~1 chunk ahead; paints on the main thread for the first
+  screenful, a chunk on screen while the worker is busy, or when there's no worker).
+- Canopy / deck layers are drawn as frames of their texture covering only the used cells.
+- `graphicsGuard.ts`: checks every 15 s with 2 pixels (was 4 s, 5 pixels).
+
+### Decisions
+- **The lowest step is 55%**: softer, but text and the HUD (HTML) stay sharp. The game only goes there when it
+  has to, and Settings → Graphics → Sharpest turns the governor off.
+
+### Pending
+- Try it on the actual slow devices: Settings shows "Now: NN FPS · resolution NN%".
 
 ---
 

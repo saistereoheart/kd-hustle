@@ -1,4 +1,5 @@
 import { el } from './dom';
+import { governor } from '../perf/governor';
 import { closePanel, openPanel } from './panel';
 
 const PREFS_KEY = 'kh_prefs';
@@ -145,6 +146,7 @@ export function openSettings(opts: {
       particles.checked = false;
     }
     savePrefs(prefs);
+    governor.reset(); // Auto re-learns from full sharpness
     window.dispatchEvent(new Event('resize')); // re-render at the new sharpness
   });
 
@@ -166,6 +168,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '🏁 Rev limiter bounce (off: a flat high note at the top of each gear)'), revLim),
     el('div', { class: 'setting-row' }, el('span', {}, '🏙️ Ambient sounds (city, casino, cooking)'), amb),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
+    el('div', { class: 'setting-row muted small' }, el('span', {}, `Now: ${governor.describe()}${governor.lite ? ' · lite effects' : ''}`), el('span', {}, 'Auto lowers the resolution when the frame rate drops')),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),

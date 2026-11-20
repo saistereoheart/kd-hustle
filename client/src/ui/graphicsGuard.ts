@@ -7,7 +7,9 @@
 import { el, uiRoot } from './dom';
 
 const RELOADS_KEY = 'kh_gfx_reloads';
-const CHECK_MS = 4000;
+/** Reading pixels back makes the GPU finish its work first (a small hitch on integrated
+ *  graphics), so check rarely and read only two pixels. */
+const CHECK_MS = 15000;
 
 /** A 2D canvas that should never be empty (e.g. the minimap's painted map). */
 type Probe = () => HTMLCanvasElement | null;
@@ -54,7 +56,7 @@ function blank(c: HTMLCanvasElement): boolean {
   try {
     const ctx = c.getContext('2d', { willReadFrequently: false });
     if (!ctx) return false;
-    const pts = [[0.5, 0.5], [0.25, 0.3], [0.75, 0.7], [0.3, 0.8], [0.7, 0.2]];
+    const pts = [[0.5, 0.5], [0.3, 0.7]];
     for (const [fx, fy] of pts) {
       const d = ctx.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data;
       if (d[3] !== 0) return false;

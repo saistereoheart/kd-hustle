@@ -32,19 +32,22 @@ import { checkSession, clearToken, fetchPublicConfig, loadToken } from './net/ap
 import { connectSocket, type GameSocket } from './net/socket';
 import { showAuthScreen } from './ui/authScreen';
 import { loadPrefs } from './ui/settings';
+import { governor } from './perf/governor';
 import { Chat } from './ui/chat';
 import { showCreator } from './ui/creator';
 import { el, isTouchDevice, messageOverlay, toast, uiRoot } from './ui/dom';
 
-/** Device pixel ratio to render at: up to 3× (phones), but keep the canvas under ~8.3 MP
- *  (about 4K) so big high-DPI monitors don't tank the frame rate. */
+/** Device pixel ratio to render at: up to 3× (phones), within a pixel budget (about 1440p on
+ *  Auto, 4K on Sharpest), times the frame-rate governor's scale (below 1 on weak GPUs: the
+ *  canvas is drawn smaller and stretched, which is much cheaper than dropping frames). */
 function renderDpr(): number {
   // Phones: 2× looks the same as 3× at arm's length and fills a third fewer pixels.
   const q = loadPrefs().quality;
-  const cap = q === 'saver' ? 1.25 : q === 'high' ? 3 : isTouchDevice() ? 2 : 3;
+  const cap = q === 'saver' ? 1 : q === 'high' ? 3 : isTouchDevice() ? 2 : 3;
   const dpr = Math.min(cap, window.devicePixelRatio || 1);
-  const budget = Math.sqrt(8_300_000 / Math.max(1, innerWidth * innerHeight));
-  return Math.max(1, Math.min(dpr, budget));
+  const budget = Math.sqrt((q === 'high' ? 8_300_000 : 3_700_000) / Math.max(1, innerWidth * innerHeight));
+  const full = q === 'high' ? Math.max(1, Math.min(dpr, budget)) : Math.min(Math.max(1, dpr), budget);
+  return Math.max(0.5, full * governor.scale);
 }
 import { EmoteWheel } from './ui/emoteWheel';
 import { Hud } from './ui/hud';
@@ -157,7 +160,9 @@ export class App {
       parent: 'game',
       backgroundColor: '#151826',
       scale: { mode: Phaser.Scale.NONE, width: Math.round(innerWidth * this.dpr), height: Math.round(innerHeight * this.dpr), zoom: 1 / this.dpr },
-      render: { antialias: true, roundPixels: true, powerPreference: 'high-performance' },
+      // antialiasGL off: no multisampling (everything is textures already, and MSAA is costly on
+      // integrated graphics); antialias stays on for smooth scaled textures.
+      render: { antialias: true, antialiasGL: false, roundPixels: true, powerPreference: 'high-performance' },
       input: { keyboard: false },
       fps: { target: 60 },
       banner: false,
@@ -185,6 +190,9 @@ export class App {
       if (!pending) pending = requestAnimationFrame(fit);
     };
     addEventListener('resize', queueFit);
+    // ⚙️ Weak GPU: the governor lowers the render resolution (and raises it back) as the frame rate needs.
+    this.game.events.on(Phaser.Core.Events.POST_STEP, (_t: number, delta: number) => governor.tick(delta));
+    governor.onChange(queueFit);
     document.addEventListener('fullscreenchange', queueFit);
     this.game.scene.add('town', TownScene, false);
     this.game.scene.add('interior', InteriorScene, false);

@@ -204,9 +204,10 @@ export const DECOR_SPRITE: Record<number, number> = {
 };
 
 /** One row of 64 px decor sprites. */
-export function buildDecorSprites(): HTMLCanvasElement {
+/** The decor sprite sheet. `make` gives a blank canvas (an OffscreenCanvas in the chunk worker). */
+export function buildDecorSprites(make?: (w: number, h: number) => HTMLCanvasElement): HTMLCanvasElement {
   const ids = Object.keys(DECOR_SPRITE).map(Number);
-  const canvas = document.createElement('canvas');
+  const canvas = make ? make(ids.length * 64, 64) : document.createElement('canvas');
   canvas.width = ids.length * 64;
   canvas.height = 64;
   const ctx = canvas.getContext('2d')!;

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0 (2026-11-20)
+For devices without a dedicated graphics card (aiming for a steady 30+ FPS):
+- **Auto graphics adjusts itself:** with ⚙️ Settings → Graphics on **Auto**, the game watches its frame rate and
+  lowers the render resolution step by step while it's below 40 FPS (100% → 85% → 72% → 62% → 55%), and goes
+  back up when there's room. On the lowest step it also uses lite effects (a third of the night lamps, no
+  smoke puffs). Each device remembers its level. Settings shows the current FPS and resolution.
+- **No multisampling:** the WebGL canvas no longer uses MSAA (costly on integrated graphics; everything is
+  drawn as textures anyway). Auto also caps the canvas at about 1440p (Sharpest keeps 4K).
+- **Less overdraw:** tree canopies and elevated roads are only drawn where they have something in them (they
+  used to blend a whole chunk of empty pixels each frame).
+- **No stutter when new parts of town appear:** map chunks are painted in a background worker (OffscreenCanvas),
+  so driving into new areas or teleporting doesn't stall the game.
+- The graphics watchdog reads pixels far less often (each read made the GPU stop and catch up).
+
+In the test browser with software rendering (a much weaker "GPU" than any laptop), a 1080p window went from
+8 FPS to 18 FPS at full resolution, and Auto settles at 50 FPS by day and about 36 FPS at night.
+
 ## 1.2.0 (2026-11-20)
 - **🔊 Other riders' engines:** you hear their real engine: their revs, gear changes, throttle and rev limiter
   are sent with their position, so it's no longer guessed from how they move (no more random revs).
