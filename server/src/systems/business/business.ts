@@ -21,6 +21,8 @@ import { GameError, type Economy } from '../economy/economy';
 export interface BusinessHooks {
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   changed: (p: OnlinePlayer) => void;
+    /** These businesses are gone (sold to the bank, rebirth): free their shoplots. */
+    gone?: (p: OnlinePlayer, typeIds: string[]) => void;
   /** Income multiplier right now (e.g. 0.5 while you owe the Ah Long). */
   incomeMult: (p: OnlinePlayer) => number;
 }
@@ -103,16 +105,19 @@ export class BusinessSystem {
     delete this.of(p).businesses[typeId];
     this.save(p);
     this.hooks.changed(p);
+    this.hooks.gone?.(p, [typeId]);
     return value;
   }
 
   /** Rebirth: every business and the shop are gone. */
   resetAll(p: OnlinePlayer) {
     const v = this.of(p);
+    const had = Object.keys(v.businesses);
     v.businesses = {};
     v.retail = null;
     this.save(p);
     this.hooks.changed(p);
+    this.hooks.gone?.(p, had);
   }
 
   private requireUnlocked(p: OnlinePlayer, req: { stage?: number; level?: number }, name: string) {

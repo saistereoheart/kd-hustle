@@ -76,6 +76,8 @@ const nextId = (() => {
 const FLUSH_GAP_MS = 1000;
 
 export class StallSystem {
+  /** 🏪 Shoplots held by a Venture (set by the economy wiring): no kopitiam there. */
+  blockedBuilding: (building: string) => boolean = () => false;
   private stalls = new Map<number, Live>();
   /** Auto restock: when each stall last checked its stock. */
   private restockAt = new Map<number, number>();
@@ -306,10 +308,10 @@ export class StallSystem {
     if (plotId) {
       const plot = this.cfg.map.stallPlots.find((x) => x.id === plotId);
       if (!plot || plot.tier !== tier) throw new GameError(`That isn't a ${def.name} spot.`);
-      if (taken.has(plot.id)) throw new GameError('Someone already has that spot.');
+      if (taken.has(plot.id) || (plot.building && this.blockedBuilding(plot.building))) throw new GameError('Someone already has that spot.');
       return plot;
     }
-    const free = this.cfg.map.stallPlots.filter((x) => x.tier === tier && !taken.has(x.id));
+    const free = this.cfg.map.stallPlots.filter((x) => x.tier === tier && !taken.has(x.id) && !(x.building && this.blockedBuilding(x.building)));
     if (!free.length) throw new GameError(`All the ${def.name} spots are taken.`);
     return free[this.rand(free.length)];
   }

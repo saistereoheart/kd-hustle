@@ -129,6 +129,10 @@ export function createRepos(db: DB) {
     announceInsert: db.prepare('INSERT INTO announcements (text, tier, at) VALUES (?, ?, ?)'),
     stallDelete: db.prepare('DELETE FROM stalls WHERE account_id = ?'),
     stallsAll: db.prepare('SELECT s.account_id, s.tier, s.plot, s.data_json, a.username FROM stalls s JOIN accounts a ON a.id = s.account_id'),
+    shoplotsAll: db.prepare('SELECT s.building, s.account_id, s.kind, s.ref, a.username FROM shoplots s JOIN accounts a ON a.id = s.account_id'),
+    shoplotClaim: db.prepare('INSERT INTO shoplots (building, account_id, kind, ref, at) VALUES (?, ?, ?, ?, ?)'),
+    shoplotMove: db.prepare('UPDATE shoplots SET building = ?, at = ? WHERE account_id = ? AND kind = ? AND ref = ?'),
+    shoplotRelease: db.prepare('DELETE FROM shoplots WHERE account_id = ? AND kind = ? AND ref = ?'),
     stallUpsert: db.prepare(
       `INSERT INTO stalls (account_id, tier, plot, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET tier = excluded.tier, plot = excluded.plot, data_json = excluded.data_json, updated_at = excluded.updated_at`,
@@ -197,6 +201,16 @@ export function createRepos(db: DB) {
         })),
       save: (accountId: number, tier: number, plot: string, data: unknown) => s.stallUpsert.run(accountId, tier, plot, JSON.stringify(data), Date.now()),
       delete: (accountId: number) => s.stallDelete.run(accountId),
+    },
+    /** 🏪 Ventures' shoplots (building → owner). */
+    shoplots: {
+      all: () =>
+        (s.shoplotsAll.all() as Array<{ building: string; account_id: number; kind: string; ref: string; username: string }>).map((r) => ({
+          building: r.building, owner: r.account_id, ownerName: r.username, kind: r.kind, ref: r.ref,
+        })),
+      claim: (building: string, owner: number, kind: string, ref: string) => s.shoplotClaim.run(building, owner, kind, ref, Date.now()),
+      move: (building: string, owner: number, kind: string, ref: string) => s.shoplotMove.run(building, Date.now(), owner, kind, ref),
+      release: (owner: number, kind: string, ref: string) => s.shoplotRelease.run(owner, kind, ref),
     },
     properties: {
       all: () =>

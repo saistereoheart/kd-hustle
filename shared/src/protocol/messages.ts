@@ -181,6 +181,7 @@ export const C2S = {
   vehicleRide: z.object({ vehicle: z.string().max(24).nullable() }),
   vehiclePlace: z.object({ vehicle: z.string().max(24) }),
   vehicleEnter: z.object({ vid: z.string().max(24) }),
+  bizMove: z.object({ type: z.string().max(40), building: z.string().max(40) }),
   /** Ronda: where to (tile coords). */
   rideQuote: z.object({ x: z.number().finite(), y: z.number().finite() }),
   rideBook: z.object({ quoteId: z.string().max(40) }),
@@ -485,6 +486,16 @@ export interface SeatInfo {
   seat: number;
 }
 
+/** 🏪 A shoplot a player's Venture occupies (a kopitiam's is its stall plot). */
+export interface ShoplotPublic {
+  building: string;
+  ownerId: number;
+  ownerName: string;
+  kind: 'venture';
+  /** The Venture type id. */
+  ref: string;
+}
+
 /** A vehicle put down in the world. While someone drives it, it moves with them (driverId set). */
 export interface ParkedPublic {
   vid: string;
@@ -547,6 +558,8 @@ export interface InitPayload {
   props: PropPublic[];
   /** Vehicles put down around town. */
   parked: ParkedPublic[];
+  /** Shoplots taken by Ventures. */
+  shoplots: ShoplotPublic[];
 }
 
 /** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)], plus [rpm, eng] while driving a showroom vehicle. */
@@ -673,6 +686,8 @@ export interface ClientToServerEvents {
   ) => void;
   'hotbar:set': (msg: { slot: number; ref: HotbarRef | null }, ack: Ack<Result<{ hotbar: Array<HotbarRef | null> }>>) => void;
   'vehicle:ride': (msg: { vehicle: string | null }, ack: Ack<Result<{ vehicle: string | null; vehicles: string[] }>>) => void;
+  /** 🏪 Move a Venture to another free shoplot (building id), for the moving fee. */
+  'biz:move': (msg: { type: string; building: string }, ack: Ack<Result<{ building: string; feeSen: number }>>) => void;
   /** Put a vehicle you own down in front of you (your other one is put away). */
   'vehicle:place': (msg: { vehicle: string }, ack: Ack<Result<{ parked: ParkedPublic }>>) => void;
   /** Get into a parked vehicle: yours to drive, someone else's to ride along. */
@@ -797,6 +812,7 @@ export interface ServerToClientEvents {
   'player:left': (p: { id: number }) => void;
   'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null; pet?: PetPublic | null }) => void;
   'parked:update': (p: { parked: ParkedPublic }) => void;
+  'shoplots': (p: { shoplots: ShoplotPublic[] }) => void;
   'parked:removed': (p: { vid: string }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;

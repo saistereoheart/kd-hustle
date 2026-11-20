@@ -35,6 +35,7 @@ import { createSocial } from './socialHandlers';
 import { createEvents } from './eventHandlers';
 import { createRebirth } from './rebirthHandlers';
 import { createParking } from './parkingHandlers';
+import { ShoplotSystem } from '../systems/shoplots/shoplots';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -324,8 +325,19 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   });
   props = propSys;
   // --- businesses and the shop (Phase 6) ------------------------------------------------------
+  // 🏪 One business per shoplot: Ventures and kopitiams share the town's shoplots.
+  const shoplots = new ShoplotSystem(cfg, repos);
+  shoplots.stallBuildings = () => {
+    const out = new Set<string>();
+    for (const s of stalls.all()) {
+      const plot = cfg.map.stallPlots.find((x) => x.id === s.plot);
+      if (plot?.building) out.add(plot.building);
+    }
+    return out;
+  };
+  stalls.blockedBuilding = (b) => shoplots.takenByVenture(b);
   const ventures = createVentures({
-    cfg, repos, econ, world, socketOf, pushWallet,
+    cfg, repos, econ, world, socketOf, pushWallet, shoplots,
     incomeMult: (p) => prog.mods(p).passive * finance.incomeMult(p), // Passive Income (skill + gear); half while late on the Ah Long
     check: (p) => prog.check(p),
     io,
@@ -1024,6 +1036,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       social.snapshot(p); // leaderboards keep you while you're offline
     },
     stallsPublic: () => stalls.all(),
+    shoplotsPublic: () => shoplots.public(),
     /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
     clockJumped: () => stalls.tick(),
     leaveStall: (p: OnlinePlayer) => {

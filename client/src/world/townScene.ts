@@ -1241,19 +1241,17 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
   private ventureKey = '';
   private syncVentureSigns() {
     const mine = this.app.myVentures();
-    const key = mine.map((v) => v.id).join(',');
+    this.syncOtherShopSigns();
+    const key = mine.map((v) => `${v.id}@${v.spot.building}`).join(',');
     if (key === this.ventureKey) return;
     this.ventureKey = key;
     const T = this.app.map.tileSize;
-    const want = new Set(mine.map((v) => v.id));
-    for (const [id, t] of this.ventureSigns) {
-      if (want.has(id)) continue;
-      t.destroy();
-      this.ventureSigns.delete(id);
-    }
+    // (Rebuilt when one moves: the sign goes with it.)
+    for (const t of this.ventureSigns.values()) t.destroy();
+    this.ventureSigns.clear();
     for (const v of mine) {
       if (this.ventureSigns.has(v.id)) continue;
-      const x = v.spot.x * T, y = v.spot.y * T - 34;
+      const x = v.spot.x * T, y = v.spot.y * T - 56;
       const t = this.add
         .text(x, y, `${v.icon} YOUR ${v.name.toUpperCase()}`, { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontStyle: '900', color: '#1b1300', backgroundColor: 'rgba(245,159,0,0.95)', padding: { x: 9, y: 5 }, resolution: 2 })
         .setOrigin(0.5, 1)
@@ -1261,6 +1259,30 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       this.tweens.add({ targets: t, y: y - 4, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.culler.add(t, x, y, 140);
       this.ventureSigns.set(v.id, t);
+    }
+  }
+  /** 🏪 Other players' Ventures: their name over the shoplot's door. */
+  private otherShopKey = '';
+  private otherShopSigns: Phaser.GameObjects.Text[] = [];
+  private syncOtherShopSigns() {
+    const others = this.app.store.shoplots.filter((s) => s.ownerId !== this.selfId);
+    const key = others.map((s) => `${s.building}:${s.ref}:${s.ownerName}`).join('|');
+    if (key === this.otherShopKey) return;
+    this.otherShopKey = key;
+    for (const t of this.otherShopSigns) t.destroy();
+    this.otherShopSigns = [];
+    const T = this.app.map.tileSize;
+    for (const s of others) {
+      const spot = this.app.shoplotSpot(s.building);
+      const def = this.app.cfg.businesses.types.find((t) => t.id === s.ref);
+      if (!spot || !def) continue;
+      const x = spot.x * T, y = spot.y * T - 52; // above the lofts' FOR SALE sign
+      const t = this.add
+        .text(x, y, `${def.icon} ${s.ownerName}'s ${def.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '800', color: '#ffffff', backgroundColor: 'rgba(17,19,31,0.78)', padding: { x: 7, y: 3 }, resolution: 2 })
+        .setOrigin(0.5, 1)
+        .setDepth(998_600);
+      this.culler.add(t, x, y, 140);
+      this.otherShopSigns.push(t);
     }
   }
   /** Signs and labels far off-screen are hidden (Phaser draws everything otherwise). */

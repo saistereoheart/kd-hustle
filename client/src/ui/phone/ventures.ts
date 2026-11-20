@@ -10,6 +10,8 @@ import { sfx } from '../sound';
 import { openCheckout } from '../checkout';
 import { openRush } from '../rush';
 import type { PhoneCtx } from './phone';
+import { openVentureSpotPicker } from '../ventureSpotPicker';
+import { closePanel } from '../panel';
 
 let tab: 'biz' | 'shop' = 'biz';
 
@@ -99,6 +101,19 @@ function bizCard(app: App, t: BusinessTypeDef, now: number): HTMLElement {
   const r = el('button', { class: 'btn small', type: 'button', 'data-action': `biz-rush-${t.id}`, disabled: !ready }, `🔥 ${t.rushName}`, el('small', {}, ready ? `×${bc.rush.mult} for ${bc.rush.durationMs / 1000} s` : `in ${Math.ceil((b.rushReadyAt - now) / 1000)} s`));
   r.addEventListener('click', () => openRush(app, t));
   actions.append(r);
+  // 🏪 Its shoplot in town: show it, or move it.
+  const lot = app.store.shoplots.find((s) => s.ownerId === app.town?.selfId && s.ref === t.id);
+  const spot = lot ? app.shoplotSpot(lot.building) : null;
+  if (spot) {
+    const show = el('button', { class: 'btn small', type: 'button', 'data-action': `biz-show-${t.id}` }, '📍 Show');
+    show.addEventListener('click', () => {
+      closePanel();
+      app.guide?.pointAt({ id: `biz:${t.id}`, label: `YOUR ${t.name.toUpperCase()}`, icon: t.icon, x: spot.x, y: spot.y });
+    });
+    const move = el('button', { class: 'btn small', type: 'button', 'data-action': `biz-move-${t.id}` }, '🚚 Move', el('small', {}, formatMoney(app.cfg.businesses.moveFeeSen)));
+    move.addEventListener('click', () => openVentureSpotPicker(app, t.id));
+    actions.append(show, move);
+  }
   info.append(actions);
   card.append(icon, info);
   return card;

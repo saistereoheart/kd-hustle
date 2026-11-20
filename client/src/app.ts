@@ -530,6 +530,10 @@ export class App {
       this.store.myProps = props;
       this.store.emit();
     });
+    socket.on('shoplots', ({ shoplots }) => {
+      this.store.shoplots = shoplots;
+      this.store.emit();
+    });
     socket.on('ventures:self', ({ ventures }) => {
       this.store.ventures = ventures;
       this.store.emit();
@@ -663,6 +667,7 @@ export class App {
     this.store.setStalls(p.stalls, true);
     this.store.setProps(p.props ?? []);
     this.store.parked = new Map((p.parked ?? []).map((v) => [v.vid, v]));
+    this.store.shoplots = p.shoplots ?? [];
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {
       this.leaveTown();
@@ -751,7 +756,10 @@ export class App {
         ...this.map.stallPlots.filter((p) => !p.auto).map((p) => p.building ?? '').filter(Boolean),
         ...this.map.interactables.map((i) => i.building ?? '').filter(Boolean),
       ]);
-      this.ventureAt = ventureSpots(this.map, [...this.cfg.businesses.types.map((t) => t.id), 'retail', 'boutique'], taken);
+      // (The idle businesses each take a real shoplot now: see shoplotSpot. Only the shop and the
+      // boutique still get a building picked for show.)
+      for (const s of this.store.shoplots) taken.add(s.building);
+      this.ventureAt = ventureSpots(this.map, ['retail', 'boutique'], taken);
       this.pointers ??= new PlacePointers(this);
       this.voteBanner = new VoteBanner(this);
       this.phoneBtn = new PhoneButton(this);
@@ -1062,11 +1070,19 @@ export class App {
   pointers: PlacePointers | null = null;
 
   /** The Ventures you own: id, icon, name, and where. */
+  /** 🏪 A shoplot's door (tile coords, where its sign and map pin go). */
+  shoplotSpot(building: string): VentureSpot | null {
+    const b = this.map.buildings.find((x) => x.id === building);
+    return b?.door ? { building, x: b.door.frontX + 0.5, y: b.door.frontY + 0.5 } : null;
+  }
+
   myVentures(): Array<{ id: string; icon: string; name: string; spot: VentureSpot }> {
     const out: Array<{ id: string; icon: string; name: string; spot: VentureSpot }> = [];
     const v = this.store.ventures;
+    const me = this.lastInit?.you.id;
     for (const t of this.cfg.businesses.types) {
-      const spot = this.ventureAt.get(t.id);
+      const lot = this.store.shoplots.find((s) => s.ownerId === me && s.ref === t.id);
+      const spot = lot ? this.shoplotSpot(lot.building) : null;
       if (spot && (v.businesses[t.id]?.level ?? 0) > 0) out.push({ id: t.id, icon: t.icon, name: t.name, spot });
     }
     const r = this.ventureAt.get('retail');

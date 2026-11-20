@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.5.0: Teman follow you, unicorn, rounder Teman art)_
+_Last updated: 2026-11-20 (v1.6.0: Ventures take real shoplots; stage 1 of 3)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,33 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🏪 Ventures and kopitiams like Airbnb: stage 1, shoplots (2026-11-20, your request, v1.6.0)
+
+### Your decisions
+1. Each Venture takes its **own shoplot** (like buying a home); kopitiams and Ventures share the shoplots, one each.
+2. Rating = **decor + service**: furnish the interior (comfort / style stars like Airbnb) + cleanliness that drops
+   with customers (a cleaner keeps it up); stars multiply customers / income; reviews.
+3. The kopitiam's outdoor queue is **replaced by walk-ins** (outside: a few customers walk in and vanish;
+   inside: customers go to the counter, talk to the cashier, leave).
+
+### Stage 1 (this round)
+- DB migration 15 `shoplots` (building PK, account, kind, ref) + `repos.shoplots`; `systems/shoplots/shoplots.ts`
+  (`ShoplotSystem`: the kopitiam-tier plots' buildings are the shoplots; free = no Venture and no kopitiam;
+  claim nearest / move / release; unit tested).
+- `biz:buy` on a new business claims the nearest free shoplot (released again if the purchase fails);
+  `biz:move` (fee `moveFeeSen`); `placeAll` on login for older businesses; `BusinessSystem` hook `gone`
+  (rebirth, repossession) frees them. `StallSystem.blockedBuilding` keeps kopitiams off Venture shoplots.
+- `shoplots` in the init payload + a `shoplots` broadcast; client signs for yours (gold) and others (dark), map
+  pins, `ventureSpotPicker.ts`, the kopitiam picker skips Venture shoplots. Retail and the Butik keep their
+  picked-for-show buildings for now.
+- Checked live with two players (buy → nearest shoplot, the other player sees it, move, sign at the door).
+
+### Next
+- Stage 2: shop interiors you furnish + rating (decor + cleanliness) + reviews, for Ventures and the kopitiam.
+- Stage 3: walk-in customers (outside and inside), replacing the kopitiam queue.
 
 ---
 

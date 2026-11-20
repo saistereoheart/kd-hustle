@@ -295,6 +295,22 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX feedback_created ON feedback(created_at);
     `,
   },
+  {
+    id: 15,
+    name: 'shoplots',
+    // 🏪 Which ground-floor shoplot each player's Venture occupies (one business per shoplot; a
+    // kopitiam's shoplot is in `stalls.plot`). A global index, so offline owners keep theirs.
+    sql: `
+      CREATE TABLE shoplots (
+        building   TEXT PRIMARY KEY,
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        ref        TEXT NOT NULL,
+        at         INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX shoplots_owner ON shoplots(account_id, kind, ref);
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

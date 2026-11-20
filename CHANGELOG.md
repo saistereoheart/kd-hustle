@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.0 (2026-11-20)
+- **🏪 Ventures take real shoplots:** opening a business now takes the free shoplot nearest to you, like buying
+  a home. It's yours alone: your gold sign over its door and its map pin, and everyone else sees
+  "<your name>'s <business>" there. One business per shoplot: a Venture or a kopitiam (the kopitiam spot picker
+  skips Ventures' shoplots and vice versa).
+- **🚚 Move a Venture** from the phone (📱 Ventures → 🚚 Move): the closest free shoplots to you, for RM 500
+  (`businesses.json` → `moveFeeSen`). Levels, managers and earnings stay. 📍 Show points you to it.
+- Ventures you already own get a free shoplot on your next login (nearest the town square). A business lost to
+  a rebirth or the bank frees its shoplot.
+- Coming next: shop interiors you furnish, ratings and reviews, and customers walking in.
+
 ## 1.5.0 (2026-11-20)
 - **🐾 Your Teman walks with you:** the first Teman in your team follows you around town, a step behind and to
   the side, for everyone to see. It waits while you're on a vehicle (or riding along) and comes back when you

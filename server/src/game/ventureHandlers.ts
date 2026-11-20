@@ -7,6 +7,8 @@ import type { ServerConfig } from '../config/loadConfig';
 import type { Repos } from '../db/repos';
 import { log } from '../log';
 import { BusinessSystem } from '../systems/business/business';
+import type { ShoplotSystem } from '../systems/shoplots/shoplots';
+import { GameError } from '../systems/economy/economy';
 import { BoutiqueSystem } from '../systems/boutique/boutique';
 import { formatMoney, netWorthSen, type InventoryItem } from '@kh/shared';
 import type { GameIO } from './gameServer';
@@ -30,6 +32,8 @@ export interface VentureDeps {
   io: GameIO;
   /** Furniture placed in homes (can't be listed). */
   lockedIids: (p: OnlinePlayer) => Set<number>;
+  /** 🏪 Who holds which shoplot. */
+  shoplots: ShoplotSystem;
 }
 
 export function createVentures(d: VentureDeps) {
@@ -37,7 +41,28 @@ export function createVentures(d: VentureDeps) {
     wallet: (p, delta, reason) => d.pushWallet(p, delta, reason),
     changed: (p) => d.socketOf(p)?.emit('ventures:self', { ventures: biz.of(p) }),
     incomeMult: (p) => d.incomeMult(p),
+    gone: (p, types) => {
+      for (const t of types) d.shoplots.release(p.id, 'venture', t);
+      broadcastShoplots();
+    },
   });
+  const T = d.cfg.map.tileSize;
+  const broadcastShoplots = () => d.io.emit('shoplots', { shoplots: d.shoplots.public() });
+  /** Every Venture you own has a shoplot (ones bought before shoplots existed get the free one nearest
+   *  the town square). */
+  function placeAll(p: OnlinePlayer) {
+    let changed = false;
+    for (const [type, b] of Object.entries(biz.of(p).businesses)) {
+      if (b.level <= 0 || d.shoplots.of(p.id, 'venture', type)) continue;
+      try {
+        d.shoplots.claim(p.id, p.name, 'venture', type, { x: d.cfg.map.spawnPx.x / T, y: d.cfg.map.spawnPx.y / T });
+        changed = true;
+      } catch {
+        /* the town is full: it stays phone-only */
+      }
+    }
+    if (changed) broadcastShoplots();
+  }
 
   const boutique = new BoutiqueSystem(d.cfg, d.repos, d.econ, d.world, {
     wallet: (p, delta, reason) => d.pushWallet(p, delta, reason),
@@ -86,7 +111,33 @@ export function createVentures(d: VentureDeps) {
       d.check(me);
       return r;
     };
-    handle(socket, 'biz:buy', C2S.bizBuy, ({ type, n }) => after(biz.buyLevels(me, type, n)));
+    placeAll(me);
+    handle(socket, 'biz:buy', C2S.bizBuy, ({ type, n }) => {
+      // Buying a new business takes the free shoplot nearest to you (move it later from the phone).
+      const isNew = (biz.of(me).businesses[type]?.level ?? 0) <= 0;
+      let spot: string | null = null;
+      if (isNew) spot = d.shoplots.claim(me.id, me.name, 'venture', type, { x: me.x / T, y: me.y / T });
+      try {
+        const r = biz.buyLevels(me, type, n);
+        if (isNew) broadcastShoplots();
+        return after({ ...r, ...(spot ? { building: spot } : {}) });
+      } catch (e) {
+        if (isNew) d.shoplots.release(me.id, 'venture', type);
+        throw e;
+      }
+    });
+    handle(socket, 'biz:move', C2S.bizMove, ({ type, building }) => {
+      if ((biz.of(me).businesses[type]?.level ?? 0) <= 0) throw new GameError('Buy the business first.');
+      const fee = d.cfg.businesses.moveFeeSen;
+      if (me.walletSen < fee) throw new GameError('Not enough money to move.');
+      const b = d.shoplots.move(me.id, 'venture', type, building);
+      if (fee) {
+        d.econ.run(me, () => d.econ.change(me, -fee, 0, 'business-move', `${type}>${b}`));
+        d.pushWallet(me, -fee, 'business');
+      }
+      broadcastShoplots();
+      return { building: b, feeSen: fee };
+    });
     handle(socket, 'biz:manager', C2S.bizType, ({ type }) => after((biz.hireManager(me, type), {})));
     handle(socket, 'biz:collect', C2S.bizCollect, ({ type }) => biz.collect(me, type));
     handle(socket, 'biz:rush', C2S.bizRush, ({ type, taps }) => biz.rush(me, type, taps));

@@ -11,6 +11,8 @@ export function openSpotPicker(app: App, tier: number, mode: 'buy' | 'move') {
   const def = tierDef(app.cfg.stalls, tier);
   const panel = openPanel(mode === 'buy' ? `${def.icon} Pick your ${def.name} spot` : `🚚 Move your ${def.name}`, { testId: 'spot-picker' });
   const taken = new Set([...app.store.stalls.values()].map((s) => s.plot));
+  const ventureLots = new Set(app.store.shoplots.map((s) => s.building));
+  for (const p of app.map.stallPlots) if (p.building && ventureLots.has(p.building)) taken.add(p.id);
   const mine = app.store.stall?.plot;
   const T = app.map.tileSize;
   const me = app.town?.position ?? app.map.spawnPx;

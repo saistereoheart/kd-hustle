@@ -7,6 +7,8 @@ import { z } from 'zod';
 const requires = z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({});
 
 export const businessesConfigSchema = z.object({
+  /** 🏪 Moving a Venture to another shoplot. */
+  moveFeeSen: z.number().int().nonnegative().default(50000),
   costGrowth: z.number().gt(1),
   milestones: z.array(z.number().int().positive()),
   milestoneSpeedMult: z.number().gt(1),
