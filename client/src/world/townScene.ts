@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import {
   darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
   type DriveSpec, type DriveState,
-  type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type SeatInfo, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
+  type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PetPublic, type SeatInfo, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
@@ -208,6 +208,7 @@ export class TownScene extends Phaser.Scene {
     this.offs.push(this.app.store.on(() => this.stalls.sync()));
     this.me.setState(you.dir, false);
     if (you.seat) this.me.setSeat(you.seat);
+    if (you.pet) this.me.setPet(this.petDef(you.pet));
     for (const p of this.initData.players) this.addRemote(p);
 
     this.cameras.main.startFollow(this.me.container, true, 0.18, 0.18);
@@ -256,9 +257,10 @@ export class TownScene extends Phaser.Scene {
       this.promptKey = '';
       this.app.store.emit();
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, vehicleLook, level, title, interior, owesAhLong, rebirths, seat }) => {
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, vehicleLook, level, title, interior, owesAhLong, rebirths, seat, pet }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      if (pet !== undefined) av.setPet(this.petDef(pet));
       if (seat !== undefined) {
         av.setSeat(seat);
         const r1 = this.remotes.get(id);
@@ -368,6 +370,7 @@ export class TownScene extends Phaser.Scene {
     if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
     if (p.interior) avatar.container.setVisible(false);
     if (p.seat) avatar.setSeat(p.seat);
+    if (p.pet) avatar.setPet(this.petDef(p.pet));
     if (p.rebirths) avatar.setRebirths(p.rebirths);
     if (p.owesAhLong) {
       avatar.setDebt(true);
@@ -467,6 +470,12 @@ export class TownScene extends Phaser.Scene {
       this.me.setPosition(p.you.x, p.you.y);
     }
     this.lastSent = { x: NaN, y: NaN, dir: this.dir, moving: false };
+  }
+
+  /** A lead Teman's looks (from its item). */
+  private petDef(pet: PetPublic | null) {
+    const d = pet ? this.app.items.get(pet.itemId) : undefined;
+    return d ? { shape: d.shape, color: d.color, color2: d.color2 } : null;
   }
 
   /** 🅿️ Our own vehicle that's out, if we're driving it. */

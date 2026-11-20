@@ -117,6 +117,13 @@ export class PetSystem {
     return this.view(p);
   }
 
+  /** The first Teman in the team (it walks beside its owner in town), or null. */
+  leadOf(p: OnlinePlayer): { itemId: string; variant: string } | null {
+    const iid = this.state(p).team[0];
+    const it = iid === undefined ? undefined : p.inventory.find((i) => i.iid === iid);
+    return it ? { itemId: it.itemId, variant: it.variant } : null;
+  }
+
   setTeam(p: OnlinePlayer, iids: number[]): PetsView {
     const pc = this.pc();
     const uniq = [...new Set(iids)];

@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PlayerPublic, ProgressState, SeatInfo, SelfState, StallSelf, VehicleLook,
+  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PetPublic, PlayerPublic, ProgressState, SeatInfo, SelfState, StallSelf, VehicleLook,
 } from '@kh/shared';
 import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
@@ -120,6 +120,8 @@ export class World {
 
   /** Where a passenger sits (set by the parking handlers). */
   seatInfo: (p: OnlinePlayer) => SeatInfo | null = () => null;
+  /** Their lead Teman (set by the pet system). */
+  petOf: (p: OnlinePlayer) => PetPublic | null = () => null;
 
   toPublic(p: OnlinePlayer): PlayerPublic {
     return {
@@ -140,6 +142,7 @@ export class World {
       owesAhLong: !!p.owesAhLong,
       rebirths: p.rebirths ?? 0,
       seat: this.seatInfo(p),
+      pet: this.petOf(p),
     };
   }
 

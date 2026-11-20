@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.4.0: four premium dishes)_
+_Last updated: 2026-11-20 (v1.5.0: Teman follow you, unicorn, rounder Teman art)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,18 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🐾 Teman follow you, unicorn (2026-11-20, your requests, v1.5.0)
+- Server: `PetSystem.leadOf` (team[0]); `PlayerPublic.pet` via `world.petOf`; `player:updated { pet }` after
+  `pets:team` / `pets:buy`.
+- Client: `Avatar.setPet` / `tickPet`: a scene-level sprite (4 breathing/blink frames from `drawPetStyled`),
+  eased toward a spot beside/behind by facing, hops (unicorn) or bobs while moving, hidden on a vehicle /
+  seat / when the avatar is hidden, depth by its own feet.
+- `petArt.ts`: `unicorn` shape; `drawPetStyled` (outline + highlight + underside shade) used by the bag icons,
+  the Teman window, the dungeon and the follower. `pet_unicorn` (Mythic) in items / pets / the pet egg pool.
+- Checked in game (screenshot: the unicorn beside its owner).
 
 ---
 

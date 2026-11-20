@@ -469,6 +469,13 @@ export interface PlayerPublic {
   rebirths?: number;
   /** Riding along in someone's vehicle (not driving), or null. */
   seat?: SeatInfo | null;
+  /** 🐾 Their lead Teman (first in the team), walking beside them, or null. */
+  pet?: PetPublic | null;
+}
+
+export interface PetPublic {
+  itemId: string;
+  variant: string;
 }
 
 /** A passenger's place: which parked vehicle, what it is, and which seat (0 is the driver's). */
@@ -788,7 +795,7 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null; pet?: PetPublic | null }) => void;
   'parked:update': (p: { parked: ParkedPublic }) => void;
   'parked:removed': (p: { vid: string }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */

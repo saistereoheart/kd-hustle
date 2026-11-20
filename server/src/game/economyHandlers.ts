@@ -243,6 +243,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     items: (p, items) => socketOf(p)?.emit('inv:added', { items, index: [...p.index] }),
     check: (p) => prog.check(p),
   });
+  world.petOf = (p) => pets.leadOf(p);
   garage = new GarageSystem(cfg, repos, econ, {
     wallet: (p, delta, reason) => pushWallet(p, delta, reason),
     look: (p) => io.to(p.scene).emit('player:updated', { id: p.id, vehicle: p.vehicle, vehicleLook: p.vehicleLook }),
@@ -562,8 +563,18 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'garage:style', C2S.garageStyle, ({ model, kind, id }) => ({ view: garageSys.style(me, model, kind, id) }));
     // 🐾 Teman
     handle(socket, 'pets:view', null, () => ({ view: pets.view(me) }));
-    handle(socket, 'pets:buy', C2S.petsBuy, ({ id }) => ({ view: pets.buyStarter(me, id) }));
-    handle(socket, 'pets:team', C2S.petsTeam, ({ iids }) => ({ view: pets.setTeam(me, iids) }));
+    // The lead Teman walks beside you in town: tell everyone when it changes.
+    const petChanged = () => io.to(me.scene).emit('player:updated', { id: me.id, pet: pets.leadOf(me) });
+    handle(socket, 'pets:buy', C2S.petsBuy, ({ id }) => {
+      const view = pets.buyStarter(me, id);
+      petChanged();
+      return { view };
+    });
+    handle(socket, 'pets:team', C2S.petsTeam, ({ iids }) => {
+      const view = pets.setTeam(me, iids);
+      petChanged();
+      return { view };
+    });
     handle(socket, 'pets:train', C2S.petsIid, ({ iid }) => {
       const r = pets.train(me, iid);
       prog.bump(me, 'petTrains');

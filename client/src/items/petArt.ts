@@ -55,10 +55,10 @@ function shadow(ctx: Ctx) {
   ell(ctx, 0, 14.5, 12, 2.6, 'rgba(0,0,0,0.25)');
 }
 
-export function drawPet(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string) {
+export function drawPet(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string, noShadow = false) {
   const breathe = Math.sin(t / 420) * 0.4;
   ctx.save();
-  shadow(ctx);
+  if (!noShadow) shadow(ctx);
   ctx.translate(0, breathe);
   switch (shape) {
     case 'kucing': {
@@ -215,6 +215,30 @@ export function drawPet(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string
       eye(ctx, 10, -5, 1.5, t + 90, '#2f9e44');
       break;
     }
+    case 'unicorn': {
+      // A chibi unicorn: white pony, rainbow mane and tail, a golden spiral horn, pink hooves.
+      const body = c1 ?? '#fdfcff', horn = c2 ?? '#ffd43b';
+      const rainbow = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#b197fc'];
+      rainbow.forEach((c, i) => stroke(ctx, [-9, 2 + i * 0.4, -14 - i * 0.6, -1 + i * 1.5, -16 - i * 0.4, 4 + i * 1.6], c, 2.2)); // tail
+      legs(ctx, [-6, -2, 4, 8], 8, 6, body, 3.2);
+      for (const x of [-6, -2, 4, 8]) ell(ctx, x, 14, 1.8, 1.1, '#f783ac'); // hooves
+      blob(ctx, 0, 4, 10.5, 7, body, '#ffffff');
+      ell(ctx, 0, 9, 7, 2.5, 'rgba(180,170,220,0.35)'); // belly shade
+      blob(ctx, 6, -6, 8, 7.5, body, '#ffffff');
+      ell(ctx, 12, -3, 4, 3.2, '#fff0f6'); // muzzle
+      ell(ctx, 13.6, -3.6, 0.7, 0.6, '#c2255c');
+      poly(ctx, [2, -11.5, 3.5, -16, 5.5, -11], body); // ear
+      poly(ctx, [3, -12, 3.8, -14.6, 4.8, -12], '#fcc2d7');
+      // Mane: rainbow tufts down the back of the head.
+      rainbow.forEach((c, i) => ell(ctx, 0.5 - i * 0.9, -11 + i * 2.1, 3.2, 2.2, c, -0.6));
+      // Spiral horn.
+      poly(ctx, [7, -11.5, 10.5, -21, 9.5, -11], horn);
+      for (const k of [0.25, 0.5, 0.75]) stroke(ctx, [7.4 + k * 2.6, -11.8 - k * 8.4, 9.6 + k * 0.6, -11.4 - k * 8.6], mix(horn, '#b08000', 0.5), 0.7);
+      ell(ctx, 13.2, -0.8, 1.6, 0.9, 'rgba(255,135,180,0.45)'); // blush
+      eye(ctx, 8.5, -7, 2, t, '#7048e8');
+      stroke(ctx, [9.5, -9.4, 10.6, -10.4], '#1b1b1b', 0.6); // lashes
+      break;
+    }
     case 'naga':
     default: {
       const p = c1 ?? '#7048e8', y = c2 ?? '#ffd43b';
@@ -310,4 +334,70 @@ export function drawPetGear(ctx: Ctx, shape: string, c1: string) {
       break;
   }
   ctx.restore();
+}
+
+/**
+ * drawPet with a rounded, lit finish (like the characters): the flat drawing is rendered at the
+ * real pixel size, shaded (light from the top-left, a darker underside, a soft rim light) and
+ * outlined, then drawn into `ctx` at its current transform. Use this wherever a Teman is shown.
+ */
+export function drawPetStyled(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string) {
+  const tr = ctx.getTransform();
+  const k = Math.max(1, Math.hypot(tr.a, tr.b));
+  const box = { x: -22, y: -26, w: 44, h: 44 }; // all pets fit in here (units)
+  const W = Math.ceil(box.w * k), H = Math.ceil(box.h * k);
+  const art = layer(W, H);
+  const a = art.getContext('2d')!;
+  a.setTransform(k, 0, 0, k, -box.x * k, -box.y * k);
+  drawPet(a, shape, t, c1, c2, true); // the ground shadow is drawn separately, under the outline
+  a.setTransform(1, 0, 0, 1, 0, 0);
+  // Volume: a highlight from the top-left and a darker underside, only where the pet is drawn.
+  a.globalCompositeOperation = 'source-atop';
+  const cx = W * 0.45, cy = H * 0.42;
+  const hi = a.createRadialGradient(cx - W * 0.16, cy - H * 0.22, 1, cx, cy, W * 0.55);
+  hi.addColorStop(0, 'rgba(255,255,255,0.32)');
+  hi.addColorStop(0.45, 'rgba(255,255,255,0.06)');
+  hi.addColorStop(1, 'rgba(0,0,0,0)');
+  a.fillStyle = hi;
+  a.fillRect(0, 0, W, H);
+  const lo = a.createLinearGradient(0, H * 0.35, 0, H * 0.86);
+  lo.addColorStop(0, 'rgba(20,10,40,0)');
+  lo.addColorStop(1, 'rgba(20,10,40,0.16)');
+  a.fillStyle = lo;
+  a.fillRect(0, 0, W, H * 0.8);
+  a.globalCompositeOperation = 'source-over';
+  // Outline: the silhouette, dark, a little bigger, behind.
+  const ink = layer(W, H);
+  const g = ink.getContext('2d')!;
+  const o = Math.max(1, k * 0.7);
+  for (const [dx, dy] of [[o, 0], [-o, 0], [0, o], [0, -o], [o * 0.7, o * 0.7], [-o * 0.7, o * 0.7], [o * 0.7, -o * 0.7], [-o * 0.7, -o * 0.7]]) g.drawImage(art, dx, dy);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = 'rgba(30,22,40,0.85)';
+  g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'source-over';
+  g.drawImage(art, 0, 0);
+  ctx.save();
+  shadow(ctx);
+  ctx.drawImage(ink, box.x, box.y, box.w, box.h);
+  ctx.restore();
+}
+
+/** A scratch canvas (reused per size, so drawing every frame doesn't churn memory). */
+const layers = new Map<string, HTMLCanvasElement[]>();
+let layerTurn = 0;
+function layer(w: number, h: number): HTMLCanvasElement {
+  const key = `${w}x${h}`;
+  let list = layers.get(key);
+  if (!list) {
+    list = [document.createElement('canvas'), document.createElement('canvas')];
+    for (const c of list) {
+      c.width = w;
+      c.height = h;
+    }
+    layers.set(key, list);
+    if (layers.size > 12) layers.delete(layers.keys().next().value as string);
+  }
+  const c = list[layerTurn++ % 2];
+  c.getContext('2d')!.clearRect(0, 0, w, h);
+  return c;
 }

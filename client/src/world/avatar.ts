@@ -7,6 +7,7 @@ import type { SeatInfo, VehicleLook } from '@kh/shared';
 import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
 import { isCarId, isShowroomVehicle } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
+import { drawPetStyled } from '../items/petArt';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
@@ -468,6 +469,7 @@ export class Avatar {
 
   /** Called every frame: ends emotes when their time is up. */
   tick(now: number) {
+    this.tickPet(now);
     if (this.emoteUntil && now > this.emoteUntil) this.stopEmote();
     // Recolouring re-renders the text, so the rainbow steps ~8×/s rather than every frame.
     if (this.rainbowName && now - this.rainbowAt > 120) {
@@ -728,6 +730,95 @@ export class Avatar {
     this.emoteLoopFx?.remove();
     this.auraFx?.remove();
     this.bubbleTimer?.remove();
+    this.pet?.destroy();
+    this.pet = null;
     this.container.destroy(true);
   }
+
+  // ------------------------------------------------------------------ 🐾 the lead Teman
+  private pet: Phaser.GameObjects.Image | null = null;
+  private petShape = '';
+  private petX = NaN;
+  private petY = NaN;
+  private petLast = 0;
+  private petMoving = false;
+
+  /** The lead Teman walking beside this character (null: none). */
+  setPet(def: { shape?: string; color?: string; color2?: string } | null) {
+    const shape = def?.shape ?? '';
+    if (!def || !shape) {
+      this.pet?.destroy();
+      this.pet = null;
+      this.petShape = '';
+      return;
+    }
+    const key = ensurePetTexture(this.scene, shape, def.color, def.color2);
+    if (!this.pet) this.pet = this.scene.add.image(this.container.x, this.container.y, key, 0).setOrigin(0.5, PET_ORIGIN_Y).setScale(PET_SCALE);
+    else this.pet.setTexture(key, 0);
+    this.petShape = shape;
+    this.petX = NaN;
+  }
+
+  /** Follow along: a step behind / beside, hopping (the unicorn) or bobbing as it walks. */
+  private tickPet(now: number) {
+    const p = this.pet;
+    if (!p) return;
+    const show = this.container.visible && !this.vehicle && !this.seat;
+    p.setVisible(show);
+    if (!show) {
+      this.petX = NaN;
+      return;
+    }
+    const dt = Math.min(0.1, Math.max(0, (now - (this.petLast || now)) / 1000));
+    this.petLast = now;
+    const x = this.container.x, y = this.container.y;
+    const off: Record<Direction, [number, number]> = { down: [17, -7], up: [17, 7], left: [21, 3], right: [-21, 3] };
+    const [ox, oy] = off[this.dir];
+    const tx = x + ox, ty = y + oy;
+    if (!Number.isFinite(this.petX) || Math.hypot(tx - this.petX, ty - this.petY) > 160) {
+      this.petX = tx;
+      this.petY = ty;
+    }
+    const k = 1 - Math.exp(-dt * 6);
+    const vx = (tx - this.petX) * k, vy = (ty - this.petY) * k;
+    this.petX += vx;
+    this.petY += vy;
+    const speed = dt > 0 ? Math.hypot(vx, vy) / dt : 0;
+    this.petMoving = speed > 12;
+    if (Math.abs(vx) > 0.05) p.setFlipX(vx < 0); // drawn facing right
+    // Hop / bob.
+    let lift = 0;
+    if (this.petShape === 'unicorn') lift = Math.abs(Math.sin(now / (this.petMoving ? 170 : 420))) * (this.petMoving ? 7 : 2.5);
+    else if (this.petMoving) lift = Math.abs(Math.sin(now / 110)) * 1.6;
+    p.setPosition(this.petX, this.petY - lift);
+    p.setFrame(Math.floor(now / 200) % PET_FRAMES);
+    p.setDepth(AVATAR_DEPTH + this.petY);
+  }
+}
+
+/** Teman sprites: a few breathing / blinking frames, drawn with the styled (outlined, lit) art. */
+const PET_FRAMES = 4;
+const PET_BOX = 44; // the art's box (units), feet at +14 of -26..18
+const PET_ORIGIN_Y = (14 + 26) / PET_BOX;
+const PET_RES = 2.5;
+const PET_SCALE = 0.72 / PET_RES; // ~0.72 world px a unit: about half a character tall
+function ensurePetTexture(scene: Phaser.Scene, shape: string, c1?: string, c2?: string): string {
+  const key = `pet_${shape}_${c1 ?? ''}_${c2 ?? ''}`;
+  if (scene.textures.exists(key)) return key;
+  const fw = Math.ceil(PET_BOX * 0.72 * PET_RES);
+  const c = document.createElement('canvas');
+  c.width = fw * PET_FRAMES;
+  c.height = fw;
+  const ctx = c.getContext('2d')!;
+  for (let i = 0; i < PET_FRAMES; i++) {
+    ctx.save();
+    const s = fw / PET_BOX;
+    ctx.setTransform(s, 0, 0, s, i * fw + 22 * s, 26 * s);
+    // Breathing frames; the last one blinks.
+    drawPetStyled(ctx, shape, i === PET_FRAMES - 1 ? 3800 * 3 : 500 + i * 330, c1, c2);
+    ctx.restore();
+  }
+  const tex = scene.textures.addCanvas(key, c);
+  for (let i = 0; i < PET_FRAMES; i++) tex?.add(i, 0, i * fw, 0, fw, fw);
+  return key;
 }

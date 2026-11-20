@@ -2007,6 +2007,7 @@
     {"id": "pet_buaya", "name": "Buaya", "type": "pet", "rarity": "epic", "shape": "buaya", "color": "#5c940d", "color2": "#d8f5a2", "desc": "A crocodile. Smiles first, bites later."},
     {"id": "pet_harimau", "name": "Harimau Malaya", "type": "pet", "rarity": "legendary", "shape": "harimau", "color": "#f76707", "color2": "#212529", "desc": "A Malayan tiger cub with a big roar."},
     {"id": "pet_naga", "name": "Naga Gua", "type": "pet", "rarity": "mythic", "shape": "naga", "color": "#7048e8", "color2": "#ffd43b", "desc": "The cave dragon. Guardian of Gua Gelap."},
+    {"id": "pet_unicorn", "name": "Unikorn Pelangi", "type": "pet", "rarity": "mythic", "shape": "unicorn", "color": "#fdfcff", "color2": "#ffd43b", "desc": "A rainbow unicorn that hops everywhere it goes."},
     {"id": "pg_kolar", "name": "Kolar Kulit", "type": "petgear", "rarity": "common", "shape": "kolar", "color": "#8d5a33", "desc": "A leather collar. Pet gear (+DEF): give it to a Teman in 📱 Teman."},
     {"id": "pg_bandana", "name": "Bandana Merah", "type": "petgear", "rarity": "common", "shape": "bandana", "color": "#e03131", "desc": "A red bandana. Pet gear (+ATK)."},
     {"id": "pg_loceng", "name": "Loceng Tembaga", "type": "petgear", "rarity": "uncommon", "shape": "loceng", "color": "#e8a700", "desc": "A brass bell. Pet gear (+SPD)."},

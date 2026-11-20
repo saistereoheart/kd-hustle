@@ -3,7 +3,7 @@
 // The server owns every number; this shows PetsView and sends intents.
 import { PET_STATS, formatMoney, gradeDef, type PetCard, type PetStat, type PetsView } from '@kh/shared';
 import type { App } from '../../app';
-import { drawPet } from '../../items/petArt';
+import { drawPetStyled } from '../../items/petArt';
 import { openCratePanel } from '../cratePanel';
 import { el, toast } from '../dom';
 import { openRerollWindow } from '../forge';
@@ -60,7 +60,7 @@ function petPortrait(app: App, itemId: string, size: number): HTMLCanvasElement 
     ctx.clearRect(0, 0, c.width, c.height);
     const s = (size * dpr) / 40;
     ctx.setTransform(s, 0, 0, s, (size * dpr) / 2, (size * dpr) / 2 + s);
-    drawPet(ctx, def?.shape ?? 'kucing', t, def?.color, def?.color2);
+    drawPetStyled(ctx, def?.shape ?? 'kucing', t, def?.color, def?.color2);
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);

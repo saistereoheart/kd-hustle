@@ -4,7 +4,7 @@
 // decides everything; this plays back what happened (move names, dialogue, HP) and animates.
 import { formatMoney, restOffer, type BattleEvent, type DungeonLoot, type DungeonRun, type DungeonView, type Fighter, type RestChoice } from '@kh/shared';
 import type { App } from '../../app';
-import { drawPet } from '../../items/petArt';
+import { drawPetStyled } from '../../items/petArt';
 import { battleMusic } from '../battleMusic';
 import { el, toast } from '../dom';
 import { openPanel } from '../panel';
@@ -307,7 +307,7 @@ export function openDungeon(app: App) {
       pctx.setTransform(1, 0, 0, 1, 0, 0);
       pctx.clearRect(0, 0, sw, sh);
       pctx.setTransform(s, 0, 0, s, sw / 2, sh - 16.5 * s); // feet (y 14.5) 2 units off the bottom
-      drawPet(pctx, shapeOf(pet), now, def?.color, def?.color2);
+      drawPetStyled(pctx, shapeOf(pet), now, def?.color, def?.color2);
       if (hurt('pet') > 0) {
         pctx.setTransform(1, 0, 0, 1, 0, 0);
         pctx.globalCompositeOperation = 'source-atop';

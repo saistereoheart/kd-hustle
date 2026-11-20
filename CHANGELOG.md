@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0 (2026-11-20)
+- **🐾 Your Teman walks with you:** the first Teman in your team follows you around town, a step behind and to
+  the side, for everyone to see. It waits while you're on a vehicle (or riding along) and comes back when you
+  get off.
+- **🦄 Unikorn Pelangi:** a new Mythic Teman in the Telur Teman egg: a white chibi unicorn with a rainbow mane and
+  tail and a golden horn. It hops as it follows you.
+- **Teman look rounder:** every Teman now has a dark outline, light from the top-left, a soft shaded underside
+  and a rim light, like the characters (in town, the Teman window, the bag and the dungeon).
+
 ## 1.4.0 (2026-11-20)
 - **🍜 Four premium dishes** for the stall, each pricier with a better margin (ingredients ~19–20% of the price,
   vs 25% before), unlocked by mastering the dishes before them:
