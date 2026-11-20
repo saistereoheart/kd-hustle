@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import {
   darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
   type DriveSpec, type DriveState,
-  type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
+  type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type SeatInfo, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
@@ -301,7 +301,8 @@ export class TownScene extends Phaser.Scene {
       }
     });
     on('snapshot', (s: SnapshotPayload) => this.onSnapshot(s));
-    on('move:correct', ({ x, y }) => {
+    on('move:correct', ({ x, y, seq }) => {
+      if (seq > 0) this.corrections.push(performance.now()); // the server refused a move (seq 0: it moved us)
       this.selfSamples = [];
       this.pos = { x, y };
       this.me.setPosition(x, y);
@@ -375,8 +376,22 @@ export class TownScene extends Phaser.Scene {
     this.remotes.set(p.id, { id: p.id, name: p.name, avatar, pub: { ...p }, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
+  /** For the F3 overlay: when snapshots arrived (WiFi trouble shows as gaps) and snap-backs. */
+  private snapTimes: number[] = [];
+  private corrections: number[] = [];
+  netStats(): { avgMs: number; maxGapMs: number; snapbacks: number } {
+    const now = performance.now();
+    const t = this.snapTimes.filter((x) => now - x < 5000);
+    let max = 0;
+    for (let i = 1; i < t.length; i++) max = Math.max(max, t[i] - t[i - 1]);
+    if (t.length) max = Math.max(max, now - t[t.length - 1]);
+    return { avgMs: t.length > 1 ? Math.round((t[t.length - 1] - t[0]) / (t.length - 1)) : 0, maxGapMs: Math.round(max), snapbacks: this.corrections.filter((x) => now - x < 30000).length };
+  }
+
   private onSnapshot(s: SnapshotPayload) {
     const now = performance.now();
+    this.snapTimes.push(now);
+    if (this.snapTimes.length > 120) this.snapTimes.splice(0, this.snapTimes.length - 120);
     for (const [id, x, y, dirIdx, moving, rpm, eng] of s.p) {
       if (id === this.selfId) {
         // As a Ronda passenger the server drives us: follow its positions like a remote player.
@@ -516,6 +531,7 @@ export class TownScene extends Phaser.Scene {
       }
       this.me.tick(now);
       this.updateRemotes(now);
+      this.updateEngines(false); // riding along: you hear your driver's engine (and the others')
       this.stalls.update(delta);
       this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
@@ -1113,6 +1129,37 @@ export class TownScene extends Phaser.Scene {
       r.avatar.setPosition(p.x, p.y);
       r.avatar.setState(p.dir, p.moving);
       r.avatar.tick(now);
+    }
+    this.pinPassengers();
+  }
+
+  /** The avatar driving the vehicle this seat is in (us or another player), if anyone is. */
+  private driverOf(seat: SeatInfo): Avatar | null {
+    const d = this.app.store.parked.get(seat.vid)?.seats[0];
+    if (d === null || d === undefined) return null;
+    return d === this.selfId ? this.me : (this.remotes.get(d)?.avatar ?? null);
+  }
+
+  /**
+   * Passengers ride WITH their driver's sprite, exactly where it's drawn (like a Ronda rider on the
+   * same bike). Following their own copy of the position would trail behind: the driver you see is
+   * either you (drawn instantly) or drawn from the same snapshots a moment later.
+   */
+  private pinPassengers() {
+    for (const r of this.remotes.values()) {
+      const s = r.avatar.seated;
+      const d = s ? this.driverOf(s) : null;
+      if (!d) continue;
+      r.avatar.setPosition(d.x, d.y);
+      r.avatar.setState(d.dir, d.moving);
+    }
+    const mine = this.app.store.seat;
+    const d = mine ? this.driverOf(mine) : null;
+    if (d) {
+      this.pos = { x: d.x, y: d.y };
+      this.dir = d.dir;
+      this.me.setPosition(d.x, d.y);
+      this.me.setState(d.dir, d.moving);
     }
   }
 

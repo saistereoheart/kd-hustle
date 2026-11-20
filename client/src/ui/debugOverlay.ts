@@ -2,6 +2,7 @@
 // and how many objects the scene draws. Cheap: it only updates twice a second while shown.
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
+import { governor } from '../perf/governor';
 
 export class DebugOverlay {
   private root = el('pre', { class: 'debug-overlay hidden', 'data-testid': 'debug-overlay' });
@@ -11,6 +12,9 @@ export class DebugOverlay {
   private fps = 0;
   private lastFps = performance.now();
   private raf = 0;
+  private last = performance.now();
+  private worst = 0;
+  private worstShown = 0;
 
   constructor(private app: App) {
     uiRoot().append(this.root);
@@ -31,10 +35,14 @@ export class DebugOverlay {
     const count = () => {
       this.frames++;
       const now = performance.now();
+      this.worst = Math.max(this.worst, now - this.last);
+      this.last = now;
       if (now - this.lastFps >= 1000) {
         this.fps = Math.round((this.frames * 1000) / (now - this.lastFps));
         this.frames = 0;
         this.lastFps = now;
+        this.worstShown = Math.round(this.worst);
+        this.worst = 0;
       }
       this.raf = requestAnimationFrame(count);
     };
@@ -53,8 +61,15 @@ export class DebugOverlay {
     const T = this.app.map?.tileSize ?? 32;
     const objects = town?.children.list.length ?? 0;
     const visible = town?.children.list.filter((o) => (o as { visible?: boolean }).visible !== false).length ?? 0;
+    const net = town?.netStats();
+    // A quick verdict: is it this device (drawing) or the WiFi?
+    const deviceSlow = this.fps < 28 || this.worstShown > 120;
+    const netBad = (this.ping ?? 0) > 150 || (net?.maxGapMs ?? 0) > 400 || (net?.snapbacks ?? 0) > 2;
+    const verdict = deviceSlow && netBad ? '⚠ both: device AND WiFi' : deviceSlow ? '⚠ this device is slow to draw' : netBad ? '⚠ WiFi / connection trouble' : '✓ smooth';
     this.root.textContent = [
-      `FPS ${this.fps}   ping ${this.ping ?? '?'} ms`,
+      `FPS ${this.fps}   worst frame ${this.worstShown} ms   ${governor.describe().replace(/^\d+ FPS · /, '')}`,
+      `ping ${this.ping ?? '?'} ms   updates every ${net?.avgMs ?? '?'} ms, longest gap ${net?.maxGapMs ?? '?'} ms`,
+      `snap-backs ${net?.snapbacks ?? 0} (last 30 s)   ${verdict}`,
       self ? `pos ${(self.x / T).toFixed(1)}, ${(self.y / T).toFixed(1)} tiles${self.moving ? ' (moving)' : ''}` : 'pos -',
       `chunks ${self?.chunks ?? 0}   objects ${visible}/${objects}`,
       `players ${(town?.debugRemotes().length ?? 0) + 1}   ${this.app.interior ? 'inside a building' : this.app.home ? 'at home' : 'in town'}`,

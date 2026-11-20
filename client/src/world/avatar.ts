@@ -58,6 +58,31 @@ const RIDER: Appearance = {
 
 const TEXT_BASE = { fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif', resolution: 2 } as const;
 
+/** A round badge of a character's face (from frame 0 of their sheet), made once per look. */
+function headTexture(scene: Phaser.Scene, texKey: string): string {
+  const key = `${texKey}:head`;
+  if (scene.textures.exists(key)) return key;
+  const src = scene.textures.get(texKey).getSourceImage() as CanvasImageSource;
+  const S = 36; // badge size (px); shown at half size
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d')!;
+  ctx.beginPath();
+  ctx.arc(S / 2, S / 2, S / 2 - 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#2b3047';
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  // The head sits in about x 10..46, y 9..45 of the 56 × 72 frame (× RES in the sheet).
+  ctx.drawImage(src, 10 * RES, 9 * RES, 36 * RES, 36 * RES, 0, 2, S, S);
+  ctx.restore();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+  scene.textures.addCanvas(key, c);
+  return key;
+}
+
 export class Avatar {
   readonly container: Phaser.GameObjects.Container;
   private sprite: Phaser.GameObjects.Sprite;
@@ -98,6 +123,7 @@ export class Avatar {
     },
   ) {
     this.appearance = opts.appearance;
+    this.isSelf = opts.isSelf;
     this.baseNameColor = opts.isSelf ? '#ffe066' : '#ffffff';
     this.particles = opts.particles ?? true;
     this.sprite = scene.add.sprite(0, 0, '__DEFAULT').setOrigin(0.5, ORIGIN_Y).setScale(1 / RES);
@@ -125,6 +151,33 @@ export class Avatar {
   }
 
   private particles: boolean;
+  private isSelf: boolean;
+  /** 🚗 A little round face over a car, for whoever is inside it (never your own, on your screen). */
+  private occIcon: Phaser.GameObjects.Image | null = null;
+
+  /** Riding along in someone's vehicle (the seat), or null. */
+  get seated(): SeatInfo | null {
+    return this.seat;
+  }
+
+  private updateOccupantIcon() {
+    const car = this.vehicle && isCarId(this.vehicle) ? this.vehicle : this.seat && isCarId(this.seat.vehicle) ? this.seat.vehicle : null;
+    if (!car || this.isSelf || !this.texKey) {
+      this.occIcon?.destroy();
+      this.occIcon = null;
+      return;
+    }
+    const key = headTexture(this.scene, this.texKey);
+    if (!this.occIcon) {
+      this.occIcon = this.scene.add.image(0, 0, key).setScale(0.62);
+      this.container.add(this.occIcon);
+    } else this.occIcon.setTexture(key);
+    // The driver's face in the middle over the roof, passengers alternating right / left.
+    const slot = this.seat?.seat ?? 0;
+    const x = [0, 19, -19, 38][slot] ?? 0;
+    this.occIcon.setPosition(x, -40);
+    this.container.bringToTop(this.occIcon);
+  }
 
   /** Equip changes: rebake the sprite (hat/face/back) and restart aura/name colour. */
   setCosmetics(cos: Cosmetics) {
@@ -217,6 +270,7 @@ export class Avatar {
     this.sprite.setY(v ? this.fit!.riderY : 0);
     this.sprite.setVisible(!this.fit?.hideRider); // in a car you're inside it
     this.applyAnim(true);
+    this.updateOccupantIcon();
   }
 
   private bikeTex = 'bike';
@@ -228,6 +282,12 @@ export class Avatar {
     this.seat = seat;
     this.sprite.setVisible(seat ? !isCarId(seat.vehicle) : !this.fit?.hideRider);
     if (!seat && !this.vehicle) this.sprite.setPosition(0, 0);
+    // In a car the passengers' name tags would sit right on the driver's: their face badge shows them.
+    const tucked = !!seat && isCarId(seat.vehicle);
+    this.nameText.setVisible(!tucked);
+    this.badge.setVisible(!tucked);
+    this.titleText.setVisible(!tucked && !!this.titleText.text);
+    this.updateOccupantIcon();
     this.setPosition(this.container.x, this.container.y);
     this.applyAnim(true);
   }
@@ -297,6 +357,7 @@ export class Avatar {
     this.sprite.setTexture(this.texKey, 0);
     this.emoteUntil = 0;
     this.applyAnim(true);
+    this.updateOccupantIcon();
   }
 
   /** True while riding on an elevated deck (drawn above it instead of under it). */
@@ -353,7 +414,8 @@ export class Avatar {
     // Sort by feet y so people further down the screen stand in front. World y is relative to
     // Menara Mitraland and goes negative up north, so lift it above the ground layers.
     // A passenger sits behind the driver: in front of them only when we see the vehicle from behind.
-    const bias = this.seat ? (this.dir === 'up' && !this.diag ? 0.3 : this.diag === 'dback' ? 0.3 : -0.3) : 0;
+    // (Inside a car nothing of the passenger shows but the face badge, which goes over the car.)
+    const bias = this.seat ? (isCarId(this.seat.vehicle) ? 0.5 : this.dir === 'up' && !this.diag ? 0.3 : this.diag === 'dback' ? 0.3 : -0.3) : 0;
     this.container.setDepth((this.onDeck ? ON_DECK_DEPTH : AVATAR_DEPTH) + y + bias);
   }
 

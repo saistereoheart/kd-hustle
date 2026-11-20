@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.3.0: steady frame rate on integrated graphics)_
+_Last updated: 2026-11-20 (v1.3.1: passengers pinned to their driver, face badges, lag diagnosis)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,22 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🧑‍🤝‍🧑 Lifts fixed, face badges, "is it lag or WiFi?" (2026-11-20, your reports, v1.3.1)
+
+- **Passenger trailed behind / heard nothing:** a passenger followed their own copy of the position (drawn
+  ~110 ms late), while the driver on the driver's own screen is drawn instantly. Now every client pins
+  passengers to the driver's sprite each frame (`townScene.pinPassengers`), like a Ronda rider. The passenger
+  path skipped the engine sounds; it now plays them (the driver's engine at full volume). Checked with two
+  browsers: 0.00 px apart every frame on both screens, engine heard.
+- **Face badges** (`avatar.ts` → `headTexture`): a round crop of frame 0 of the character sheet, over the car.
+- **Lag diagnosis:** your server PC (8% CPU, 53% memory) isn't the bottleneck. F3 (or Settings → Show FPS &
+  ping) on a lagging device now tells device from WiFi: FPS + worst frame + resolution (device), ping +
+  snapshot interval + longest gap + snap-backs (network), and a one-line verdict.
+- `net.json` `interpolationDelayMs` 110 → 160 (2.4 snapshot intervals of slack for WiFi jitter);
+  `movement.json` `maxBudgetSeconds` 0.6 → 1.0 (a WiFi stall of up to 1 s then a burst of moves is accepted).
 
 ---
 

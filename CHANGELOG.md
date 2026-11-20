@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1 (2026-11-20)
+- **Passengers ride with the driver:** they're drawn exactly on the driver's car or bike on every screen (they
+  used to trail a little behind), and they hear the engine of the vehicle they're in.
+- **Faces over cars:** a small round face badge shows who's inside a car (the driver in the middle, passengers
+  beside). Never your own on your screen. Passengers' name tags are tucked away inside a car.
+- **F3 / Settings → Show FPS & ping** now says whether it's the device or the WiFi: frame rate and the worst
+  frame, resolution, ping, how often updates arrive and the longest gap, snap-backs, and a verdict.
+- **Smoother on WiFi:** other players are shown 160 ms behind (was 110) so a late packet doesn't make them
+  stutter, and a WiFi hiccup of up to a second no longer snaps you back.
+
 ## 1.3.0 (2026-11-20)
 For devices without a dedicated graphics card (aiming for a steady 30+ FPS):
 - **Auto graphics adjusts itself:** with ⚙️ Settings → Graphics on **Auto**, the game watches its frame rate and
