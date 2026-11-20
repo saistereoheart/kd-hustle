@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.8.2: luck cap ×1000; smoother on slow devices)_
+_Last updated: 2026-11-20 (v1.8.3: Teman stats multiply)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,16 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🐾 Teman stats multiply (2026-11-20, your request, v1.8.3)
+`petStats` no longer softens the tier (was √) and variant (was price mult^¼). Both multiply in full, using the
+same stat multipliers as player gear (`grades.json` `mult` / `buffs.variantMult`). New `petGearBoosts`: gear base
+× rarityMult × tier × variant (the variant used to be ignored; rarity and tier were √). The panel shows the real
+boosts. **Balance note:** a Tier S Rainbow Teman is now ×20 (was ×5), so it can go ~20 floors deeper in Gua
+Gelap. Enemy HP grows ×1.13 a floor, so the endless dungeon still catches up. Player gear was already
+rarity × tier × variant, and each slot has its own stat, so nothing stacks additively there.
 
 ---
 

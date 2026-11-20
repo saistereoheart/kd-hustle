@@ -100,27 +100,41 @@ export function petUpgradeCostSen(cfg: PetsConfig, current: number): number {
   return Math.round(cfg.upgrade.baseSen * cfg.upgrade.growth ** current);
 }
 
+/** A piece of pet gear's real boosts: its base share × rarity × tier × variant (all multiply:
+ *  a +10% collar that's ×2 tier and ×2 variant gives +40%). */
+export function petGearBoosts(
+  cfg: PetsConfig,
+  gear: { id: string; rarity: string; gradeMult: number; variantMult: number },
+): Partial<Record<PetStat, number>> {
+  const g = cfg.gear[gear.id];
+  if (!g) return {};
+  const m = (cfg.rarityMult[gear.rarity] ?? 1) * gear.gradeMult * gear.variantMult;
+  const out: Partial<Record<PetStat, number>> = {};
+  for (const s of PET_STATS) if (g[s]) out[s] = g[s]! * m;
+  return out;
+}
+
 /**
- * A pet's battle stats: its species' base × rarity × level × upgrades, then tier and variant
- * (dampened: a Shiny pet is a bit stronger, not twice as strong), then its gear.
+ * A pet's battle stats. Everything multiplies: species base × rarity × level × upgrades × tier ×
+ * variant × (1 + gear boost). `gradeMult` / `variantMult` are the stat multipliers of its tier and
+ * variant (grades.json `mult` / `buffs.variantMult`).
  */
 export function petStats(
   cfg: PetsConfig,
   pet: { id: string; rarity: string; gradeMult: number; variantMult: number },
   prog: PetProgress,
-  gear?: { id: string; rarity: string; gradeMult: number } | null,
+  gear?: { id: string; rarity: string; gradeMult: number; variantMult?: number } | null,
 ): Record<PetStat, number> {
   const sp = cfg.species[pet.id];
   const out = { hp: 1, atk: 1, def: 1, spd: 1 } as Record<PetStat, number>;
   if (!sp) return out;
   const r = cfg.rarityMult[pet.rarity] ?? 1;
   const lvl = 1 + cfg.levelGrowth * (prog.level - 1);
-  const look = Math.sqrt(pet.gradeMult) * Math.pow(pet.variantMult, 0.25);
-  const g = gear ? cfg.gear[gear.id] : undefined;
-  const gearMult = gear ? Math.sqrt(cfg.rarityMult[gear.rarity] ?? 1) * Math.sqrt(gear.gradeMult) : 0;
+  const look = pet.gradeMult * pet.variantMult;
+  const boosts = gear ? petGearBoosts(cfg, { ...gear, variantMult: gear.variantMult ?? 1 }) : {};
   for (const s of PET_STATS) {
     const base = sp[s] * r * lvl * (1 + cfg.upgrade.perLevel * (prog.up[s] ?? 0)) * look;
-    out[s] = Math.max(1, Math.round(base * (1 + (g?.[s] ?? 0) * gearMult)));
+    out[s] = Math.max(1, Math.round(base * (1 + (boosts[s] ?? 0))));
   }
   return out;
 }

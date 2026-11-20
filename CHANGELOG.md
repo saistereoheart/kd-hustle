@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.3 (2026-11-20)
+- **🐾 Teman stats multiply, like luck.** Every factor now multiplies in full:
+  - **The Teman:** species base × rarity × level × upgrades × **tier** × **variant**. Tier and variant were
+    softened before (a Tier S Teman got ×2.2, not ×5). Now Tier S = ×5, Shiny ×1.5, Golden ×2.5, Rainbow ×4,
+    the same as on your own gear.
+  - **Teman gear:** its boost = base × rarity × tier × variant. A +10% collar at ×2 tier and ×2 variant gives
+    **+40%**. Before, the gear's variant didn't count, and its rarity and tier were softened.
+  - The gear's card now shows the boost it really gives (with its tier and variant), not the base one.
+
 ## 1.8.2 (2026-11-20)
 - **🍀 Luck cap raised to ×1000** (was ×50). Luck lifts Rare and above together, so even huge luck only crowds
   out Common / Uncommon; it can't make a Mythic likelier than a Rare.

@@ -1,7 +1,7 @@
 // 🐾 Teman (pets), the window: your pets and battle team, and each pet's page (train, upgrade
 // stats, pet gear, tier / variant rerolls). The side box sells starters and the Telur Teman egg.
 // The server owns every number; this shows PetsView and sends intents.
-import { PET_STATS, formatMoney, gradeDef, type PetCard, type PetStat, type PetsView } from '@kh/shared';
+import { PET_STATS, formatMoney, gradeDef, gradeMult, petGearBoosts, variantProduct, type PetCard, type PetStat, type PetsView } from '@kh/shared';
 import type { App } from '../../app';
 import { drawPetStyled } from '../../items/petArt';
 import { openCratePanel } from '../cratePanel';
@@ -257,8 +257,17 @@ function gearName(app: App, gearIid: number): string {
   return (gi && app.items.get(gi.itemId)?.name) ?? 'gear';
 }
 
-function boostText(app: App, itemId: string): string {
-  const boosts = app.cfg.pets.gear[itemId] ?? {};
+/** A piece's real boosts: base × rarity × tier × variant (all multiply). */
+function boostText(app: App, itemId: string, gearIid?: number): string {
+  const def = app.items.get(itemId);
+  const it = gearIid !== undefined ? app.store.inventory.find((i) => i.iid === gearIid) : undefined;
+  const g = app.cfg.grades;
+  const boosts = petGearBoosts(app.cfg.pets, {
+    id: itemId,
+    rarity: def?.rarity ?? 'common',
+    gradeMult: gradeMult(g, it?.grade),
+    variantMult: variantProduct(g.buffs.variantMult, it?.variant ?? 'normal'),
+  });
   return Object.entries(boosts).map(([k, n]) => `${STAT_INFO[k as PetStat].icon}+${Math.round((n ?? 0) * 100)}%`).join(' ');
 }
 
@@ -282,7 +291,7 @@ function gearSection(app: App, v: PetsView, p: PetCard, repaint: (v: PetsView) =
           'div',
           { class: 'pet-gear-now' },
           itemCard(app.cfg.rarities, wornDef, worn.variant, { grade: worn.grade, gradeColor: gradeDef(g, worn.grade).color, size: 56 }),
-          el('div', { class: 'grow' }, el('b', {}, `Wearing: ${wornDef.name}`), el('div', { class: 'small' }, boostText(app, wornDef.id))),
+          el('div', { class: 'grow' }, el('b', {}, `Wearing: ${wornDef.name}`), el('div', { class: 'small' }, boostText(app, wornDef.id, worn.iid))),
           off,
         )
       : el('div', { class: 'pet-gear-now empty' }, el('span', { class: 'muted' }, 'Wearing: nothing. Tap a piece below to put it on.'));
@@ -292,14 +301,14 @@ function gearSection(app: App, v: PetsView, p: PetCard, repaint: (v: PetsView) =
     const other = owner.get(gi.iid);
     const otherName = other !== undefined ? app.items.get(app.store.inventory.find((i) => i.iid === other)?.itemId ?? '')?.name : null;
     const c = itemCard(app.cfg.rarities, gd, gi.variant, {
-      caption: otherName ? `on ${otherName}` : boostText(app, gd.id),
+      caption: otherName ? `on ${otherName}` : boostText(app, gd.id, gi.iid),
       grade: gi.grade,
       gradeColor: gradeDef(g, gi.grade).color,
       size: 64,
     });
     c.classList.add('pet-gear-card');
     if (otherName) c.classList.add('on-other');
-    c.title = `${gd.name}: ${boostText(app, gd.id)}${otherName ? ` (on ${otherName}: tap to move it here)` : ' (tap to put it on)'}`;
+    c.title = `${gd.name}: ${boostText(app, gd.id, gi.iid)}${otherName ? ` (on ${otherName}: tap to move it here)` : ' (tap to put it on)'}`;
     c.addEventListener('click', () =>
       send(app, 'pets:gear', { iid: p.iid, gear: gi.iid }, (nv) => {
         sfx.click();
@@ -350,7 +359,7 @@ export function openGearPicker(app: App, gearIid: number) {
     const off = el('button', { class: 'btn small', type: 'button' }, 'Take it off');
     off.addEventListener('click', () => wearer && send(app, 'pets:gear', { iid: wearer.iid, gear: null }, (nv) => paint(nv)));
     panel.body.replaceChildren(
-      el('p', {}, `${boostText(app, gd.id)} · ${wearer ? `now on ${app.items.get(wearer.itemId)?.name ?? 'a Teman'}` : 'not on any Teman'}`),
+      el('p', {}, `${boostText(app, gd.id, gi.iid)} · ${wearer ? `now on ${app.items.get(wearer.itemId)?.name ?? 'a Teman'}` : 'not on any Teman'}`),
       ...(wearer ? [el('div', { class: 'row-end' }, off)] : []),
       ...(rows.length ? rows : [el('p', { class: 'empty' }, 'No Teman yet. Get one in 📱 Teman.')]),
     );

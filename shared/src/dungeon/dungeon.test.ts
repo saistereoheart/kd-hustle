@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import dungeonJson from '../../config/dungeon.json';
 import petsJson from '../../config/pets.json';
-import { petsConfigSchema, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
+import { petsConfigSchema, petGearBoosts, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
 import { applyRest, deathLoot, dungeonConfigSchema, enemyFor, floorLoot, isBossFloor, restAfter, restOffer, type DungeonRun } from './dungeon';
 
 const cfg = dungeonConfigSchema.parse(dungeonJson);
@@ -39,6 +39,18 @@ describe('pets', () => {
     expect(up.hp).toBe(base.hp);
     expect(rare.hp).toBeGreaterThan(base.hp);
     expect(geared.atk).toBeGreaterThan(base.atk);
+  });
+
+  it('rarity, tier and variant multiply (gear: +10% × tier 2 × variant 2 = +40%)', () => {
+    const kolar = petGearBoosts(pets, { id: 'pg_kolar', rarity: 'common', gradeMult: 2, variantMult: 2 });
+    expect(kolar.def).toBeCloseTo(pets.gear.pg_kolar.def! * 4, 10);
+    const rare = petGearBoosts(pets, { id: 'pg_kolar', rarity: 'rare', gradeMult: 1, variantMult: 1 });
+    expect(rare.def).toBeCloseTo(pets.gear.pg_kolar.def! * pets.rarityMult.rare, 10);
+    // The pet itself: tier × variant multiply its stats in full.
+    const prog = { ...newProgress(), level: 20 };
+    const plain = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, prog);
+    const fancy = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 2, variantMult: 2 }, prog);
+    expect(fancy.hp / plain.hp).toBeCloseTo(4, 1);
   });
 
   it('XP levels a pet up (carrying the rest over), capped at the max level', () => {

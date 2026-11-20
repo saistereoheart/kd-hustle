@@ -164,6 +164,7 @@ Odds per crate live in config; better crates shift the weights up and have exclu
 ### 7.2 Luck
 - Luck multiplies the weights of **Rare and above**, then the table is renormalised. Show the effective "1 in X" for every tier, live, on the crate screen.
 - Luck sources: permanent upgrades, luck potions, equipped items, titles, rebirth bonuses, server events ("Lucky Hour 2×"). All luck multipliers stack multiplicatively (×5 and ×2 potions = ×10; on ×5 base luck = ×50; changed 2026-11-20 at the owner's request; formula in `shared/luck.ts`, unit-tested). Cap at a configurable max (`rarities.json` → `maxLuck`).
+- Teman (pet) stats and Teman gear stack the same way: every factor multiplies (species base × rarity × level × upgrades × tier × variant × (1 + gear boost); a gear boost is its base share × rarity × tier × variant, so a +10% collar at ×2 tier and ×2 variant gives +40%). Formula in `shared/src/pets/pets.ts`, unit-tested.
 
 ### 7.3 Crates and machines (price ladder)
 | Crate | Price | Location | Pool highlights |
