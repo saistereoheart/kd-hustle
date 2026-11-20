@@ -23,7 +23,7 @@
     "pg_sayap":   { "spd": 0.31, "atk": 0.06 },
     "pg_mahkota": { "hp": 0.15, "atk": 0.15, "def": 0.15, "spd": 0.15 }
   },
-  "rarityMult": { "common": 1, "uncommon": 1.1, "rare": 1.22, "epic": 1.38, "legendary": 1.58, "mythic": 1.85, "divine": 2.2, "secret": 2.6 },
+  "rarityMult": { "common": 1, "uncommon": 1.1, "rare": 1.22, "epic": 1.38, "legendary": 1.58, "mythic": 2.5, "divine": 3, "secret": 3.5 },
   "tierMult": { "D": 1, "C": 1.13, "B": 1.28, "A": 1.48, "S": 1.75 },
   "variantMult": { "normal": 1, "shiny": 1.2, "golden": 1.35, "rainbow": 1.55 },
   "levelGrowth": 0.09,

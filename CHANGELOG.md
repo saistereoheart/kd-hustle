@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.2 (2026-11-20)
+- **🐉 Mythic Teman stand out:** mythic stat multiplier ×1.85 → **×2.5** (divine ×3, secret ×3.5, so they stay
+  above it). The Mahkota is mythic too, so its boost rises with it: Tier S with every variant gives +165%.
+- **Gua Gelap, teams of 3 maxed Teman** (simulated, median floor reached):
+  - Basic Mahkota: epic 54 · legendary 55 · **mythic 67** (was 61).
+  - Maxed Mahkota: epic 67 · legendary 69 · **mythic 60+, the bottom every time** (it would go ~90 if the cave
+    went on).
+
 ## 1.9.1 (2026-11-20)
 - **⚔️ Gua Gelap has a bottom: floor 60** (a final boss). Clear it and the run is done: cash out and keep
   everything. Before, the cave never ended.

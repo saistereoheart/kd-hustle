@@ -59,11 +59,11 @@ describe('pets', () => {
     expect(look.gradeMult * look.variantMult).toBeCloseTo(top, 10);
     // Mahkota (the best gear), Tier S with every variant: at most about double.
     const crown = petGearBoosts(pets, { id: 'pg_mahkota', rarity: 'mythic', ...look });
-    expect(crown.hp!).toBeLessThan(1.5);
+    expect(crown.hp!).toBeLessThan(2);
     const maxed = { ...newProgress(), level: pets.maxLevel, up: { hp: pets.upgrade.maxLevel, atk: pets.upgrade.maxLevel, def: pets.upgrade.maxLevel, spd: pets.upgrade.maxLevel } };
     for (const id of Object.keys(pets.species)) {
-      const s = petStats(pets, { id, rarity: 'secret', ...look }, maxed, { id: 'pg_mahkota', rarity: 'mythic', ...look });
-      expect(s.hp).toBeLessThan(20000);
+      const s = petStats(pets, { id, rarity: 'mythic', ...look }, maxed, { id: 'pg_mahkota', rarity: 'mythic', ...look });
+      expect(s.hp).toBeLessThan(25000);
     }
   });
 

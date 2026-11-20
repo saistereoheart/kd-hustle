@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.9.1: Gua Gelap bottom floor 60; Teman bump)_
+_Last updated: 2026-11-20 (v1.9.2: mythic Teman ×2.5)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -24,6 +24,11 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🐉 Mythic highlight (2026-11-20, your request, v1.9.2)
+`pets.json` rarityMult mythic 1.85 → 2.5, divine 3, secret 3.5. Sim (3 maxed, no cave bottom): basic Mahkota
+epic 54 / legendary 55 / mythic 67; maxed Mahkota 67 / 69 / ~91. Balance guards: Mahkota max < +200%, a maxed
+mythic < 25k HP.
 
 ## ⚔️ Gua Gelap full run (2026-11-20, your request, v1.9.1)
 The owner wants a maxed mythic (full level, full upgrades, maxed item) to survive to the last floor, or close.
