@@ -4,9 +4,10 @@
 // front, back and the two 45° views. Paint, wheel colour and the exhaust tip come from the look.
 import type Phaser from 'phaser';
 import type { GarageConfig, VehicleLook } from '@kh/shared';
-import { buildBike } from './vehicle3d/bikes';
-import { buildCar } from './vehicle3d/cars';
-import { project, renderModel, type Model } from './vehicle3d/render';
+import { bikeMeta, buildBike } from './vehicle3d/bikes';
+import { buildCar, carMeta } from './vehicle3d/cars';
+import { project, renderModel, type Model, type ModelMeta, type RenderOpts } from './vehicle3d/render';
+import type { VehicleDone, VehicleJob } from './vehicle3d/vehicleWorker';
 
 type Ctx = CanvasRenderingContext2D;
 /** side / front / back, plus the 45° views (dfront: going down-left, dback: going up-left). */
@@ -56,24 +57,36 @@ export interface Layout {
   center: number;
 }
 const layouts = new Map<string, Layout>();
+const metas = new Map<string, ModelMeta>();
+/** Size, seats and wheels from the spec (instant: no 3D model is built on the main thread). */
+function metaOf(id: string): ModelMeta {
+  let m = metas.get(id);
+  if (!m) {
+    m = isCarId(id) ? carMeta(id) : bikeMeta(id);
+    metas.set(id, m);
+  }
+  return m;
+}
 export function viewSize(id: string, _view?: View): Layout {
   let l = layouts.get(id);
   if (l) return l;
-  const m = modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'racing' });
+  const { box } = metaOf(id);
   const s = pxPerMetre(id);
+  // Every view must fit: the box's corners turned each way (plus room for the soft shadow).
+  const pts: Array<[number, number, number]> = [];
+  for (const x of [box.x0 - 0.25, box.x1 + 0.25]) for (const y of [-box.hw - 0.25, box.hw + 0.25]) pts.push([x, y, 0]);
+  for (const x of [box.x0, box.x1]) for (const y of [-box.hw, box.hw]) pts.push([x, y, box.h]);
   let maxX = 0, minY = 0, maxY = 0;
   for (const yaw of Object.values(VIEW_YAW)) {
-    for (const t of m.mesh.tris) {
-      for (const v of [t.a, t.b, t.c]) {
-        const [x, y] = project(v.p, yaw, s);
-        maxX = Math.max(maxX, Math.abs(x));
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
+    for (const p of pts) {
+      const [x, y] = project(p, yaw, s);
+      maxX = Math.max(maxX, Math.abs(x));
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
     }
   }
-  const top = Math.ceil(-minY + 3), bottom = Math.ceil(maxY + 4);
-  l = { w: Math.ceil(maxX + 4) * 2, h: top + bottom, ground: top, center: top };
+  const top = Math.ceil(-minY + 2), bottom = Math.ceil(maxY + 2);
+  l = { w: Math.ceil(maxX + 2) * 2, h: top + bottom, ground: top, center: top };
   layouts.set(id, l);
   return l;
 }
@@ -81,14 +94,14 @@ export function viewSize(id: string, _view?: View): Layout {
 /** Where a seat is in a view, in texture pixels from the anchor (x right, y down). Seat 0 is the
  *  rider's / driver's, 1 the pillion / front passenger, and so on. */
 export function seatPoint(id: string, view: View, seat = 0): { x: number; y: number } {
-  const m = modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'stock' });
+  const m = metaOf(id);
   const p = m.seats[Math.min(seat, m.seats.length - 1)];
   const [x, y] = project(p, VIEW_YAW[view], pxPerMetre(id));
   return { x, y };
 }
 /** Where the rear tyres touch the road in a view, in world px from the sprite's anchor (x right, y down). */
 export function rearWheels(id: string, view: View): Array<{ x: number; y: number }> {
-  const m = modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'stock' });
+  const m = metaOf(id);
   const k = townScale(id);
   return m.wheels.map((p) => {
     const [x, y] = project(p, VIEW_YAW[view], pxPerMetre(id));
@@ -96,7 +109,16 @@ export function rearWheels(id: string, view: View): Array<{ x: number; y: number
   });
 }
 export function seatCount(id: string): number {
-  return modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'stock' }).seats.length;
+  return metaOf(id).seats.length;
+}
+
+/** How a view is rendered at `k` device pixels per layout pixel. */
+function renderOpts(id: string, view: View, k: number): RenderOpts {
+  const size = viewSize(id, view);
+  const W = Math.max(1, Math.round(size.w * k)), H = Math.max(1, Math.round(size.h * k));
+  // Supersample small pictures more (they need the smoothing); big ones are fine as they are.
+  const ss = W * H > 300_000 ? 1 : 2;
+  return { w: W, h: H, ox: W / 2, oy: size.center * (H / size.h), scale: pxPerMetre(id) * (W / size.w), ss };
 }
 
 /** Draws a showroom vehicle into a canvas laid out as viewSize(id). The context's current scale
@@ -104,11 +126,9 @@ export function seatCount(id: string): number {
 export function drawShowroomVehicle(ctx: Ctx, id: string, look: Look, view: View) {
   const size = viewSize(id, view);
   const t = ctx.getTransform();
-  const k = Math.max(0.25, Math.hypot(t.a, t.b));
-  const W = Math.max(1, Math.round(size.w * k)), H = Math.max(1, Math.round(size.h * k));
-  // Supersample small pictures more (they need the smoothing); big ones are fine as they are.
-  const ss = W * H > 300_000 ? 1 : 2;
-  const px = renderModel(modelFor(id, look), VIEW_YAW[view], { w: W, h: H, ox: W / 2, oy: size.center * (H / size.h), scale: pxPerMetre(id) * (W / size.w), ss });
+  const o = renderOpts(id, view, Math.max(0.25, Math.hypot(t.a, t.b)));
+  const W = o.w, H = o.h;
+  const px = renderModel(modelFor(id, look), VIEW_YAW[view], o);
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -170,7 +190,7 @@ export function resolveLook(id: string, look: VehicleLook | null | undefined): L
 
 const RES = 1.6; // texture pixels per layout pixel (3.2 per world pixel in town)
 
-/** Views waiting to be drawn: one per frame, so a new vehicle never stalls the game. */
+/** Views waiting to be drawn on the main thread (no worker): one per frame. */
 const queue: Array<() => void> = [];
 let pumping = false;
 function pump() {
@@ -182,33 +202,71 @@ function pump() {
   job();
   requestAnimationFrame(pump);
 }
+function queueHere(job: () => void) {
+  queue.push(job);
+  if (!pumping) {
+    pumping = true;
+    requestAnimationFrame(pump);
+  }
+}
+
+// The 3D work happens in a worker when the browser has one: building a model and rendering its
+// five views is about half a second of work (seconds on a slow phone), and would freeze the game
+// each time a new car or paint job comes into view.
+let worker: Worker | null = null;
+let workerBroken = false;
+const waiting = new Map<number, (r: VehicleDone) => void>();
+let nextJob = 1;
+function vehicleWorker(): Worker | null {
+  if (workerBroken || typeof Worker === 'undefined') return null;
+  if (worker) return worker;
+  try {
+    worker = new Worker(new URL('./vehicle3d/vehicleWorker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (e: MessageEvent<VehicleDone>) => {
+      const cb = waiting.get(e.data.jid);
+      waiting.delete(e.data.jid);
+      cb?.(e.data);
+    };
+    worker.onerror = () => {
+      workerBroken = true;
+      for (const cb of waiting.values()) cb({ jid: -1, w: 0, h: 0, pixels: null });
+      waiting.clear();
+    };
+    return worker;
+  } catch {
+    workerBroken = true;
+    return null;
+  }
+}
 
 /** Makes <key>_side / _front / _back / _dfront / _dback for this vehicle and look (once) and returns
- *  the key. The side view is drawn now; the others follow over the next few frames. */
+ *  the key. The textures exist at once (blank) and fill in as the views are rendered: in a worker,
+ *  or one per frame here when there's no worker. */
 export function ensureShowroomTextures(scene: Phaser.Scene, id: string, look: VehicleLook | null | undefined): string {
   const key = `sr_${id}_${look?.paint ?? '-'}_${look?.wheel ?? '-'}_${look?.exhaust ?? '-'}`;
   if (scene.textures.exists(`${key}_side`)) return key;
   const colours = resolveLook(id, look);
-  const size = viewSize(id);
   const order: View[] = ['side', 'dfront', 'front', 'back', 'dback'];
+  const w = vehicleWorker();
   for (const view of order) {
-    const tex = scene.textures.createCanvas(`${key}_${view}`, Math.round(size.w * RES), Math.round(size.h * RES));
+    const o = renderOpts(id, view, RES);
+    const tex = scene.textures.createCanvas(`${key}_${view}`, o.w, o.h);
     if (!tex) continue;
-    const draw = () => {
-      if (!scene.textures.exists(`${key}_${view}`)) return;
-      const ctx = tex.getContext();
-      ctx.save();
-      ctx.scale(RES, RES);
-      drawShowroomVehicle(ctx, id, colours, view);
-      ctx.restore();
+    const alive = () => scene.textures.exists(`${key}_${view}`);
+    const fill = (pixels: Uint8ClampedArray<ArrayBuffer>) => {
+      if (!alive()) return;
+      tex.getContext().putImageData(new ImageData(pixels, o.w, o.h), 0, 0);
       tex.refresh();
     };
-    if (view === 'side') draw();
-    else queue.push(draw);
-  }
-  if (!pumping && queue.length) {
-    pumping = true;
-    requestAnimationFrame(pump);
+    const here = () => {
+      if (alive()) fill(renderModel(modelFor(id, colours), VIEW_YAW[view], o));
+    };
+    if (w) {
+      const jid = nextJob++;
+      waiting.set(jid, (r) => (r.pixels ? fill(r.pixels) : queueHere(here)));
+      const job: VehicleJob = { jid, id, look: colours, yaw: VIEW_YAW[view], opts: o };
+      w.postMessage(job);
+    } else queueHere(here);
   }
   return key;
 }

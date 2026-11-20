@@ -5,6 +5,14 @@
 import type { Mesh, V3 } from './mesh';
 import { ELEV, VIEW, light, setToon, type Frag, type Surf } from './shading';
 
+/** What the game needs to know about a vehicle without building its 3D model: a box that holds
+ *  it (model space: x from x0 to x1, |y| ≤ hw, z from 0 to h), its seats and its driven wheels. */
+export interface ModelMeta {
+  box: { x0: number; x1: number; hw: number; h: number };
+  seats: V3[];
+  wheels: V3[];
+}
+
 export interface Model {
   mesh: Mesh;
   /** Shadow darkness (0..1) on the ground at model point (x, y). */

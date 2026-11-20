@@ -4,7 +4,7 @@
 // number plates and door lines are painted onto it per pixel. Parody makes, no real badges.
 import { M, hex, mat, mixc, scalec, type Frag, type Material, type RGB, type Surf } from './shading';
 import { Mesh, blob, box, grid, lathe, disc, linear, loft, smooth, tube, type V3 } from './mesh';
-import type { Model } from './render';
+import type { Model, ModelMeta } from './render';
 
 export interface CarLook {
   paint: string;
@@ -243,6 +243,27 @@ export function plate(a: number, b: number, s: Surf) {
   const bits = [0b101111101, 0b111101111, 0b110111011, 0, 0b111011110, 0b111101111, 0b111011110, 0b110111111][c];
   const gx = Math.min(2, Math.floor(((fx - 0.18) / 0.64) * 3)), gy = Math.min(2, Math.floor(fy * 3));
   if ((bits >> (gy * 3 + gx)) & 1) s.color = [0.92, 0.93, 0.95];
+}
+
+/** Size, seats and rear wheels from the spec alone (instant: no mesh). */
+export function carMeta(id: string): ModelMeta {
+  const sp = SPECS[id] ?? SPECS.car_sega;
+  const off = sp.rr + sp.wb / 2;
+  const wy = sp.hw - 0.035 - sp.tyreW / 2;
+  const sb = sp.sB;
+  const rb = sp.hatch ? sp.rearGlass[1] + 0.3 : sp.rearGlass[1] + 0.12;
+  const top = Math.max(...sp.top.map((k) => k[1]));
+  return {
+    // Exhaust tips poke out at the back, mirrors at the sides, a fin / spoiler on top.
+    box: { x0: -off - 0.08, x1: sp.L - off + 0.03, hw: sp.hw + 0.17, h: top + 0.1 },
+    seats: [
+      [sb + 0.25 - off, -0.36, 0.95],
+      [sb + 0.25 - off, 0.36, 0.95],
+      [rb + 0.25 - off, 0.36, 0.95],
+      [rb + 0.25 - off, -0.36, 0.95],
+    ],
+    wheels: [[sp.rr - off, wy, 0], [sp.rr - off, -wy, 0]],
+  };
 }
 
 export function buildCar(id: string, look: CarLook): Model {
@@ -489,11 +510,5 @@ export function buildCar(id: string, look: CarLook): Model {
     }
     return a;
   };
-  const seats: V3[] = [
-    [sb + 0.25 - off, -0.36, 0.95],
-    [sb + 0.25 - off, 0.36, 0.95],
-    [rb + 0.25 - off, 0.36, 0.95],
-    [rb + 0.25 - off, -0.36, 0.95],
-  ];
-  return { mesh, shadow, seats, wheels: [[axR - off, wy, 0], [axR - off, -wy, 0]] };
+  return { mesh, shadow, ...carMeta(id) };
 }

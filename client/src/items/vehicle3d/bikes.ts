@@ -4,7 +4,7 @@
 import { M, hex, mat, mixc, scalec, type Frag, type Material, type RGB, type Surf } from './shading';
 import { Mesh, blob, box, disc, grid, lathe, loft, smooth, superRing, tube, type Station, type V3 } from './mesh';
 import { plate, rimMat, type CarLook } from './cars';
-import type { Model } from './render';
+import type { Model, ModelMeta } from './render';
 
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -291,7 +291,7 @@ function sportbike(id: string, look: CarLook): Model {
     }
     return a;
   };
-  return { mesh, shadow, seats: [[sx - 0.12, 0, S + 0.03], [sx - 0.48, 0, S + 0.16 + U * 0.7]], wheels: [[xr, 0, 0]] };
+  return { mesh, shadow, ...bikeMeta(id) };
 }
 
 // ------------------------------------------------------------------ the cruiser
@@ -429,7 +429,25 @@ function cruiser(look: CarLook): Model {
     }
     return a;
   };
-  return { mesh, shadow, seats: [[-0.16, 0, 0.71], [-0.55, 0, 0.81]], wheels: [[xr, 0, 0]] };
+  return { mesh, shadow, ...bikeMeta('bike_harlee') };
+}
+
+/** Size, seats and the rear wheel from the spec alone (instant: no mesh). */
+export function bikeMeta(id: string): ModelMeta {
+  if (id === 'bike_harlee') {
+    return { box: { x0: -1.27, x1: 1.27, hw: 0.52, h: 1.5 }, seats: [[-0.16, 0, 0.71], [-0.55, 0, 0.81]], wheels: [[-0.8125, 0, 0]] };
+  }
+  const b = SPORT[id] ?? SPORT.bike_zx25;
+  const xf = b.wb / 2, xr = -b.wb / 2;
+  const rk = rad(b.rake);
+  const topX = xf - ((b.headZ - b.rf) / Math.cos(rk)) * Math.sin(rk);
+  const sx = topX - 0.5; // the seat starts where the tank ends
+  const S = b.seatZ, U = b.tailUp;
+  return {
+    box: { x0: xr - b.rr - 0.15, x1: Math.max(xf + b.rf, topX + 0.5) + 0.08, hw: 0.4, h: 1.25 + (b.headZ - 0.86) },
+    seats: [[sx - 0.12, 0, S + 0.03], [sx - 0.48, 0, S + 0.16 + U * 0.7]],
+    wheels: [[xr, 0, 0]],
+  };
 }
 
 export const BIKE_IDS = [...Object.keys(SPORT), 'bike_harlee'];

@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.3.1: passengers pinned to their driver, face badges, lag diagnosis)_
+_Last updated: 2026-11-20 (v1.3.2: no freezes on slow CPUs: vehicles drawn in a worker)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,19 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🐢 Slow-CPU stutter (2026-11-20, your report "both device and WiFi", v1.3.2)
+
+A client with its CPU throttled 6× (Chrome DevTools emulation) watching another player drive showed 18 long
+tasks and a **4.75 s** freeze: building + rendering a 3D vehicle on the main thread (≈190 ms first view + 4 ×
+≈110 ms on a fast PC). Fixes: `vehicle3d/vehicleWorker.ts` renders the views (textures are created blank and
+filled when the pixels come back; a main-thread fallback paints one view per frame); `carMeta` / `bikeMeta` give
+the layout box, seats and wheels from the specs, so `viewSize`, `seatPoint` and `rearWheels` never build a mesh.
+`lofi.ts` yields every bar while scheduling and every 100k samples while post-processing. Result: worst frame
+133–183 ms (no freezes), all five car views filled from the worker. The F3 verdict only blames the WiFi when its
+delays are well beyond the device's own worst frame.
 
 ---
 

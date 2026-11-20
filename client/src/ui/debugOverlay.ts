@@ -64,7 +64,10 @@ export class DebugOverlay {
     const net = town?.netStats();
     // A quick verdict: is it this device (drawing) or the WiFi?
     const deviceSlow = this.fps < 28 || this.worstShown > 120;
-    const netBad = (this.ping ?? 0) > 150 || (net?.maxGapMs ?? 0) > 400 || (net?.snapbacks ?? 0) > 2;
+    // A device busy drawing also reads the network late (gaps, slow pings): only blame the WiFi when
+    // the delays are much longer than the device's own worst frame.
+    const lateBy = Math.max(this.worstShown, 1000 / Math.max(1, this.fps));
+    const netBad = (this.ping ?? 0) > 150 + lateBy || (net?.maxGapMs ?? 0) > 400 + lateBy || (net?.snapbacks ?? 0) > 2;
     const verdict = deviceSlow && netBad ? '⚠ both: device AND WiFi' : deviceSlow ? '⚠ this device is slow to draw' : netBad ? '⚠ WiFi / connection trouble' : '✓ smooth';
     this.root.textContent = [
       `FPS ${this.fps}   worst frame ${this.worstShown} ms   ${governor.describe().replace(/^\d+ FPS · /, '')}`,

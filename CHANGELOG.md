@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.2 (2026-11-20)
+Stutter on slow devices (CPU, not graphics):
+- **Cars and bikes are built and drawn in a background worker.** The first time a car (or a new paint job)
+  came into view, its 3D model was built and drawn on the main thread: about 0.5 s of work, several seconds on a
+  slow phone. Now it fills in a moment later without freezing anything. Sizes, seats and wheels come from the
+  vehicle's dimensions, so nothing waits for the model.
+- **The lofi music is prepared in small slices** instead of in one long go at the start of a session.
+- **F3 verdict:** a device that's slow to draw also reads the network late; that's no longer blamed on the WiFi.
+
+On a simulated slow device (CPU 6× slower), the worst frame went from 4.75 s to 0.13–0.18 s.
+
 ## 1.3.1 (2026-11-20)
 - **Passengers ride with the driver:** they're drawn exactly on the driver's car or bike on every screen (they
   used to trail a little behind), and they hear the engine of the vehicle they're in.

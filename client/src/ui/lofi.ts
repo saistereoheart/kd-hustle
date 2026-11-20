@@ -31,7 +31,10 @@ const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
 const BARS = 32;
 const SAMPLE_RATE = 22050;
 
-/** Records one piece into an AudioBuffer that loops seamlessly. */
+/** Let the game draw a frame (setting up a piece is a lot of work; slow phones would freeze). */
+const breather = () => new Promise<void>((r) => setTimeout(r, 0));
+
+/** Records one piece into an AudioBuffer that loops seamlessly. Done in small slices. */
 async function renderPiece(firstProg: number): Promise<AudioBuffer> {
   const len = Math.ceil(BARS * 16 * STEP * SAMPLE_RATE);
   const tail = Math.ceil(2 * SAMPLE_RATE); // notes ringing past the end wrap round to the start
@@ -44,9 +47,13 @@ async function renderPiece(firstProg: number): Promise<AudioBuffer> {
   const noise = ctx.createBuffer(1, SAMPLE_RATE * 2, SAMPLE_RATE);
   const nd = noise.getChannelData(0);
   for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  await breather();
   const v = new Voices(ctx, filter, noise);
   v.prog = PROGRESSIONS[firstProg % PROGRESSIONS.length];
-  for (let step = 0; step < BARS * 16; step++) v.playStep(step, step * STEP);
+  for (let step = 0; step < BARS * 16; step++) {
+    v.playStep(step, step * STEP);
+    if (step % 16 === 15) await breather(); // a bar at a time
+  }
   const out = await ctx.startRendering();
   // Seamless loop: fold the tail back onto the start, then lay vinyl hiss and pops over it all.
   const loop = ctx.createBuffer(1, len, SAMPLE_RATE);
@@ -61,6 +68,7 @@ async function renderPiece(firstProg: number): Promise<AudioBuffer> {
     hp = 0.85 * (hp + w - prev); // a simple high-pass, like the old crackle filter
     prev = w;
     dst[i] += hp * 0.05;
+    if (i % 100_000 === 99_999) await breather();
   }
   return loop;
 }
