@@ -2,7 +2,7 @@
 // upgrades, pet gear, and battle XP. A pet is an inventory item; its progress is kept per item
 // (iid) in player_data 'pets'. Pets in the team and gear on a pet can't be sold, traded or merged.
 import {
-  PET_STATS, addPetXp, emptyPets, gradeMult, newProgress, petStats, petUpgradeCostSen, petXpToNext, trainCostSen, variantProduct,
+  PET_STATS, addPetXp, emptyPets, newProgress, petLook, petStats, petUpgradeCostSen, petXpToNext, trainCostSen,
   type Fighter, type PetCard, type PetProgress, type PetStat, type PetsState, type PetsView,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
@@ -72,13 +72,12 @@ export class PetSystem {
     const prog = this.progOf(this.state(p), iid);
     const gearIt = prog.gear !== null ? p.inventory.find((i) => i.iid === prog.gear) : undefined;
     const gearDef = gearIt && this.cfg.itemById.get(gearIt.itemId);
-    const grades = this.cfg.prog.grades!;
     return petStats(
       this.pc(),
-      // Tier and variant multiply the stats in full (variants by their stat multiplier, not their price one).
-      { id: def.id, rarity: def.rarity, gradeMult: gradeMult(grades, it.grade), variantMult: variantProduct(grades.buffs.variantMult, it.variant) },
+      // Tier and variant multiply the stats (Teman's own multipliers: pets.json tierMult / variantMult).
+      { id: def.id, rarity: def.rarity, ...petLook(this.pc(), it.grade, it.variant) },
       prog,
-      gearIt && gearDef ? { id: gearDef.id, rarity: gearDef.rarity, gradeMult: gradeMult(grades, gearIt.grade), variantMult: variantProduct(grades.buffs.variantMult, gearIt.variant) } : null,
+      gearIt && gearDef ? { id: gearDef.id, rarity: gearDef.rarity, ...petLook(this.pc(), gearIt.grade, gearIt.variant) } : null,
     );
   }
 

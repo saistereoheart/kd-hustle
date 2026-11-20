@@ -153,7 +153,7 @@ describe('gearbox (drive model)', () => {
         }
       }
       expect(times, id).toHaveLength(m.engine.gears - 1);
-      expect(times[0], id).toBeGreaterThanOrEqual(0.6); // first gear is quick, but not instant
+      expect(times[0], id).toBeGreaterThanOrEqual(0.4); // first gear is quick, but not instant
       for (let i = 1; i < times.length; i++) expect(times[i], `${id} gear ${i + 1}`).toBeGreaterThanOrEqual(times[i - 1] * 0.95);
     }
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import dungeonJson from '../../config/dungeon.json';
 import petsJson from '../../config/pets.json';
-import { petsConfigSchema, petGearBoosts, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
+import { petsConfigSchema, petGearBoosts, petLook, petStats, addPetXp, newProgress, resolveRound, autoChoice, petXpToNext, type Fighter, type PetProgress } from '../pets/pets';
 import { applyRest, deathLoot, dungeonConfigSchema, enemyFor, floorLoot, isBossFloor, restAfter, restOffer, type DungeonRun } from './dungeon';
 
 const cfg = dungeonConfigSchema.parse(dungeonJson);
@@ -51,6 +51,20 @@ describe('pets', () => {
     const plain = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 1, variantMult: 1 }, prog);
     const fancy = petStats(pets, { id: 'pet_kucing', rarity: 'common', gradeMult: 2, variantMult: 2 }, prog);
     expect(fancy.hp / plain.hp).toBeCloseTo(4, 1);
+  });
+
+  it('a maxed Teman stays in a sane range (balance guard)', () => {
+    const look = petLook(pets, 'S', 'shiny+golden+rainbow');
+    const top = pets.tierMult.S * pets.variantMult.shiny * pets.variantMult.golden * pets.variantMult.rainbow;
+    expect(look.gradeMult * look.variantMult).toBeCloseTo(top, 10);
+    // Mahkota (the best gear), Tier S with every variant: at most about double.
+    const crown = petGearBoosts(pets, { id: 'pg_mahkota', rarity: 'mythic', ...look });
+    expect(crown.hp!).toBeLessThan(1.2);
+    const maxed = { ...newProgress(), level: pets.maxLevel, up: { hp: pets.upgrade.maxLevel, atk: pets.upgrade.maxLevel, def: pets.upgrade.maxLevel, spd: pets.upgrade.maxLevel } };
+    for (const id of Object.keys(pets.species)) {
+      const s = petStats(pets, { id, rarity: 'secret', ...look }, maxed, { id: 'pg_mahkota', rarity: 'mythic', ...look });
+      expect(s.hp).toBeLessThan(20000);
+    }
   });
 
   it('XP levels a pet up (carrying the rest over), capped at the max level', () => {

@@ -1,7 +1,7 @@
 // 🐾 Teman (pets), the window: your pets and battle team, and each pet's page (train, upgrade
 // stats, pet gear, tier / variant rerolls). The side box sells starters and the Telur Teman egg.
 // The server owns every number; this shows PetsView and sends intents.
-import { PET_STATS, formatMoney, gradeDef, gradeMult, petGearBoosts, variantProduct, type PetCard, type PetStat, type PetsView } from '@kh/shared';
+import { PET_STATS, formatMoney, gradeDef, petGearBoosts, petLook, type PetCard, type PetStat, type PetsView } from '@kh/shared';
 import type { App } from '../../app';
 import { drawPetStyled } from '../../items/petArt';
 import { openCratePanel } from '../cratePanel';
@@ -261,13 +261,7 @@ function gearName(app: App, gearIid: number): string {
 function boostText(app: App, itemId: string, gearIid?: number): string {
   const def = app.items.get(itemId);
   const it = gearIid !== undefined ? app.store.inventory.find((i) => i.iid === gearIid) : undefined;
-  const g = app.cfg.grades;
-  const boosts = petGearBoosts(app.cfg.pets, {
-    id: itemId,
-    rarity: def?.rarity ?? 'common',
-    gradeMult: gradeMult(g, it?.grade),
-    variantMult: variantProduct(g.buffs.variantMult, it?.variant ?? 'normal'),
-  });
+  const boosts = petGearBoosts(app.cfg.pets, { id: itemId, rarity: def?.rarity ?? 'common', ...petLook(app.cfg.pets, it?.grade, it?.variant) });
   return Object.entries(boosts).map(([k, n]) => `${STAT_INFO[k as PetStat].icon}+${Math.round((n ?? 0) * 100)}%`).join(' ');
 }
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.4 (2026-11-20)
+- **🐾 Teman balance.** 1.8.3 gave Teman the player-gear tier / variant multipliers (Tier S ×5; Shiny ×1.5,
+  Golden ×2.5, Rainbow ×4). Stacked, a maxed Teman was ×75 in body and its Mahkota gave +1665%, so HP reached
+  ~1.2M. Teman now have their own gentler multipliers (still all multiplying):
+  - Tier: D ×1 · C ×1.12 · B ×1.25 · A ×1.42 · S ×1.65.
+  - Variant: Shiny ×1.15 · Golden ×1.3 · Rainbow ×1.5 (all three ×2.24).
+  - Tier S with every variant: ×3.7 (was ×75). Mahkota at Tier S with every variant: +82% (was +1665%).
+  - The strongest possible Teman: ~10k HP (was ~1.2M). Tunable in `pets.json` (`tierMult` / `variantMult`).
+
 ## 1.8.3 (2026-11-20)
 - **🐾 Teman stats multiply, like luck.** Every factor now multiplies in full:
   - **The Teman:** species base × rarity × level × upgrades × **tier** × **variant**. Tier and variant were

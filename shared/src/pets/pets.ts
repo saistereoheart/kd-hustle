@@ -3,6 +3,7 @@
 // gear. They fight for you in Gua Gelap. A pet is an inventory item (type "pet"), so its tier and
 // variant come from the forge like any item; its progress lives on the server per item (iid).
 import { z } from 'zod';
+import { variantProduct } from '../items/variants';
 
 export const PET_STATS = ['hp', 'atk', 'def', 'spd'] as const;
 export type PetStat = (typeof PET_STATS)[number];
@@ -23,6 +24,10 @@ export const petsConfigSchema = z.object({
   gear: z.record(z.string(), statBoosts),
   /** Stats × this per rarity. */
   rarityMult: z.record(z.string(), z.number().positive()),
+  /** Teman's own tier / variant stat multipliers (gentler than player gear's: they multiply the
+   *  pet's whole body and its gear's boost, and several variants multiply together). */
+  tierMult: z.record(z.string(), z.number().positive()),
+  variantMult: z.record(z.string(), z.number().positive()),
   /** +this share of base stats per level above 1. */
   levelGrowth: z.number().nonnegative(),
   maxLevel: z.number().int().positive(),
@@ -100,6 +105,12 @@ export function petUpgradeCostSen(cfg: PetsConfig, current: number): number {
   return Math.round(cfg.upgrade.baseSen * cfg.upgrade.growth ** current);
 }
 
+/** A Teman (or pet gear) tier and variant → stat multipliers (pets.json tierMult / variantMult;
+ *  several variants multiply). */
+export function petLook(cfg: PetsConfig, grade: string | undefined, variant: string | undefined): { gradeMult: number; variantMult: number } {
+  return { gradeMult: cfg.tierMult[grade ?? 'D'] ?? 1, variantMult: variantProduct(cfg.variantMult, variant) };
+}
+
 /** A piece of pet gear's real boosts: its base share × rarity × tier × variant (all multiply:
  *  a +10% collar that's ×2 tier and ×2 variant gives +40%). */
 export function petGearBoosts(
@@ -117,7 +128,7 @@ export function petGearBoosts(
 /**
  * A pet's battle stats. Everything multiplies: species base × rarity × level × upgrades × tier ×
  * variant × (1 + gear boost). `gradeMult` / `variantMult` are the stat multipliers of its tier and
- * variant (grades.json `mult` / `buffs.variantMult`).
+ * variant (pets.json `tierMult` / `variantMult`, see petLook).
  */
 export function petStats(
   cfg: PetsConfig,
