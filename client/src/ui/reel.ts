@@ -21,6 +21,9 @@ export interface RevealOpts {
   speed?: number;
   /** Auto-Roll is on: roll again by itself after a short look at the result. */
   auto?: { isOn: () => boolean; stop: () => void };
+  /** Called the moment a result is shown (the reel lands, or its card flips): your server-wide
+   *  banner / takeover for a big roll goes off right then. */
+  onReveal?: (r: RollResult) => void;
 }
 
 const tierIndex = (rar: RaritiesConfig, id: string) => rar.tiers.findIndex((t) => t.id === id);
@@ -169,6 +172,7 @@ function reel(o: RevealOpts) {
     skip.remove();
     cards[WIN].classList.add('winner');
     revealFx(o, host, result);
+    o.onReveal?.(result);
     stage.append(resultLine(o, result), buttons(o, host, result));
   };
   const frame = (now: number) => {
@@ -218,12 +222,28 @@ function grid(o: RevealOpts) {
     const ti = tierIndex(o.rar, f.r.tier);
     if (ti >= 3) f.card.classList.add('glow');
     sfx.reveal(Math.min(ti, 3));
+    // Something big: the flash and the burst go off right as this card turns over.
+    if (ti >= 4) {
+      const color = o.rar.tiers[ti].color;
+      const flash = el('div', { class: 'reveal-flash' });
+      flash.style.background = color;
+      host.append(flash);
+      setTimeout(() => flash.remove(), 700);
+      burst(host, [color, '#ffffff', '#fff3bf'], ti >= 5 ? 70 : 40);
+      o.shake(ti >= 5 ? 1 : 0.5);
+      sfx.reveal(ti);
+    }
+    o.onReveal?.(f.r);
   };
   const end = () => {
     if (done) return;
     done = true;
     clearTimeout(timer);
-    for (const f of flippers) if (!f.card.classList.contains('flipped')) f.card.classList.add('flipped');
+    for (const f of flippers) {
+      if (f.card.classList.contains('flipped')) continue;
+      f.card.classList.add('flipped');
+      o.onReveal?.(f.r);
+    }
     skip.remove();
     revealFx(o, host, best);
     stage.append(resultLine(o, best), buttons(o, host, best));

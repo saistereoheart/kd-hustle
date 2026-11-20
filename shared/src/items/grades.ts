@@ -3,7 +3,7 @@
 // (normal / shiny / golden / rainbow). Grade and variant MULTIPLY: value and the buff an
 // equipped item gives = base (from rarity) × grade mult × variant mult.
 //  - New items roll a grade (mostly D, rarely S).
-//  - Merge: N copies of the same item at the same grade → 1 at the next grade (keeps the best variant).
+//  - Merge: N copies of the same item at the same grade → 1 at the next grade (keeps every variant).
 //  - Shards reroll a grade or a variant: a chance at better, never worse.
 import { z } from 'zod';
 import type { RandInt } from '../luck';
@@ -198,8 +198,8 @@ export function rerollVariantOutcome(cfg: GradesConfig, variants: VariantDefs, c
 }
 
 /**
- * Merging N copies of the same item (any tiers and variants): the result is one tier above the
- * lowest input, but never below the highest (capped at the top tier); it keeps EVERY variant
+ * Merging N copies of the same item (the server only allows copies at the same tier): the result
+ * is one tier up (capped at the top tier); it keeps EVERY variant
  * of the inputs, and each special variant among them gives a `mergeVariantBonus` chance of one
  * more (a variant none of them had, the commoner ones likelier).
  */

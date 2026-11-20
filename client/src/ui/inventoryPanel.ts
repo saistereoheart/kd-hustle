@@ -1,5 +1,5 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
-import { variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
+import { variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
 
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
@@ -211,8 +211,8 @@ export function openInventoryPanel(app: App, startTab = 0) {
         actions.append(hb);
         // The forge: merge copies (a tier up, variants stack) and shard rerolls (with a reel).
         if (crate && s.serial === null) {
-          const copies = st.inventory.filter((i) => i.itemId === s.itemId && i.serial === null && !aside(i.iid)).length;
-          const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', title: `${gcfg.mergeCount} copies → 1, a tier up, variants stack` }, `⚒️ Merge`, el('small', {}, `${copies}/${gcfg.mergeCount} copies`));
+          const copies = st.inventory.filter((i) => i.itemId === s.itemId && i.serial === null && !aside(i.iid) && gradeIndex(gcfg, i.grade) === gradeIndex(gcfg, s.items[0]?.grade)).length;
+          const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', title: `${gcfg.mergeCount} copies at this tier → 1, a tier up, variants stack` }, `⚒️ Merge`, el('small', {}, `${copies}/${gcfg.mergeCount} copies`));
           m.addEventListener('click', () => openMergeWindow(app, s.items[0]?.iid));
           actions.append(m);
           for (const what of ['grade', 'variant'] as const) {

@@ -152,20 +152,27 @@ describe('inventory, pawn shop and shards', () => {
     expect(cfg.itemById.get(r.results[0].itemId)!.type).toBe('chef');
   });
 
-  it('merging 3 copies of an item (any tiers) goes a tier up and keeps every variant', () => {
+  it('merging 3 copies of an item at the same tier goes a tier up and keeps every variant', () => {
     const { p, econ, inv } = setup(0);
     const ids = econ.run(p, () => [
       econ.grant(p, 'rubber_duck', 'normal', null, 'D').item.iid,
       econ.grant(p, 'rubber_duck', 'shiny', null, 'D').item.iid,
-      econ.grant(p, 'rubber_duck', 'golden', null, 'C').item.iid,
+      econ.grant(p, 'rubber_duck', 'golden', null, 'D').item.iid,
       econ.grant(p, 'party_hat', 'normal', null, 'D').item.iid,
+      econ.grant(p, 'rubber_duck', 'normal', null, 'C').item.iid,
+      econ.grant(p, 'rubber_duck', 'normal', null, 'S').item.iid,
+      econ.grant(p, 'rubber_duck', 'normal', null, 'S').item.iid,
+      econ.grant(p, 'rubber_duck', 'normal', null, 'S').item.iid,
     ]);
     expect(() => inv.merge(p, [ids[0], ids[1], ids[3]], () => 0)).toThrow(/same item/);
     expect(() => inv.merge(p, [ids[0], ids[1]], () => 0)).toThrow(/Pick 3/);
+    // Mixed tiers are refused; so is the top tier (nowhere to go).
+    expect(() => inv.merge(p, [ids[0], ids[1], ids[4]], () => 0)).toThrow(/same tier/);
+    expect(() => inv.merge(p, [ids[5], ids[6], ids[7]], () => 0)).toThrow(/top tier/);
     const never = () => 999_999; // no bonus variant
     const r = inv.merge(p, [ids[0], ids[1], ids[2]], never);
     expect(r.removed).toHaveLength(3);
-    // One above the lowest (D → C), never below the highest (C); Shiny + Golden both kept.
+    // D × 3 → C; Shiny + Golden both kept.
     expect(r.item).toMatchObject({ itemId: 'rubber_duck', grade: 'C', variant: 'shiny+golden' });
     expect(variantMult(cfg.rarities, 'shiny+golden')).toBe(variantMult(cfg.rarities, 'shiny') * variantMult(cfg.rarities, 'golden'));
   });

@@ -14,7 +14,7 @@ import {
   gearOf, loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
   stageForNetWorth, formatMoney, weekKey,
   type ActiveBuff, type BuffKind, type CrateDef, type InventoryItem, type Mods, type ProgressEvent, type ProgressState,
-  type RandInt, type Reward, type RollResult, type ItemDef,
+  type RandInt, type Reward, type Announcement, type RollResult, type ItemDef,
 } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { ProgressRecord, Repos } from '../../db/repos';
@@ -63,7 +63,7 @@ export interface ProgressionHooks {
   /** A system message in everyone's chat; `banner` also shows a big banner for everyone. */
   announce: (text: string, tier: string, banner: boolean) => void;
   /** One free roll of a crate (login streak day 7). Runs inside the caller's transaction. */
-  freeRoll: (p: OnlinePlayer, crateId: string) => { crateId: string; results: RollResult[] };
+  freeRoll: (p: OnlinePlayer, crateId: string) => { crateId: string; results: RollResult[]; announce?: Announcement[] };
   /** Items that aren't timed buffs (Perfect Cook Token): apply them, or throw a GameError. */
   useSpecial?: (p: OnlinePlayer, item: ItemDef) => void;
   /** Value of businesses/property for net worth (sen). */
@@ -330,7 +330,7 @@ export class ProgressionSystem {
     if (!st.canClaim) throw new GameError("You've already claimed today's reward. Come back tomorrow!");
     const reward = this.cfg.quests.login[st.nextDay - 1];
     const before = this.money(p);
-    let roll: { crateId: string; results: RollResult[] } | undefined;
+    let roll: { crateId: string; results: RollResult[]; announce?: Announcement[] } | undefined;
     const granted = this.econ.run(p, () => {
       const items = this.grant(p, reward, `daily-${st.nextDay}`);
       if (reward.crate) roll = this.hooks.freeRoll(p, reward.crate);

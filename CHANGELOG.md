@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.3 (2026-11-20)
+- **Big rolls go off when they're revealed:** your own banner / fireworks for a Legendary+ pull now fire the
+  moment the reel lands on it (or its card flips in a ×5 / ×10), instead of on a fixed timer. In a ×5 / ×10, a big
+  card also flashes and bursts the moment it turns over. Everyone else still sees it a few seconds after.
+- **No wall of banners:** a new roll from the same person replaces their banner, at most 3 show at once, and a
+  new full-screen celebration replaces the one already on screen instead of piling up.
+- **Merging is same-tier only:** 5 copies at one tier → 1 at the next (e.g. 5 × D → 1 C). The merge window only
+  offers copies at the first item's tier; the bag's Merge button counts copies at that tier. Top-tier items
+  can't be merged.
+
 ## 1.3.2 (2026-11-20)
 Stutter on slow devices (CPU, not graphics):
 - **Cars and bikes are built and drawn in a background worker.** The first time a car (or a new paint job)

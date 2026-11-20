@@ -620,7 +620,8 @@ export interface ClientToServerEvents {
   'prop:clean': (msg: { unit: string; phase: 'start' | 'finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'furniture:buy': (msg: { item: string; qty: number }, ack: Ack<Result<{ items: InventoryItem[] }>>) => void;
   'welcome:spin': (ack: Ack<Result<{ bonusSen: number }>>) => void;
-  'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number } }>>) => void;
+  /** `announce`: your big rolls' banners, for you to show the moment each one is revealed. */
+  'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number }; announce?: Announcement[] }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
   'inv:merge': (msg: { iids: number[] }, ack: Ack<Result<{ removed: number[]; item: InventoryItem; bonus: string | null }>>) => void;
   'inv:reroll': (msg: { iid: number; what: 'grade' | 'variant' }, ack: Ack<Result<{ item: InventoryItem; improved: boolean; shards: number; rolled: string; forced: boolean; pity: RerollPity }>>) => void;
@@ -640,7 +641,7 @@ export interface ClientToServerEvents {
   'item:use': (msg: { iid: number }, ack: Ack<Result<{ removed: number }>>) => void;
   'title:equip': (msg: { title: string | null }, ack: Ack<SimpleResult>) => void;
   /** Day 7 includes a free crate roll (`roll`), played with the normal reel. */
-  'daily:claim': (ack: Ack<Result<{ day: number; roll?: { crateId: string; results: RollResult[] } }>>) => void;
+  'daily:claim': (ack: Ack<Result<{ day: number; roll?: { crateId: string; results: RollResult[]; announce?: Announcement[] } }>>) => void;
   'quest:claim': (msg: { id: string }, ack: Ack<SimpleResult>) => void;
   /** Buy / move up a tier; `plot` picks the spot (none: a random free one). */
   'stall:buy': (msg: { tier: number; plot?: string }, ack: Ack<SimpleResult>) => void;

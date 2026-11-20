@@ -1,5 +1,5 @@
 // Equipping cosmetics, the pawn shop (sell for RM / scrap for shards) and the Shard Shop.
-import { EQUIP_SLOTS, gradeMult, isCollectible, mergeOutcome, nextGrade, pawnPriceSen, rerollGradeOutcome, rerollVariantOutcome, scrapShards, variantParts, type EquipSlot, type InventoryItem } from '@kh/shared';
+import { EQUIP_SLOTS, gradeIndex, gradeMult, isCollectible, mergeOutcome, nextGrade, pawnPriceSen, rerollGradeOutcome, rerollVariantOutcome, scrapShards, variantParts, type EquipSlot, type InventoryItem } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { OnlinePlayer } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
@@ -66,9 +66,9 @@ export class InventorySystem {
   }
 
   /**
-   * Merge: `mergeCount` copies of the same item, picked by the player (any tiers and variants;
-   * not worn, not placed, not limited) become one: a tier up (see mergeOutcome), with every
-   * variant of the inputs and a chance of one more.
+   * Merge: `mergeCount` copies of the same item AT THE SAME TIER, picked by the player (any
+   * variants; not worn, not placed, not limited) become one at the next tier, with every variant
+   * of the inputs and a chance of one more.
    */
   merge(p: OnlinePlayer, iids: number[], rand: (max: number) => number) {
     const g = this.cfg.prog.grades;
@@ -82,6 +82,9 @@ export class InventorySystem {
     if (items.some((i) => i.itemId !== itemId)) throw new GameError('Merge copies of the same item.');
     if (!this.cfg.crateOfItem.get(itemId)) throw new GameError("That item can't be merged.");
     if (items.some((i) => i.serial !== null)) throw new GameError("Limited items can't be merged.");
+    const tier = gradeIndex(g, items[0].grade);
+    if (items.some((i) => gradeIndex(g, i.grade) !== tier)) throw new GameError('Merge copies at the same tier (e.g. 5 × D → 1 C).');
+    if (tier >= g.grades.length - 1) throw new GameError(`${g.grades[tier].name} is already the top tier.`);
     if (items.some((i) => equipped.has(i.iid) || locked.has(i.iid))) throw new GameError('Take it off first (or out of your home / your 🐾 Teman team).');
     const out = mergeOutcome(g, this.cfg.rarities.variants, items.map((i) => ({ grade: i.grade, variant: i.variant })), rand);
     return this.econ.run(p, () => {

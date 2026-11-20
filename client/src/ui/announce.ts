@@ -1,6 +1,6 @@
 // Server-wide rare-pull announcements: a banner for Legendary/Mythic, and a 5-second
 // fireworks takeover for Divine/Secret.
-import type { Announcement, RaritiesConfig } from '@kh/shared';
+import type { Announcement, RaritiesConfig, RollResult } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { loadPrefs } from './settings';
 import { sfx } from './sound';
@@ -14,18 +14,30 @@ export function showAnnouncement(a: Announcement, rar: RaritiesConfig) {
     bannerBox = el('div', { class: 'announce-box' });
     uiRoot().append(bannerBox);
   }
-  const banner = el('div', { class: `announce tier-${a.tier}`, 'data-testid': 'announce' }, a.text);
+  // The same person rolling again replaces their banner (no wall of banners down the screen when
+  // someone spams rolls), and only the newest few stay.
+  const who = a.playerName || a.text;
+  const box = bannerBox;
+  const old = [...box.children].find((b) => (b as HTMLElement).dataset.who === who) as HTMLElement | undefined;
+  old?.remove();
+  const banner = el('div', { class: `announce tier-${a.tier}`, 'data-testid': 'announce', 'data-who': who }, a.text);
   banner.style.setProperty('--tier', tier?.color ?? '#fcc419');
-  bannerBox.append(banner);
+  box.prepend(banner);
+  while (box.children.length > MAX_BANNERS) box.lastElementChild?.remove();
   setTimeout(() => banner.classList.add('out'), 5500);
   setTimeout(() => banner.remove(), 6200);
   if (a.takeover) takeover(a, tier?.color ?? '#fff3bf', ti);
 }
+const MAX_BANNERS = 3;
+/** The full-screen celebration on now (a newer one replaces it instead of piling up). */
+let activeTakeover: HTMLElement | null = null;
 
 function takeover(a: Announcement, color: string, tierIndex: number) {
   const canvas = el('canvas', {});
   const host = el('div', { class: 'takeover' }, canvas, el('div', { class: 'takeover-text' }, el('div', { class: 'takeover-tier' }, a.tier.toUpperCase()), el('div', {}, a.text.replace(/^🔥 /, ''))));
   host.style.setProperty('--tier', color);
+  activeTakeover?.remove();
+  activeTakeover = host;
   uiRoot().append(host);
   sfx.reveal(tierIndex);
   const W = (canvas.width = innerWidth);
@@ -70,4 +82,16 @@ function takeover(a: Announcement, color: string, tierIndex: number) {
   };
   requestAnimationFrame(frame);
   host.addEventListener('click', () => host.remove());
+}
+
+/** For a roll's reveal: shows your own big-roll announcement the moment that item is revealed
+ *  (everyone else gets theirs from the server a few seconds after the roll). */
+export function revealAnnouncer(app: { cfg: { rarities: RaritiesConfig } }, list: Announcement[] | undefined): (r: RollResult) => void {
+  const left = [...(list ?? [])];
+  return (r) => {
+    const i = left.findIndex((a) => a.itemId === r.itemId && a.variant === r.variant);
+    if (i < 0) return;
+    const [a] = left.splice(i, 1);
+    showAnnouncement(a, app.cfg.rarities);
+  };
 }

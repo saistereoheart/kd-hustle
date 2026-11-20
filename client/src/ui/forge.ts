@@ -1,6 +1,6 @@
 // ⚒️ The forge: merging and rerolling items.
-//  - Merge: put N copies of the SAME item in the slots (any tiers, any variants). The first item
-//    you pick decides what the other slots accept. The result goes a tier up and keeps every
+//  - Merge: put N copies of the SAME item at the SAME tier in the slots (any variants). The first
+//    item you pick decides what the other slots accept. The result goes a tier up and keeps every
 //    variant, with a chance of one more.
 //  - Reroll: spend shards for a better tier, or another variant (they stack). A CS:GO-style reel
 //    shows the roll; your luck boosts the odds, and soft / hard pity guarantee an upgrade in the end.
@@ -78,7 +78,7 @@ export function openMergeWindow(app: App, firstIid?: number) {
           el('div', {}, `→ ${g.grades[gi].name}${full ? '' : ' (when all slots are full)'}`),
           el('div', { class: 'muted small' }, parts.length ? `Keeps: ${variantLabel(app.cfg.rarities.variants, parts.join('+'))} (they multiply)` : 'No variants yet'),
           el('div', { class: 'muted small' }, count ? `✨ ${Math.round(bonus * 100)}% chance of one more variant (${Math.round(g.mergeVariantBonus * 100)}% per variant put in)` : 'Put in items with variants for a chance of a new one')));
-    } else preview = el('p', { class: 'muted' }, `Pick ${n} copies of the same item. Tiers and variants can differ.`);
+    } else preview = el('p', { class: 'muted' }, `Pick ${n} copies of the same item at the same tier. Variants can differ.`);
     const go = el('button', { class: 'btn primary', type: 'button', 'data-action': 'merge-go', disabled: !full }, `⚒️ Merge ${n} → 1`);
     go.addEventListener('click', () => {
       go.disabled = true;
@@ -97,15 +97,22 @@ export function openMergeWindow(app: App, firstIid?: number) {
         render();
       });
     });
-    // What can go in: everything at first, then only copies of the first item.
+    // What can go in: everything that has a full set at first, then only copies of the first item
+    // at its tier (and nothing already at the top tier).
+    const top = g.grades.length - 1;
     const inSlots = new Set(slots.filter((x): x is number => x !== null));
-    const pool = forgeable(app).filter((i) => !inSlots.has(i.iid) && (!first || i.itemId === first.itemId));
+    const pool = forgeable(app).filter(
+      (i) => !inSlots.has(i.iid) && gradeIndex(g, i.grade) < top && (!first || (i.itemId === first.itemId && gradeIndex(g, i.grade) === gradeIndex(g, first.grade))),
+    );
     const byItem = new Map<string, InventoryItem[]>();
-    for (const i of pool) byItem.set(i.itemId, [...(byItem.get(i.itemId) ?? []), i]);
+    for (const i of pool) {
+      const k = `${i.itemId}|${gradeIndex(g, i.grade)}`;
+      byItem.set(k, [...(byItem.get(k) ?? []), i]);
+    }
     const list = el('div', { class: 'merge-pool' });
-    for (const [itemId, its] of byItem) {
-      const d = app.items.get(itemId) as ItemDef;
-      if (!first && its.length < n) continue; // can't make a set of n
+    for (const [k, its] of byItem) {
+      const d = app.items.get(k.split('|')[0]) as ItemDef;
+      if (!first && its.length < n) continue; // can't make a set of n at this tier
       for (const it of its.sort((a, b) => gradeIndex(g, b.grade) - gradeIndex(g, a.grade) || variantParts(b.variant).length - variantParts(a.variant).length)) {
         const c = el('button', { class: 'merge-pick', type: 'button', 'data-iid': String(it.iid) }, el('img', { src: iconUrl(d, it.variant, 48), alt: d.name }), el('span', {}, d.name, el('small', {}, itemLine(app, it))));
         c.addEventListener('click', () => {
@@ -122,10 +129,10 @@ export function openMergeWindow(app: App, firstIid?: number) {
     const inHomes = first ? app.store.inventory.filter((i) => i.itemId === first.itemId && placed.has(i.iid)).length : 0;
     panel.body.replaceChildren(
       row, preview, go,
-      el('h4', {}, first ? `Your other ${def?.name ?? ''}s` : `Items you have ${n}+ of`),
-      list.childElementCount ? list : el('p', { class: 'empty' }, first ? 'No more copies of this item (worn ones don\'t count).' : `You don't have ${n} copies of anything yet.`),
+      el('h4', {}, first ? `Your other ${gradeDef(g, first.grade).name} ${def?.name ?? ''}s` : `Items you have ${n}+ of at one tier`),
+      list.childElementCount ? list : el('p', { class: 'empty' }, first ? 'No more copies of this item at this tier (worn ones don\'t count).' : `You don't have ${n} copies of anything at the same tier yet.`),
       ...(inHomes ? [el('p', { class: 'merge-placed-note' }, `🏠 ${inHomes} more ${inHomes === 1 ? 'is' : 'are'} placed in your homes (see 🎒 Bag → 🏠 Placed). Take ${inHomes === 1 ? 'it' : 'them'} out first (inside the home → 🛠️ Decorate) to merge.`)] : []),
-      el('p', { class: 'hint' }, 'The result: one tier above the lowest you put in, never below the highest. Every variant is kept and they multiply (Shiny + Golden = both bonuses).'),
+      el('p', { class: 'hint' }, `Same tier in, one tier up out (e.g. ${n} × D → 1 C). Every variant is kept and they multiply (Shiny + Golden = both bonuses).`),
     );
   };
   const off = app.store.on(render);

@@ -166,7 +166,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
   }
 
-  const announce = (p: OnlinePlayer, r: { itemId: string; tier: string; variant: string; serial: number | null; oneIn: number }) => {
+  /** A big roll: the banner (and the takeover for the top tiers) for everyone, and a chat line. The
+   *  roller's own client shows it the moment their reel lands (it comes back with the roll), so
+   *  everyone else gets it after the reel's usual length. Returns the announcement. */
+  const announce = (p: OnlinePlayer, r: { itemId: string; tier: string; variant: string; serial: number | null; oneIn: number }): Announcement => {
     const def = cfg.itemById.get(r.itemId)!;
     const tierName = cfg.rarities.tiers.find((t) => t.id === r.tier)?.name.toUpperCase() ?? r.tier;
     const variant = r.variant !== 'normal' ? `${variantLabel(cfg.rarities.variants, r.variant)} ` : '';
@@ -178,9 +181,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     };
     // Wait for the roller's reel to finish so the banner doesn't spoil it.
     setTimeout(() => {
-      io.emit('announce', a);
+      io.except(p.socketId).emit('announce', a);
       io.emit('chat:msg', chat.add({ fromId: null, fromName: 'Server', text, system: true }));
     }, cfg.economy.announceDelayMs);
+    return a;
   };
 
   // --- server events (Phase 7): Lucky Hour, Rush Hour... ------------------------------------
@@ -221,8 +225,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     },
     freeRoll: (p, crateId) => {
       const batch = gacha.roll(p, crateId, 1, { ...rollMods(p, crateId), free: true });
-      for (const r of batch.announce) announce(p, r);
-      return { crateId, results: batch.results };
+      const announced = batch.announce.map((r) => announce(p, r));
+      return { crateId, results: batch.results, announce: announced };
     },
     useSpecial: (p, item) => {
       if (item.effect?.buff === 'perfectCook') return stalls.addPerfectTokens(p, item.effect.charges ?? 0);
@@ -445,11 +449,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (fee && me.walletSen < crate.priceSen * count + fee) throw new GameError(`That's ${formatMoney(crate.priceSen * count + fee)} with the phone fee.`);
       if (fee) econ.run(me, () => econ.change(me, -fee, 0, 'crate-phone-fee', `${crateId}x${count}`));
       const batch = gacha.roll(me, crateId, count, rollMods(me, crateId));
-      for (const r of batch.announce) announce(me, r);
+      const announced = batch.announce.map((r) => announce(me, r));
       const spentSen = crate.priceShards ? 0 : crate.priceSen * count; // the Chef Search is paid in shards
       pushWallet(me, -spentSen - fee + (batch.pageReward?.sen ?? 0), 'crate');
       prog.onRolls(me, crate, batch.results, spentSen);
-      return { results: batch.results, walletSen: me.walletSen, pity: me.pity[crateId], pageReward: batch.pageReward };
+      return { results: batch.results, walletSen: me.walletSen, pity: me.pity[crateId], pageReward: batch.pageReward, announce: announced };
     });
 
     // --- inventory ------------------------------------------------------------------------

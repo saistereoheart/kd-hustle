@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.3.2: no freezes on slow CPUs: vehicles drawn in a worker)_
+_Last updated: 2026-11-20 (v1.3.3: rolls reveal on time, announcements don't pile up, same-tier merges)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,17 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🎰 Reveal timing, announcements, merging (2026-11-20, your requests, v1.3.3)
+- The server returns your own `Announcement`s with `crate:roll` (and the daily spin) and sends them to
+  everyone else after `announceDelayMs` (`io.except(roller)`). `reel.ts` calls `onReveal(result)` when the reel
+  lands / a card flips (also for cards turned by "Flip all"); `revealAnnouncer` shows the matching announcement.
+- `announce.ts`: banners keyed by player (a new one replaces theirs), newest first, max 3; one takeover at a
+  time.
+- `InventorySystem.merge` refuses mixed tiers and the top tier (test updated). The forge pool groups by item +
+  tier.
 
 ---
 

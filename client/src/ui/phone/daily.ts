@@ -7,6 +7,7 @@ import { closePanel } from '../panel';
 import { playReveal } from '../reel';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
+import { revealAnnouncer } from '../announce';
 
 export function rewardText(app: App, r: Reward): string {
   const parts: string[] = [];
@@ -56,7 +57,7 @@ export function renderDaily({ app, rerender }: PhoneCtx): HTMLElement[] {
         app.store.addItems(items);
         if (crate) {
           closePanel();
-          playReveal({ rar: app.cfg.rarities, grades: app.cfg.grades, items: app.items, crate, results: res.roll.results, shake: (i) => app.town?.shake(i), onDone: () => {}, luck: app.mods().luck });
+          playReveal({ rar: app.cfg.rarities, grades: app.cfg.grades, items: app.items, crate, results: res.roll.results, shake: (i) => app.town?.shake(i), onDone: () => {}, luck: app.mods().luck, onReveal: revealAnnouncer(app, res.roll.announce) });
         }
       }
     });

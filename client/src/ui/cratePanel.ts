@@ -5,6 +5,7 @@ import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel } from './panel';
 import { playReveal } from './reel';
 import { sfx } from './sound';
+import { revealAnnouncer } from './announce';
 
 /** `remote`: a quick roll from the phone (same crate, + economy.phoneRollFee). */
 export function openCratePanel(app: App, crateId: string, opts: { remote?: boolean } = {}) {
@@ -119,6 +120,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
         speed: mods.rollSpeed,
         auto: auto ? { isOn: () => auto && canAfford(count) && !lockReason(), stop: () => (auto = false) } : undefined,
         shake: (i) => app.town?.shake(i),
+        onReveal: revealAnnouncer(app, res.announce),
         onDone: (again) => {
           panel.root.classList.remove('hidden');
           if (res.pageReward) {
