@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.6.1: interiors fast; F3 server-vs-network)_
+_Last updated: 2026-11-20 (v1.7.0: shops you furnish, stars → business; stage 2 of 3)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,24 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🏪 Stage 2: shop floors, ratings, reviews (2026-11-20, v1.7.0)
+- **Shop floors are property units** (`<building>#shop`, types `shop_floor` 10×12 / `kopitiam_floor` 12×14 with
+  `shop: true` and their own `essentials`), so the home decorator, layout validation, cleaning, the cleaner and
+  reviews all carry over. `planForType` gives a shop one open room; `rateUnit` uses the type's essentials.
+- `PropertySystem.syncShops(want)` creates / closes them to match the Ventures' shoplots and the tier-3 stalls'
+  plots (5 s timer + on shoplot changes); `shopMult(building)`; `shopVisit(building, n)` (dirt, a shop review
+  every `reviewEvery`); a shop's day only runs the cleaner. Shops don't count toward the home limit and can't be
+  sold or switched mode. Shop floor listings are synthesised from the building's door.
+- `BusinessSystem.pay` × `shopMult` (+ `served` → visits); `StallSystem` customer rate × `shopMult` live and
+  offline (+ visits per arrival).
+- Client: `store.myShops` (kept out of `myProps`), entering your Venture's shoplot opens its floor, the
+  kopitiam's "Furnish the dining room" station, the decorator shows ★ / customers %, Clean, Cleaner, last review.
+- Tests: shop floors (sync, not sellable, shop must-haves, multiplier, dirt, shop reviews). Checked live.
+- Decision: the star curve is gentle (0.8 + 0.08 × stars) so Ventures you already have don't lose much until
+  furnished.
 
 ---
 

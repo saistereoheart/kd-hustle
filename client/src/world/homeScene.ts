@@ -86,7 +86,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private get self(): PropSelf | undefined {
-    return this.app.store.myProps.find((p) => p.unit === this.unitId);
+    return this.app.store.myProps.find((p) => p.unit === this.unitId) ?? this.app.store.myShops.find((p) => p.unit === this.unitId);
   }
 
   private ratingCfg(): RatingCfg {
@@ -659,6 +659,15 @@ export class HomeScene extends Phaser.Scene {
     return this.app.store.inventory.filter((i) => furniturePiece(i.itemId) && !elsewhere.has(i.iid) && !here.has(i.iid));
   }
 
+  /** 🏪 A shop's cleaner on / off. */
+  private toggleCleaner() {
+    const s = this.self;
+    if (!s) return;
+    this.app.socket?.timeout(5000).emit('prop:staff', { unit: this.unitId, role: 'cleaner', on: !s.cleaner }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+    });
+  }
+
   private refreshUi() {
     const s = this.self;
     if (!this.ui || !s) return;
@@ -671,7 +680,18 @@ export class HomeScene extends Phaser.Scene {
     const tools: HTMLElement[] = [
       btn(this.decorating ? '✅ Done' : '🛠️ Decorate', () => this.setDecorating(!this.decorating), this.decorating ? 'btn primary' : 'btn', { 'data-action': 'decorate' }),
     ];
-    if (s.mode === 'airbnb' && s.cleanliness < 100) tools.push(btn(`🧽 Clean (${Math.round(s.cleanliness)}%)`, () => this.work('clean'), 'btn', { 'data-action': 'clean' }));
+    if ((s.mode === 'airbnb' || s.mode === 'shop') && s.cleanliness < 100) tools.push(btn(`🧽 Clean (${Math.round(s.cleanliness)}%)`, () => this.work('clean'), 'btn', { 'data-action': 'clean' }));
+    if (s.mode === 'shop') {
+      // 🏪 Its stars bring customers; a cleaner keeps it spotless (daily fee).
+      const c = this.app.cfg.properties.shop;
+      const mult = c.multBase + c.multPerStar * s.rating.stars;
+      tools.unshift(el('span', { class: 'shop-stars', title: 'Customers / income ×' }, `★ ${s.rating.stars.toFixed(1)} · ${mult >= 1 ? '+' : '−'}${Math.abs(Math.round((mult - 1) * 100))}% customers`));
+      tools.push(btn(s.cleaner ? '🧹 Cleaner: on' : `🧹 Hire a cleaner (${formatMoney(c.cleanerPerDaySen)}/day)`, () => this.toggleCleaner(), s.cleaner ? 'btn primary' : 'btn'));
+      if (s.reviews.length) {
+        const last = s.reviews[s.reviews.length - 1];
+        tools.push(el('span', { class: 'muted small shop-review' }, `${'★'.repeat(last.stars)} "${last.text}"`));
+      }
+    }
     for (const r of s.requests) tools.push(btn(`🔧 Fix: ${r.text}`, () => this.work('diy', r.id), 'btn'));
     if (work > 0) tools.push(el('span', { class: 'muted' }, `⏳ ${work.toFixed(0)} s…`));
     tools.push(btn('🚪 Leave', () => this.leave(), 'btn', { 'data-testid': 'home-exit' }));

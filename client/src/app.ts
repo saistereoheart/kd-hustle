@@ -526,7 +526,10 @@ export class App {
     });
     socket.on('props', ({ props }) => this.store.setProps(props));
     socket.on('props:self', ({ props }) => {
-      this.store.myProps = props;
+      // Shop floors are businesses: kept out of the homes lists (Homes app, home limit, signs).
+      const isShop = (p: { type: string }) => !!this.cfg.properties.types[p.type]?.shop;
+      this.store.myProps = props.filter((p) => !isShop(p));
+      this.store.myShops = props.filter(isShop);
       this.store.emit();
     });
     socket.on('shoplots', ({ shoplots }) => {
@@ -928,6 +931,9 @@ export class App {
   /** Go into a building through the door we're standing at. */
   enterBuilding(b: BuiltBuilding) {
     if (this.interior || this.home) return;
+    // 🏪 Your own Venture's shoplot: straight onto your shop floor (furnish it like a home).
+    const shop = this.store.myShops.find((s) => s.unit === `${b.id}#shop` && s.type === 'shop_floor');
+    if (shop) return void this.enterHome(shop.unit);
     // A kopitiam: its kitchen and till (and the stairs up to any lofts above).
     const kopi = this.kopitiamIn(b);
     let style: RoomStyle | undefined;
@@ -945,6 +951,17 @@ export class App {
         use: () => (mine ? this.openPhone('business') : toast(`🧾 ${kopi.s.ownerName}'s kopitiam. Order from the kitchen counter!`)),
       });
       if (this.listings.some((u) => u.building === b.id)) extra.push({ it: at(`stairs:${b.id}`, 'stairs', 'Stairs to the lofts'), use: () => openPropertyPanel(this, b) });
+      // 🏪 Your kopitiam's dining room: furnish it (tables, chairs, decor) for stars and customers.
+      const floor = mine ? this.store.myShops.find((s) => s.unit === `${b.id}#shop`) : undefined;
+      if (floor) {
+        extra.push({
+          it: at(`decor:${b.id}`, 'cashier', `🛠️ Furnish the dining room (★ ${floor.rating.stars.toFixed(1)})`),
+          use: () => {
+            this.exitBuilding();
+            window.setTimeout(() => this.enterHome(floor.unit), 50);
+          },
+        });
+      }
     } else {
       // Homes: the sale / ownership panel (your own unit: straight in).
       if (this.listings.some((u) => u.building === b.id)) return void openPropertyPanel(this, b);
@@ -973,7 +990,7 @@ export class App {
   /** Go into one of our own homes (from its door). */
   enterHome(unit: string) {
     if (this.interior || this.home || !this.town) return;
-    const u = this.listings.find((x) => x.id === unit);
+    const u = this.listings.find((x) => x.id === unit) ?? (unit.endsWith('#shop') ? { building: unit.slice(0, -'#shop'.length) } : undefined);
     if (!u) return;
     if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
     this.socket?.emit('interior', { building: u.building }, () => {});

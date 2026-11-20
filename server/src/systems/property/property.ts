@@ -14,6 +14,9 @@ import type { Repos } from '../../db/repos';
 import type { OnlinePlayer, World } from '../../game/world';
 import { GameError, type Economy } from '../economy/economy';
 
+/** A business's shop floor: `<building>#shop`. */
+export const SHOP_SUFFIX = '#shop';
+
 export interface PropState {
   unit: string;
   owner: number;
@@ -103,6 +106,7 @@ export class PropertySystem {
     const tiers = cfg.rarities.tiers.map((t) => t.id);
     this.rating = { furniture: cfg.furniture, properties: cfg.properties, rarityIndex: (id) => Math.max(0, tiers.indexOf(cfg.itemById.get(id)?.rarity ?? 'common')) };
     for (const r of repos.properties.all()) {
+      if (r.unit.endsWith(SHOP_SUFFIX)) this.shopListing(r.unit, r.type); // a shop floor (not a home for sale)
       if (!this.byUnit.has(r.unit)) continue; // the map changed and the building is gone
       this.props.set(r.unit, this.hydrate(r.unit, r.owner, r.ownerName, r.type, r.data));
     }
@@ -138,13 +142,110 @@ export class PropertySystem {
     return this.byUnit.get(id);
   }
 
+  // ---------------------------------------------------------------- 🏪 shop floors
+  // A Venture's or a kopitiam's shoplot is also a "unit" of its owner (type shop_floor /
+  // kopitiam_floor): furnished in the home decorator, rated like an Airbnb (with a shop's own
+  // must-haves), cleaned. Its stars bring customers / income; customers make it dirty.
+
+  /** The listing a shop floor needs (it isn't one of the homes for sale). */
+  private shopListing(unitId: string, type: string) {
+    if (this.byUnit.has(unitId)) return;
+    const bld = this.cfg.map.buildings.find((b) => b.id === unitId.slice(0, -SHOP_SUFFIX.length));
+    if (!bld?.door) return;
+    const u = { id: unitId, building: bld.id, n: 0, type, priceSen: 0, loc: 1, x: bld.door.frontX + 0.5, y: bld.door.frontY + 0.5 };
+    this.units.push(u);
+    this.byUnit.set(unitId, u);
+  }
+
+  isShop(unitId: string): boolean {
+    const s = this.props.get(unitId);
+    return !!s && !!this.cfg.properties.types[s.type]?.shop;
+  }
+
+  /**
+   * Makes sure exactly these shop floors exist: `want` = building → (owner, kind). Others are
+   * closed (their furniture goes back to the bag); one that changed kind or owner starts over.
+   * Returns true if anything changed.
+   */
+  syncShops(want: Map<string, { owner: number; ownerName: string; kind: 'venture' | 'kopitiam' }>): boolean {
+    let changed = false;
+    for (const s of [...this.props.values()]) {
+      if (!s.unit.endsWith(SHOP_SUFFIX)) continue;
+      const w = want.get(s.unit.slice(0, -SHOP_SUFFIX.length));
+      const type = w?.kind === 'kopitiam' ? 'kopitiam_floor' : 'shop_floor';
+      if (w && w.owner === s.owner && s.type === type) continue;
+      this.props.delete(s.unit);
+      this.repos.properties.delete(s.unit);
+      changed = true;
+    }
+    for (const [building, w] of want) {
+      const unit = building + SHOP_SUFFIX;
+      if (this.props.has(unit)) continue;
+      const type = w.kind === 'kopitiam' ? 'kopitiam_floor' : 'shop_floor';
+      this.shopListing(unit, type);
+      if (!this.byUnit.has(unit)) continue;
+      const s = this.hydrate(unit, w.owner, w.ownerName, type, { mode: 'shop', cleanliness: 100 });
+      this.props.set(unit, s);
+      this.save(s);
+      changed = true;
+    }
+    if (changed) this.hooks.publicChanged();
+    return changed;
+  }
+
+  /** Stars → business: customers / income × this (1 around 3.3★). */
+  shopMult(building: string): number {
+    const s = this.props.get(building + SHOP_SUFFIX);
+    if (!s) return 1;
+    const c = this.cfg.properties.shop;
+    return c.multBase + c.multPerStar * this.ratingOf(s).stars;
+  }
+
+  /** Customers came through: the floor gets dirtier, and now and then one leaves a review. */
+  shopVisit(building: string, n: number) {
+    const s = this.props.get(building + SHOP_SUFFIX);
+    if (!s || n <= 0) return;
+    const c = this.cfg.properties.shop;
+    const before = Math.floor(s.earnedSen / c.reviewEvery); // (earnedSen counts customers for a shop)
+    s.earnedSen += n;
+    s.cleanliness = Math.max(0, s.cleanliness - c.dirtPerCustomer * n);
+    if (Math.floor(s.earnedSen / c.reviewEvery) > before) s.reviews = [...s.reviews, this.shopReview(this.ratingOf(s))].slice(-12);
+    this.dirtyShops.add(s.unit);
+  }
+  private dirtyShops = new Set<string>();
+  /** A customer's review of a shop (its own texts: tables and toilets, not beds and sheets). */
+  private shopReview(r: Rating) {
+    const rv = this.cfg.properties.shop.reviews;
+    const pick = (k: string) => {
+      const list = rv[k] ?? rv.meh ?? ['OK.'];
+      return list[this.rand(list.length)];
+    };
+    const stars = Math.max(1, Math.min(5, Math.round(r.stars + (this.rand(3) - 1) * 0.5)));
+    let text: string;
+    if (r.missing.includes('aircond')) text = pick('noAircond');
+    else if (r.missing.includes('wifi')) text = pick('noWifi');
+    else if (r.missing.includes('toilet')) text = pick('noToilet');
+    else text = pick(stars >= 5 ? 'great' : stars >= 4 ? 'good' : stars >= 3 ? 'meh' : 'bad');
+    const theme = Object.entries(r.themes).sort((a, b) => b[1] - a[1])[0]?.[0];
+    text = text.replace('{theme}', this.cfg.furniture.themes[theme ?? '']?.name ?? 'cosy');
+    return { stars: r.missing.length ? Math.min(stars, 1) : stars, text, day: this.today() };
+  }
+  /** Saves shops customers visited (called now and then, not per customer). */
+  flushShops() {
+    for (const u of this.dirtyShops) {
+      const s = this.props.get(u);
+      if (s) this.save(s);
+    }
+    this.dirtyShops.clear();
+  }
+
   ratingOf(s: PropState): Rating {
     const t = this.cfg.properties.types[s.type];
     return rateUnit(this.rating, { w: t.w, h: t.h, type: s.type }, s.layout, s.cleanliness);
   }
 
   all(): PropPublic[] {
-    return [...this.props.values()].map((s) => ({ unit: s.unit, owner: s.owner, ownerName: s.ownerName, mode: s.mode, stars: s.mode === 'airbnb' ? this.ratingOf(s).stars : 0 }));
+    return [...this.props.values()].map((s) => ({ unit: s.unit, owner: s.owner, ownerName: s.ownerName, mode: s.mode, stars: s.mode === 'airbnb' || s.mode === 'shop' ? this.ratingOf(s).stars : 0 }));
   }
 
   ownedBy(p: OnlinePlayer): PropState[] {
@@ -225,7 +326,8 @@ export class PropertySystem {
     if (t.requires.stage && p.prog.stage < t.requires.stage) throw new GameError(`A ${t.name} needs wealth stage ${t.requires.stage}.`);
     if (t.requires.level && p.prog.level < t.requires.level) throw new GameError(`A ${t.name} needs level ${t.requires.level}.`);
     // Your first home is free (up to a price cap); there's a limit on how many you can have.
-    const owned = [...this.props.values()].filter((x) => x.owner === p.id).length;
+    // (Shop floors are businesses, not homes: they don't count.)
+    const owned = [...this.props.values()].filter((x) => x.owner === p.id && !this.isShop(x.unit)).length;
     const cl = this.cfg.properties.claim;
     if (owned >= cl.maxHomes) throw new GameError(`You can have up to ${cl.maxHomes} homes. Sell one first.`);
     const price = owned === 0 && u.priceSen <= cl.firstFreeMaxSen ? 0 : u.priceSen;
@@ -245,6 +347,7 @@ export class PropertySystem {
 
   sell(p: OnlinePlayer, unitId: string) {
     const s = this.mine(p, unitId);
+    if (this.isShop(unitId)) throw new GameError("That's your business's shop: move or close the business instead.");
     if (this.hooks.isPledged?.(p, unitId)) throw new GameError('It is collateral for a bank loan: pay the loan off first.');
     const back = Math.floor(s.boughtSen * this.cfg.properties.sellBackRate);
     this.econ.run(p, () => {
@@ -277,6 +380,7 @@ export class PropertySystem {
   // ---------------------------------------------------------------- settings
   setMode(p: OnlinePlayer, unitId: string, mode: PropertyMode) {
     const s = this.mine(p, unitId);
+    if (this.isShop(unitId) || mode === 'shop') throw new GameError('A shop stays a shop.');
     if (s.mode === mode) return;
     if (s.tenant && mode !== 'rent') throw new GameError('Your tenant has to move out first: 🚪 Ask them to leave (📱 → Properties).');
     if (s.guest && mode !== 'airbnb') throw new GameError('Wait for your guest to check out first.');
@@ -491,6 +595,14 @@ export class PropertySystem {
     };
     // Running costs: assessment tax + maintenance fees.
     pay('costs', -s.boughtSen * (pc.costs.taxPerDayRate + pc.costs.maintenancePerDayRate), 'property-costs');
+    // A shop: the cleaner (if hired) makes it spotless each day.
+    if (s.mode === 'shop') {
+      if (s.cleaner && s.cleanliness < 100) {
+        pay('cleaner', -pc.shop.cleanerPerDaySen, 'shop-cleaner');
+        s.cleanliness = 100;
+      }
+      return out;
+    }
     const rating = this.ratingOf(s);
     const pm = this.pmods(p);
     if (s.mode === 'rent' && s.tenant) {

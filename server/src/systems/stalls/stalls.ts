@@ -78,6 +78,9 @@ const FLUSH_GAP_MS = 1000;
 export class StallSystem {
   /** 🏪 Shoplots held by a Venture (set by the economy wiring): no kopitiam there. */
   blockedBuilding: (building: string) => boolean = () => false;
+  /** 🏪 A kopitiam's shop stars → more customers (×); customers dirty the floor. */
+  shopMult: (plotId: string) => number = () => 1;
+  shopVisit: (plotId: string, n: number) => void = () => {};
   private stalls = new Map<number, Live>();
   /** Auto restock: when each stall last checked its stock. */
   private restockAt = new Map<number, number>();
@@ -177,11 +180,12 @@ export class StallSystem {
       if (!menu.length) break; // sold out: the cooks go home
       const hourF = this.hourF(t);
       const rush = rushHour(this.cfg.time, hourF) !== null;
-      const arrivals = (customerRate(st, l.s, rush, t, b, !stallOpenNow(st, l.s.tier, hourF)) / 60_000) * len;
+      const arrivals = (customerRate(st, l.s, rush, t, b, !stallOpenNow(st, l.s.tier, hourF)) * this.shopMult(l.s.plot) / 60_000) * len;
       const capacity = (l.s.staff * len) / cookMs;
       carry += Math.min(arrivals, capacity);
       let n = Math.floor(carry);
       carry -= n;
+      this.shopVisit(l.s.plot, n);
       let served = 0;
       while (n-- > 0) {
         const left = menu.filter((r) => stockCount(l.s, r.id) > 0);
@@ -762,7 +766,7 @@ export class StallSystem {
           this.hooks.event(owner, { kind: 'lost', text: '📦 Out of ingredients: no one can order. 📱 → Business → Stock.' });
         }
       } else if (!closing && l.queue.length < queueCapacity(st, l.s, rush)) {
-        const perMs = customerRate(st, l.s, rush, now, b, offHours) / 60_000;
+        const perMs = (customerRate(st, l.s, rush, now, b, offHours) * this.shopMult(l.s.plot)) / 60_000;
         if (this.rand(1_000_000) / 1_000_000 < perMs * dt) {
           const tier = tierDef(st, l.s.tier);
           const blogger = l.s.rep >= st.blogger.minReputation && this.rand(1_000_000) / 1_000_000 < st.blogger.chance;
@@ -773,6 +777,7 @@ export class StallSystem {
             id: nextId(), seed: this.rand(1 << 30), recipe: recipe.id, ...(addons.length ? { addons } : {}), arrivedAt: now,
             patienceMs: Math.round((p0 + (p1 - p0) * (this.rand(1000) / 1000)) * 1000 * (1 + cashierBonus(st, l.s, b).patience)), blogger, serving: null,
           });
+          this.shopVisit(l.s.plot, 1);
           if (blogger) this.hooks.event(owner, { kind: 'blogger', text: `📸 A food blogger is in your queue! Cook them something Great (${st.blogger.payMult}× pay)${l.s.staff ? ', or your cooks will serve them in a bit' : ''}.` });
         }
       }

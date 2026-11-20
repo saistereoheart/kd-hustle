@@ -1361,3 +1361,7 @@ body.portrait .rest-cards { grid-template-columns: 1fr; }
 /* 🚗 Cartoon pictures of the showroom vehicles (hotbar and the phone's Rides list). */
 .hotbar-slot img.hotbar-vehicle { width: 40px; height: 40px; object-fit: contain; }
 .job-icon img.vehicle-icon { width: 48px; height: 48px; object-fit: contain; display: block; }
+
+/* 🏪 A shop's stars in the decorator's toolbar. */
+.shop-stars { align-self: center; background: rgba(17, 19, 31, 0.85); color: #ffd43b; font-weight: 800; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+.shop-review { align-self: center; max-width: 260px; background: rgba(17, 19, 31, 0.7); color: #fff; padding: 4px 10px; border-radius: 10px; }

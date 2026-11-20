@@ -679,8 +679,14 @@ export function playDish(recipes: RecipesConfig, dish: DishState, title: string,
           if (picked.includes('telur_roti')) drawFood(ctx, 'telur_mata', cx - prx * 0.25 - pry * 0.4, pcy - pry * 0.36, pry * 0.8, pry * 0.72, 0.6);
           picked.filter((id) => id !== 'telur_roti').forEach((id, i) => drawBowl(ctx, id, cx + prx * (0.42 + (i % 2) * 0.02), pcy + (i % 2 ? 0.42 : -0.42) * pry * (i > 1 ? 0.2 : 1), pry * 0.42));
         } else if (s.art === 'filling') {
-          // Murtabak: the stretched dough sheet on the counter, the fillings spread on top.
+          // Murtabak: the stretched dough sheet on the counter, the fillings spread on top. (The
+          // counter only under the order ticket: drawn over the whole canvas it hid the order.)
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, top - 8, W, H);
+          ctx.clip();
           drawCounter(ctx, W, H);
+          ctx.restore();
           drawDough(ctx, cx, pcy, Math.min(prx * 1.1, (H - top) * 0.6), 1);
           picked.forEach((id, i) => {
             const a = (i / Math.max(1, picked.length)) * Math.PI * 2 + 0.4;

@@ -21,6 +21,9 @@ import { GameError, type Economy } from '../economy/economy';
 export interface BusinessHooks {
   wallet: (p: OnlinePlayer, delta: number, reason: string) => void;
   changed: (p: OnlinePlayer) => void;
+    /** 🏪 Its shop's stars → income (×), and customers who came (dirt, reviews). */
+    shopMult?: (p: OnlinePlayer, typeId: string) => number;
+    served?: (p: OnlinePlayer, typeId: string, cycles: number) => void;
     /** These businesses are gone (sold to the bank, rebirth): free their shoplots. */
     gone?: (p: OnlinePlayer, typeIds: string[]) => void;
   /** Income multiplier right now (e.g. 0.5 while you owe the Ah Long). */
@@ -226,7 +229,8 @@ export class BusinessSystem {
     const now = this.clock();
     const per = revenuePerCycleSen(t, b.level);
     const rushed = auto && b.rushUntil > b.cycleAt ? Math.min(n, Math.ceil((Math.min(now, b.rushUntil) - b.cycleAt) / cycleMs(this.bc, t, b.level))) : !auto && b.rushUntil > now ? n : 0;
-    const gross = per * (n + rushed * (this.bc.rush.mult - 1)) * efficiency * this.hooks.incomeMult(p);
+    const gross = per * (n + rushed * (this.bc.rush.mult - 1)) * efficiency * this.hooks.incomeMult(p) * (this.hooks.shopMult?.(p, id) ?? 1);
+    this.hooks.served?.(p, id, n);
     const net = Math.round(gross * (1 - this.bc.taxRate));
     if (net <= 0) return 0;
     this.econ.run(p, () => this.econ.change(p, net, 0, 'business', id));

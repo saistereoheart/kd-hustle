@@ -121,7 +121,13 @@ export function floorPlan(w: number, h: number, bedrooms: number, office = false
 }
 
 /** The plan for a home type (from properties.json: size and bedrooms). */
-export function planForType(t: { w: number; h: number; bedrooms?: number }, typeId: string): FloorPlan {
+export function planForType(t: { w: number; h: number; bedrooms?: number; shop?: boolean }, typeId: string): FloorPlan {
+  // A shop floor is one open room.
+  if (t.shop) {
+    const plan = openPlan(t.w, t.h);
+    plan.rooms[0].name = 'Shop floor';
+    return plan;
+  }
   return floorPlan(t.w, t.h, t.bedrooms ?? 0, typeId === 'office');
 }
 

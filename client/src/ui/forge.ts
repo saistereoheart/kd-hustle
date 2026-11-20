@@ -23,7 +23,7 @@ function itemLine(app: App, it: InventoryItem): string {
 /** Items that can go in the forge (from a crate, not limited, not worn). */
 /** Furniture placed in your homes (can't be merged or rerolled until it's taken out). */
 export function placedIids(app: App): Set<number> {
-  return new Set(app.store.myProps.flatMap((p) => p.layout.map((l) => l.iid)));
+  return new Set([...app.store.myProps, ...app.store.myShops].flatMap((p) => p.layout.map((l) => l.iid)));
 }
 
 function forgeable(app: App): InventoryItem[] {

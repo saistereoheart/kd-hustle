@@ -41,6 +41,17 @@ export const furnitureConfigSchema = z.object({
 export type FurnitureConfig = z.infer<typeof furnitureConfigSchema>;
 export type FurniturePiece = FurnitureConfig['pieces'][string];
 
+/** 🏪 What shop customers write (tables and toilets, not beds and sheets). */
+const SHOP_REVIEWS: Record<string, string[]> = {
+        great: ['Best kedai in KD! The {theme} look is 🔥', 'Sedap and so comfy. Will come again!', 'Cantik gila, I spent 2 hours here.'],
+        good: ['Nice place, good service.', 'Comfy seats, clean tables.', 'Not bad lah, will come back.'],
+        meh: ["It's okay. Quite empty inside.", 'Need more tables and chairs.', 'Bit plain. Add some decor?'],
+        bad: ['Floor sticky... 😬', 'Messy and nowhere to sit.', 'Dirty tables, not coming back.'],
+        noAircond: ['No aircond?! Panas gila. 1★'],
+        noWifi: ['No wifi. Cannot even scroll. 1★'],
+        noToilet: ['No toilet for customers?! 1★'],
+      };
+
 export const propertiesConfigSchema = z.object({
   types: z.record(
     z.string(),
@@ -56,12 +67,32 @@ export const propertiesConfigSchema = z.object({
       nightBaseSen: z.number().int().positive(),
       /** Bedrooms in the floor plan (0 = a small home: one main room, a bathroom, a kitchenette). */
       bedrooms: z.number().int().min(0).max(6).default(0),
+      /** 🏪 A business's shop floor (a Venture's or a kopitiam's shoplot): one open room, never sold. */
+      shop: z.boolean().default(false),
+      /** What this kind of place must have (instead of the home essentials). */
+      essentials: z.array(z.string()).optional(),
     }),
   ),
   /** Building kind → its homes. `perM2`: one unit per this much floor (capped at `units`), so a
    *  bigger building holds more players. */
   byKind: z.record(z.string(), z.object({ type: z.string().optional(), types: z.array(z.string()).optional(), units: z.number().int().positive(), perM2: z.number().positive().optional() })),
   /** Claiming homes: your first one is free if it costs up to `firstFreeMaxSen`; at most `maxHomes` each. */
+  /** 🏪 Shops (Ventures and kopitiams): stars → business, wear and tear, reviews. */
+  shop: z
+    .object({
+      /** Customers / income × (multBase + multPerStar × stars). */
+      multBase: z.number(),
+      multPerStar: z.number(),
+      /** Cleanliness lost per customer. */
+      dirtPerCustomer: z.number().nonnegative(),
+      /** A review every this many customers. */
+      reviewEvery: z.number().int().positive(),
+      /** A cleaner keeps it spotless, for this much a game day. */
+      cleanerPerDaySen: z.number().int().nonnegative(),
+      /** Customers' reviews: great / good / meh / bad, and for a missing aircond / wifi / toilet. */
+      reviews: z.record(z.string(), z.array(z.string()).min(1)).default(SHOP_REVIEWS),
+    })
+    .default({ multBase: 0.8, multPerStar: 0.08, dirtPerCustomer: 0.5, reviewEvery: 12, cleanerPerDaySen: 4000, reviews: SHOP_REVIEWS }),
   claim: z.object({ firstFreeMaxSen: z.number().int().nonnegative(), maxHomes: z.number().int().positive() }).default({ firstFreeMaxSen: 10_000_000, maxHomes: 3 }),
   hotspots: z.array(z.object({ name: z.string(), building: z.string().optional(), point: z.tuple([z.number(), z.number()]).optional() })),
   locationBonus: z.number().nonnegative(),
@@ -134,4 +165,4 @@ export interface Placed {
   rot: number;
 }
 
-export type PropertyMode = 'none' | 'rent' | 'airbnb' | 'home';
+export type PropertyMode = 'none' | 'rent' | 'airbnb' | 'home' | 'shop';

@@ -34,6 +34,11 @@ export interface VentureDeps {
   lockedIids: (p: OnlinePlayer) => Set<number>;
   /** 🏪 Who holds which shoplot. */
   shoplots: ShoplotSystem;
+  /** 🏪 A shop's stars → income (×); customers who came (dirt, reviews). */
+  shopMult?: (building: string) => number;
+  shopVisit?: (building: string, n: number) => void;
+  /** The shoplots changed (shop floors to create / close). */
+  shoplotsChanged?: () => void;
 }
 
 export function createVentures(d: VentureDeps) {
@@ -45,9 +50,21 @@ export function createVentures(d: VentureDeps) {
       for (const t of types) d.shoplots.release(p.id, 'venture', t);
       broadcastShoplots();
     },
+    shopMult: (p, type) => {
+      const b = d.shoplots.of(p.id, 'venture', type);
+      return b && d.shopMult ? d.shopMult(b) : 1;
+    },
+    // Each finished cycle is a couple of customers through the door.
+    served: (p, type, cycles) => {
+      const b = d.shoplots.of(p.id, 'venture', type);
+      if (b) d.shopVisit?.(b, cycles * 2);
+    },
   });
   const T = d.cfg.map.tileSize;
-  const broadcastShoplots = () => d.io.emit('shoplots', { shoplots: d.shoplots.public() });
+  const broadcastShoplots = () => {
+    d.io.emit('shoplots', { shoplots: d.shoplots.public() });
+    d.shoplotsChanged?.();
+  };
   /** Every Venture you own has a shoplot (ones bought before shoplots existed get the free one nearest
    *  the town square). */
   function placeAll(p: OnlinePlayer) {

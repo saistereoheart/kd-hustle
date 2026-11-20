@@ -298,3 +298,39 @@ describe('offline income (spec §8.7)', () => {
     expect(() => s.props.luckySpin(s.p)).toThrow();
   });
 });
+
+describe('🏪 shop floors (Ventures and kopitiams)', () => {
+  const shoplot = () => cfg.map.stallPlots.find((x) => x.tier >= cfg.stalls.cashierFromTier && x.building)!.building!;
+
+  it('a shoplot business gets a shop floor: not a home, not for sale, rated with shop must-haves', () => {
+    const { p, props } = setup();
+    const b = shoplot();
+    expect(props.syncShops(new Map([[b, { owner: p.id, ownerName: 'owner', kind: 'venture' }]]))).toBe(true);
+    const unit = `${b}#shop`;
+    expect(props.isShop(unit)).toBe(true);
+    const s = props.selfOf(p).find((x) => x.unit === unit)!;
+    expect(s.mode).toBe('shop');
+    expect(s.rating.missing).toEqual(['aircond', 'wifi', 'toilet']);
+    expect(() => props.sell(p, unit)).toThrow(GameError);
+    expect(() => props.setMode(p, unit, 'airbnb')).toThrow(GameError);
+    // Syncing again changes nothing; dropping it closes it.
+    expect(props.syncShops(new Map([[b, { owner: p.id, ownerName: 'owner', kind: 'venture' }]]))).toBe(false);
+    expect(props.syncShops(new Map())).toBe(true);
+    expect(props.isShop(unit)).toBe(false);
+  });
+
+  it('stars set the business multiplier; customers dirty it and leave shop reviews', () => {
+    const { p, props } = setup();
+    const b = shoplot();
+    props.syncShops(new Map([[b, { owner: p.id, ownerName: 'owner', kind: 'kopitiam' }]]));
+    const c = cfg.properties.shop;
+    const stars = props.ratingOf(props.ownedBy(p).find((s) => s.unit === `${b}#shop`)!).stars;
+    expect(props.shopMult(b)).toBeCloseTo(c.multBase + c.multPerStar * stars, 6);
+    expect(props.shopMult('no-such-building')).toBe(1);
+    props.shopVisit(b, c.reviewEvery * 2);
+    const s = props.ownedBy(p).find((x) => x.unit === `${b}#shop`)!;
+    expect(s.cleanliness).toBeCloseTo(100 - c.dirtPerCustomer * c.reviewEvery * 2, 6);
+    expect(s.reviews.length).toBeGreaterThan(0);
+    expect(s.reviews.some((r) => /bed|sheets|stay/i.test(r.text))).toBe(false);
+  });
+});

@@ -66,7 +66,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
   /** Furniture placed in your homes: inventory iid → where it is. */
   const placedIn = () => {
     const m = new Map<number, { unit: string; label: string }>();
-    for (const pr of app.store.myProps) {
+    for (const pr of [...app.store.myProps, ...app.store.myShops]) {
       const u = app.listings.find((x) => x.id === pr.unit);
       const t = app.cfg.properties.types[pr.type];
       const label = `${t?.icon ?? '🏠'} ${t?.name ?? 'Home'}${u && u.n > 1 ? ` · unit ${u.n}` : ''}`;

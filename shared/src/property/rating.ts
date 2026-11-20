@@ -81,7 +81,7 @@ function addPiece(cfg: RatingCfg, a: Agg, item: string) {
   if (!p.floor && !p.wall) a.covered += p.w * p.h;
 }
 
-function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanliness: number, blocked: boolean, rooms = 1) {
+function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a: Agg, cleanliness: number, blocked: boolean, rooms = 1) {
   const r = cfg.properties.rating;
   const area = unit.w * unit.h;
   const comfort = Math.min(1, a.comfort / (area * r.comfortPerM2));
@@ -100,7 +100,9 @@ function score(cfg: RatingCfg, unit: { w: number; h: number }, a: Agg, cleanline
   const factors: Factors = { comfort, style, rarity, amenities, clean, space, rooms };
   const w = r.weights;
   const total = comfort * w.comfort + style * w.style + rarity * w.rarity + amenities * w.amenities + clean * w.clean + space * w.space + rooms * (w.rooms ?? 0);
-  const missing = cfg.furniture.essentials.filter((e) => !a.essentials.has(e));
+  // A shop has its own must-haves (customers expect aircond, wifi and a toilet, not a bed).
+  const must = (unit.type ? cfg.properties.types[unit.type]?.essentials : undefined) ?? cfg.furniture.essentials;
+  const missing = must.filter((e) => !a.essentials.has(e));
   let stars = 0.5 + 4.5 * total;
   if (missing.length) stars = Math.min(stars - r.missingPenalty * missing.length, r.missingCap - r.missingCapStep * (missing.length - 1));
   stars = Math.max(cfg.properties.airbnb.minStars, Math.round(stars * 10) / 10);

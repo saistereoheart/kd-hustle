@@ -39,6 +39,8 @@ export class Store {
   props = new Map<string, PropPublic>();
   /** Your own homes (full detail, with ratings and suggestions). */
   myProps: PropSelf[] = [];
+  /** 🏪 Your Ventures' and kopitiam's shop floors (furnished like a home, but businesses). */
+  myShops: PropSelf[] = [];
   /** An NPC errand in progress. */
   errand: ErrandState | null = null;
   /** The skip-the-night vote (null until the server sends it). */

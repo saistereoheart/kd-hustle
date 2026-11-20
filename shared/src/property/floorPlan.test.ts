@@ -17,7 +17,7 @@ describe('floor plans', () => {
       expect(plan.rooms.reduce((a, r) => a + r.w * r.h, 0)).toBe(t.w * t.h);
       expect(roomAtCell(plan, plan.front[0], t.h - 1)?.kind).toBe('living');
       expect(roomAtCell(plan, plan.front[1], t.h - 1)?.kind).toBe('living');
-      expect(plan.rooms.some((r) => r.kind === 'bath')).toBe(true);
+      if (!t.shop) expect(plan.rooms.some((r) => r.kind === 'bath')).toBe(true); // a shop floor is one open room
       // Walk the empty home from the front door: every cell is reachable through the doorways.
       const seen = new Set<string>();
       const q: Array<[number, number]> = [[plan.front[0], t.h - 1]];

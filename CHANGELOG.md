@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.0 (2026-11-20)
+- **🏪 Furnish your shops, like an Airbnb (stage 2):** every Venture's shoplot and your kopitiam now have a shop
+  floor you furnish with your furniture (the same decorator as homes).
+  - Walk into your Venture's shoplot to go straight in. In your kopitiam, use the new 🛠️ Furnish the dining
+    room station.
+  - It's rated like an Airbnb (comfort, style sets, rarity, amenities, space, cleanliness). A shop's must-haves
+    are aircond, wifi and a toilet (a kopitiam also needs a kitchen); each one missing costs stars.
+  - **Stars bring business:** a Venture earns, and a kopitiam gets customers, × (0.8 + 0.08 × stars). An empty
+    shop is −16%, about 2.5★ breaks even, 5★ is +20% (`properties.json` → `shop`).
+  - Customers make it dirty (🧽 Clean it, or 🧹 hire a cleaner for RM 40 a day), and every 12 or so leave a
+    review (shop reviews: tables and toilets, not beds).
+  - 📱 Ventures shows each shop's stars, cleanliness and what it's missing. Shops don't count toward your 3 homes
+    and can't be sold or rented out.
+- **Fixed: murtabak's "Fill it" didn't show the order.** The counter was drawn over the whole screen, hiding
+  the ticket with the fillings the customer wants.
+
 ## 1.6.1 (2026-11-20)
 - **Inside buildings is fast again:** the town used to keep drawing behind every room, through a full-screen
   blur filter (about three-quarters of each frame on weak graphics). The town now isn't drawn while you're

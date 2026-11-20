@@ -336,8 +336,44 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     return out;
   };
   stalls.blockedBuilding = (b) => shoplots.takenByVenture(b);
+  // 🏪 Every Venture's and kopitiam's shoplot is also a shop floor you furnish (a "unit" in the
+  // property system): its stars bring customers / income, customers make it dirty.
+  const plotBuilding = (plotId: string) => {
+    const plot = cfg.map.stallPlots.find((x) => x.id === plotId);
+    return plot && plot.tier >= cfg.stalls.cashierFromTier ? (plot.building ?? null) : null;
+  };
+  stalls.shopMult = (plotId) => {
+    const b = plotBuilding(plotId);
+    return b ? propSys.shopMult(b) : 1;
+  };
+  stalls.shopVisit = (plotId, n) => {
+    const b = plotBuilding(plotId);
+    if (b) propSys.shopVisit(b, n);
+  };
+  const syncShops = () => {
+    const want = new Map<string, { owner: number; ownerName: string; kind: 'venture' | 'kopitiam' }>();
+    for (const s of shoplots.public()) want.set(s.building, { owner: s.ownerId, ownerName: s.ownerName, kind: 'venture' });
+    for (const s of stalls.all()) {
+      const b = plotBuilding(s.plot);
+      if (b) want.set(b, { owner: s.owner, ownerName: s.ownerName, kind: 'kopitiam' });
+    }
+    if (propSys.syncShops(want)) {
+      for (const p of world.players.values()) if (p.hasCharacter && want.size) socketOf(p)?.emit('props:self', { props: propSys.selfOf(p) as never });
+    }
+    propSys.flushShops();
+  };
+  const shopTimer = setInterval(() => {
+    try {
+      syncShops();
+    } catch (err) {
+      log.error('shop sync failed', err);
+    }
+  }, 5000);
   const ventures = createVentures({
     cfg, repos, econ, world, socketOf, pushWallet, shoplots,
+    shopMult: (b) => propSys.shopMult(b),
+    shopVisit: (b, n) => propSys.shopVisit(b, n),
+    shoplotsChanged: () => syncShops(),
     incomeMult: (p) => prog.mods(p).passive * finance.incomeMult(p), // Passive Income (skill + gear); half while late on the Ah Long
     check: (p) => prog.check(p),
     io,
@@ -1077,6 +1113,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     onMoved: (p: OnlinePlayer) => parking.onMoved(p),
     parkedPublic: (scene: string) => parking.all(scene),
     stop: () => {
+      clearInterval(shopTimer);
+      propSys.flushShops();
       clearInterval(manifestTimer);
       clearInterval(rideTimer);
       clearInterval(dayTimer);

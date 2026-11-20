@@ -105,6 +105,8 @@ function bizCard(app: App, t: BusinessTypeDef, now: number): HTMLElement {
   const lot = app.store.shoplots.find((s) => s.ownerId === app.town?.selfId && s.ref === t.id);
   const spot = lot ? app.shoplotSpot(lot.building) : null;
   if (spot) {
+    const floor = app.store.myShops.find((s) => s.unit === `${lot!.building}#shop`);
+    if (floor) info.append(el('div', { class: 'muted small' }, `🏪 Shop ★ ${floor.rating.stars.toFixed(1)} · clean ${Math.round(floor.cleanliness)}% · walk in to furnish it${floor.rating.missing.length ? ` · missing: ${floor.rating.missing.join(', ')}` : ''}`));
     const show = el('button', { class: 'btn small', type: 'button', 'data-action': `biz-show-${t.id}` }, '📍 Show');
     show.addEventListener('click', () => {
       closePanel();
