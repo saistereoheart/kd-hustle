@@ -32,6 +32,8 @@ export const dungeonConfigSchema = z.object({
     sacrificeFloors: z.number().min(0),
   }).default({ every: 4, chance: 0.15, heal: 0.5, revive: 0.25, buffAtk: 0.2, buffDef: 0.15, sacrificeHp: 0.3, sacrificeFloors: 2 }),
   bossEvery: z.number().int().positive(),
+  /** The bottom of the cave: beat this floor (a boss) and the run is done (cash out). */
+  lastFloor: z.number().int().positive(),
   /** Enemy stats on floor 1 (× the enemy's own mults), growing per floor. */
   enemyScale: z.object({
     hp: z.number().positive(), atk: z.number().positive(), def: z.number().positive(), spd: z.number().positive(),

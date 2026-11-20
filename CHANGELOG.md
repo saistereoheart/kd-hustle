@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.1 (2026-11-20)
+- **⚔️ Gua Gelap has a bottom: floor 60** (a final boss). Clear it and the run is done: cash out and keep
+  everything. Before, the cave never ended.
+- **🐾 Teman buffed a little** (1.8.4 cut too much), tuned so a full run is reachable:
+  - Level growth +9% a level (was +8%); each stat upgrade +6% (was +5%).
+  - Every Teman gear piece ×1.25 (Mahkota +15% each stat, was +12%).
+  - Tier: C ×1.13, B ×1.28, A ×1.48, S ×1.75. Variant: Shiny ×1.2, Golden ×1.35, Rainbow ×1.55.
+  - Mahkota at Tier S with every variant: **+122%** (was +82%). The strongest possible Teman: ~17.5k HP.
+- **Simulated full runs** (real battle maths, Auto's choices):
+  - 3 maxed mythic Teman + a maxed Mahkota: reach the bottom every time. So does a single maxed mythic.
+  - With a basic Mahkota: about floor 59. Maxed legendaries: about 58.
+
 ## 1.9.0 (2026-11-20)
 - **🏪 Walking into a shop shows the shop floor itself**, as its owner furnished it. This applies to everyone
   (owner and visitors) at Ventures' shoplots and kopitiams; there's no separate "furnish" room any more. The

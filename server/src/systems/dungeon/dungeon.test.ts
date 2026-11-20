@@ -118,6 +118,19 @@ describe('dungeon (server, turn-based)', () => {
     if (s.dungeon.view(s.p).run?.phase === 'dead') expect(paid).toBe(Math.floor(loot * dc.deathKeep));
   });
 
+  it('the bottom floor ends the run: no deeper, cash out keeps it all', () => {
+    const s = setup();
+    s.pets.buyStarter(s.p, 'pet_kucing');
+    s.dungeon.enter(s.p);
+    const run = (s.dungeon as unknown as { runs: Map<number, { floor: number; phase: string; restNext: boolean; loot: { sen: number } }> }).runs.get(s.p.id)!;
+    run.floor = dc.lastFloor;
+    run.phase = 'cleared';
+    run.restNext = false;
+    run.loot.sen = 12345;
+    expect(() => s.dungeon.deeper(s.p)).toThrow(/bottom/);
+    expect(s.dungeon.leave(s.p).paid.sen).toBe(12345);
+  });
+
   it('only so many runs a day', () => {
     const s = setup();
     s.pets.buyStarter(s.p, 'pet_ayam');

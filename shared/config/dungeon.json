@@ -5,6 +5,7 @@
   "healPerFloor": 0,
   "rest": { "every": 4, "chance": 0.15, "heal": 0.5, "revive": 0.25, "buffAtk": 0.2, "buffDef": 0.15, "sacrificeHp": 0.3, "sacrificeFloors": 2 },
   "bossEvery": 5,
+  "lastFloor": 60,
   "enemyScale": {"hp": 38, "atk": 11, "def": 6, "spd": 10, "growth": {"hp": 1.13, "atk": 1.09, "def": 1.08, "spd": 1.03}, "bossHp": 2.2, "bossAtk": 1.15},
   "enemies": [
     {"id": "lipas", "name": "Lipas Gergasi", "icon": "🪳", "color": "#8a5a2b", "hp": 0.8, "atk": 0.8, "floors": [1, 4], "line": "A cockroach the size of a motorbike. It flies at your face.", "move": "Terbang ke Muka", "ultimate": "Serangan Seribu Kaki", "taunts": ["Bzzzt! Muka kau sasaran aku!", "Kau tak boleh pijak aku!"], "def": 0.8, "spd": 1.25},

@@ -59,7 +59,7 @@ describe('pets', () => {
     expect(look.gradeMult * look.variantMult).toBeCloseTo(top, 10);
     // Mahkota (the best gear), Tier S with every variant: at most about double.
     const crown = petGearBoosts(pets, { id: 'pg_mahkota', rarity: 'mythic', ...look });
-    expect(crown.hp!).toBeLessThan(1.2);
+    expect(crown.hp!).toBeLessThan(1.5);
     const maxed = { ...newProgress(), level: pets.maxLevel, up: { hp: pets.upgrade.maxLevel, atk: pets.upgrade.maxLevel, def: pets.upgrade.maxLevel, spd: pets.upgrade.maxLevel } };
     for (const id of Object.keys(pets.species)) {
       const s = petStats(pets, { id, rarity: 'secret', ...look }, maxed, { id: 'pg_mahkota', rarity: 'mythic', ...look });
@@ -75,6 +75,40 @@ describe('pets', () => {
     const top = { ...newProgress(), level: pets.maxLevel };
     expect(addPetXp(pets, top, 99999)).toBe(0);
     expect(top.level).toBe(pets.maxLevel);
+  });
+});
+
+describe('a full run (balance)', () => {
+  it('a maxed mythic team with a maxed Mahkota reaches the bottom of the cave (or close)', () => {
+    const r = seeded(7);
+    const look = petLook(pets, 'S', 'shiny+golden+rainbow');
+    const maxed: PetProgress = { ...newProgress(), level: pets.maxLevel, up: { hp: pets.upgrade.maxLevel, atk: pets.upgrade.maxLevel, def: pets.upgrade.maxLevel, spd: pets.upgrade.maxLevel } };
+    const reached: number[] = [];
+    for (let run = 0; run < 12; run++) {
+      const team: Fighter[] = ['pet_naga', 'pet_unicorn', 'pet_naga'].map((id, k) => {
+        const s = petStats(pets, { id, rarity: 'mythic', gradeMult: 1, variantMult: 1 }, maxed, { id: 'pg_mahkota', rarity: 'mythic', ...look });
+        return { side: 'pet', id, name: id, hp: s.hp, maxHp: s.hp, atk: s.atk, def: s.def, spd: s.spd, points: 0, move: '', ultimate: '', iid: k + 1 };
+      });
+      const dr = { floor: 1, team, active: 0, buffs: 0, loot: { sen: 0, shards: 0, xp: 0, petXp: 0 } } as unknown as DungeonRun;
+      for (;;) {
+        const e = enemyFor(cfg, dr.floor, r).fighter;
+        for (const f of dr.team) f.points = 0;
+        let over: string | null = null;
+        for (let k = 0; !over && k < pets.battle.maxRounds; k++) {
+          const res = resolveRound(pets, dr.team, dr.active, e, autoChoice(pets, dr.team[dr.active], e), r);
+          dr.active = res.active;
+          over = res.over;
+        }
+        if (over === 'lose' || dr.floor >= cfg.lastFloor) break;
+        if (restAfter(cfg, dr.floor, r(1000) / 1000)) applyRest(cfg, dr, dr.team.some((f) => f.hp < f.maxHp * 0.6) ? 'heal' : 'buff', 1);
+        dr.floor++;
+        if (dr.team[dr.active].hp <= 0) dr.active = Math.max(0, dr.team.findIndex((f) => f.hp > 0));
+      }
+      reached.push(dr.floor);
+    }
+    reached.sort((a, b) => a - b);
+    expect(reached[6]).toBeGreaterThanOrEqual(cfg.lastFloor - 2);
+    expect(reached[0]).toBeGreaterThanOrEqual(cfg.lastFloor - 10);
   });
 });
 

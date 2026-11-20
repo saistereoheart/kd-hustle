@@ -527,7 +527,7 @@ export function openDungeon(app: App) {
     teman.addEventListener('click', () => openPetsPanel(app));
     const b = pc.battle;
     return [
-      el('p', {}, `A cave under Kota Damansara, full of pests and spirits. Your 🐾 Teman fight for you: one enemy per floor, a boss every ${dc.bossEvery} floors. The deeper you go, the better the loot.`),
+      el('p', {}, `A cave under Kota Damansara, full of pests and spirits. Your 🐾 Teman fight for you: one enemy per floor, a boss every ${dc.bossEvery} floors, ${dc.lastFloor} floors down to the bottom. The deeper you go, the better the loot.`),
       el('ol', { class: 'dungeon-how' },
         el('li', {}, `⚔️ Attack: your Teman's own move. Builds ${b.attackPoints} point.`),
         el('li', {}, `⚡ Charge: builds ${b.chargePoints} points and halves the damage you take that round.`),
@@ -589,7 +589,8 @@ export function openDungeon(app: App) {
     raf = requestAnimationFrame(frame);
     if (r.phase === 'cleared') {
       const nextBoss = (r.floor + 1) % dc.bossEvery === 0;
-      const deeper = el('button', { class: 'btn primary', type: 'button', 'data-action': 'dungeon-deeper' }, r.restNext ? '🏕️ On to the rest room' : `⬇️ Go deeper: floor ${r.floor + 1}${nextBoss ? ' (BOSS!)' : ''}`);
+      const bottom = r.floor >= dc.lastFloor;
+      const deeper = el('button', { class: 'btn primary', type: 'button', 'data-action': 'dungeon-deeper' }, r.restNext ? '🏕️ On to the rest room' : `⬇️ Go deeper: floor ${r.floor + 1}${r.floor + 1 >= dc.lastFloor ? ' (FINAL BOSS!)' : nextBoss ? ' (BOSS!)' : ''}`);
       deeper.addEventListener('click', () => call('dungeon:deeper'));
       const cash = el('button', { class: 'btn', type: 'button', 'data-action': 'dungeon-cashout' }, `💰 Cash out ${formatMoney(r.loot.sen)}${r.loot.shards ? ` + ${r.loot.shards} 💎` : ''}`);
       cash.addEventListener('click', () => leave());
@@ -604,12 +605,13 @@ export function openDungeon(app: App) {
       });
       panel.body.append(
         el('div', { class: 'dungeon-cleared' },
-          el('h4', {}, `✅ Floor ${r.floor} cleared!`),
-          el('div', { class: 'muted' }, `${standing}/${r.team.length} Teman standing · HP carries over${r.restNext ? ' · 🏕️ a rest room is next!' : ''}`),
-          el('div', { class: 'dungeon-controls' }, deeper, cash),
-          ...(auto ? [autoLine, stop] : [])),
+          el('h4', {}, bottom ? `🏆 The bottom of ${dc.name}! All ${dc.lastFloor} floors cleared!` : `✅ Floor ${r.floor} cleared!`),
+          el('div', { class: 'muted' }, bottom ? 'Nothing deeper than this. Cash out and keep it all.' : `${standing}/${r.team.length} Teman standing · HP carries over${r.restNext ? ' · 🏕️ a rest room is next!' : ''}`),
+          el('div', { class: 'dungeon-controls' }, ...(bottom ? [cash] : [deeper, cash])),
+          ...(auto && !bottom ? [autoLine, stop] : [])),
         logBox,
       );
+      if (bottom) auto = false;
       if (auto) {
         const floor = r.floor;
         let left = 3;

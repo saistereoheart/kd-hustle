@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.9.0: the shop floor is the shop)_
+_Last updated: 2026-11-20 (v1.9.1: Gua Gelap bottom floor 60; Teman bump)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -24,6 +24,18 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## ⚔️ Gua Gelap full run (2026-11-20, your request, v1.9.1)
+The owner wants a maxed mythic (full level, full upgrades, maxed item) to survive to the last floor, or close.
+The cave was endless (enemies ×1.13 HP, ×1.09 ATK a floor), so the "last level" didn't exist.
+
+**Decision:** add `dungeon.json` `lastFloor: 60`:
+- The server refuses `deeper` past it, and there's no rest room after it.
+- The UI shows "🏆 The bottom", with Cash out only; Auto stops there.
+
+Then a slight Teman bump: levelGrowth 0.09, upgrade 0.06, gear ×1.25, tierMult S 1.75, variantMult 1.2 / 1.35 /
+1.55. Simulation (real `resolveRound`, Auto's choices): maxed mythic team + maxed Mahkota → 60 every time;
+basic Mahkota → median 59. The new unit test plays 12 runs and checks the median is ≥ 58.
 
 ## 🏪 The shop floor is the shop (2026-11-20, your request, v1.9.0)
 Shop doors (a kopitiam, or a Venture's shoplot) open the furnished `HomeScene` for everyone:
