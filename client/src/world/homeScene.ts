@@ -16,6 +16,7 @@ import { iconUrl } from '../ui/panel';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
+import { COUNTER_LINES, Walkers } from './walkers';
 
 const C = 40; // px per cell (1 m)
 const WALL = 18; // outer wall thickness (px)
@@ -139,6 +140,18 @@ export class HomeScene extends Phaser.Scene {
       .setDepth(999_000);
     this.banner = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '20px', fontStyle: '900', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 }).setOrigin(0.5).setDepth(999_100).setAlpha(0);
     this.enterRoom(true);
+    // 🚶 A shop: customers come in, look around (at a free spot on the floor), say something, leave.
+    if (s?.mode === 'shop') {
+      this.walkers = new Walkers(this, this.app.cfg.character, this.app.items, 3, 60);
+      const lines = s.type === 'kopitiam_floor' ? COUNTER_LINES.kopitiam : COUNTER_LINES.shop;
+      const outside = { x: fx, y: H + C * 0.8 }, inside = { x: fx, y: H - C * 1.2 };
+      const visit = () => {
+        if (this.decorating) return; // not while you're moving furniture around
+        const tx = (1 + Math.random() * (this.W - 2)) * C, ty = (1 + Math.random() * (this.H - 3)) * C;
+        this.walkers?.walk(outside, [inside, { x: tx, y: ty, say: lines[Math.floor(Math.random() * lines.length)], waitMs: 2000 }, inside, outside]);
+      };
+      this.time.addEvent({ delay: 5000, loop: true, callback: visit, startAt: 3000 });
+    }
     this.buildUi();
     this.off = this.app.store.on(() => this.refreshUi());
 
@@ -153,6 +166,8 @@ export class HomeScene extends Phaser.Scene {
       this.ui?.remove();
       this.side?.remove();
       this.me?.destroy();
+      this.walkers?.destroy();
+      this.walkers = null;
       if (this.furnTex) this.textures.remove(this.furnTex.key);
       if (this.ghostTex) this.textures.remove(this.ghostTex.key);
     });
@@ -376,7 +391,9 @@ export class HomeScene extends Phaser.Scene {
     return !wallBetween(this.plan, c0[0], c0[1], c1[0], c1[1]);
   }
 
+  private walkers: Walkers | null = null;
   override update(_t: number, delta: number) {
+    this.walkers?.update(performance.now());
     if (this.leaving) return;
     const dt = Math.min(delta, 100) / 1000;
     let { x: vx, y: vy } = this.decorating ? { x: 0, y: 0 } : this.app.inputVector();

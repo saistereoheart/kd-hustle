@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.7.0: shops you furnish, stars → business; stage 2 of 3)_
+_Last updated: 2026-11-20 (v1.8.0: walk-in customers; the shops redesign is done)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,20 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🚶 Stage 3: walk-ins (2026-11-20, v1.8.0)
+- `world/walkers.ts`: NPCs that walk a list of points (optionally stopping to say a line) and fade out at the
+  end; capped per place.
+- Kopitiam (`stallLayer.walkIns`): for tier ≥ `cashierFromTier` the server queue isn't drawn; a new customer id →
+  someone walks from the pavement (the old queue direction) into the door; a gone id → someone walks out.
+  Only near the camera.
+- Ventures (`townScene.shopTraffic`): every 2.5 s, each shoplot on screen has a chance of a walk-in or walk-out
+  (a pavement spot found by a straight walkable line to just short of the door).
+- Inside: `InteriorScene` (keeper or stations: to the counter / till and back), `HomeScene` shop floors
+  (to a free spot and back), with counter lines for kopitiams and shops.
+- Checked live: walkers at a Venture's door, customers talking inside its shop floor.
 
 ---
 

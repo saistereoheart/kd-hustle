@@ -8,6 +8,7 @@ import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
 import { Culler } from './culler';
+import { Walkers } from './walkers';
 
 type Plot = BuiltMap['stallPlots'][number];
 const TOP_DEPTH = 1_000_001; // canopies draw above characters (walk "under" them)
@@ -111,9 +112,16 @@ export class StallLayer {
     // Customers: add new ones, move the queue up, send leavers away.
     const seen = new Set<number>();
     const byId = new Map(active.map((p) => [p.id, p]));
+    const kopiFrom = this.app.cfg.stalls.cashierFromTier;
     for (const s of this.app.store.stalls.values()) {
       const plot = byId.get(s.plot);
       if (!plot) continue;
+      // 🚶 A kopitiam: no queue on the pavement. Customers walk in (and out again when they've had
+      // their food or given up); their orders are in the kopitiam's window.
+      if (s.tier >= kopiFrom) {
+        this.walkIns(plot, s);
+        continue;
+      }
       s.queue.forEach((c, k) => {
         seen.add(c.id);
         const tx = (plot.x + plot.queueFrom[0] + plot.queueStep[0] * k) * this.T;
@@ -333,7 +341,30 @@ export class StallLayer {
   }
 
   /** Per frame: walk customers to their spots, patience bars, the night tint and lights. */
+  // ---------------------------------------------------------------- 🚶 kopitiam walk-ins
+  private walkersObj: Walkers | null = null;
+  private get walkers(): Walkers {
+    return (this.walkersObj ??= new Walkers(this.scene, this.app.cfg.character, this.app.items, 14));
+  }
+  private inside = new Map<string, Set<number>>();
+  private walkIns(plot: Plot, s: StallPublic) {
+    const T = this.T;
+    const door = { x: (plot.x + 0.5) * T, y: (plot.y + 0.5) * T };
+    // Along the pavement, the way the queue used to go.
+    const street = (k: number) => ({ x: door.x + plot.queueStep[0] * T * k + (Math.random() - 0.5) * T, y: door.y + plot.queueStep[1] * T * k + (Math.random() - 0.5) * T });
+    const cv = this.scene.cameras.main.worldView;
+    const near = door.x > cv.x - 400 && door.x < cv.right + 400 && door.y > cv.y - 400 && door.y < cv.bottom + 400;
+    const was = this.inside.get(plot.id) ?? new Set<number>();
+    const now = new Set(s.queue.map((c) => c.id));
+    if (near) {
+      for (const c of s.queue) if (!was.has(c.id)) this.walkers.walk(street(5 + Math.random() * 3), [door], c.seed);
+      for (const id of was) if (!now.has(id)) this.walkers.walk(door, [street(5 + Math.random() * 3)], id * 7919);
+    }
+    this.inside.set(plot.id, now);
+  }
+
   update(dtMs: number) {
+    this.walkers.update(performance.now());
     const now = this.app.store.serverNow();
     const speed = 150 * (dtMs / 1000);
     const cv = this.scene.cameras.main.worldView;
@@ -435,6 +466,7 @@ export class StallLayer {
     }
     this.night.destroy();
     this.lamps.destroy();
+    this.walkersObj?.destroy();
     for (const list of this.staff.values()) for (const v of list) (v.avatar.destroy(), v.icon.destroy());
     this.staff.clear();
   }

@@ -14,6 +14,7 @@ import { AVATAR_DEPTH, Avatar } from './avatar';
 import { DOOR_HALF, drawFurniture, drawHighlight, drawRoom, drawStation, FURNITURE_SIZE, stationSize, T, type RoomDoor } from './interiorArt';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 import { bake, bakedPiece } from './bake';
+import { COUNTER_LINES, Walkers } from './walkers';
 
 type Interactable = BuiltMap['interactables'][number];
 interface Rect {
@@ -62,6 +63,7 @@ export class InteriorScene extends Phaser.Scene {
   /** undefined = not checked yet (forces the first prompt update). */
   private near: Station | null | undefined = undefined;
   private keeper: Avatar | null = null;
+  private walkers: Walkers | null = null;
   private others = new Map<number, Avatar>();
   private othersAcc = 0;
   private leaving = false;
@@ -189,6 +191,27 @@ export class InteriorScene extends Phaser.Scene {
       this.time.delayedCall(300, () => toast(s.greeting));
     }
 
+    // 🚶 Customers: in at the door, to the counter (the shopkeeper / till), a word, and out.
+    if (s.keeper || this.stations.length) {
+      this.walkers = new Walkers(this, cfg.character, this.app.items, 3);
+      const kopi = this.extraIts.some((i) => i.type === 'kitchen');
+      const lines = kopi ? COUNTER_LINES.kopitiam : COUNTER_LINES.shop;
+      const inDoor = { bottom: [dr.pos, H + T * 0.6], top: [dr.pos, 2 * T - T * 0.4], left: [-T * 0.6, dr.pos], right: [W + T * 0.6, dr.pos] }[dr.side];
+      const inside = { bottom: [dr.pos, H - T * 1.2], top: [dr.pos, 2 * T + T * 1.2], left: [T * 1.2, dr.pos], right: [W - T * 1.2, dr.pos] }[dr.side];
+      const counters = this.stations.length ? this.stations.map((st) => ({ x: st.x + (Math.random() - 0.5) * T, y: st.y + T * 0.4 })) : [{ x: W / 2, y: cyMid + T }];
+      const visit = () => {
+        const c = counters[Math.floor(Math.random() * counters.length)];
+        const say = lines[Math.floor(Math.random() * lines.length)];
+        this.walkers?.walk({ x: inDoor[0], y: inDoor[1] }, [
+          { x: inside[0], y: inside[1] },
+          { x: c.x, y: c.y, say, waitMs: 2200 },
+          { x: inside[0], y: inside[1] },
+          { x: inDoor[0], y: inDoor[1] },
+        ]);
+      };
+      this.time.addEvent({ delay: kopi ? 3500 : 5500, loop: true, callback: visit, startAt: 2500 });
+    }
+
     // Us, just inside the door.
     const you = this.app.lastInit!.you;
     const start = { bottom: [dr.pos, H - T * 0.9], top: [dr.pos, 2 * T + T * 0.9], left: [T * 0.9, dr.pos], right: [W - T * 0.9, dr.pos] }[dr.side];
@@ -215,6 +238,8 @@ export class InteriorScene extends Phaser.Scene {
       if (this.roomKey && this.textures.exists(this.roomKey)) this.textures.remove(this.roomKey); // (furniture textures are shared, kept)
       this.me?.destroy();
       this.keeper?.destroy();
+      this.walkers?.destroy();
+      this.walkers = null;
       for (const a of this.others.values()) a.destroy();
       this.others.clear();
     });
@@ -356,6 +381,7 @@ export class InteriorScene extends Phaser.Scene {
     const now = performance.now();
     this.me.tick(now);
     this.keeper?.tick(now);
+    this.walkers?.update(now);
     for (const a of this.others.values()) a.tick(now);
 
     // Nearest station within reach.

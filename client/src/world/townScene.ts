@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
+  darkness, gameTime, pathClear, collides, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
   type DriveSpec, type DriveState,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PetPublic, type SeatInfo, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
@@ -28,6 +28,7 @@ import { Collectors } from './collectors';
 import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 import { governor } from '../perf/governor';
+import { Walkers } from './walkers';
 
 interface Sample {
   t: number;
@@ -338,6 +339,8 @@ export class TownScene extends Phaser.Scene {
       this.remotes.clear();
       this.collectors?.destroy();
       this.parked?.destroy();
+      this.shopWalkers?.destroy();
+      this.shopWalkers = null;
       this.stopEngines();
       ambience.set(null);
     });
@@ -680,6 +683,7 @@ export class TownScene extends Phaser.Scene {
 
     this.updateRemotes(now);
     this.stalls.update(delta);
+    this.shopTraffic(delta);
     this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
@@ -1269,6 +1273,45 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       this.ventureSigns.set(v.id, t);
     }
   }
+  /** 🚶 Customers going in and out of the Ventures' shoplots near you (for show). */
+  private shopWalkers: Walkers | null = null;
+  private shopWalkAcc = 0;
+  private shopTraffic(delta: number) {
+    this.shopWalkers ??= new Walkers(this, this.app.cfg.character, this.app.items, 8);
+    this.shopWalkers.update(performance.now());
+    this.shopWalkAcc += delta;
+    if (this.shopWalkAcc < 2500 || this.app.interior || this.app.home) return;
+    this.shopWalkAcc = 0;
+    const T = this.app.map.tileSize;
+    const cv = this.cameras.main.worldView;
+    for (const s of this.app.store.shoplots) {
+      const spot = this.app.shoplotSpot(s.building);
+      if (!spot) continue;
+      const door = { x: spot.x * T, y: spot.y * T };
+      if (door.x < cv.x - 100 || door.x > cv.right + 100 || door.y < cv.y - 100 || door.y > cv.bottom + 100) continue;
+      if (Math.random() > 0.45) continue;
+      const street = this.streetFrom(door);
+      if (!street) continue;
+      // In, or now and then someone coming out with their shopping.
+      if (Math.random() < 0.65) this.shopWalkers.walk(street, [door]);
+      else this.shopWalkers.walk(door, [street]);
+    }
+  }
+  /** A spot a few tiles from a door that you can walk to in a straight line (the pavement). */
+  private streetFrom(door: { x: number; y: number }): { x: number; y: number } | null {
+    const T = this.app.map.tileSize;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1], [0, -1], [1, -1], [-1, -1]].sort(() => Math.random() - 0.5);
+    const hb = this.app.cfg.movement.hitbox;
+    for (const [dx, dy] of dirs) {
+      const k = 4 + Math.random() * 3;
+      const p = { x: door.x + dx * k * T, y: door.y + dy * k * T };
+      // Clear from the pavement spot to just short of the door (the door tile itself is the wall).
+      const near = { x: door.x + dx * 1.2 * T, y: door.y + dy * 1.2 * T };
+      if (!collides(this.app.map.collision, p.x, p.y, hb) && pathClear(this.app.map.collision, p.x, p.y, near.x, near.y, hb)) return p;
+    }
+    return null;
+  }
+
   /** 🏪 Other players' Ventures: their name over the shoplot's door. */
   private otherShopKey = '';
   private otherShopSigns: Phaser.GameObjects.Text[] = [];

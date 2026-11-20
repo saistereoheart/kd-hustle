@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 (2026-11-20)
+- **🚶 Walk-in customers (stage 3):**
+  - **Kopitiam:** no more queue standing on the pavement. Each customer walks in at the door (and walks out
+    again once served or tired of waiting); their orders are in the kopitiam's window as before.
+  - **Ventures:** people walk in and out of the shoplots near you now and then.
+  - **Inside shops** (the kopitiam, shops with a keeper, and your own Venture's shop floor): customers come in,
+    go to the counter or look around, say something ("Teh tarik satu!", "Ada stok lagi?"), and leave.
+
 ## 1.7.0 (2026-11-20)
 - **🏪 Furnish your shops, like an Airbnb (stage 2):** every Venture's shoplot and your kopitiam now have a shop
   floor you furnish with your furniture (the same decorator as homes).
