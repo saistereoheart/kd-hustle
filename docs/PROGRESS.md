@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.8.4: Teman balance)_
+_Last updated: 2026-11-20 (v1.9.0: the shop floor is the shop)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -24,6 +24,24 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🏪 The shop floor is the shop (2026-11-20, your request, v1.9.0)
+Shop doors (a kopitiam, or a Venture's shoplot) open the furnished `HomeScene` for everyone:
+- `app.shopCtxFor(b)` builds the shop context. Your own shop goes straight in; anyone else asks `shop:view`
+  (server `PropertySystem.shopView`) for the owner's layout and stars.
+- No shop floor yet → the old interior as a fallback.
+
+New `client/src/world/shopFloor.ts` adds `SERVICE_ROWS` (3 m) of service area above the floor:
+- The back wall with stoves or shelves; a counter baked over the staff (depth above them, below customers);
+  the register with the cashier sitting behind it.
+- Cooks pace between stoves.
+- Starter tables (`houseSets`: table + 2 chairs, hidden while decorating and once you own tables; they don't
+  count in the rating).
+- Customers: BFS route around the furniture to the counter, then a free chair next to a table. They sit
+  (`sit` emote, dish on the table) for 8–15 s, then leave.
+- `Walkers` steps gained `face` / `arrive` / `leave` hooks.
+
+**Decision:** starter tables aren't real furniture, so there are no free items to pawn.
 
 ## 🐾 Teman balance (2026-11-20, your request, v1.8.4)
 Using player-gear multipliers made a maxed Teman ×75 (+1665% Mahkota, ~1.2M HP). Teman now use their own

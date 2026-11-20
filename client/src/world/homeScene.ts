@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import {
   formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomStatus, roomSuits, suggestions, wallBetween,
-  type FloorPlan, type Placed, type PropSelf, type RatingCfg, type RoomKind,
+  type FloorPlan, type Placed, type PropSelf, type ShopView, type RatingCfg, type RoomKind,
 } from '@kh/shared';
 import type { App } from '../app';
 import { drawPlaced, furniturePiece } from '../items/furnitureArt';
@@ -16,6 +16,7 @@ import { iconUrl } from '../ui/panel';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
+import { SERVICE_ROWS, ShopFloor, type ShopCtx, type ShopFixture } from './shopFloor';
 import { COUNTER_LINES, Walkers } from './walkers';
 
 const C = 40; // px per cell (1 m)
@@ -72,9 +73,22 @@ export class HomeScene extends Phaser.Scene {
     super('home');
   }
 
-  init(data: { app: App; unit: string }) {
+  /** 🏪 A shop: its counter, staff and customers (and, visiting someone else's, what they've built). */
+  private shopCtx: ShopCtx | null = null;
+  private visit: ShopView | null = null;
+  private shop: ShopFloor | null = null;
+  /** Rows of service area above the floor (a shop's counter side). */
+  private top = 0;
+  private nearFix: ShopFixture | null = null;
+
+  init(data: { app: App; unit: string; shop?: ShopCtx; visit?: ShopView }) {
     this.app = data.app;
     this.unitId = data.unit;
+    this.shopCtx = data.shop ?? null;
+    this.visit = data.visit ?? null;
+    this.shop = null;
+    this.nearFix = null;
+    this.top = this.shopCtx ? SERVICE_ROWS : 0;
     this.decorating = false;
     this.hand = null;
     this.undo = [];
@@ -87,6 +101,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private get self(): PropSelf | undefined {
+    if (this.visit) return undefined; // someone else's shop
     return this.app.store.myProps.find((p) => p.unit === this.unitId) ?? this.app.store.myShops.find((p) => p.unit === this.unitId);
   }
 
@@ -96,21 +111,24 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private unit() {
-    return { w: this.W, h: this.H, type: this.self?.type ?? 'studio' };
+    return { w: this.W, h: this.H, type: this.visit?.type ?? this.self?.type ?? 'studio' };
   }
 
   create() {
     const s = this.self;
-    const typeId = s?.type ?? 'studio';
+    const typeId = this.visit?.type ?? s?.type ?? 'studio';
     const t = this.app.cfg.properties.types[typeId];
     this.W = t.w;
     this.H = t.h;
     this.plan = planForType(t, typeId);
-    this.layout = (s?.layout ?? []).map((p) => ({ ...p }));
+    this.layout = (this.visit?.layout ?? s?.layout ?? []).map((p) => ({ ...p }));
     const W = this.W * C, H = this.H * C;
     // Bright surroundings: a pale tiled corridor outside the home's walls.
     this.add.rectangle(W / 2, H / 2, 40000, 40000, 0xdfe3e8, 1).setDepth(-10);
     this.drawStructure();
+    if (this.shopCtx) {
+      this.shop = new ShopFloor(this, this.app, this.shopCtx, { C, W: this.W, H: this.H, front: this.plan.front }, () => this.layout, () => this.visit?.stars ?? this.self?.rating.stars ?? 3);
+    }
     // grid lines (only shown while decorating)
     this.gridG = this.add.graphics().setDepth(-3).setVisible(false);
     this.gridG.lineStyle(1, 0xffffff, 0.22);
@@ -135,13 +153,13 @@ export class HomeScene extends Phaser.Scene {
     });
     this.me.setState('up', false);
     this.add
-      .text(W / 2, -WALL - 6, `${t.icon} ${t.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 })
+      .text(W / 2, -this.top * C - WALL - 6, this.visit ? `${t.icon} ${this.visit.ownerName}'s ${t.name.toLowerCase()} · ★ ${this.visit.stars.toFixed(1)}` : `${t.icon} ${t.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 })
       .setOrigin(0.5, 1)
       .setDepth(999_000);
     this.banner = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '20px', fontStyle: '900', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 }).setOrigin(0.5).setDepth(999_100).setAlpha(0);
     this.enterRoom(true);
     // 🚶 A shop: customers come in, look around (at a free spot on the floor), say something, leave.
-    if (s?.mode === 'shop') {
+    if (s?.mode === 'shop' && !this.shop) {
       this.walkers = new Walkers(this, this.app.cfg.character, this.app.items, 3, 60);
       const lines = s.type === 'kopitiam_floor' ? COUNTER_LINES.kopitiam : COUNTER_LINES.shop;
       const outside = { x: fx, y: H + C * 0.8 }, inside = { x: fx, y: H - C * 1.2 };
@@ -168,6 +186,9 @@ export class HomeScene extends Phaser.Scene {
       this.me?.destroy();
       this.walkers?.destroy();
       this.walkers = null;
+      this.shop?.destroy();
+      this.shop = null;
+      this.app.hud?.setPrompt(null, this.app.touch);
       if (this.furnTex) this.textures.remove(this.furnTex.key);
       if (this.ghostTex) this.textures.remove(this.ghostTex.key);
     });
@@ -178,8 +199,9 @@ export class HomeScene extends Phaser.Scene {
   /** Floors (a different one per room), inner walls with doorways, outer walls, the front door. */
   private drawStructure() {
     const W = this.W * C, H = this.H * C;
+    const T = this.top * C; // a shop's service area, above the floor
     const g = this.add.graphics().setDepth(-5);
-    g.fillStyle(0x000000, 0.12).fillRoundedRect(-WALL - 8, -WALL - 2, W + WALL * 2 + 16, H + WALL * 2 + 14, 12);
+    g.fillStyle(0x000000, 0.12).fillRoundedRect(-WALL - 8, -T - WALL - 2, W + WALL * 2 + 16, H + T + WALL * 2 + 14, 12);
     for (const r of this.plan.rooms) this.drawFloor(g, r.kind, r.x * C, r.y * C, r.w * C, r.h * C);
     // Skirting shadow inside every room.
     for (const r of this.plan.rooms) {
@@ -211,8 +233,8 @@ export class HomeScene extends Phaser.Scene {
       }
     }
     // Outer walls and the front door (bottom of the living room).
-    g.fillStyle(0xf1e3d3, 1).fillRect(-WALL, -WALL, W + WALL * 2, WALL).fillRect(-WALL, 0, WALL, H).fillRect(W, 0, WALL, H);
-    g.fillStyle(0xd9c7b2, 1).fillRect(-WALL, -6, W + WALL * 2, 6).fillRect(-6, 0, 6, H).fillRect(W, 0, 6, H);
+    g.fillStyle(0xf1e3d3, 1).fillRect(-WALL, -T - WALL, W + WALL * 2, WALL).fillRect(-WALL, -T, WALL, H + T).fillRect(W, -T, WALL, H + T);
+    g.fillStyle(0xd9c7b2, 1).fillRect(-WALL, -T - 6, W + WALL * 2, 6).fillRect(-6, -T, 6, H + T).fillRect(W, -T, 6, H + T);
     const d0 = this.plan.front[0] * C, d1 = (this.plan.front[1] + 1) * C;
     g.fillStyle(0xf1e3d3, 1).fillRect(-WALL, H, d0 + WALL, WALL).fillRect(d1, H, W - d1 + WALL, WALL);
     g.fillStyle(0x8c5a3c, 1).fillRect(d0 + 6, H - 10, d1 - d0 - 12, 10);
@@ -280,7 +302,8 @@ export class HomeScene extends Phaser.Scene {
     const cam = this.cameras?.main;
     if (!cam) return; // the scene has shut down (left it, or not built yet)
     cam.setSize(this.scale.width, this.scale.height);
-    const r = this.decorating || this.room < 0 ? { x: 0, y: 0, w: this.W, h: this.H } : this.plan.rooms[this.room];
+    const r0 = this.decorating || this.room < 0 ? { x: 0, y: 0, w: this.W, h: this.H } : this.plan.rooms[this.room];
+    const r = { x: r0.x, y: r0.y - this.top, w: r0.w, h: r0.h + this.top };
     const pad = this.decorating ? 1.2 : 2.6;
     const W = (r.w + pad) * C + WALL * 2, H = (r.h + pad) * C + WALL * 2 + 50;
     // Leave room for the side panel while decorating on wide screens.
@@ -319,7 +342,8 @@ export class HomeScene extends Phaser.Scene {
     // Rugs first; then back to front (things nearer the bottom of the screen overlap those behind).
     const bottom = (p: Placed) => p.y + this.footprint(p.item, p.rot)[1];
     const flat = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : 1);
-    for (const p of [...this.layout].sort((a, b) => flat(a) - flat(b) || bottom(a) - bottom(b) || a.x - b.x)) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
+    const house = this.shop && !this.decorating ? this.shop.houseSets(this.layout) : [];
+    for (const p of [...this.layout, ...house].sort((a, b) => flat(a) - flat(b) || bottom(a) - bottom(b) || a.x - b.x)) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
     // Each room's label: what it still needs, or ✓ complete.
     if (this.decorating) {
       const st = roomStatus(this.ratingCfg(), this.plan, this.layout);
@@ -372,6 +396,7 @@ export class HomeScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- walking
   private solidAt(px: number, py: number) {
+    if (this.shop && !this.decorating && this.shop.houseSolid(px, py)) return true;
     const cx = Math.floor(px / C), cy = Math.floor(py / C);
     for (const p of this.layout) {
       const f = furniturePiece(p.item);
@@ -394,7 +419,16 @@ export class HomeScene extends Phaser.Scene {
   private walkers: Walkers | null = null;
   override update(_t: number, delta: number) {
     this.walkers?.update(performance.now());
+    this.shop?.update(performance.now());
     if (this.leaving) return;
+    // 🏪 The counter / till / stairs within reach.
+    if (this.shop) {
+      const fix = this.decorating ? null : this.shop.near(this.pos.x, this.pos.y);
+      if (fix !== this.nearFix) {
+        this.nearFix = fix;
+        this.app.hud?.setPrompt(fix?.label ?? null, this.app.touch);
+      }
+    }
     const dt = Math.min(delta, 100) / 1000;
     let { x: vx, y: vy } = this.decorating ? { x: 0, y: 0 } : this.app.inputVector();
     const len = Math.hypot(vx, vy);
@@ -632,8 +666,15 @@ export class HomeScene extends Phaser.Scene {
     this.refreshUi();
   }
 
+  /** E / the interact button: use the counter / till / stairs you're at. */
+  interact() {
+    if (this.decorating || this.leaving) return;
+    this.nearFix?.use();
+  }
+
   private setDecorating(on: boolean) {
     this.decorating = on;
+    this.shop?.setPaused(on);
     this.gridG.setVisible(on);
     for (const t of this.roomLabels) t.setVisible(on);
     this.side?.classList.toggle('hidden', !on);
@@ -687,12 +728,21 @@ export class HomeScene extends Phaser.Scene {
 
   private refreshUi() {
     const s = this.self;
-    if (!this.ui || !s) return;
+    if (!this.ui) return;
     const btn = (label: string, fn: () => void, cls = 'btn', attrs: Record<string, string> = {}) => {
       const b = el('button', { class: cls, type: 'button', ...attrs }, label);
       b.addEventListener('click', fn);
       return b;
     };
+    if (this.visit) {
+      const v = this.visit;
+      this.ui.replaceChildren(
+        el('span', { class: 'shop-stars' }, `★ ${v.stars.toFixed(1)} · ${v.ownerName}`),
+        btn('🚪 Leave', () => this.leave(), 'btn', { 'data-testid': 'home-exit' }),
+      );
+      return;
+    }
+    if (!s) return;
     const work = s.work ? Math.max(0, (s.work.at + (s.work.kind === 'clean' ? this.app.cfg.properties.airbnb.cleanMs : this.app.cfg.properties.rent.diyMs) - this.app.store.serverNow()) / 1000) : 0;
     const tools: HTMLElement[] = [
       btn(this.decorating ? '✅ Done' : '🛠️ Decorate', () => this.setDecorating(!this.decorating), this.decorating ? 'btn primary' : 'btn', { 'data-action': 'decorate' }),

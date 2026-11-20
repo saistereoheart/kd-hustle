@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.9.0 (2026-11-20)
+- **🏪 Walking into a shop shows the shop floor itself**, as its owner furnished it. This applies to everyone
+  (owner and visitors) at Ventures' shoplots and kopitiams; there's no separate "furnish" room any more. The
+  owner decorates right there (🛠️ Decorate).
+- **A simple setup by default:**
+  - A counter along the back, with the cashier sitting at the register.
+  - Cooks at the stoves (kopitiam: steam and sizzle) or a shop hand at the shelves (Ventures).
+  - A few starter tables and chairs, until you put in tables of your own.
+- **Customers** come in, order at the counter, sit at a free table and eat / drink (the dish on the table, a
+  bite now and then), then leave. They come more often the more stars the shop has.
+- At the counter (E / tap):
+  - Kopitiam: cook in your kitchen, or order at someone else's.
+  - Your Venture: run it from the phone.
+  - The till and the stairs to any lofts are there too.
+- Other players inside are shown standing in the shop.
+
 ## 1.8.4 (2026-11-20)
 - **🐾 Teman balance.** 1.8.3 gave Teman the player-gear tier / variant multipliers (Tier S ×5; Shiny ×1.5,
   Golden ×2.5, Rainbow ×4). Stacked, a maxed Teman was ×75 in body and its Mahkota gave +1665%, so HP reached

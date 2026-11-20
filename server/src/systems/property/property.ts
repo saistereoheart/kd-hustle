@@ -7,8 +7,7 @@
 // the offline cap, at the offline efficiency) and gets a "while you were away" summary.
 import {
   bookingChance, buildListings, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
-  type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit,
-} from '@kh/shared';
+  type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit, type ShopView } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer, World } from '../../game/world';
@@ -191,6 +190,13 @@ export class PropertySystem {
     }
     if (changed) this.hooks.publicChanged();
     return changed;
+  }
+
+  /** 🏪 A building's shop floor as visitors see it (its furniture, stars), or null. */
+  shopView(building: string): ShopView | null {
+    const s = this.props.get(building + SHOP_SUFFIX);
+    if (!s || s.mode !== 'shop') return null;
+    return { unit: s.unit, type: s.type, owner: s.owner, ownerName: s.ownerName, layout: s.layout.map((p) => ({ ...p })), stars: this.ratingOf(s).stars, cleanliness: s.cleanliness };
   }
 
   /** Stars → business: customers / income × this (1 around 3.3★). */

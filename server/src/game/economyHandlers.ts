@@ -572,6 +572,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       prog.check(me);
       return { stars: r.stars };
     });
+    handle(socket, 'shop:view', C2S.shopView, ({ building }) => ({ view: propSys.shopView(building) }));
     handle(socket, 'prop:fix', C2S.propFix, ({ unit, req, how }) => propSys.fix(me, unit, req, how));
     handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));

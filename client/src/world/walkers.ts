@@ -11,6 +11,12 @@ interface Step {
   /** Say this when you get here, and wait a moment. */
   say?: string;
   waitMs?: number;
+  /** Turn this way on arriving. */
+  face?: 'up' | 'down' | 'left' | 'right';
+  /** On arriving (e.g. sit down and eat): returns how long to stay. */
+  arrive?: (av: Avatar) => number | void;
+  /** When setting off again from here. */
+  leave?: (av: Avatar) => void;
 }
 interface Walker {
   av: Avatar;
@@ -18,6 +24,8 @@ interface Walker {
   waitUntil: number;
   done: (() => void) | null;
   fading: boolean;
+  /** Called when it sets off from where it's waiting. */
+  onLeave: ((av: Avatar) => void) | null;
 }
 
 function seeded(seed: number) {
@@ -57,7 +65,7 @@ export class Walkers {
     });
     av.container.setAlpha(0);
     this.scene.tweens.add({ targets: av.container, alpha: 1, duration: 300 });
-    this.list.push({ av, steps: [...steps], waitUntil: 0, done: done ?? null, fading: false });
+    this.list.push({ av, steps: [...steps], waitUntil: 0, done: done ?? null, fading: false, onLeave: null });
     return true;
   }
 
@@ -72,6 +80,11 @@ export class Walkers {
         w.av.setState(w.av.dir, false);
         continue;
       }
+      if (w.onLeave) {
+        const f = w.onLeave;
+        w.onLeave = null;
+        f(w.av);
+      }
       const s = w.steps[0];
       if (!s) {
         this.vanish(w);
@@ -83,10 +96,16 @@ export class Walkers {
       if (d <= stepLen) {
         w.av.setPosition(s.x, s.y);
         w.steps.shift();
+        if (s.face) w.av.setState(s.face, false);
+        let wait = 0;
         if (s.say) {
           w.av.say(s.say, s.waitMs ?? 1800);
-          w.waitUntil = now + (s.waitMs ?? 1800);
-        }
+          wait = s.waitMs ?? 1800;
+        } else if (s.waitMs) wait = s.waitMs;
+        const stay = s.arrive?.(w.av);
+        if (typeof stay === 'number') wait = Math.max(wait, stay);
+        if (wait > 0) w.waitUntil = now + wait;
+        w.onLeave = s.leave ?? null;
         continue;
       }
       w.av.setPosition(w.av.x + (dx / d) * stepLen, w.av.y + (dy / d) * stepLen);
@@ -110,7 +129,11 @@ export class Walkers {
   }
 
   destroy() {
-    for (const w of this.list) w.av.destroy();
+    for (const w of this.list) {
+      w.onLeave?.(w.av);
+      w.av.destroy();
+      w.done?.();
+    }
     this.list = [];
   }
 }

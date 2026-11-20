@@ -74,6 +74,8 @@ import { openPropertyPanel } from './ui/property/propertyPanel';
 import { openFurnitureStore } from './ui/property/furnitureStore';
 import { showWelcomeBack } from './ui/property/welcome';
 import { setFurnitureCatalog } from './items/furnitureArt';
+import type { ShopView } from '@kh/shared';
+import { staffName, type ShopCtx } from './world/shopFloor';
 
 export class App {
   cfg!: PublicConfig;
@@ -817,7 +819,7 @@ export class App {
   /** E / the interact button: inside a building it uses what you're at, outdoors the town decides. */
   interact() {
     if (this.interior) this.interior.interact();
-    else if (this.home) return;
+    else if (this.home) this.home.interact();
     else this.town?.interact();
   }
 
@@ -934,9 +936,59 @@ export class App {
   /** Go into a building through the door we're standing at. */
   enterBuilding(b: BuiltBuilding) {
     if (this.interior || this.home) return;
-    // 🏪 Your own Venture's shoplot: straight onto your shop floor (furnish it like a home).
-    const shop = this.store.myShops.find((s) => s.unit === `${b.id}#shop` && s.type === 'shop_floor');
-    if (shop) return void this.enterHome(shop.unit);
+    // 🏪 A Venture's shoplot or a kopitiam: its shop floor (counter, staff, tables, customers), as
+    // its owner furnished it. Yours: straight in. Someone else's: ask what they've built.
+    const shop = this.shopCtxFor(b);
+    if (shop) {
+      if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
+      const unit = `${b.id}#shop`;
+      if (this.store.myShops.some((s) => s.unit === unit)) return void this.enterHome(unit, { shop });
+      this.socket?.timeout(5000).emit('shop:view', { building: b.id }, (err, res) => {
+        if (this.interior || this.home) return;
+        if (!err && res.ok && res.view) return void this.enterHome(unit, { shop, visit: res.view });
+        this.enterInterior(b); // no shop floor (yet): the plain room
+      });
+      return;
+    }
+    this.enterInterior(b);
+  }
+
+  /** 🏪 The shop in a building (a kopitiam or a Venture's shoplot): its staff and what you can do at its counter. */
+  private shopCtxFor(b: BuiltBuilding): ShopCtx | null {
+    const me = this.lastInit?.you.id;
+    const kopi = this.kopitiamIn(b);
+    if (kopi) {
+      const mine = kopi.s.owner === me;
+      const base = this.cfg.interiors.styles.kopitiam;
+      const cashierIid = mine ? this.store.equipped.cashier : undefined;
+      const cashier = cashierIid !== undefined ? this.items.get(this.store.inventory.find((i) => i.iid === cashierIid)?.itemId ?? '') : undefined;
+      return {
+        building: b.id,
+        kind: 'kopitiam',
+        icon: '☕',
+        cashier: mine ? (cashier?.name ?? null) : (base?.keeper ?? staffName(b.id)),
+        greeting: mine && !cashier ? 'No cashier yet: roll one in 📱 Quick Rolls → Chef & Cashier Search.' : (base?.greeting ?? 'Selamat datang!'),
+        counter: { label: mine ? '🍳 Your kitchen: cook here' : `🍜 Order at ${kopi.s.ownerName}'s counter`, use: () => this.openStallAt(kopi.plot.id) },
+        till: mine ? { label: `🧾 Till${cashier ? `: ${cashier.name}` : ''}`, use: () => this.openPhone('business') } : undefined,
+        stairs: this.listings.some((u) => u.building === b.id) ? { label: '🪜 Stairs to the lofts', use: () => openPropertyPanel(this, b) } : undefined,
+      };
+    }
+    const lot = this.store.shoplots.find((s) => s.building === b.id);
+    if (!lot) return null;
+    const t = this.cfg.businesses.types.find((x) => x.id === lot.ref);
+    const mine = lot.ownerId === me;
+    return {
+      building: b.id,
+      kind: 'shop',
+      icon: t?.icon ?? '🏪',
+      cashier: staffName(b.id),
+      greeting: mine ? 'Boss! Kedai okay hari ni 👍' : `Selamat datang ke ${t?.name ?? 'kedai kami'}!`,
+      counter: mine ? { label: `📱 Run ${t?.name ?? 'your Venture'}`, use: () => this.openPhone('ventures') } : undefined,
+    };
+  }
+
+  /** A plain room (a shop, a café…) or a kopitiam without its shop floor yet. */
+  private enterInterior(b: BuiltBuilding) {
     // A kopitiam: its kitchen and till (and the stairs up to any lofts above).
     const kopi = this.kopitiamIn(b);
     let style: RoomStyle | undefined;
@@ -954,17 +1006,6 @@ export class App {
         use: () => (mine ? this.openPhone('business') : toast(`🧾 ${kopi.s.ownerName}'s kopitiam. Order from the kitchen counter!`)),
       });
       if (this.listings.some((u) => u.building === b.id)) extra.push({ it: at(`stairs:${b.id}`, 'stairs', 'Stairs to the lofts'), use: () => openPropertyPanel(this, b) });
-      // 🏪 Your kopitiam's dining room: furnish it (tables, chairs, decor) for stars and customers.
-      const floor = mine ? this.store.myShops.find((s) => s.unit === `${b.id}#shop`) : undefined;
-      if (floor) {
-        extra.push({
-          it: at(`decor:${b.id}`, 'cashier', `🛠️ Furnish the dining room (★ ${floor.rating.stars.toFixed(1)})`),
-          use: () => {
-            this.exitBuilding();
-            window.setTimeout(() => this.enterHome(floor.unit), 50);
-          },
-        });
-      }
     } else {
       // Homes: the sale / ownership panel (your own unit: straight in).
       if (this.listings.some((u) => u.building === b.id)) return void openPropertyPanel(this, b);
@@ -991,14 +1032,14 @@ export class App {
   }
 
   /** Go into one of our own homes (from its door). */
-  enterHome(unit: string) {
+  enterHome(unit: string, extra: { shop?: ShopCtx; visit?: ShopView } = {}) {
     if (this.interior || this.home || !this.town) return;
     const u = this.listings.find((x) => x.id === unit) ?? (unit.endsWith('#shop') ? { building: unit.slice(0, -'#shop'.length) } : undefined);
     if (!u) return;
     if (this.store.riding) return void toast('Hop off your ride first (press its hotbar key).');
     this.socket?.emit('interior', { building: u.building }, () => {});
     sfx.door();
-    this.game.scene.run('home', { app: this, unit });
+    this.game.scene.run('home', { app: this, unit, ...extra });
     ambience.set('indoor');
     this.home = this.game.scene.getScene('home') as HomeScene;
     this.hud?.setPrompt(null, this.touch);
