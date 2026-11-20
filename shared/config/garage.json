@@ -37,7 +37,7 @@
       "engine": { "cc": 955, "cylinders": 2, "layout": "L-twin (90°)", "firing": [0, 270], "idleRpm": 1300, "redline": 11500, "gears": 6, "body": 120, "rough": 0.35 }
     },
     "bike_harlee": {
-      "kind": "bike", "maker": "Harlee-Davisson", "model": "Road Kingo", "priceSen": 13000000, "accelSec": 16, "paint": "hitam", "wheel": "krom",
+      "kind": "bike", "maker": "Harlee-Davisson", "model": "Road Kingo", "priceSen": 13000000, "accelSec": 8, "paint": "hitam", "wheel": "krom",
       "desc": "A big chrome cruiser. A slow, lumpy 45° V-twin: potato-potato-potato.",
       "engine": { "cc": 1868, "cylinders": 2, "layout": "V-twin (45°)", "firing": [0, 315], "idleRpm": 850, "redline": 5500, "gears": 6, "body": 70, "rough": 0.5 }
     }
