@@ -123,9 +123,9 @@ describe('multipliers', () => {
 
   it('combines Lucky Charm, potions and a title into crate luck', () => {
     const m = computeMods(cfg, { skills: { lucky_charm: 4 }, title: 'collector', buffs: [buff('luck_potion', 'luck', 2)] });
-    expect(m.luck).toBeCloseTo(1 + 0.2 + 1 + 0.05);
+    expect(m.luck).toBeCloseTo(1.2 * 2 * 1.05); // every source multiplies
     const two = computeMods(cfg, { skills: { lucky_charm: 4 }, title: null, buffs: [buff('luck_potion', 'luck', 2), buff('mega_luck_potion', 'luck', 5)] });
-    expect(two.luck).toBeCloseTo(1 + 0.2 + 9);
+    expect(two.luck).toBeCloseTo(1.2 * 2 * 5); // ×2 and ×5 potions = ×10, on ×1.2 from Lucky Charm
     expect(two.luckSources).toHaveLength(3);
   });
 

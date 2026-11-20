@@ -23,14 +23,14 @@ export interface LuckSource {
   label?: string;
 }
 
+/** Every luck source multiplies (a ×5 and a ×2 potion = ×10; on top of ×5 from gear and skills = ×50),
+ *  up to `maxLuck`. */
 export function totalLuck(sources: LuckSource[], maxLuck: number): number {
-  const byType = new Map<LuckSourceType, number>();
+  let total = 1;
   for (const s of sources) {
     if (!(s.mult > 0) || !Number.isFinite(s.mult)) continue;
-    byType.set(s.type, (byType.get(s.type) ?? 1) * s.mult);
+    total *= s.mult;
   }
-  let total = 1;
-  for (const m of byType.values()) total += m - 1;
   return Math.min(maxLuck, Math.max(0.1, total));
 }
 

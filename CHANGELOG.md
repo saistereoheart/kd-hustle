@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.1 (2026-11-20)
+- **🍀 Luck multiplies across everything:** every luck source (Lucky Charm, potions, title, gear, rebirth,
+  events) now multiplies. A ×5 and a ×2 potion give ×10, and on top of ×5 from your other luck that's ×50
+  (it used to add across kinds: 5 + 9 = ×14). Still capped at `rarities.json` → `maxLuck` (×50).
+
 ## 1.8.0 (2026-11-20)
 - **🚶 Walk-in customers (stage 3):**
   - **Kopitiam:** no more queue standing on the pavement. Each customer walks in at the door (and walks out

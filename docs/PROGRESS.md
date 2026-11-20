@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.8.0: walk-in customers; the shops redesign is done)_
+_Last updated: 2026-11-20 (v1.8.1: luck multiplies across every source)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,14 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🍀 Luck stacking (2026-11-20, your request, v1.8.1)
+- `totalLuck` multiplies every source (was: multiply within a source type, add across types). Your example:
+  ×5 base × (×5 potion × ×2 potion) = ×50. Spec §… updated. `combineMults` (XP, income, job pay…) keeps the old
+  rule.
+- Balance: luck grows much faster now; the ×50 cap (`maxLuck`) binds sooner. Not re-run in the sim yet.
 
 ---
 

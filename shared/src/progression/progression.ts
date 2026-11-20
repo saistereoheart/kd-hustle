@@ -199,9 +199,17 @@ export interface Mods {
   property: { rent: number; airbnb: number; cleanLoss: number; appeal: number };
 }
 
-/** Combines multipliers: multiply within a source type, add across types (like luck, no cap). */
+/** Combines multipliers (XP, income...): multiply within a source type, add across types, no cap. */
 export function combineMults(sources: Array<{ type: string; mult: number }>): number {
-  return totalLuck(sources.map((s) => ({ type: s.type as LuckSourceType, mult: s.mult })), Number.MAX_SAFE_INTEGER);
+  // (Luck itself now multiplies across every source: see totalLuck. The other boosts keep this rule.)
+  const byType = new Map<string, number>();
+  for (const s of sources) {
+    if (!(s.mult > 0) || !Number.isFinite(s.mult)) continue;
+    byType.set(s.type, (byType.get(s.type) ?? 1) * s.mult);
+  }
+  let total = 1;
+  for (const m of byType.values()) total += m - 1;
+  return Math.max(0.1, total);
 }
 
 export function computeMods(

@@ -40,11 +40,12 @@ describe('config sanity', () => {
 });
 
 describe('totalLuck', () => {
-  it('multiplies within a type and adds across types', () => {
+  it('multiplies every source (a ×5 and a ×2 potion on ×5 base luck = ×50)', () => {
     expect(totalLuck([], 50)).toBe(1);
     expect(totalLuck([{ type: 'potion', mult: 2 }, { type: 'potion', mult: 2 }], 50)).toBe(4);
-    expect(totalLuck([{ type: 'potion', mult: 4 }, { type: 'title', mult: 1.5 }], 50)).toBeCloseTo(4.5);
-    expect(totalLuck([{ type: 'upgrade', mult: 1.25 }, { type: 'event', mult: 2 }, { type: 'item', mult: 1.1 }], 50)).toBeCloseTo(2.35);
+    expect(totalLuck([{ type: 'potion', mult: 4 }, { type: 'title', mult: 1.5 }], 50)).toBeCloseTo(6);
+    expect(totalLuck([{ type: 'upgrade', mult: 1.25 }, { type: 'event', mult: 2 }, { type: 'item', mult: 1.1 }], 50)).toBeCloseTo(2.75);
+    expect(totalLuck([{ type: 'gear', mult: 5 }, { type: 'potion', mult: 5 }, { type: 'potion', mult: 2 }], 100)).toBeCloseTo(50);
   });
   it('is capped and ignores junk multipliers', () => {
     expect(totalLuck([{ type: 'potion', mult: 1000 }], 50)).toBe(50);
