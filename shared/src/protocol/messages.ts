@@ -175,6 +175,8 @@ export const C2S = {
       .nullable(),
   }),
   vehicleRide: z.object({ vehicle: z.string().max(24).nullable() }),
+  vehiclePlace: z.object({ vehicle: z.string().max(24) }),
+  vehicleEnter: z.object({ vid: z.string().max(24) }),
   /** Ronda: where to (tile coords). */
   rideQuote: z.object({ x: z.number().finite(), y: z.number().finite() }),
   rideBook: z.object({ quoteId: z.string().max(40) }),
@@ -461,6 +463,29 @@ export interface PlayerPublic {
   owesAhLong?: boolean;
   /** Times reborn (stars by the name). */
   rebirths?: number;
+  /** Riding along in someone's vehicle (not driving), or null. */
+  seat?: SeatInfo | null;
+}
+
+/** A passenger's place: which parked vehicle, what it is, and which seat (0 is the driver's). */
+export interface SeatInfo {
+  vid: string;
+  vehicle: string;
+  seat: number;
+}
+
+/** A vehicle put down in the world. While someone drives it, it moves with them (driverId set). */
+export interface ParkedPublic {
+  vid: string;
+  ownerId: number;
+  ownerName: string;
+  vehicle: string;
+  look: VehicleLook | null;
+  x: number;
+  y: number;
+  dir: Direction;
+  /** Seats, the driver's first: who sits in each (null = free). */
+  seats: Array<number | null>;
 }
 
 export interface SelfState extends PlayerPublic {
@@ -509,6 +534,8 @@ export interface InitPayload {
   stalls: StallPublic[];
   /** Who owns which home. */
   props: PropPublic[];
+  /** Vehicles put down around town. */
+  parked: ParkedPublic[];
 }
 
 /** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)] */
@@ -625,6 +652,14 @@ export interface ClientToServerEvents {
   ) => void;
   'hotbar:set': (msg: { slot: number; ref: HotbarRef | null }, ack: Ack<Result<{ hotbar: Array<HotbarRef | null> }>>) => void;
   'vehicle:ride': (msg: { vehicle: string | null }, ack: Ack<Result<{ vehicle: string | null; vehicles: string[] }>>) => void;
+  /** Put a vehicle you own down in front of you (your other one is put away). */
+  'vehicle:place': (msg: { vehicle: string }, ack: Ack<Result<{ parked: ParkedPublic }>>) => void;
+  /** Get into a parked vehicle: yours to drive, someone else's to ride along. */
+  'vehicle:enter': (msg: { vid: string }, ack: Ack<Result<{ seat: number }>>) => void;
+  /** Get out of the vehicle you're in (driving it parks it where you stopped). */
+  'vehicle:exit': (ack: Ack<SimpleResult>) => void;
+  /** Put your parked vehicle away (everyone in it gets out). */
+  'vehicle:putAway': (ack: Ack<SimpleResult>) => void;
   'ride:quote': (msg: { x: number; y: number }, ack: Ack<Result<{ quote: RideQuote }>>) => void;
   'ride:book': (msg: { quoteId: string }, ack: Ack<Result<{ walletSen: number; route: number[]; pickupMs: number; durationMs: number; destName: string | null }>>) => void;
   /** Get off the Ronda right here. */
@@ -739,7 +774,9 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
-  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number }) => void;
+  'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null }) => void;
+  'parked:update': (p: { parked: ParkedPublic }) => void;
+  'parked:removed': (p: { vid: string }) => void;
   /** Your progression changed (XP, level, quests, buffs...), with anything worth celebrating. */
   progress: (p: { progress: ProgressState; events: ProgressEvent[] }) => void;
   /** Stalls changed (customers came or went, opened, closed...). Only the changed ones. */

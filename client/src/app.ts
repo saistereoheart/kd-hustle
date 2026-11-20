@@ -306,6 +306,7 @@ export class App {
     });
     this.keyboard.onPress('KeyQ', () => inTown() && !decorating() && this.emotes?.toggle());
     this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
+    this.keyboard.onPress('KeyX', () => inTown() && !decorating() && this.town?.putAwayNearby());
     this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
     this.keyboard.onPress('KeyE', () => inTown() && !decorating() && !isPanelOpen() && this.interact());
     // Tab or P: the HustlePhone (spec §16). Settings live in the phone and behind the ⚙️ button.
@@ -353,8 +354,7 @@ export class App {
     }
     if (ref.kind === 'vehicle') {
       const v = this.cfg.vehicles.vehicles[ref.id];
-      if (this.store.riding === ref.id) this.ride(null);
-      else if (this.store.vehicles.includes(ref.id)) this.ride(ref.id);
+      if (this.store.vehicles.includes(ref.id)) this.useVehicle(ref.id);
       else toast(`You don't own a ${v?.name ?? 'ride like that'}. Book a ${this.cfg.rides.appName} ride from your 📱 Phone (P).`);
       return;
     }
@@ -400,13 +400,57 @@ export class App {
     });
   }
 
-  /** Hop on a vehicle we have (or off, with null). */
+  /** Hop on a vehicle we have (or off, with null): see useVehicle. */
   ride(vehicle: string | null) {
-    this.socket?.timeout(5000).emit('vehicle:ride', { vehicle }, (err, res) => {
-      if (err || !res.ok) return toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
-      this.store.vehicles = res.vehicles;
-      this.store.riding = res.vehicle;
-      this.store.emit();
+    if (vehicle === null) this.exitVehicle();
+    else this.useVehicle(vehicle);
+  }
+
+  /**
+   * 🅿️ A vehicle's hotbar key: put it down in front of you; when it's out, get in (walk up to it
+   * first, or press again from further away to bring it over); when you're driving it, get out.
+   */
+  useVehicle(id: string) {
+    if (this.store.seat) return void toast('Get out first (E).');
+    if (this.rideHud) return void toast(`You're on a ${this.cfg.rides.appName} ride.`);
+    if (this.store.riding === id) return this.exitVehicle();
+    if (this.store.riding) return void toast('Get out of this one first (E).');
+    const town = this.town;
+    const mine = town ? this.store.myParked(town.selfId) : null;
+    if (mine && mine.vehicle === id && town) {
+      const near = Math.hypot(mine.x - town.position.x, mine.y - town.position.y) <= this.cfg.vehicles.parking.enterRangeTiles * this.map.tileSize;
+      if (near) return this.enterVehicle(mine.vid);
+    }
+    this.socket?.timeout(5000).emit('vehicle:place', { vehicle: id }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.store.parked.set(res.parked.vid, res.parked);
+      this.town?.parked.upsert(res.parked);
+      this.town?.refreshPrompt();
+      sfx.click();
+    });
+  }
+
+  enterVehicle(vid: string) {
+    this.socket?.timeout(5000).emit('vehicle:enter', { vid }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      sfx.door();
+      this.town?.refreshPrompt();
+    });
+  }
+
+  exitVehicle() {
+    this.socket?.timeout(5000).emit('vehicle:exit', (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      sfx.door();
+      this.town?.refreshPrompt();
+    });
+  }
+
+  putAwayVehicle() {
+    this.socket?.timeout(5000).emit('vehicle:putAway', (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      sfx.click();
+      this.town?.refreshPrompt();
     });
   }
 
@@ -610,6 +654,7 @@ export class App {
     this.store.clockOffset = p.serverTime - Date.now();
     this.store.setStalls(p.stalls, true);
     this.store.setProps(p.props ?? []);
+    this.store.parked = new Map((p.parked ?? []).map((v) => [v.vid, v]));
     this.lastSavedAt = p.you.lastSavedAt;
     if (p.needsCharacter) {
       this.leaveTown();

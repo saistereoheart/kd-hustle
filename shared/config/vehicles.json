@@ -10,7 +10,8 @@
       },
       "grid": "walk",
       "minTerrainMult": 0.6,
-      "starter": true
+      "starter": true,
+      "seats": 1
     },
     "motorbike": {
       "name": "Kapcai Motorbike",
@@ -21,7 +22,8 @@
         "h": 12
       },
       "grid": "drive",
-      "minTerrainMult": 0.2
+      "minTerrainMult": 0.2,
+      "seats": 2
     },
     "ronda": {
       "name": "Ronda Kapcai",
@@ -33,7 +35,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.2,
-      "passenger": true
+      "passenger": true,
+      "seats": 2
     },
     "car_sega": {
       "name": "Protan Sega",
@@ -45,7 +48,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.25,
-      "kind": "car"
+      "kind": "car",
+      "seats": 4
     },
     "car_bezzo": {
       "name": "Peroduo Bezzo",
@@ -57,7 +61,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.25,
-      "kind": "car"
+      "kind": "car",
+      "seats": 4
     },
     "car_mivy": {
       "name": "Peroduo Mivy",
@@ -69,7 +74,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.25,
-      "kind": "car"
+      "kind": "car",
+      "seats": 4
     },
     "car_s7o": {
       "name": "Protan S7O",
@@ -81,7 +87,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.25,
-      "kind": "car"
+      "kind": "car",
+      "seats": 4
     },
     "bike_zx25": {
       "name": "Kawasaky ZX-25",
@@ -93,7 +100,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.3,
-      "kind": "bike"
+      "kind": "bike",
+      "seats": 2
     },
     "bike_500rr": {
       "name": "ZXMotto 500RR",
@@ -105,7 +113,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.3,
-      "kind": "bike"
+      "kind": "bike",
+      "seats": 2
     },
     "bike_dukati": {
       "name": "Dukati Panigalo V2",
@@ -117,7 +126,8 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.3,
-      "kind": "bike"
+      "kind": "bike",
+      "seats": 2
     },
     "bike_harlee": {
       "name": "Harlee-Davisson Road Kingo",
@@ -129,7 +139,13 @@
       },
       "grid": "drive",
       "minTerrainMult": 0.3,
-      "kind": "bike"
+      "kind": "bike",
+      "seats": 2
     }
+  },
+  "parking": {
+    "enterRangeTiles": 2.2,
+    "placeAheadTiles": 1.6,
+    "maxParkedPerPlayer": 1
   }
 }

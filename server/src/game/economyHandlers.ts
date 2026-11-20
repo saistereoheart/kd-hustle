@@ -34,6 +34,7 @@ import { createMusic } from './musicHandlers';
 import { createSocial } from './socialHandlers';
 import { createEvents } from './eventHandlers';
 import { createRebirth } from './rebirthHandlers';
+import { createParking } from './parkingHandlers';
 import type { OnlinePlayer, World } from './world';
 
 type AnySocket = Socket;
@@ -83,6 +84,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     }
     io.to(p.scene).emit('player:updated', { id: p.id, vehicle, vehicleLook: p.vehicleLook });
   }
+  // 🅿️ Vehicles you put down, get in and out of, and give people a lift in.
+  const parking = createParking({
+    cfg, world, io, socketOf, setVehicle, moveRules, gridFor,
+    lookOf: (p, vehicle) => garage?.lookOf(p, vehicle) ?? null,
+  });
   const jobs = new JobSystem(cfg, econ, cryptoRand);
   const rides = new RideSystem(cfg.rides, cfg.map, cfg.terrain);
   /** Drop a Ronda passenger off where they are now (a walkable spot) and sync their client. */
@@ -711,15 +717,15 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     });
 
     // --- vehicles -------------------------------------------------------------------------
+    // Riding now means getting into a vehicle you've put down (see parkingHandlers); this one is
+    // only for getting off.
     handle(socket, 'vehicle:ride', C2S.vehicleRide, ({ vehicle }) => {
       if (me.ride) throw new GameError(`You're on a ${cfg.rides.appName} ride. Tap "Get off here" to stop.`);
-      if (vehicle !== null) {
-        if (!world.vehiclesOf(me).includes(vehicle)) throw new GameError("You don't have that ride.");
-        if (me.job?.kind === 'carwash') throw new GameError('Finish washing the car first.');
-      }
-      if (vehicle !== me.vehicle) setVehicle(me, vehicle);
+      if (vehicle !== null) throw new GameError('Put it down first (its hotbar key), then get in.');
+      if (!parking.exit(me) && me.vehicle) setVehicle(me, null);
       return { vehicle: me.vehicle, vehicles: world.vehiclesOf(me) };
     });
+    parking.register(socket, me, handle);
 
     // --- Ronda rides (phone app: point A to point B for a fare) -----------------------------
     handle(socket, 'ride:quote', C2S.rideQuote, ({ x, y }) => {
@@ -1023,6 +1029,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     cancelJob: (p: OnlinePlayer) => jobs.cancel(p),
     /** On disconnect: off the ride. A Ronda passenger is dropped off where they are. */
     leave: (p: OnlinePlayer) => {
+      parking.leave(p);
       if (p.ride) {
         rides.step(p);
         rides.end(p);
@@ -1035,6 +1042,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       p.rideQuote = null;
     },
     isRiding: (p: OnlinePlayer) => p.ride !== null,
+    /** Riding along in someone's vehicle: the server moves them. */
+    isCarried: (p: OnlinePlayer) => parking.isPassenger(p),
+    /** A move was accepted: a driver brings their vehicle and passengers along. */
+    onMoved: (p: OnlinePlayer) => parking.onMoved(p),
+    parkedPublic: (scene: string) => parking.all(scene),
     stop: () => {
       clearInterval(manifestTimer);
       clearInterval(rideTimer);

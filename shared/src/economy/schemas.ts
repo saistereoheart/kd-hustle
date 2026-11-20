@@ -197,8 +197,20 @@ export const vehiclesConfigSchema = z.object({
       passenger: z.boolean().default(false),
       /** Showroom vehicles (🚗 Motor Kota): a car (you sit inside) or a big bike. */
       kind: z.enum(['car', 'bike']).optional(),
+      /** People it carries, the driver included (a bike 2, a car 4). */
+      seats: z.number().int().min(1).max(8).default(1),
     }),
   ),
+  /** Parking: you put a vehicle down next to you, then get in and out of it (others can ride along). */
+  parking: z
+    .object({
+      /** How close you must be to get in (tiles). */
+      enterRangeTiles: z.number().positive(),
+      /** How far in front of you it's put down (tiles). */
+      placeAheadTiles: z.number().positive(),
+      maxParkedPerPlayer: z.number().int().min(1),
+    })
+    .default({ enterRangeTiles: 2.2, placeAheadTiles: 1.6, maxParkedPerPlayer: 1 }),
 });
 export type VehiclesConfig = z.infer<typeof vehiclesConfigSchema>;
 export type VehicleDef = VehiclesConfig['vehicles'][string];

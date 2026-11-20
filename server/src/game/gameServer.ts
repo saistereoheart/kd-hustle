@@ -108,6 +108,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     serverTime: Date.now(),
     stalls: economy.stallsPublic(),
     props: economy.propsPublic(),
+    parked: economy.parkedPublic(p.scene),
   });
 
   io.on('connection', (socket: GameSocket) => {
@@ -216,7 +217,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     // --- movement -------------------------------------------------------------------
     socket.on('move', (msg) => {
       if (!me.hasCharacter) return;
-      if (me.ride) return; // a Ronda passenger is moved by the server
+      if (me.ride || economy.isCarried(me)) return; // Ronda / ride-along passengers are moved by the server
       const parsed = C2S.move.safeParse(msg);
       if (!parsed.success) return;
       const m = parsed.data;
@@ -238,6 +239,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       me.y = m.y;
       me.dir = m.dir;
       me.moving = m.moving;
+      economy.onMoved(me);
     });
 
     // --- chat + emotes ----------------------------------------------------------------

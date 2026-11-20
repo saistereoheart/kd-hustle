@@ -3,9 +3,9 @@ import Phaser from 'phaser';
 import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
-import type { VehicleLook } from '@kh/shared';
+import type { SeatInfo, VehicleLook } from '@kh/shared';
 import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
-import { isShowroomVehicle } from '../items/carArt';
+import { isCarId, isShowroomVehicle } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
@@ -221,6 +221,16 @@ export class Avatar {
 
   private bikeTex = 'bike';
   vehicleLook: VehicleLook | null = null;
+  /** Riding along in someone's vehicle (they draw it; we sit on the back or inside). */
+  private seat: SeatInfo | null = null;
+
+  setSeat(seat: SeatInfo | null) {
+    this.seat = seat;
+    this.sprite.setVisible(seat ? !isCarId(seat.vehicle) : !this.fit?.hideRider);
+    if (!seat && !this.vehicle) this.sprite.setPosition(0, 0);
+    this.setPosition(this.container.x, this.container.y);
+    this.applyAnim(true);
+  }
   private fit: ReturnType<typeof vehicleFit> | null = null;
 
   /** For tests/debug: the level and title shown on the nameplate. */
@@ -306,7 +316,8 @@ export class Avatar {
     const dx = x - this.lastX, dy = y - this.lastY;
     this.lastX = x;
     this.lastY = y;
-    if (!this.vehicle || !isShowroomVehicle(this.vehicle)) {
+    const ride = this.vehicle ?? this.seat?.vehicle ?? null;
+    if (!ride || !isShowroomVehicle(ride)) {
       if (this.diag) {
         this.diag = null;
         this.applyAnim();
@@ -335,7 +346,9 @@ export class Avatar {
     this.container.setPosition(x, y);
     // Sort by feet y so people further down the screen stand in front. World y is relative to
     // Menara Mitraland and goes negative up north, so lift it above the ground layers.
-    this.container.setDepth((this.onDeck ? ON_DECK_DEPTH : AVATAR_DEPTH) + y);
+    // A passenger sits behind the driver: in front of them only when we see the vehicle from behind.
+    const bias = this.seat ? (this.dir === 'up' && !this.diag ? 0.3 : this.diag === 'dback' ? 0.3 : -0.3) : 0;
+    this.container.setDepth((this.onDeck ? ON_DECK_DEPTH : AVATAR_DEPTH) + y + bias);
   }
 
   setOnDeck(on: boolean) {
@@ -381,6 +394,18 @@ export class Avatar {
   }
 
   private applyAnim(force = false) {
+    if (this.seat && !this.vehicle && !this.emoteUntil) {
+      // On the back of a bike (or inside a car, hidden): the riding pose on the passenger seat.
+      const view = this.diag ?? VIEW_OF[this.dir];
+      const key = `${this.texKey}:ride_${this.diag ? 'side' : VIEW_OF[this.dir]}`;
+      const flip = this.diag ? this.diagRight : this.dir === 'right';
+      this.sprite.setFlipX(flip);
+      const v = this.seat.vehicle;
+      const o = isShowroomVehicle(v) ? riderOffset(v, view, this.seat.seat) : view === 'side' || this.diag ? { x: 7, y: -11 } : view === 'front' ? { x: 0, y: -16 } : { x: 0, y: -9 };
+      this.sprite.setPosition(flip ? -o.x : o.x, o.y);
+      if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
+      return;
+    }
     let key: string;
     if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
     // On a bike: the riding pose (hands on the handlebar, or holding on to the Ronda rider).

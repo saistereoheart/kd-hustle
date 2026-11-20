@@ -93,6 +93,8 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | HustlePhone | P or Tab | 📱 button |
 | Bag / Map / Chat | B / M / Enter | buttons on screen |
 | Hotbar (rides, potions…) | 1–0 | tap a slot |
+| Ride: put down / get in / get out | its hotbar key, then E | tap the slot, then the E button |
+| Put your ride away | X | "Put away" on the prompt |
 | Emotes | Q | 😀 button |
 | Gears (manual) | R up, F down, G auto/manual | ▲ ▼ A/M on the dashboard |
 

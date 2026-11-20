@@ -3,7 +3,7 @@
 // perspective), and drawn into a depth buffer with per-pixel lighting. Supersampled for smooth
 // edges, with a soft ground shadow and a thin cartoon outline.
 import type { Mesh, V3 } from './mesh';
-import { ELEV, VIEW, light, type Frag, type Surf } from './shading';
+import { ELEV, VIEW, light, setToon, type Frag, type Surf } from './shading';
 
 export interface Model {
   mesh: Mesh;
@@ -33,6 +33,8 @@ export interface RenderOpts {
   /** Supersampling (2 → 4 samples a pixel). */
   ss?: number;
   outline?: boolean;
+  /** Cartoon look (icons): banded light and a bold outline. */
+  toon?: boolean;
 }
 
 interface PT {
@@ -44,6 +46,7 @@ interface PT {
 /** Draws the model heading `yaw` (radians; 0 = to the right, π/2 = away from the camera). RGBA out. */
 export function renderModel(model: Model, yaw: number, o: RenderOpts): Uint8ClampedArray<ArrayBuffer> {
   const ss = Math.max(1, Math.round(o.ss ?? 2));
+  setToon(!!o.toon);
   const W = o.w * ss, H = o.h * ss;
   const sc = o.scale * ss, ox = o.ox * ss, oy = o.oy * ss;
   const col = new Float32Array(W * H * 4);
@@ -173,13 +176,17 @@ export function renderModel(model: Model, yaw: number, o: RenderOpts): Uint8Clam
       }
     }
   };
-  for (const j of opaque) draw(j, false);
-  clear.sort((a, b) => b.depth - a.depth);
-  for (const j of clear) draw(j, true);
+  try {
+    for (const j of opaque) draw(j, false);
+    clear.sort((a, b) => b.depth - a.depth);
+    for (const j of clear) draw(j, true);
+  } finally {
+    setToon(false);
+  }
 
   // Ink lines where the depth jumps (one part in front of another), like a cartoon.
   if (o.outline !== false) {
-    const jump = 0.22;
+    const jump = o.toon ? 0.12 : 0.22;
     const ink = new Uint8Array(W * H);
     for (let py = 1; py < H - 1; py++) {
       for (let px = 1; px < W - 1; px++) {
@@ -223,6 +230,31 @@ export function renderModel(model: Model, yaw: number, o: RenderOpts): Uint8Clam
       acc[k + 2] = b / n2;
       acc[k + 3] = a / n2;
       cv[y * o.w + x] = c / n2;
+    }
+  }
+  // A toon outline is two pixels thick: spread the coverage once before the edge test.
+  if (o.toon) {
+    const grown = new Float32Array(cv);
+    for (let y = 0; y < o.h; y++) {
+      for (let x = 0; x < o.w; x++) {
+        const i = y * o.w + x;
+        let m = cv[i];
+        if (x > 0) m = Math.max(m, cv[i - 1]);
+        if (x < o.w - 1) m = Math.max(m, cv[i + 1]);
+        if (y > 0) m = Math.max(m, cv[i - o.w]);
+        if (y < o.h - 1) m = Math.max(m, cv[i + o.w]);
+        grown[i] = m;
+      }
+    }
+    for (let i = 0; i < cv.length; i++) {
+      const extra = grown[i] - cv[i];
+      if (extra <= 0) continue;
+      const k = i * 4;
+      acc[k] = acc[k] * (1 - extra) + 0.09 * extra;
+      acc[k + 1] = acc[k + 1] * (1 - extra) + 0.09 * extra;
+      acc[k + 2] = acc[k + 2] * (1 - extra) + 0.1 * extra;
+      acc[k + 3] = acc[k + 3] + extra * (1 - acc[k + 3]);
+      cv[i] = grown[i];
     }
   }
   for (let y = 0; y < o.h; y++) {

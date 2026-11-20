@@ -204,11 +204,19 @@ export function openGarage(app: App, focus?: string) {
       return b;
     }));
     const riding = app.store.riding === id;
-    const ride = el('button', { class: 'btn primary', type: 'button', 'data-action': 'garage-ride' }, riding ? '🅿️ Park it (get off)' : '🔑 Ride it now');
+    const out = app.town ? app.store.myParked(app.town.selfId) : null;
+    const isOut = out?.vehicle === id;
+    const ride = el('button', { class: 'btn primary', type: 'button', 'data-action': 'garage-ride' }, riding ? '🅿️ Park it (get out)' : isOut ? '📍 Bring it here' : '🅿️ Put it down here');
     ride.addEventListener('click', () => {
       app.ride(riding ? null : id);
       window.setTimeout(paint, 400);
     });
+    const away = el('button', { class: 'btn', type: 'button', 'data-action': 'garage-put-away' }, 'Put away');
+    away.addEventListener('click', () => {
+      app.putAwayVehicle();
+      window.setTimeout(paint, 400);
+    });
+    if (!isOut) away.style.display = 'none';
     const onBar = app.store.hotbar.findIndex((h) => h?.kind === 'vehicle' && h.id === id);
     const hot = el('button', { class: 'btn', type: 'button', 'data-action': 'garage-hotbar' }, onBar >= 0 ? `On hotbar (${(onBar + 1) % 10})` : 'Add to hotbar');
     hot.addEventListener('click', () => {
@@ -229,7 +237,7 @@ export function openGarage(app: App, focus?: string) {
         el('span', {}, `🏁 ${kmh(s.speed)} km/h`),
         el('span', {}, `⏱️ 0 → top ${s.accelSec.toFixed(2)} s`),
         el('span', {}, `🛞 grip +${Math.round(g.upgrades.tires.per * s.tires * 100)}% off-road`)),
-      el('div', { class: 'dungeon-controls' }, ride, hot, listen),
+      el('div', { class: 'dungeon-controls' }, ride, away, hot, listen),
     );
 
     // Tabs: performance / paint / wheels / exhaust

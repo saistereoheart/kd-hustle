@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView, GarageView } from '@kh/shared';
+import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView, GarageView, ParkedPublic, SeatInfo } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -21,6 +21,10 @@ export class Store {
   vehicles: string[] = [];
   /** The vehicle we're riding (mirrors the town scene's avatar). */
   riding: string | null = null;
+  /** Riding along in someone else's vehicle (we're not driving), or null. */
+  seat: SeatInfo | null = null;
+  /** 🅿️ Vehicles put down around town (ours and other people's), by vid. */
+  parked = new Map<string, ParkedPublic>();
   /** 🚗 Your showroom vehicles and their tuning (loaded after login; the garage windows refresh it). */
   garage: GarageView | null = null;
   /** XP, level, stage, titles, stats, buffs, quests (Phase 3). */
@@ -92,9 +96,16 @@ export class Store {
     this.hotbar = [...you.hotbar];
     this.vehicles = [...you.vehicles];
     this.riding = you.vehicle;
+    this.seat = you.seat ?? null;
     this.setProgress(you.progress, false);
     this.stall = you.stall;
     this.emit();
+  }
+
+  /** Our own vehicle that's out (put down, or being driven by us). */
+  myParked(selfId: number): ParkedPublic | null {
+    for (const v of this.parked.values()) if (v.ownerId === selfId) return v;
+    return null;
   }
 
   /** Now, on the server's clock. */

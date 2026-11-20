@@ -72,14 +72,24 @@ function env(r: V3): RGB {
 }
 
 const pow = Math.pow;
+/** Cel shading (icons): light in flat bands and crisp highlights, like a cartoon. */
+let toon = false;
+export function setToon(on: boolean) {
+  toon = on;
+}
 /** The lit colour (0..1, may go over 1 before clamping) and alpha of a surface. */
 export function light(s: Surf, n: V3, out: number[]): void {
   const [nx, ny, nz] = n;
-  const ndl = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]);
+  let ndl = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]);
   const ndv = Math.max(0, nx * VIEW[0] + ny * VIEW[1] + nz * VIEW[2]);
   // Reflection of the view ray.
   const r: V3 = [2 * ndv * nx - VIEW[0], 2 * ndv * ny - VIEW[1], 2 * ndv * nz - VIEW[2]];
-  const rdl = Math.max(0, r[0] * LIGHT[0] + r[1] * LIGHT[1] + r[2] * LIGHT[2]);
+  let rdl = Math.max(0, r[0] * LIGHT[0] + r[1] * LIGHT[1] + r[2] * LIGHT[2]);
+  if (toon) {
+    ndl = ndl > 0.5 ? 0.95 : ndl > 0.12 ? 0.55 : 0.2;
+    rdl = rdl > 0.975 ? 1 : 0;
+    if (r[2] > 0) r[2] = r[2] > 0.35 ? 0.8 : 0.15; // two flat sky bands in reflections
+  }
   const amb = 0.42 + 0.2 * (nz * 0.5 + 0.5);
   const c = s.color;
   const fres = pow(1 - ndv, 4);

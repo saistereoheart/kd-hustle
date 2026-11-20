@@ -107,6 +107,40 @@ export function drawShowroomVehicle(ctx: Ctx, id: string, look: Look, view: View
   ctx.drawImage(c, 0, 0, size.w, size.h);
 }
 
+// ------------------------------------------------------------------ icons
+const icons = new Map<string, string>();
+/** A cartoon icon of the vehicle (its 3D model seen from the front-left, cel-shaded), as a
+ *  data URL `px` pixels square. Cached per look. */
+export function vehicleIconUrl(id: string, look: Look, px: number): string {
+  const key = `${id}|${look.paint}|${look.wheel}|${look.tip}|${px}`;
+  const hit = icons.get(key);
+  if (hit) return hit;
+  const m = modelFor(id, look);
+  const yaw = VIEW_YAW.dfront;
+  // Fit the turned model in the square (no shadow, a small margin for the outline).
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const t of m.mesh.tris) {
+    for (const v of [t.a, t.b, t.c]) {
+      const [x, y] = project(v.p, yaw, 1);
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+  }
+  const pad = Math.max(2, px * 0.06);
+  const scale = Math.min((px - pad * 2) / (x1 - x0), (px - pad * 2) / (y1 - y0));
+  const ox = px / 2 - ((x0 + x1) / 2) * scale, oy = px / 2 - ((y0 + y1) / 2) * scale;
+  const pixels = renderModel({ ...m, shadow: () => 0 }, yaw, { w: px, h: px, ox, oy, scale, ss: 2, toon: true });
+  const c = document.createElement('canvas');
+  c.width = px;
+  c.height = px;
+  c.getContext('2d')!.putImageData(new ImageData(pixels, px, px), 0, 0);
+  const url = c.toDataURL('image/png');
+  icons.set(key, url);
+  return url;
+}
+
 // ------------------------------------------------------------------ game textures
 let garageCfg: GarageConfig | null = null;
 /** The app hands over the garage config once it's loaded (paint / wheel colours, exhaust tips). */

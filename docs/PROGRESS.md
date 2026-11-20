@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.0.0: trophies, weekly quests, gearbox + dashboard, Gua Gelap rest rooms, ambience)_
+_Last updated: 2026-11-20 (v1.1.0: 3D vehicles, parked vehicles with passengers, vehicle icons)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -11,7 +11,7 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 345 unit tests |
+| `npm test` (Vitest) | ✅ 350 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; not re-run this round) |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -22,6 +22,60 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🚗 3D vehicles, parking and passengers (2026-11-20, your requests, v1.1.0)
+
+### How to test it
+1. **Look:** buy or ride any showroom car or bike. Every direction (side, front, back, both 45° views) is the
+   same 3D model turned. Cars are at real map scale. The garage preview uses the same model.
+2. **Put it down:** press the vehicle's hotbar key. It appears a step and a half in front of you (on a road for
+   cars; the nearest free spot if that one's blocked).
+3. **Drive:** walk up, the prompt says "🔑 Drive your …"; press E. Press E again to park and get out (you
+   step out to the side). The car stays where you left it.
+4. **Lift:** a second player walks up to it ("🚗 Ride with …") and presses E. When you drive off they're
+   carried along (on the back of a bike; hidden inside a car). They press E to get out. A bike takes 2, a car 4,
+   the basikal 1.
+5. **Put away:** X, or "Put away" on the prompt, or the garage / phone Rides buttons. Everyone inside gets out.
+   Logging out puts your vehicles away too.
+6. **Bring it over:** press its hotbar key while far from it: it's put down in front of you again.
+7. **Icons:** the hotbar and the phone's Rides list show cartoon pictures of your car or bike in your paint.
+
+### What changed
+- `client/src/items/vehicle3d/`: a small software renderer (`render.ts`: depth buffer, per-pixel lighting,
+  2× supersampling, ground shadow, cartoon ink lines and outline; `shading.ts`: paint with a sky reflection,
+  glass, chrome, rubber, lamps, plus a cel-shaded mode for icons), a mesh kit (`mesh.ts`: lofts, tubes,
+  lathes, ellipsoids, boxes) and the models: `cars.ts` (Saga / Bezza / Myvi / S70-like: one shell swept
+  through cross-sections of the real side profile; windows, lamps, grille, Malaysian black plates and door
+  lines painted per pixel; real interior seats and a right-hand-drive wheel behind the glass) and `bikes.ts`
+  (ZX-25R / 500 cc / Panigale V2 / Road King-like, from wheelbase, tyre sizes, rake and seat height).
+- `carArt.ts` now only lays out and caches textures from the models (one canvas size per vehicle, anchored at
+  the ground under its middle). Views are drawn one per frame so a new vehicle doesn't stall the game.
+  `seatPoint()` gives each seat's position per view; riders and passengers sit on it.
+- Server `systems/parking/parking.ts` (seats, owners; unit tested) and `game/parkingHandlers.ts`
+  (`vehicle:place`, `vehicle:enter`, `vehicle:exit`, `vehicle:putAway`; passengers are moved with their driver
+  like a Ronda passenger; `parked:update` / `parked:removed` events; `parked` in the init payload).
+- Client `world/parkedLayer.ts` draws parked vehicles (tap one to get in); the HUD prompt can carry a second
+  button ("Put away").
+- `vehicles.json`: `seats` per vehicle and a `parking` block (enter range, how far ahead, one out at a time).
+
+### Decisions
+- **Only the owner drives**; anyone else takes a passenger seat. Getting in your own car while a friend sits in
+  it is fine; putting it away (or bringing it over from afar) lets everyone out.
+- **One vehicle out at a time** (`maxParkedPerPlayer`); putting down another puts the first away.
+- **Parked vehicles aren't saved:** they go away when the owner logs out (and after a server restart).
+- **The exhaust sits on the left of every bike** (the side the side view shows) so the tip you bought is
+  visible, even where the real bike has it on the right.
+- **Passengers inside a car aren't drawn** (their name tag stays); on a bike they sit on the pillion seat.
+- **Acceleration:** your S7O change (12.6 → 17 s) is 1.77× its real 9.6 s (0–100 km/h, 1.5T 150 PS). The other
+  cars use the same factor on their real times: Saga 1.3 13.1 s → 23, Bezza 1.0 ~14.5 s → 25.5,
+  Myvi 1.5 10.2 s → 18. Bikes cluster at 15–16 s in your numbers, so the Road King (about as quick to
+  100 as the ZX-25R) gets 16.
+
+### Pending
+- **Real phones on the LAN** (as you asked, kept for later): the joystick, the prompt's Put away button and
+  the new icons on a 390×844 screen.
 
 ---
 

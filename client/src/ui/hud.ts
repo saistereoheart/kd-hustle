@@ -221,13 +221,24 @@ export class Hud {
    * The line above the hotbar. `walk`: a hint you act on by walking (doors), so there's no E
    * key in it and the touch interact button stays hidden.
    */
-  setPrompt(text: string | null, touch: boolean, opts: { walk?: boolean } = {}) {
+  /** The "E …" prompt. `alt` adds a second action as a small button (with its key on desktop). */
+  setPrompt(text: string | null, touch: boolean, opts: { walk?: boolean; alt?: { label: string; key: string; onTap: () => void } } = {}) {
     this.interactBtn?.classList.toggle('hidden', !text || !!opts.walk);
     if (!text) {
       this.prompt.classList.add('hidden');
       return;
     }
-    this.prompt.replaceChildren(touch || opts.walk ? '' : el('kbd', {}, 'E'), text);
+    const alt = opts.alt;
+    let altBtn: HTMLElement | string = '';
+    if (alt) {
+      altBtn = el('button', { class: 'prompt-alt', type: 'button' }, touch ? '' : el('kbd', {}, alt.key), alt.label);
+      altBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        alt.onTap();
+      });
+    }
+    this.prompt.replaceChildren(touch || opts.walk ? '' : el('kbd', {}, 'E'), text, altBtn);
     this.prompt.classList.toggle('walk', !!opts.walk);
     this.prompt.classList.remove('hidden');
   }

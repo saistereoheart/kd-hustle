@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 (2026-11-20)
+- **🚗 Real 3D cars and bikes:** every showroom vehicle is a 3D model built from the real vehicle's size
+  (length, width, height, wheelbase, wheel size, rake, seat height), lit like real paint, glass and chrome,
+  with a cartoon outline. All views come from the same model, so bikes now have a proper 45° view too.
+  Cars are at the map's real scale (a Saga is about 2 tiles long).
+- **🅿️ Put it down, get in, get out:** a vehicle's hotbar key puts it down in front of you. Walk up and press
+  E to drive it. E again parks it where you stopped and you get out. Press the key from far away to bring it
+  over. **Put away** (X, or the button on the prompt) when you're done; it also goes away when you log out.
+- **🧑‍🤝‍🧑 Give people a lift:** other players get in with E as passengers. A bike carries 2, a car 4 (the
+  basikal just you). Passengers ride on the back of a bike (inside a car you can't see them) and are carried
+  along until they press E to get out.
+- **Icons:** cars and bikes in the hotbar and the phone's Rides list are cartoon pictures of the new models,
+  in your paint job.
+- **Acceleration from real 0–100 km/h times**, scaled the same way as the tuned S7O (×1.77): Sega 23 s,
+  Bezzo 25.5 s, Mivy 18 s; Road Kingo 16 s next to the other bikes.
+
 ## 1.0.1 (2026-11-20)
 - **Speed:** cars and bikes are about 12% faster at the top.
 - **Torque:** strongest in first gear and fading gear by gear. The low gears fly by and the high gears take

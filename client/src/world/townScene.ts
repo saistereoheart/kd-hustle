@@ -17,6 +17,7 @@ import { AVATAR_DEPTH } from './avatar';
 import { ambience } from '../ui/ambience';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
+import { ParkedLayer } from './parkedLayer';
 import { NpcLayer } from './npcLayer';
 import { Culler } from './culler';
 import { Collectors } from './collectors';
@@ -82,6 +83,9 @@ export class TownScene extends Phaser.Scene {
   private nearInteract: BuiltMap['interactables'][number] | null = null;
   private nearPlot: BuiltMap['stallPlots'][number] | null = null;
   stalls!: StallLayer;
+  parked!: ParkedLayer;
+  private nearParked: string | null = null;
+  private promptKey = '';
   npcs!: NpcLayer;
   /** Ah Long's debt collectors, trailing whoever is late paying. */
   private collectors!: Collectors;
@@ -181,6 +185,8 @@ export class TownScene extends Phaser.Scene {
     this.offs.push(this.app.store.on(() => this.syncVentureSigns()));
     this.syncVentureSigns();
     this.stalls = new StallLayer(this, this.app);
+    this.parked = new ParkedLayer(this, (vid) => this.tapParked(vid));
+    this.parked.setAll([...this.app.store.parked.values()]);
     this.npcs = new NpcLayer(this, this.app);
     this.collectors = new Collectors(this, this.app);
     if (you.rebirths) this.me.setRebirths(you.rebirths);
@@ -190,6 +196,7 @@ export class TownScene extends Phaser.Scene {
     }
     this.offs.push(this.app.store.on(() => this.stalls.sync()));
     this.me.setState(you.dir, false);
+    if (you.seat) this.me.setSeat(you.seat);
     for (const p of this.initData.players) this.addRemote(p);
 
     this.cameras.main.startFollow(this.me.container, true, 0.18, 0.18);
@@ -225,9 +232,33 @@ export class TownScene extends Phaser.Scene {
       this.remotes.delete(id);
       this.collectors.set(id, false, 0, 0);
     });
-    on('player:updated', ({ id, appearance, cosmetics, vehicle, vehicleLook, level, title, interior, owesAhLong, rebirths }) => {
+    on('parked:update', ({ parked }) => {
+      this.app.store.parked.set(parked.vid, parked);
+      this.parked.upsert(parked);
+      this.slowAcc = 1000;
+      this.promptKey = '';
+      this.app.store.emit();
+    });
+    on('parked:removed', ({ vid }) => {
+      this.app.store.parked.delete(vid);
+      this.parked.remove(vid);
+      this.promptKey = '';
+      this.app.store.emit();
+    });
+    on('player:updated', ({ id, appearance, cosmetics, vehicle, vehicleLook, level, title, interior, owesAhLong, rebirths, seat }) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
       if (!av) return;
+      if (seat !== undefined) {
+        av.setSeat(seat);
+        const r1 = this.remotes.get(id);
+        if (r1) r1.pub.seat = seat;
+        if (id === this.selfId) {
+          this.app.store.seat = seat;
+          this.selfSamples = [];
+          this.promptKey = '';
+          this.app.store.emit();
+        }
+      }
       if (rebirths !== undefined) av.setRebirths(rebirths);
       if (owesAhLong !== undefined) {
         av.setDebt(owesAhLong);
@@ -292,6 +323,7 @@ export class TownScene extends Phaser.Scene {
       for (const r of this.remotes.values()) r.avatar.destroy();
       this.remotes.clear();
       this.collectors?.destroy();
+      this.parked?.destroy();
       this.stopEngines();
       ambience.set(null);
     });
@@ -323,6 +355,7 @@ export class TownScene extends Phaser.Scene {
     const loopDef = p.emote ? this.app.cfg.chat.emotes.find((e) => e.id === p.emote && e.loop) : undefined;
     if (loopDef) avatar.playEmote(loopDef.id, loopDef, loadPrefs().particles);
     if (p.interior) avatar.container.setVisible(false);
+    if (p.seat) avatar.setSeat(p.seat);
     if (p.rebirths) avatar.setRebirths(p.rebirths);
     if (p.owesAhLong) {
       avatar.setDebt(true);
@@ -351,6 +384,15 @@ export class TownScene extends Phaser.Scene {
 
   /** Called by the HUD's interact button / E key. */
   interact() {
+    // In a vehicle (riding along, or driving one we put down): E gets out.
+    if (this.app.store.seat || this.drivingParked()) {
+      this.app.exitVehicle();
+      return;
+    }
+    if (this.nearParked) {
+      this.app.enterVehicle(this.nearParked);
+      return;
+    }
     if (this.nearNpc !== null) {
       this.app.talkTo(this.nearNpc);
       return;
@@ -390,6 +432,9 @@ export class TownScene extends Phaser.Scene {
         r.avatar.container.setVisible(!o.interior);
       }
     }
+    this.app.store.seat = p.you.seat ?? null;
+    this.me.setSeat(p.you.seat ?? null);
+    this.parked.setAll(p.parked ?? []);
     // The server is the authority on where we are (it may have moved us).
     if (Math.hypot(p.you.x - this.pos.x, p.you.y - this.pos.y) > 48) {
       this.pos = { x: p.you.x, y: p.you.y };
@@ -398,8 +443,30 @@ export class TownScene extends Phaser.Scene {
     this.lastSent = { x: NaN, y: NaN, dir: this.dir, moving: false };
   }
 
+  /** 🅿️ Our own vehicle that's out, if we're driving it. */
+  private drivingParked(): boolean {
+    const mine = this.app.store.myParked(this.selfId);
+    return !!mine && mine.seats[0] === this.selfId;
+  }
+
+  /** Tapped a parked vehicle: get in if we're close enough. */
+  private tapParked(vid: string) {
+    const v = this.app.store.parked.get(vid);
+    if (!v || this.app.store.seat || this.me.vehicle) return;
+    const range = this.app.cfg.vehicles.parking.enterRangeTiles * this.app.map.tileSize;
+    if (Math.hypot(v.x - this.pos.x, v.y - this.pos.y) <= range) this.app.enterVehicle(vid);
+    else toast(v.ownerId === this.selfId ? 'Walk up to it to get in (or press its hotbar key to bring it here).' : `Walk up to ${v.ownerName}'s ride to get in.`);
+  }
+
+  /** X: put our vehicle away (from anywhere). */
+  putAwayNearby() {
+    if (this.app.store.myParked(this.selfId)) this.app.putAwayVehicle();
+  }
+
   /** Forget the last prompt so the next check shows it again (after leaving a building). */
   refreshPrompt() {
+    this.promptKey = '';
+    this.nearParked = null;
     this.nearNpc = null;
     this.nearInteract = null;
     this.nearBuilding = null;
@@ -716,26 +783,48 @@ export class TownScene extends Phaser.Scene {
         const dp = Math.hypot(plot.x - this.pos.x / T1, plot.y - this.pos.y / T1);
         if (plot === mine || dp < dn) npc = null;
       }
+      // 🅿️ In a vehicle: E gets out. Next to one: E gets in (yours to drive, others' to ride along).
+      const st = this.app.store;
+      const mineOut = st.myParked(this.selfId);
+      const inside = !!st.seat || this.drivingParked();
+      const range = cfg.vehicles.parking.enterRangeTiles * map.tileSize;
+      const pv = inside || this.me.vehicle ? null : this.parked.nearest(this.pos.x, this.pos.y, range);
+      const parkedId = pv?.vid ?? null;
+      const pkey = `${inside}|${parkedId}|${pv?.seats.join(',')}|${mineOut?.vid ?? ''}`;
       const npcId = npc?.id ?? null;
-      if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot || npcId !== this.nearNpc) {
+      if (it !== this.nearInteract || b !== this.nearBuilding || plot !== this.nearPlot || npcId !== this.nearNpc || parkedId !== this.nearParked || pkey !== this.promptKey) {
         this.nearInteract = it;
         this.nearBuilding = b;
         this.nearPlot = plot;
         this.nearNpc = npcId;
-        let prompt: string | null = null;
-        if (npc) {
-          const e = this.app.store.errand;
-          prompt = e?.npc === npc.id && e.stage === 'return' ? `🧺 Hand in to ${npc.name}` : `💬 Talk to ${npc.name}`;
-        } else if (plot) {
-          const s = this.app.store.stalls.get(plot.id);
-          prompt = !s ? `${cfg.stalls.tiers.find((t) => t.tier === plot.tier)?.name ?? 'Stall'} spot (free)` : plot === mine ? '🍳 Your stall' : `${s.ownerName}'s stall`;
-        } else if (it) {
-          const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
-          prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
+        this.nearParked = parkedId;
+        this.promptKey = pkey;
+        const putAway = { label: 'Put away', key: 'X', onTap: () => this.app.putAwayVehicle() };
+        if (inside || pv) {
+          let text: string;
+          const name = (id: string) => cfg.vehicles.vehicles[id]?.name ?? 'ride';
+          if (inside) text = st.seat ? `🚪 Get out of ${name(st.seat.vehicle)}` : `🅿️ Park and get out`;
+          else if (pv!.ownerId === this.selfId) text = pv!.seats[0] === null ? `🔑 Drive your ${name(pv!.vehicle)}` : `🚪 Get in`;
+          else text = pv!.seats.slice(1).some((s) => s === null) ? `🚗 Ride with ${pv!.ownerName}` : `${pv!.ownerName}'s ${name(pv!.vehicle)} (full)`;
+          const showAlt = !!mineOut && (inside ? this.drivingParked() : pv!.ownerId === this.selfId);
+          this.app.hud?.setPrompt(text, this.app.touch, showAlt ? { alt: putAway } : {});
+          if (pv && pv.ownerId !== this.selfId && !pv.seats.slice(1).some((s) => s === null)) this.nearParked = null;
+        } else {
+          let prompt: string | null = null;
+          if (npc) {
+            const e = this.app.store.errand;
+            prompt = e?.npc === npc.id && e.stage === 'return' ? `🧺 Hand in to ${npc.name}` : `💬 Talk to ${npc.name}`;
+          } else if (plot) {
+            const s = this.app.store.stalls.get(plot.id);
+            prompt = !s ? `${cfg.stalls.tiers.find((t) => t.tier === plot.tier)?.name ?? 'Stall'} spot (free)` : plot === mine ? '🍳 Your stall' : `${s.ownerName}'s stall`;
+          } else if (it) {
+            const crate = it.crate ? this.app.crates.get(it.crate) : undefined;
+            prompt = crate ? `${it.name} (${formatMoney(crate.priceSen)})` : it.name;
+          }
+          const walk = !prompt && !!b;
+          if (walk && b) prompt = this.app.doorPrompt(b);
+          this.app.hud?.setPrompt(prompt, this.app.touch, { walk });
         }
-        const walk = !prompt && !!b;
-        if (walk && b) prompt = this.app.doorPrompt(b);
-        this.app.hud?.setPrompt(prompt, this.app.touch, { walk });
       }
       // Delivery target marker + objective HUD.
       const job = this.app.store.job;
@@ -944,6 +1033,7 @@ export class TownScene extends Phaser.Scene {
 
   /** Riding a Ronda (someone else is driving)? */
   isPassenger(): boolean {
+    if (this.app.store.seat) return true; // riding along in someone's vehicle
     const v = this.me?.vehicle;
     return !!v && !!this.app.cfg.vehicles.vehicles[v]?.passenger;
   }
