@@ -4,7 +4,7 @@ import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterC
 import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import type { VehicleLook } from '@kh/shared';
-import { hasDriver, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
+import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
 import { isShowroomVehicle } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 
@@ -393,7 +393,10 @@ export class Avatar {
       this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle!, this.diag));
       this.bike.setFlipX(this.diagRight);
       this.layer(this.bike, this.auraGlow ? 1 : 0);
-      if (this.fit?.riderX) this.sprite.setX((this.diagRight ? -1 : 1) * this.fit.riderX * 0.7);
+      if (isShowroomVehicle(this.vehicle!) && !this.fit?.hideRider) {
+        const o = riderOffset(this.vehicle!, this.diag);
+        this.sprite.setPosition((this.diagRight ? -1 : 1) * o.x, o.y);
+      } else if (this.fit?.riderX) this.sprite.setX((this.diagRight ? -1 : 1) * this.fit.riderX * 0.7);
     } else if (this.bike) {
       const view = VIEW_OF[this.dir];
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
@@ -404,7 +407,10 @@ export class Avatar {
       if (view === 'side') this.layer(this.bike, this.auraGlow ? 1 : 0);
       else this.container.moveAbove(this.bike, this.sprite);
       // Big bikes: sit on the seat (behind the middle) from the side.
-      if (this.fit?.riderX && !this.driver) this.sprite.setX(view === 'side' ? (this.dir === 'right' ? -this.fit.riderX : this.fit.riderX) : 0);
+      if (this.vehicle && isShowroomVehicle(this.vehicle) && !this.driver && !this.fit?.hideRider) {
+        const o = riderOffset(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back');
+        this.sprite.setPosition(this.dir === 'right' ? -o.x : o.x, o.y);
+      } else if (this.fit?.riderX && !this.driver) this.sprite.setX(view === 'side' ? (this.dir === 'right' ? -this.fit.riderX : this.fit.riderX) : 0);
     }
     if (this.driver) {
       // Passenger on the back: behind the rider (side view), peeking over them (front view),

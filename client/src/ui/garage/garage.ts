@@ -18,8 +18,8 @@ const PART_ICON: Record<GaragePart, string> = { engine: '🔧', torque: '⚡', t
 /** A vehicle drawn big on a canvas. */
 export function vehicleCanvas(id: string, look: VehicleLook | null, view: View, width: number): HTMLCanvasElement {
   const size = viewSize(id, view);
-  // A front/back car is narrower and taller: keep it about the same height as the side view.
-  const scale = (view === 'side' || !id.startsWith('car_') ? width : width * 0.62) / size.w;
+  // Every view shares one canvas size (the 3D model turned), so one scale fits them all.
+  const scale = width / size.w;
   const dpr = Math.min(2, devicePixelRatio || 1);
   const c = el('canvas', { class: 'vehicle-preview' }) as HTMLCanvasElement;
   c.width = Math.round(size.w * scale * dpr);

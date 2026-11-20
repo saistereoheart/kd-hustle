@@ -2,7 +2,7 @@
 // green Ronda kapcai (ride-hailing; drawn with an NPC rider, see avatar.ts).
 import Phaser from 'phaser';
 import type { VehicleLook } from '@kh/shared';
-import { BIKE_SIZE, CAR_SIZE, ensureShowroomTextures, isCarId, isShowroomVehicle, viewSize } from './carArt';
+import { ensureShowroomTextures, isCarId, isShowroomVehicle, seatPoint, townScale, viewSize, type View } from './carArt';
 
 const RES = 2;
 
@@ -47,15 +47,26 @@ export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string, look?
  *  is hidden (inside a car). */
 export function vehicleFit(vehicle: string): { originY: number; riderY: number; riderX: number; hideRider: boolean; scale: number } {
   if (isShowroomVehicle(vehicle)) {
-    // A car is drawn a bit smaller (about 4.5 m long next to a person).
-    if (isCarId(vehicle)) return { originY: CAR_SIZE.center / CAR_SIZE.h, riderY: -9, riderX: 0, hideRider: true, scale: 0.52 };
-    return { originY: BIKE_SIZE.ground / BIKE_SIZE.h, riderY: vehicle === 'bike_harlee' ? -13 : -15, riderX: vehicle === 'bike_harlee' ? 7 : 5, hideRider: false, scale: 0.5 };
+    const s = viewSize(vehicle);
+    const seat = riderOffset(vehicle, 'side');
+    return { originY: s.center / s.h, riderY: seat.y, riderX: seat.x, hideRider: isCarId(vehicle), scale: townScale(vehicle) };
   }
   return { originY: 36 / 40, riderY: vehicle === 'bicycle' ? -8 : -9, riderX: 0, hideRider: false, scale: 0.5 };
 }
 
+/** The rider sprite's origin (their feet) sits this far below the seat: the legs hang down either
+ *  side of the bike. */
+const SEAT_LIFT = 9;
+/** Where the rider (seat 0) or a passenger sits on a showroom vehicle in a view, in world px from
+ *  the avatar's position (facing left; mirror x when facing right). The sprite stands at y = 2. */
+export function riderOffset(vehicle: string, view: View, seat = 0): { x: number; y: number } {
+  const p = seatPoint(vehicle, view, seat);
+  const k = townScale(vehicle);
+  return { x: p.x * k, y: 2 + p.y * k + SEAT_LIFT };
+}
+
 /** Where the vehicle's middle meets the ground in a view's texture (its anchor in town). */
-export function vehicleOriginY(vehicle: string, view: 'side' | 'front' | 'back' | 'dfront' | 'dback'): number {
+export function vehicleOriginY(vehicle: string, view: View): number {
   if (isShowroomVehicle(vehicle)) {
     const s = viewSize(vehicle, view);
     return s.center / s.h;
