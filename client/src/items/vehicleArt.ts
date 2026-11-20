@@ -2,7 +2,7 @@
 // green Ronda kapcai (ride-hailing; drawn with an NPC rider, see avatar.ts).
 import Phaser from 'phaser';
 import type { VehicleLook } from '@kh/shared';
-import { ensureShowroomTextures, isCarId, isShowroomVehicle, seatPoint, townScale, viewSize, type View } from './carArt';
+import { ensureShowroomTextures, isCarId, isShowroomVehicle, seatPoint, TEX_RES, townScale, viewSize, type View } from './carArt';
 
 const RES = 2;
 
@@ -49,7 +49,9 @@ export function vehicleFit(vehicle: string): { originY: number; riderY: number; 
   if (isShowroomVehicle(vehicle)) {
     const s = viewSize(vehicle);
     const seat = riderOffset(vehicle, 'side');
-    return { originY: s.center / s.h, riderY: seat.y, riderX: seat.x, hideRider: isCarId(vehicle), scale: townScale(vehicle) };
+    // The textures are drawn TEX_RES× larger than the layout (sharper): scale them back down, so
+    // the vehicle is townScale × its layout in town (where the seats are worked out).
+    return { originY: s.center / s.h, riderY: seat.y, riderX: seat.x, hideRider: isCarId(vehicle), scale: townScale(vehicle) / TEX_RES };
   }
   return { originY: 36 / 40, riderY: vehicle === 'bicycle' ? -8 : -9, riderX: 0, hideRider: false, scale: 0.5 };
 }

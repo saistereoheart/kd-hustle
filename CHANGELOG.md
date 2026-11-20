@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.4 (2026-11-20)
+- **Riders sit IN the bike seen from the front or back:** the bike is drawn behind the rider and its lower part
+  again in front, so the head and chest show over the bike and the legs are hidden behind it.
+- **Fixed:** cars and bikes were drawn 1.6× bigger than their layout (the sharper textures weren't scaled back),
+  so riders sat in the wrong place on the bike. They keep the size you've been seeing; riders now line up.
+
 ## 1.3.3 (2026-11-20)
 - **Big rolls go off when they're revealed:** your own banner / fireworks for a Legendary+ pull now fire the
   moment the reel lands on it (or its card flips in a ×5 / ×10), instead of on a fixed timer. In a ×5 / ×10, a big

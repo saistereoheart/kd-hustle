@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.3.3: rolls reveal on time, announcements don't pile up, same-tier merges)_
+_Last updated: 2026-11-20 (v1.3.4: riders sit in the bike from the front/back; vehicle scale fix)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -22,6 +22,15 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🏍️ Rider split, vehicle scale (2026-11-20, your report, v1.3.4)
+- `vehicleFit().scale` is now `townScale / TEX_RES` (textures are drawn at TEX_RES = 1.6 per layout px); it was
+  `townScale`, so vehicles were 1.6× their layout while seats were placed for 1×. `pxPerMetre` raised to 51.2
+  (cars) / 64 (bikes) so the on-screen sizes stay what you saw before.
+- `avatar.ts` `bikeFront`: front / back views draw the bike under the rider plus a copy cropped to below the
+  rider's chest (21 px above the sprite's feet) over them. Checked with screenshots (down / up / side).
 
 ---
 

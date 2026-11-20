@@ -29,9 +29,9 @@ export const VIEW_YAW: Record<View, number> = {
 };
 
 export const isCarId = (id: string) => id.startsWith('car_');
-/** Texture pixels per metre (before the sprite's scale in town). Cars are at the map's real scale
- *  (16 px a metre in town); bikes a little bigger so a chibi rider fits on them. */
-export const pxPerMetre = (id: string) => (isCarId(id) ? 32 : 40);
+/** Layout pixels per metre (town = layout × townScale): cars ~25.6 px a metre in town, a bit bigger
+ *  than the map's real scale (16) so they read next to the chibi characters; bikes 32. */
+export const pxPerMetre = (id: string) => (isCarId(id) ? 51.2 : 64);
 /** The sprite's scale in town. */
 export const townScale = (_id: string) => 0.5;
 
@@ -189,6 +189,8 @@ export function resolveLook(id: string, look: VehicleLook | null | undefined): L
 }
 
 const RES = 1.6; // texture pixels per layout pixel (3.2 per world pixel in town)
+/** Texture pixels per layout pixel: sprites are scaled by townScale / TEX_RES. */
+export const TEX_RES = RES;
 
 /** Views waiting to be drawn on the main thread (no worker): one per frame. */
 const queue: Array<() => void> = [];

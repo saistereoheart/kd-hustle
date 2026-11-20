@@ -100,6 +100,9 @@ export class Avatar {
   private appearance: Appearance;
   private cosmetics: Cosmetics = {};
   private bike: Phaser.GameObjects.Image | null = null;
+  /** Front / back views: the bike's lower part again, in front of the rider (their chest and head
+   *  show over the bike, their legs are behind it). */
+  private bikeFront: Phaser.GameObjects.Image | null = null;
   /** The NPC driving us (Ronda rides), or null. */
   private driver: Phaser.GameObjects.Sprite | null = null;
   private driverTex = '';
@@ -154,6 +157,20 @@ export class Avatar {
   private isSelf: boolean;
   /** 🚗 A little round face over a car, for whoever is inside it (never your own, on your screen). */
   private occIcon: Phaser.GameObjects.Image | null = null;
+
+  /** The bike's part below the rider's chest, drawn over the rider (front / back views). */
+  private showBikeFront(texKey: string) {
+    const bf = this.bikeFront, b = this.bike;
+    if (!bf || !b) return;
+    bf.setTexture(texKey).setOrigin(b.originX, b.originY).setFlipX(b.flipX).setPosition(b.x, b.y);
+    // The riding pose's chest is ~21 px above the sprite's origin (its feet).
+    const cutY = this.sprite.y - 21;
+    const top = b.y - b.originY * b.frame.height * b.scaleY;
+    const row = Math.max(0, Math.min(b.frame.height, (cutY - top) / b.scaleY));
+    bf.setCrop(0, row, b.frame.width, b.frame.height - row);
+    bf.setVisible(true);
+    this.container.moveAbove(bf, this.sprite);
+  }
 
   /** Riding along in someone's vehicle (the seat), or null. */
   get seated(): SeatInfo | null {
@@ -254,11 +271,17 @@ export class Avatar {
     this.fit = v ? vehicleFit(v) : null;
     this.bike?.destroy();
     this.bike = null;
+    this.bikeFront?.destroy();
+    this.bikeFront = null;
     this.driver?.destroy();
     this.driver = null;
     if (v) {
       this.bikeTex = vehicleTexturePrefix(this.scene, v, look);
       this.bike = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, this.fit!.originY).setScale(this.fit!.scale);
+      if (!this.fit!.hideRider && !hasDriver(v)) {
+        this.bikeFront = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, this.fit!.originY).setScale(this.fit!.scale).setVisible(false);
+        this.container.add(this.bikeFront);
+      }
       this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
       if (hasDriver(v)) {
         this.driverTex = ensureCharacterTexture(this.scene, RIDER, this.cfg);
@@ -483,6 +506,7 @@ export class Avatar {
     if (this.bike && this.diag && !this.driver) {
       // 45°: the turned vehicle, the rider sitting on it seen from the side.
       this.bike.setTexture(`${this.bikeTex}_${this.diag}`);
+      this.bikeFront?.setVisible(false);
       this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle!, this.diag));
       this.bike.setFlipX(this.diagRight);
       this.layer(this.bike, this.auraGlow ? 1 : 0);
@@ -495,10 +519,17 @@ export class Avatar {
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       if (this.vehicle) this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'));
       this.bike.setFlipX(this.dir === 'right');
-      // From the side the bike is under the rider; from the front (handlebar, basket, front
-      // wheel) and from behind (rear wheel, plate) it's drawn over them.
-      if (view === 'side') this.layer(this.bike, this.auraGlow ? 1 : 0);
-      else this.container.moveAbove(this.bike, this.sprite);
+      // From the side the bike is under the rider. From the front and from behind, the rider sits
+      // IN it: the bike is drawn behind them and its lower part again in front, cut just under the
+      // chest, so the head and chest show over the bike and the legs are hidden by it.
+      if (view === 'side' || !this.bikeFront) {
+        if (view === 'side') this.layer(this.bike, this.auraGlow ? 1 : 0);
+        else this.container.moveAbove(this.bike, this.sprite);
+        this.bikeFront?.setVisible(false);
+      } else {
+        this.layer(this.bike, this.auraGlow ? 1 : 0);
+        this.showBikeFront(this.bike.texture.key);
+      }
       // Big bikes: sit on the seat (behind the middle) from the side.
       if (this.vehicle && isShowroomVehicle(this.vehicle) && !this.driver && !this.fit?.hideRider) {
         const o = riderOffset(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back');
