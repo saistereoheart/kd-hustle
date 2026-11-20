@@ -341,6 +341,12 @@ export class Avatar {
     }
   }
 
+  /** Which way a vehicle under us is drawn (the 45° views too) and whether it's mirrored. */
+  vehicleView(): { view: 'side' | 'front' | 'back' | 'dfront' | 'dback'; flip: boolean } {
+    if (this.diag) return { view: this.diag, flip: this.diagRight };
+    return { view: VIEW_OF[this.dir], flip: this.dir === 'right' };
+  }
+
   setPosition(x: number, y: number) {
     this.trackHeading(x, y);
     this.container.setPosition(x, y);

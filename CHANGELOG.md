@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 (2026-11-20)
+- **🔊 Other riders' engines:** you hear their real engine: their revs, gear changes, throttle and rev limiter
+  are sent with their position, so it's no longer guessed from how they move (no more random revs).
+  Up close they're as loud as your own engine with that exhaust, and they carry 2.5× further than before
+  (a straight pipe the furthest).
+- **🕹️ Neutral:** in manual, shift down from 1st to **N**. The throttle then revs the engine on the spot (up to
+  the limiter) and the vehicle just rolls. Shift up into 1st to go (refused if you're too fast for first).
+- **💨 Launches:** pulling away from a stop spins the tyres for a moment (longer if you revved it in neutral
+  first): a cloud of smoke off the rear wheels (bigger for cars) and black tyre marks on the road that fade
+  after about 4 s. Others' launches show too.
+- **Rolling:** let go of the keys at speed and the vehicle rolls on, slowing gently (about 3.5 s from top
+  speed), so the revs fall slowly with it. Push the opposite way to brake hard.
+- Feel numbers are in `garage.json` → `driving` (coast, brake, tyre-mark time, hearing range, full-volume
+  distance).
+
 ## 1.1.0 (2026-11-20)
 - **🚗 Real 3D cars and bikes:** every showroom vehicle is a 3D model built from the real vehicle's size
   (length, width, height, wheelbase, wheel size, rake, seat height), lit like real paint, glass and chrome,

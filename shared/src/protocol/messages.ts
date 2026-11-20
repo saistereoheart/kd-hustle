@@ -47,6 +47,10 @@ export const C2S = {
     dir: z.enum(DIRECTIONS),
     moving: z.boolean(),
     seq: z.number().int().nonnegative(),
+    /** Showroom car / bike: engine revs and packed state (see ENGINE_BITS), so other players hear
+     *  the real engine. Sound only: nothing in the game trusts it. */
+    rpm: z.number().int().min(0).max(25000).optional(),
+    eng: z.number().int().min(0).max(255).optional(),
   }),
   chatSend: z.object({ text: z.string().min(1).max(500) }),
   feedbackSend: z.object({
@@ -538,8 +542,17 @@ export interface InitPayload {
   parked: ParkedPublic[];
 }
 
-/** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)] */
-export type SnapshotRow = [number, number, number, number, number];
+/** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)], plus [rpm, eng] while driving a showroom vehicle. */
+export type SnapshotRow = [number, number, number, number, number, number?, number?];
+
+/** The packed engine state: gear + 1 in the low 4 bits (0 = neutral), then throttle, rev limiter, wheelspin. */
+export const ENGINE_BITS = { gearMask: 15, throttle: 16, limiter: 32, slip: 64 } as const;
+export function packEngine(gear: number, throttle: boolean, limiter: boolean, slip: boolean): number {
+  return (Math.max(0, Math.min(14, gear + 1)) & ENGINE_BITS.gearMask) | (throttle ? ENGINE_BITS.throttle : 0) | (limiter ? ENGINE_BITS.limiter : 0) | (slip ? ENGINE_BITS.slip : 0);
+}
+export function unpackEngine(eng: number): { gear: number; throttle: boolean; limiter: boolean; slip: boolean } {
+  return { gear: (eng & ENGINE_BITS.gearMask) - 1, throttle: !!(eng & ENGINE_BITS.throttle), limiter: !!(eng & ENGINE_BITS.limiter), slip: !!(eng & ENGINE_BITS.slip) };
+}
 export interface SnapshotPayload {
   t: number;
   p: SnapshotRow[];

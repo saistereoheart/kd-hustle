@@ -495,5 +495,5 @@ export function buildCar(id: string, look: CarLook): Model {
     [rb + 0.25 - off, 0.36, 0.95],
     [rb + 0.25 - off, -0.36, 0.95],
   ];
-  return { mesh, shadow, seats };
+  return { mesh, shadow, seats, wheels: [[axR - off, wy, 0], [axR - off, -wy, 0]] };
 }

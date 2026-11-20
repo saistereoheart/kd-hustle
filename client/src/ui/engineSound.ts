@@ -357,11 +357,16 @@ export function startEngine(cfg: GarageConfig, id: string, exhaust: string): Eng
 }
 
 /** How far away others hear this exhaust (px), and how loud at a distance (0..1). */
-export function hearing(cfg: GarageConfig, exhaust: string, dist: number): number {
+/** How loud another rider's engine is at this distance (1 = as loud as your own with that exhaust):
+ *  full volume up close, fading out by the exhaust's range × `driving.hearingMult`. */
+export function hearing(cfg: GarageConfig, exhaust: string, dist: number, tilePx = 32): number {
   const ex = cfg.exhausts[exhaust] ?? cfg.exhausts.stock;
-  const range = ex?.sound.range ?? 380;
+  const dv = cfg.driving;
+  const range = (ex?.sound.range ?? 380) * dv.hearingMult;
+  const full = dv.fullVolumeTiles * tilePx;
+  if (dist <= full) return 1;
   if (dist >= range) return 0;
-  return Math.pow(1 - dist / range, 1.6) * 0.85;
+  return Math.pow(1 - (dist - full) / (range - full), 1.3);
 }
 
 /** Showroom: idle, a blip, then a run up through three gears and a lift (with pops). */

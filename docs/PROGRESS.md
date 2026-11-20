@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.1.0: 3D vehicles, parked vehicles with passengers, vehicle icons)_
+_Last updated: 2026-11-20 (v1.2.0: real engine sound for other riders, neutral, launch smoke + tyre marks, coasting)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -11,7 +11,7 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 350 unit tests |
+| `npm test` (Vitest) | ✅ 354 unit tests |
 | `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; not re-run this round) |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -22,6 +22,37 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+
+---
+
+## 🔊 Engines you can hear, neutral, launches, rolling (2026-11-20, your requests, v1.2.0)
+
+### How to test it
+1. **Other riders:** two players on showroom vehicles. The other's engine follows their real revs (rev in
+   neutral and the other hears it climb and bounce off the limiter), with their gear changes. Up close it's as
+   loud as your own; walk away and it fades much later than before (stock ~50 m, straight pipe ~130 m).
+2. **Neutral:** manual gears (G), then F from 1st: the dashboard shows N. Hold a direction: the revs climb
+   and the vehicle stays put (it turns to face that way). R puts it in 1st.
+3. **Launch:** from a stop, hold a direction: smoke off the rear tyres and black marks behind them, fading after
+   ~4 s. Rev in N first, then R: a longer burnout.
+4. **Rolling:** at speed, let go: it rolls on and slows over a few seconds, the revs falling with it. Push the
+   other way to brake.
+
+### What changed
+- `shared/garage/drive.ts`: gear −1 = neutral (manual only) with a free-revving engine; a burnout timer on
+  launches from a stop (longer with revs up); `coast()` for rolling and braking. Tests cover all of it.
+- `move` carries `rpm` and a packed `eng` byte (gear, throttle, limiter, wheelspin; `packEngine` /
+  `unpackEngine`); the server passes them on in snapshots (`[id, x, y, dir, moving, rpm, eng]`). Sound only:
+  nothing in the game trusts them. Remote engines play those values (smoothed), and fall back to the old
+  estimate for anyone who doesn't send them.
+- `hearing()`: full volume within `driving.fullVolumeTiles`, then a gentler fade out to the exhaust's range ×
+  `driving.hearingMult`.
+- Tyre smoke now comes from the 3D model's rear wheel contact points (both rear wheels on a car); tyre marks
+  are short dark strips under everything else that fade over `driving.skidMarkSec`.
+
+### Decisions
+- **Braking = pushing against the way you're rolling** (no extra key, works on the joystick too).
+- **Revving on the spot turns the vehicle** to face the way you push (so you can line up a launch).
 
 ---
 

@@ -52,6 +52,8 @@ export interface OnlinePlayer {
   vehicle: string | null;
   /** A showroom vehicle's paint / wheels / exhaust while riding it. */
   vehicleLook?: VehicleLook | null;
+  /** The engine sound state the driver last sent ([rpm, packed]); passed on in snapshots. */
+  engine?: [number, number] | null;
   skills: Record<string, number>;
   /** Manifest earnings (sen, fractional) not yet paid out. */
   manifestBank: number;

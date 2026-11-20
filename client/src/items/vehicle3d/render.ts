@@ -11,6 +11,8 @@ export interface Model {
   shadow: (x: number, y: number) => number;
   /** Where riders sit (model space): the seat(s), front first. */
   seats: V3[];
+  /** Where the driven (rear) tyres touch the ground (model space): tyre smoke and marks. */
+  wheels: V3[];
 }
 
 const SIN = Math.sin(ELEV), COS = Math.cos(ELEV);

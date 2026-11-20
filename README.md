@@ -96,7 +96,8 @@ Never port-forward the game on your router: accounts and the server aren't harde
 | Ride: put down / get in / get out | its hotbar key, then E | tap the slot, then the E button |
 | Put your ride away | X | "Put away" on the prompt |
 | Emotes | Q | 😀 button |
-| Gears (manual) | R up, F down, G auto/manual | ▲ ▼ A/M on the dashboard |
+| Gears (manual) | R up, F down (below 1st is N), G auto/manual | ▲ ▼ A/M on the dashboard |
+| Brake | push the other way | joystick the other way |
 
 ## Admin
 The first account to register is the admin (or set `ADMIN_USERNAME` in `.env`). Admins have chat commands

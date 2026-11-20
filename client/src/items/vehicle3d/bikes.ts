@@ -291,7 +291,7 @@ function sportbike(id: string, look: CarLook): Model {
     }
     return a;
   };
-  return { mesh, shadow, seats: [[sx - 0.12, 0, S + 0.03], [sx - 0.48, 0, S + 0.16 + U * 0.7]] };
+  return { mesh, shadow, seats: [[sx - 0.12, 0, S + 0.03], [sx - 0.48, 0, S + 0.16 + U * 0.7]], wheels: [[xr, 0, 0]] };
 }
 
 // ------------------------------------------------------------------ the cruiser
@@ -429,7 +429,7 @@ function cruiser(look: CarLook): Model {
     }
     return a;
   };
-  return { mesh, shadow, seats: [[-0.16, 0, 0.71], [-0.55, 0, 0.81]] };
+  return { mesh, shadow, seats: [[-0.16, 0, 0.71], [-0.55, 0, 0.81]], wheels: [[xr, 0, 0]] };
 }
 
 export const BIKE_IDS = [...Object.keys(SPORT), 'bike_harlee'];

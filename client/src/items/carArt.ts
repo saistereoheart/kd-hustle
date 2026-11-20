@@ -86,6 +86,15 @@ export function seatPoint(id: string, view: View, seat = 0): { x: number; y: num
   const [x, y] = project(p, VIEW_YAW[view], pxPerMetre(id));
   return { x, y };
 }
+/** Where the rear tyres touch the road in a view, in world px from the sprite's anchor (x right, y down). */
+export function rearWheels(id: string, view: View): Array<{ x: number; y: number }> {
+  const m = modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'stock' });
+  const k = townScale(id);
+  return m.wheels.map((p) => {
+    const [x, y] = project(p, VIEW_YAW[view], pxPerMetre(id));
+    return { x: x * k, y: y * k };
+  });
+}
 export function seatCount(id: string): number {
   return modelFor(id, { paint: '#888888', wheel: '#888888', tip: 'stock' }).seats.length;
 }

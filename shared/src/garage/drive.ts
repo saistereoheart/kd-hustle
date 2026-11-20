@@ -11,6 +11,8 @@
 // Automatic: shifts up near the redline and down when the revs drop low. Manual: you shift with
 // R / F or the dashboard buttons; a downshift that would over-rev the engine is refused, and
 // staying in a gear past its top bounces off the rev limiter (or holds a flat note with it off).
+// Manual also has neutral (below first, gear −1): the throttle just revs the engine and the
+// vehicle coasts. Pulling away hard from a stop spins the tyres for a moment (a burnout).
 import type { GarageModel } from './garage';
 
 export interface DriveSpec {
@@ -53,7 +55,14 @@ export interface DriveState {
   slip: number;
   /** Throttle as the engine sees it (0 while shifting). */
   load: number;
+  /** Seconds of burnout left after a hard launch from a stop. */
+  burn: number;
+  /** Already launched since the last stop (one burnout per launch). */
+  launched: boolean;
 }
+
+/** In neutral (manual only). */
+export const NEUTRAL = -1;
 
 export type ShiftEvent = 'up' | 'down' | null;
 
@@ -75,7 +84,7 @@ export function torqueShare(spec: Pick<DriveSpec, 'redline' | 'peak'>, rpm: numb
 }
 
 export function newDriveState(spec: DriveSpec, auto = true): DriveState {
-  return { speed: 0, gear: 0, rpm: spec.idle, shiftLeft: 0, auto, limiter: false, slip: 0, load: 0 };
+  return { speed: 0, gear: 0, rpm: spec.idle, shiftLeft: 0, auto, limiter: false, slip: 0, load: 0, burn: 0, launched: false };
 }
 
 /** Revs the wheels turn the engine at in a gear. */
@@ -88,6 +97,9 @@ export function stepDrive(spec: DriveSpec, st: DriveState, input: { throttle: bo
   const n = spec.gearTop.length;
   let ev: ShiftEvent = null;
   st.shiftLeft = Math.max(0, st.shiftLeft - dt);
+  st.burn = Math.max(0, st.burn - dt);
+  if (st.auto && st.gear < 0) st.gear = 0; // the automatic has no neutral
+  if (st.gear < 0) return neutralStep(spec, st, input, dt);
   const shifting = st.shiftLeft > 0;
   // Automatic gearbox.
   if (st.auto && !shifting) {
@@ -124,22 +136,59 @@ export function stepDrive(spec: DriveSpec, st: DriveState, input: { throttle: bo
   const up = fast ? spec.riseRate * 4 : spec.riseRate;
   const down = fast ? spec.fallRate * 4 : spec.fallRate;
   st.rpm = st.rpm < target ? Math.min(target, st.rpm + up * dt) : Math.max(target, st.rpm - down * dt);
-  // Tyre smoke: a hard launch in the low gears, or spinning up on grass / dirt.
+  // Tyre smoke: a hard launch in the low gears, or spinning up on grass / dirt. Pulling away from
+  // a stop (harder with the revs up, e.g. dropped in from neutral) spins the tyres for a moment.
+  if (input.throttle && !st.launched && st.speed < 3 && st.gear === 0) {
+    st.launched = true;
+    const revved = Math.max(0, (st.rpm - spec.launchRpm) / (spec.redline - spec.launchRpm));
+    st.burn = (spec.bike ? BURN.bikeSec : BURN.carSec) * (1 + revved);
+  }
+  if (st.speed < 1 && !input.throttle) st.launched = false;
   const lowGear = st.gear === 0 || (st.gear === 1 && spec.bike);
   const launchSlip = input.throttle && lowGear && st.speed < spec.gearTop[0] * 0.7 ? 1 - st.speed / (spec.gearTop[0] * 0.7) : 0;
   const groundSlip = input.throttle && input.cap < spec.top * 0.85 && st.speed < input.cap * 0.95 ? 0.5 : 0;
-  st.slip = Math.max(launchSlip * 0.9, groundSlip);
+  const burnSlip = input.throttle && st.burn > 0 ? 0.65 + 0.35 * Math.min(1, st.burn) : 0;
+  st.slip = Math.max(launchSlip * 0.9, groundSlip, burnSlip);
   return ev;
+}
+
+/** How long a launch from a stop spins the tyres (seconds, before revving it up first). */
+const BURN = { carSec: 1.4, bikeSec: 0.9 };
+
+/** Neutral: the throttle revs the free engine (up to the limiter); the vehicle just coasts. */
+function neutralStep(spec: DriveSpec, st: DriveState, input: { throttle: boolean; cap: number; bounce?: boolean }, dt: number): ShiftEvent {
+  st.load = input.throttle ? 1 : 0;
+  st.slip = 0;
+  st.launched = false;
+  st.limiter = input.throttle && st.rpm >= spec.redline * 0.985;
+  let target = input.throttle ? spec.redline : spec.idle;
+  if (st.limiter) target = input.bounce === false ? spec.redline : spec.redline * (0.95 + 0.05 * Math.random());
+  // A free engine spins up faster than one turning the wheels.
+  st.rpm = st.rpm < target ? Math.min(target, st.rpm + spec.riseRate * 1.6 * dt) : Math.max(target, st.rpm - spec.fallRate * dt);
+  if (st.speed > input.cap) st.speed = Math.max(input.cap, st.speed - spec.accel * 2.5 * dt);
+  return null;
+}
+
+/**
+ * Off the throttle (or in neutral): the vehicle rolls on and slows gently (engine braking and drag,
+ * about `coastSec` from top speed to a stop), or hard when braking (`brakeSec`).
+ */
+export function coast(spec: DriveSpec, st: DriveState, dt: number, o: { brake: boolean; coastSec: number; brakeSec: number }) {
+  const sec = o.brake ? o.brakeSec : o.coastSec;
+  // A little more drag at speed, so it settles rather than sliding for ever.
+  const drag = 0.6 + 0.4 * (st.speed / spec.top);
+  st.speed = Math.max(0, st.speed - (spec.top / sec) * drag * dt);
 }
 
 /** Changes gear (manual, or the automatic). Returns the event, or null if refused. */
 export function shiftGear(spec: DriveSpec, st: DriveState, dir: 1 | -1): ShiftEvent {
   const g = st.gear + dir;
-  if (g < 0 || g >= spec.gearTop.length) return null;
-  // A downshift that would throw the engine past the redline: refused (no money shifts).
-  if (dir < 0 && wheelRpm(spec, st.speed, g) > spec.redline * 1.01) return null;
+  if (g < (st.auto ? 0 : NEUTRAL) || g >= spec.gearTop.length) return null;
+  // Into a gear that would throw the engine past the redline (a downshift, or neutral → first at
+  // speed): refused (no money shifts).
+  if (g >= 0 && (dir < 0 || st.gear < 0) && wheelRpm(spec, st.speed, g) > spec.redline * 1.01) return null;
   st.gear = g;
-  st.shiftLeft = dir > 0 ? spec.shiftSec : spec.shiftSec * 0.7;
+  st.shiftLeft = g < 0 ? 0 : dir > 0 ? spec.shiftSec : spec.shiftSec * 0.7;
   return dir > 0 ? 'up' : 'down';
 }
 

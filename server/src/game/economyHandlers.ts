@@ -66,6 +66,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   /** Puts the player on a vehicle (or off it, with null) and tells everyone. */
   function setVehicle(p: OnlinePlayer, vehicle: string | null) {
     p.vehicle = vehicle;
+    p.engine = null;
     p.vehicleLook = garage?.lookOf(p, vehicle) ?? null;
     // Landing somewhere this ride (or your feet) can't be, e.g. hopping off on a highway:
     // step to the nearest spot that's allowed.

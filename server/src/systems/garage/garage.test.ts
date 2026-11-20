@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { driveSpec, engineRpm, newDriveState, partCostSen, rideAccelSec, rideSpeed, shiftGear, stepDrive, tireGrip, timeToTop, torqueShare, newSetup, wheelRpm } from '@kh/shared';
+import { coast, driveSpec, engineRpm, NEUTRAL, packEngine, unpackEngine, newDriveState, partCostSen, rideAccelSec, rideSpeed, shiftGear, stepDrive, tireGrip, timeToTop, torqueShare, newSetup, wheelRpm } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -187,6 +187,57 @@ describe('gearbox (drive model)', () => {
     expect(st.speed).toBeCloseTo(spec.gearTop[1], 5);
     expect(shiftGear(spec, st, -1)).toBeNull(); // would pass the redline in first
     expect(wheelRpm(spec, st.speed, 1)).toBeCloseTo(spec.redline, 0);
+  });
+
+  it('manual neutral: the throttle revs the free engine to the limiter without moving; first gear from N', () => {
+    const { spec } = run('car_s7o');
+    const st = newDriveState(spec, false);
+    expect(shiftGear(spec, st, -1)).toBe('down');
+    expect(st.gear).toBe(NEUTRAL);
+    expect(shiftGear(spec, st, -1)).toBeNull(); // nothing below neutral
+    for (let i = 0; i < 180; i++) stepDrive(spec, st, { throttle: true, cap: Infinity }, 1 / 60);
+    expect(st.speed).toBe(0);
+    expect(st.rpm).toBeGreaterThan(spec.redline * 0.9);
+    expect(st.limiter).toBe(true);
+    // The automatic has no neutral.
+    expect(shiftGear(spec, { ...newDriveState(spec, true) }, -1)).toBeNull();
+    // Dropping into first with the revs up: a longer burnout than a plain launch.
+    expect(shiftGear(spec, st, 1)).toBe('up');
+    stepDrive(spec, st, { throttle: true, cap: Infinity }, 1 / 60);
+    const plain = newDriveState(spec, false);
+    stepDrive(spec, plain, { throttle: true, cap: Infinity }, 1 / 60);
+    expect(st.burn).toBeGreaterThan(plain.burn);
+    expect(plain.burn).toBeGreaterThan(0.5);
+    expect(st.slip).toBeGreaterThan(0.6);
+  });
+
+  it('neutral → first is refused at a speed that would over-rev first gear', () => {
+    const { spec } = run('bike_zx25');
+    const st = { ...newDriveState(spec, false), gear: NEUTRAL, speed: spec.gearTop[0] * 1.3 };
+    expect(shiftGear(spec, st, 1)).toBeNull();
+  });
+
+  it('off the throttle the vehicle rolls on gently; braking stops it fast', () => {
+    const { spec } = run('car_sega');
+    const roll = (brake: boolean) => {
+      const st = { ...newDriveState(spec, true), speed: spec.top };
+      let t = 0;
+      while (st.speed > 0 && t < 30) {
+        coast(spec, st, 1 / 60, { brake, coastSec: gc.driving.coastSec, brakeSec: gc.driving.brakeSec });
+        t += 1 / 60;
+      }
+      return t;
+    };
+    expect(roll(false)).toBeGreaterThan(gc.driving.coastSec * 0.9);
+    expect(roll(true)).toBeLessThan(gc.driving.brakeSec * 2);
+  });
+
+  it('engine state packs into one byte for the snapshots and back', () => {
+    for (const gear of [-1, 0, 3, 6]) {
+      for (const [throttle, limiter, slip] of [[true, false, true], [false, true, false]] as const) {
+        expect(unpackEngine(packEngine(gear, throttle, limiter, slip))).toEqual({ gear, throttle, limiter, slip });
+      }
+    }
   });
 
   it('a low gear pulls harder than a high gear at the same speed; torque peaks mid-to-high revs', () => {

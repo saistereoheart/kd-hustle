@@ -66,6 +66,17 @@ export const garageConfigSchema = z.object({
     torque: z.object({ name: z.string(), per: z.number().positive(), maxLevel: z.number().int().positive(), costShare: z.number().positive(), growth: z.number().min(1) }),
     tires: z.object({ name: z.string(), per: z.number().positive(), maxLevel: z.number().int().positive(), costShare: z.number().positive(), growth: z.number().min(1) }),
   }),
+  /** Feel: rolling to a stop off the throttle, braking (push the other way), tyre marks, how far
+   *  other riders' engines carry (× each exhaust's range) and the distance at full volume. */
+  driving: z
+    .object({
+      coastSec: z.number().positive(),
+      brakeSec: z.number().positive(),
+      skidMarkSec: z.number().positive(),
+      hearingMult: z.number().positive(),
+      fullVolumeTiles: z.number().nonnegative(),
+    })
+    .default({ coastSec: 3.5, brakeSec: 0.9, skidMarkSec: 4, hearingMult: 2.5, fullVolumeTiles: 3 }),
 });
 export type GarageConfig = z.infer<typeof garageConfigSchema>;
 export type GarageModel = GarageConfig['models'][string];

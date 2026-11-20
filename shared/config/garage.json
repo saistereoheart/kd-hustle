@@ -91,5 +91,6 @@
     "engine": { "name": "Engine tune (top speed)", "per": 0.05, "maxLevel": 5, "costShare": 0.06, "growth": 1.5 },
     "torque": { "name": "Torque (acceleration)", "per": 0.15, "maxLevel": 5, "costShare": 0.05, "growth": 1.5 },
     "tires": { "name": "Tyres (off-road grip)", "per": 0.15, "maxLevel": 4, "costShare": 0.03, "growth": 1.6 }
-  }
+  },
+  "driving": { "coastSec": 3.5, "brakeSec": 0.9, "skidMarkSec": 4, "hearingMult": 2.5, "fullVolumeTiles": 3 }
 }

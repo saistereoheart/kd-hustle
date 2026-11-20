@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear,
+  darkness, gameTime, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
   type DriveSpec, type DriveState,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
@@ -14,6 +14,10 @@ import { Avatar } from './avatar';
 import { hearing, startEngine, type EngineVoice } from '../ui/engineSound';
 import { dashboard } from '../ui/dashboard';
 import { AVATAR_DEPTH } from './avatar';
+import { isCarId, isShowroomVehicle, rearWheels } from '../items/carArt';
+
+/** Tyre marks: on the road, under everything else. */
+const SKID_DEPTH = -850;
 import { ambience } from '../ui/ambience';
 import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
@@ -30,6 +34,9 @@ interface Sample {
   y: number;
   dir: Direction;
   moving: boolean;
+  /** A driver's engine (revs and packed gear / throttle / limiter / wheelspin), if they sent it. */
+  rpm?: number;
+  eng?: number;
 }
 interface Remote {
   id: number;
@@ -100,7 +107,10 @@ export class TownScene extends Phaser.Scene {
   /** Our gearbox while on a showroom car/bike (null otherwise), and where we were heading (to coast). */
   private drive: { key: string; spec: DriveSpec; st: DriveState } | null = null;
   private coastDir = { x: 0, y: 0 };
-  private remoteEngines = new Map<number, { key: string; voice: EngineVoice | null; spec: DriveSpec; st: DriveState; px: number; py: number; v: number }>();
+  private throttleHeld = false;
+  private lastRpm = 0;
+  private lastEng: number | undefined = undefined;
+  private remoteEngines = new Map<number, { key: string; voice: EngineVoice | null; spec: DriveSpec; st: DriveState; px: number; py: number; v: number; gear: number | null }>();
   /** Tyre smoke puffs alive right now (capped). */
   private puffs = 0;
   private smokeAcc = 0;
@@ -366,7 +376,7 @@ export class TownScene extends Phaser.Scene {
 
   private onSnapshot(s: SnapshotPayload) {
     const now = performance.now();
-    for (const [id, x, y, dirIdx, moving] of s.p) {
+    for (const [id, x, y, dirIdx, moving, rpm, eng] of s.p) {
       if (id === this.selfId) {
         // As a Ronda passenger the server drives us: follow its positions like a remote player.
         if (this.isPassenger()) {
@@ -377,7 +387,7 @@ export class TownScene extends Phaser.Scene {
       }
       const r = this.remotes.get(id);
       if (!r) continue;
-      r.samples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1 });
+      r.samples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1, rpm, eng });
       if (r.samples.length > 30) r.samples.splice(0, r.samples.length - 30);
     }
   }
@@ -525,9 +535,11 @@ export class TownScene extends Phaser.Scene {
       vx /= len;
       vy /= len;
     }
-    const throttle = len > 0.01;
+    const input = len > 0.01;
+    let throttle = input;
     // 🏍️ Showroom cars and bikes run a gearbox (shared/garage/drive): speed comes from torque and
-    // the gear, and they coast to a stop when you let go instead of stopping dead.
+    // the gear. Let go and they roll on and slow gently; push the other way to brake. In neutral
+    // (manual) the throttle just revs the engine.
     const model = this.me.vehicle && !(this.app.interior || this.app.home) ? cfg.garage.models[this.me.vehicle] : undefined;
     let coasting = false;
     if (model) {
@@ -542,24 +554,35 @@ export class TownScene extends Phaser.Scene {
         if (keep) Object.assign(this.drive.st, { speed: Math.min(keep.speed, top), gear: Math.min(keep.gear, spec.gearTop.length - 1), rpm: keep.rpm });
       }
       this.drive.st.auto = !loadPrefs().manualGears;
+      const st = this.drive.st;
+      // Pushing against the way we're rolling = brakes (not a U-turn at full speed).
+      const braking = input && st.speed > 30 && vx * this.coastDir.x + vy * this.coastDir.y < -0.5;
+      if (braking) throttle = false;
       const i = gridIndexAt(map, this.pos.x, this.pos.y - 2);
       const terrain = i >= 0 ? this.vehicleSpeed[i] : 0.4;
       const cap = top * Math.max(v.minTerrainMult, tireGrip(cfg.garage, terrain, setup));
-      const st = this.drive.st;
       const ev = stepDrive(spec, st, { throttle, cap, bounce: loadPrefs().revLimiter }, dt);
-      if (!throttle && st.speed > 0) st.speed = Math.max(0, st.speed - (spec.top / 1.1) * dt); // brakes + engine braking
+      const driven = throttle && st.gear >= 0;
+      if (!driven && st.speed > 0) coast(spec, st, dt, { brake: braking, coastSec: cfg.garage.driving.coastSec, brakeSec: cfg.garage.driving.brakeSec });
       if (ev) this.onShift(ev);
       this.rideSpeed = st.speed;
-      if (throttle) this.coastDir = { x: vx, y: vy };
-      else if (st.speed > 8) {
+      if (input && !braking && st.speed > 0.5) this.coastDir = { x: vx, y: vy };
+      else if (st.speed > 0.5) {
         coasting = true;
         vx = this.coastDir.x;
         vy = this.coastDir.y;
       }
+      if (input && !braking && st.speed <= 0.5) {
+        // Revving on the spot (neutral, or the first instant of a launch): just turn to face the way.
+        this.coastDir = { x: vx, y: vy };
+        this.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up';
+        throttle = false;
+      } else if (!input) throttle = false;
     } else if (this.drive) {
       this.drive = null;
       this.rideSpeed = 0;
     }
+    this.throttleHeld = input;
     const moving = throttle || coasting;
     if (moving) {
       this.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up';
@@ -585,7 +608,7 @@ export class TownScene extends Phaser.Scene {
       this.me.setPosition(this.pos.x, this.pos.y);
     }
     if (!moving) this.rideSpeed = Math.max(0, this.rideSpeed - 900 * dt);
-    this.updateEngines(throttle);
+    this.updateEngines(this.throttleHeld && !!this.drive && this.drive.st.load > 0);
     this.tyreSmoke(dt);
     this.updateDashboard();
     this.walkIntoDoors(moving ? vx : 0, moving ? vy : 0);
@@ -609,9 +632,15 @@ export class TownScene extends Phaser.Scene {
     if (this.sendAcc >= 1000 / cfg.movement.sendRateHz) {
       this.sendAcc = 0;
       const ls = this.lastSent;
-      if (ls.x !== this.pos.x || ls.y !== this.pos.y || ls.dir !== this.dir || ls.moving !== this.moving) {
-        this.app.socket?.emit('move', { x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving, seq: ++this.seq });
+      // Driving a showroom vehicle: our revs and gear go along, so others hear the real engine.
+      const d = this.drive;
+      const rpm = d ? Math.round(d.st.rpm / 50) * 50 : undefined;
+      const eng = d ? packEngine(d.st.gear, this.throttleHeld && d.st.load > 0, d.st.limiter, d.st.slip > 0.35) : undefined;
+      if (ls.x !== this.pos.x || ls.y !== this.pos.y || ls.dir !== this.dir || ls.moving !== this.moving || (d && (Math.abs((rpm ?? 0) - this.lastRpm) >= 150 || eng !== this.lastEng))) {
+        this.app.socket?.emit('move', { x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving, seq: ++this.seq, rpm, eng });
         this.lastSent = { x: this.pos.x, y: this.pos.y, dir: this.dir, moving: this.moving };
+        this.lastRpm = rpm ?? 0;
+        this.lastEng = eng;
       }
     }
 
@@ -866,7 +895,7 @@ export class TownScene extends Phaser.Scene {
     if (d.st.auto) this.toggleGearbox();
     const ev = shiftGear(d.spec, d.st, dir);
     if (ev) this.onShift(ev);
-    else if (dir < 0 && d.st.gear > 0) toast('Too fast for that gear: it would over-rev.', 'bad', 1500);
+    else if ((dir < 0 && d.st.gear > 0) || (dir > 0 && d.st.gear < 0)) toast('Too fast for that gear: it would over-rev.', 'bad', 1500);
   }
 
   /** Automatic ⇄ manual (remembered on this device). */
@@ -875,7 +904,7 @@ export class TownScene extends Phaser.Scene {
     p.manualGears = !p.manualGears;
     savePrefs(p);
     if (this.drive) this.drive.st.auto = !p.manualGears;
-    toast(p.manualGears ? '🕹️ Manual gears: R = up, F = down (or the dashboard buttons).' : '🅰️ Automatic gearbox.', 'good', 2500);
+    toast(p.manualGears ? '🕹️ Manual gears: R = up, F = down (or the dashboard buttons). Below 1st is N: rev it, then drop into 1st.' : '🅰️ Automatic gearbox.', 'good', 3500);
   }
 
   private onShift(ev: 'up' | 'down') {
@@ -898,38 +927,75 @@ export class TownScene extends Phaser.Scene {
     );
   }
 
-  /** A little grey smoke off the rear tyre on a hard launch or wheelspin on grass (ours and others'). */
+  /** Tyre smoke off the rear wheels (a car makes a proper cloud) and black marks on the road that
+   *  fade after a few seconds: hard launches from a stop and wheelspin on grass (ours and others'). */
   private tyreSmoke(dt: number) {
-    if (!loadPrefs().particles) return;
     this.smokeAcc += dt;
     if (this.smokeAcc < 0.05) return;
     this.smokeAcc = 0;
-    const puff = (x: number, y: number, dir: string, slip: number, car: boolean) => {
-      if (slip < 0.08 || this.puffs > 40 || Math.random() > slip) return;
-      const back = car ? 16 : 11;
-      const [dx, dy] = dir === 'right' ? [-back, 0] : dir === 'left' ? [back, 0] : dir === 'up' ? [0, 6] : [0, -6];
-      const img = this.add.image(x + dx + (Math.random() - 0.5) * 6, y + dy - 2, GLOW_TEXTURE);
-      img.setTint(0xd9d9d9).setAlpha(0.3 * slip + 0.08).setScale(0.12).setDepth(AVATAR_DEPTH + y - 3);
-      this.puffs++;
-      this.tweens.add({
-        targets: img,
-        x: img.x + dx * 0.8 + (Math.random() - 0.5) * 14,
-        y: img.y - 6 - Math.random() * 8,
-        scale: 0.4 + Math.random() * 0.25,
-        alpha: 0,
-        duration: 650 + Math.random() * 350,
-        onComplete: () => {
-          img.destroy();
-          this.puffs--;
-        },
-      });
+    const particles = loadPrefs().particles;
+    if (particles) ensureGlowTexture(this);
+    const burn = (id: number, av: Avatar, slip: number) => {
+      const v = av.vehicle;
+      if (!v || !isShowroomVehicle(v) || slip < 0.08 || !av.container.visible) {
+        this.markFrom.delete(id);
+        return;
+      }
+      const car = isCarId(v);
+      const { view, flip } = av.vehicleView();
+      const wheels = rearWheels(v, view).map((o) => ({ x: av.x + (flip ? -o.x : o.x), y: av.y + 2 + o.y }));
+      // Rubber on the road (only while the tyres really spin).
+      const last = this.markFrom.get(id);
+      this.markFrom.set(id, wheels);
+      if (slip > 0.35 && last && last.length === wheels.length) wheels.forEach((w, i) => this.skidMark(last[i], w, car));
+      if (!particles) return;
+      for (const w of wheels) {
+        if (this.puffs > 90 || Math.random() > slip) continue;
+        const img = this.add.image(w.x + (Math.random() - 0.5) * 4, w.y - 1, GLOW_TEXTURE);
+        const big = car ? 1.6 : 1;
+        img.setTint(0xe3e3e3).setAlpha((0.32 * slip + 0.1) * (car ? 1.2 : 1)).setScale(0.13 * big).setDepth(AVATAR_DEPTH + av.y + (view === 'back' || view === 'dback' ? 3 : -3));
+        this.puffs++;
+        this.tweens.add({
+          targets: img,
+          x: img.x + (Math.random() - 0.5) * 20 * big,
+          y: img.y - (8 + Math.random() * 10) * big,
+          scale: (0.42 + Math.random() * 0.3) * big,
+          alpha: 0,
+          duration: (750 + Math.random() * 450) * (car ? 1.5 : 1),
+          onComplete: () => {
+            img.destroy();
+            this.puffs--;
+          },
+        });
+      }
     };
-    ensureGlowTexture(this);
-    if (this.drive && this.me) puff(this.me.x, this.me.y, this.dir, this.drive.st.slip, this.me.vehicle?.startsWith('car_') ?? false);
+    if (this.drive && this.me) burn(this.selfId, this.me, this.drive.st.slip);
     for (const [rid, e] of this.remoteEngines) {
       const r = this.remotes.get(rid);
-      if (r) puff(r.avatar.x, r.avatar.y, r.avatar.dir, e.st.slip, r.avatar.vehicle?.startsWith('car_') ?? false);
+      if (r) burn(rid, r.avatar, e.st.slip);
     }
+  }
+
+  private markFrom = new Map<number, Array<{ x: number; y: number }>>();
+  private marks = 0;
+  /** One short black stripe of rubber from a to b, fading out over `driving.skidMarkSec`. */
+  private skidMark(a: { x: number; y: number }, b: { x: number; y: number }, car: boolean) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.3 || len > 48 || this.marks > 400) return;
+    const w = car ? 2.4 : 1.6;
+    const m = this.add.rectangle((a.x + b.x) / 2, (a.y + b.y) / 2, len + w * 0.6, w, 0x141414, 0.5).setRotation(Math.atan2(dy, dx)).setDepth(SKID_DEPTH);
+    this.marks++;
+    this.tweens.add({
+      targets: m,
+      alpha: 0,
+      delay: this.app.cfg.garage.driving.skidMarkSec * 400,
+      duration: this.app.cfg.garage.driving.skidMarkSec * 600,
+      onComplete: () => {
+        m.destroy();
+        this.marks--;
+      },
+    });
   }
 
   /** 🚗 Engine sounds: ours (from our gearbox) and the nearest riders' (their speed → gear → revs). Louder exhausts carry further. */
@@ -961,7 +1027,7 @@ export class TownScene extends Phaser.Scene {
       .filter((r) => r.avatar.vehicle && g.models[r.avatar.vehicle] && r.avatar.container.visible)
       .map((r) => {
         const d = Math.hypot(r.avatar.x - this.pos.x, r.avatar.y - this.pos.y);
-        return { r, d, level: hearing(g, r.avatar.vehicleLook?.exhaust ?? 'stock', d) };
+        return { r, d, level: hearing(g, r.avatar.vehicleLook?.exhaust ?? 'stock', d, this.app.map.tileSize) };
       })
       .filter((x) => x.level > 0.01)
       .sort((a, b) => b.level - a.level)
@@ -986,7 +1052,7 @@ export class TownScene extends Phaser.Scene {
         const vdef = this.app.cfg.vehicles.vehicles[vid];
         const top = (vdef?.speed ?? 500) * 1.3; // they may have tuned it (we don't know by how much)
         const spec = driveSpec(rm, top, rm.accelSec);
-        e = { key: rk, voice: startEngine(g, vid, r.avatar.vehicleLook?.exhaust ?? 'stock'), spec, st: newDriveState(spec, true), px: r.avatar.x, py: r.avatar.y, v: 0 };
+        e = { key: rk, voice: startEngine(g, vid, r.avatar.vehicleLook?.exhaust ?? 'stock'), spec, st: newDriveState(spec, true), px: r.avatar.x, py: r.avatar.y, v: 0, gear: null };
         this.remoteEngines.set(r.id, e);
       }
       // Their speed from how far they moved this frame (smoothed).
@@ -994,14 +1060,38 @@ export class TownScene extends Phaser.Scene {
       e.px = r.avatar.x;
       e.py = r.avatar.y;
       e.v += (Math.min(inst, e.spec.top) - e.v) * 0.12;
-      const ev = followDrive(e.spec, e.st, r.avatar.moving ? e.v : e.v * 0.9, r.avatar.moving, dt);
+      let ev: 'up' | 'down' | null = null;
+      let limiter = false;
+      const smp = this.engineSample(r);
+      if (smp) {
+        // The driver's real engine (revs, gear, throttle) as they sent it: smoothed, not guessed.
+        const en = unpackEngine(smp.eng!);
+        e.st.rpm += (smp.rpm! - e.st.rpm) * Math.min(1, dt * 14);
+        if (e.gear !== null && en.gear !== e.gear && en.gear >= 0 && e.gear >= 0) ev = en.gear > e.gear ? 'up' : 'down';
+        e.gear = en.gear;
+        e.st.load = en.throttle ? 1 : 0;
+        e.st.slip = en.slip ? 0.85 : 0;
+        limiter = en.limiter;
+      } else ev = followDrive(e.spec, e.st, r.avatar.moving ? e.v : e.v * 0.9, r.avatar.moving, dt);
       try {
         if (ev) e.voice?.shift(ev);
-        e.voice?.set(e.st.rpm, e.st.load, level, { pan: (r.avatar.x - this.pos.x) / 320 });
+        e.voice?.set(e.st.rpm, e.st.load, level, { pan: (r.avatar.x - this.pos.x) / 320, limiter });
       } catch {
         /* sound is optional */
       }
     }
+  }
+
+  /** The engine state a remote driver sent, as of the moment we're drawing them (a little in the past). */
+  private engineSample(r: Remote): Sample | null {
+    const t = performance.now() - this.app.cfg.net.interpolationDelayMs;
+    let pick: Sample | null = null;
+    for (const smp of r.samples) {
+      if (smp.t <= t) pick = smp;
+      else break;
+    }
+    pick ??= r.samples[0] ?? null;
+    return pick && pick.rpm !== undefined && pick.eng !== undefined ? pick : null;
   }
 
   private stopEngines() {

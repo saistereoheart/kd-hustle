@@ -221,6 +221,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const parsed = C2S.move.safeParse(msg);
       if (!parsed.success) return;
       const m = parsed.data;
+      // Engine sound for the others (kept even if the move itself is corrected).
+      me.engine = me.vehicle && m.rpm !== undefined && m.eng !== undefined ? [m.rpm, m.eng] : null;
       const rules = economy.moveRules(me); // walking or riding a vehicle
       const verdict = validateMove(me.move, m.x, m.y, Date.now(), rules.grid, rules.movement);
       if (!verdict.ok) {
@@ -440,7 +442,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     for (const scene of world.scenes()) {
       const rows: SnapshotRow[] = world
         .inScene(scene)
-        .map((p) => [p.id, Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10, DIR_INDEX[p.dir], p.moving ? 1 : 0]);
+        .map((p): SnapshotRow => {
+          const row: SnapshotRow = [p.id, Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10, DIR_INDEX[p.dir], p.moving ? 1 : 0];
+          if (p.vehicle && p.engine) row.push(p.engine[0], p.engine[1]);
+          return row;
+        });
       io.to(scene).volatile.emit('snapshot', { t, p: rows });
     }
   }, 1000 / cfg.net.snapshotRateHz);

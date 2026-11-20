@@ -157,7 +157,7 @@ function draw(d: DashData) {
   ctx.stroke();
   ctx.fillStyle = '#ffd43b';
   ctx.font = `900 ${Math.round(gh * 0.62)}px system-ui, sans-serif`;
-  ctx.fillText(d.kmh < 1 && d.gear === 0 && d.auto ? 'N' : String(d.gear + 1), gx, gy + gh * 0.04);
+  ctx.fillText(d.gear < 0 || (d.kmh < 1 && d.gear === 0 && d.auto) ? 'N' : String(d.gear + 1), gx, gy + gh * 0.04);
   ctx.font = `800 ${Math.round(gh * 0.16)}px system-ui, sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.fillText(d.auto ? 'AUTO' : 'MANUAL', gx, gy + gh * 0.66);
