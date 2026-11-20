@@ -5,6 +5,7 @@
 import type Phaser from 'phaser';
 import type { GarageConfig, VehicleLook } from '@kh/shared';
 import { bikeMeta, buildBike } from './vehicle3d/bikes';
+import { isSmallBike, SMALL_LOOKS } from './vehicle3d/smallBikes';
 import { buildCar, carMeta } from './vehicle3d/cars';
 import { project, renderModel, type Model, type ModelMeta, type RenderOpts } from './vehicle3d/render';
 import type { VehicleDone, VehicleJob } from './vehicle3d/vehicleWorker';
@@ -177,11 +178,15 @@ export function setGarageConfig(cfg: GarageConfig) {
   garageCfg = cfg;
 }
 export const isShowroomVehicle = (id: string) => !!garageCfg?.models[id];
+/** Drawn from a 3D model: the showroom's vehicles, and the basikal / kapcai / Ronda. */
+export const is3dVehicle = (id: string) => isShowroomVehicle(id) || isSmallBike(id);
 
 /** Colours for a look (the model's factory look when there's none). */
 export function resolveLook(id: string, look: VehicleLook | null | undefined): Look {
   const g = garageCfg;
   const m = g?.models[id];
+  const own = SMALL_LOOKS[id];
+  if (!m && own) return own; // the basikal / kapcai / Ronda: their own colours
   const paint = g?.paints[look?.paint ?? m?.paint ?? '']?.color ?? '#adb5bd';
   const wheel = g?.wheels[look?.wheel ?? m?.wheel ?? '']?.color ?? '#ced4da';
   const tip = g?.exhausts[look?.exhaust ?? 'stock']?.tip ?? 'stock';

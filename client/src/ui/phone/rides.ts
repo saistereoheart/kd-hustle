@@ -1,7 +1,7 @@
 // HustlePhone → Ronda: hail a ride (point A to point B for a fare), or hop on a vehicle you own.
 import { formatMoneyExact } from '@kh/shared';
 import { el } from '../dom';
-import { isShowroomVehicle, resolveLook, vehicleIconUrl } from '../../items/carArt';
+import { is3dVehicle, resolveLook, vehicleIconUrl } from '../../items/carArt';
 import type { PhoneCtx } from './phone';
 
 export function renderRides({ app }: PhoneCtx): HTMLElement[] {
@@ -45,7 +45,7 @@ export function renderRides({ app }: PhoneCtx): HTMLElement[] {
     return el(
       'div',
       { class: `job-card phone-ride${riding ? ' active' : ''}`, 'data-ride': id },
-      el('div', { class: 'job-icon' }, isShowroomVehicle(id) ? el('img', { src: vehicleIconUrl(id, resolveLook(id, ownLook(id)), 96), alt: v.name, class: 'vehicle-icon' }) : v.icon),
+      el('div', { class: 'job-icon' }, is3dVehicle(id) ? el('img', { src: vehicleIconUrl(id, resolveLook(id, ownLook(id)), 96), alt: v.name, class: 'vehicle-icon' }) : v.icon),
       el('div', { class: 'job-info' }, el('h4', {}, v.name, riding ? el('span', { class: 'lv-badge' }, 'Riding') : null), el('p', {}, note)),
       actions,
     );

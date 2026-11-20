@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.9.3 (2026-11-20)
+- **🚲🛵 The basikal, the kapcai and the Ronda are 3D now**, like the showroom bikes. They have every
+  direction including the 45° views, and their 3D icons appear in the hotbar and the Ronda app.
+  - Basikal: a 26" city bike with see-through spoked wheels, a wicker front basket and a teal frame.
+  - Kapcai: a 110 cc underbone with a leg shield, step-through frame, pinstriped side covers, rear rack and
+    chrome exhaust.
+  - Ronda: the green kapcai with a top box. Its rider and you sit on the real seats.
+- **Riding away from the camera (going up):** you used to sit in front of the whole bike. Now the bike's tail
+  covers your lower half and your back shows above it, the same 50/50 as riding towards the camera. (The cut
+  under the chest was worked out before you were moved onto the seat.)
+- Admins: `npm run admin -- feedback-done <id>` marks a 🐞 report done (`undo` reopens it). Report #2 ("casino
+  rigged", fixed in 1.0) is now closed.
+
 ## 1.9.2 (2026-11-20)
 - **🐉 Mythic Teman stand out:** mythic stat multiplier ×1.85 → **×2.5** (divine ×3, secret ×3.5, so they stay
   above it). The Mahkota is mythic too, so its boost rises with it: Tier S with every variant gives +165%.

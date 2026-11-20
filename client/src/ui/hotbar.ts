@@ -4,7 +4,7 @@
 import type { HotbarRef } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast, uiRoot } from './dom';
-import { isShowroomVehicle, resolveLook, vehicleIconUrl } from '../items/carArt';
+import { is3dVehicle, resolveLook, vehicleIconUrl } from '../items/carArt';
 import { iconUrl } from './panel';
 
 const KEY_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -83,7 +83,7 @@ export class Hotbar {
         const v = this.app.cfg.vehicles.vehicles[ref.id];
         name = v?.name ?? ref.id;
         // Showroom cars and bikes get a cartoon picture of the real model (in your paint job).
-        if (isShowroomVehicle(ref.id)) {
+        if (is3dVehicle(ref.id)) {
           const o = st.garage?.owned[ref.id];
           icon = el('img', { src: vehicleIconUrl(ref.id, resolveLook(ref.id, o ? { paint: o.paint, wheel: o.wheel, exhaust: o.exhaust } : null), 80), alt: name, draggable: 'false', class: 'hotbar-vehicle' });
         } else icon = el('span', { class: 'hotbar-emoji' }, v?.icon ?? '🚗');

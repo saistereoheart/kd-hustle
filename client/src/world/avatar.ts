@@ -5,7 +5,7 @@ import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, OR
 import type { View, WornCosmetics } from '../character/draw';
 import type { SeatInfo, VehicleLook } from '@kh/shared';
 import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
-import { isCarId, isShowroomVehicle } from '../items/carArt';
+import { is3dVehicle, isCarId } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 import { drawPetStyled } from '../items/petArt';
 
@@ -402,7 +402,7 @@ export class Avatar {
     this.lastX = x;
     this.lastY = y;
     const ride = this.vehicle ?? this.seat?.vehicle ?? null;
-    if (!ride || !isShowroomVehicle(ride)) {
+    if (!ride || !is3dVehicle(ride)) {
       if (this.diag) {
         this.diag = null;
         this.applyAnim();
@@ -494,7 +494,7 @@ export class Avatar {
       const flip = this.diag ? this.diagRight : this.dir === 'right';
       this.sprite.setFlipX(flip);
       const v = this.seat.vehicle;
-      const o = isShowroomVehicle(v) ? riderOffset(v, view, this.seat.seat) : view === 'side' || this.diag ? { x: 7, y: -11 } : view === 'front' ? { x: 0, y: -16 } : { x: 0, y: -9 };
+      const o = is3dVehicle(v) ? riderOffset(v, view, this.seat.seat) : view === 'side' || this.diag ? { x: 7, y: -11 } : view === 'front' ? { x: 0, y: -16 } : { x: 0, y: -9 };
       this.sprite.setPosition(flip ? -o.x : o.x, o.y);
       if (force || this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key, true);
       return;
@@ -512,7 +512,7 @@ export class Avatar {
       this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle!, this.diag));
       this.bike.setFlipX(this.diagRight);
       this.layer(this.bike, this.auraGlow ? 1 : 0);
-      if (isShowroomVehicle(this.vehicle!) && !this.fit?.hideRider) {
+      if (is3dVehicle(this.vehicle!) && !this.fit?.hideRider) {
         const o = riderOffset(this.vehicle!, this.diag);
         this.sprite.setPosition((this.diagRight ? -1 : 1) * o.x, o.y);
       } else if (this.fit?.riderX) this.sprite.setX((this.diagRight ? -1 : 1) * this.fit.riderX * 0.7);
@@ -521,6 +521,11 @@ export class Avatar {
       this.bike.setTexture(`${this.bikeTex}_${view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'}`);
       if (this.vehicle) this.bike.setOrigin(0.5, vehicleOriginY(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back'));
       this.bike.setFlipX(this.dir === 'right');
+      // Sit on the seat first (the cut below depends on where the rider is).
+      if (this.vehicle && is3dVehicle(this.vehicle) && !this.driver && !this.fit?.hideRider) {
+        const o = riderOffset(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back');
+        this.sprite.setPosition(this.dir === 'right' ? -o.x : o.x, o.y);
+      } else if (this.fit?.riderX && !this.driver) this.sprite.setX(view === 'side' ? (this.dir === 'right' ? -this.fit.riderX : this.fit.riderX) : 0);
       // From the side the bike is under the rider. From the front and from behind, the rider sits
       // IN it: the bike is drawn behind them and its lower part again in front, cut just under the
       // chest, so the head and chest show over the bike and the legs are hidden by it.
@@ -532,11 +537,6 @@ export class Avatar {
         this.layer(this.bike, this.auraGlow ? 1 : 0);
         this.showBikeFront(this.bike.texture.key);
       }
-      // Big bikes: sit on the seat (behind the middle) from the side.
-      if (this.vehicle && isShowroomVehicle(this.vehicle) && !this.driver && !this.fit?.hideRider) {
-        const o = riderOffset(this.vehicle, view === 'side' ? 'side' : view === 'front' ? 'front' : 'back');
-        this.sprite.setPosition(this.dir === 'right' ? -o.x : o.x, o.y);
-      } else if (this.fit?.riderX && !this.driver) this.sprite.setX(view === 'side' ? (this.dir === 'right' ? -this.fit.riderX : this.fit.riderX) : 0);
     }
     if (this.driver) {
       // Passenger on the back: behind the rider (side view), peeking over them (front view),
@@ -545,7 +545,12 @@ export class Avatar {
       const face = this.dir === 'right' ? 1 : -1;
       this.driver.setFlipX(this.dir === 'right');
       this.driver.play(`${this.driverTex}:ride_${view}`, true);
-      if (view === 'side') {
+      if (this.vehicle && is3dVehicle(this.vehicle)) {
+        // The 3D Ronda: the rider on the front seat, you on the pillion.
+        const d = riderOffset(this.vehicle, view, 0), p = riderOffset(this.vehicle, view, 1);
+        this.driver.setPosition(-face * d.x, d.y);
+        this.sprite.setPosition(-face * p.x, p.y);
+      } else if (view === 'side') {
         this.driver.setPosition(face * 6, -9);
         this.sprite.setPosition(-face * 7, -11);
       } else if (view === 'front') {

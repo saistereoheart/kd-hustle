@@ -2,7 +2,7 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.9.2: mythic Teman ×2.5)_
+_Last updated: 2026-11-20 (v1.9.3: 3D basikal / kapcai / Ronda; rider split going up)_
 
 **Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
 §19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
@@ -24,6 +24,23 @@ on driving and battles, and a bug sweep) are in the round below. What's next is 
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🚲 3D everyday rides + load-size check (2026-11-20, your request, v1.9.3)
+- New `client/src/items/vehicle3d/smallBikes.ts`, with shared parts moved to `bikeParts.ts`.
+  `carArt.is3dVehicle` = a showroom vehicle, or `bicycle` / `motorbike` / `ronda`. Their colours are
+  `SMALL_LOOKS` (they have no garage model). Everything that draws vehicles uses `is3dVehicle`. Skid marks and
+  engines still key off the showroom.
+- Ronda: the driver and the passenger use seats 0 and 1 from the model.
+- Avatar: the rider is now positioned before `showBikeFront` crops the bike (the crop used the stale y), which
+  fixes the going-up view.
+- `npm run admin -- feedback-done <id> [undo]`; #2 closed. Open: #9 (OnigiriCute: Jungkook / WonYoung Teman).
+  Those are real people, so not doable (parody rule); reply to them.
+- **Load size (scratch build):**
+  - JS: phaser 1.19 MB (318 KB gz), game 0.82 MB (275 KB gz), vendor 136 KB (39 KB gz).
+  - CSS: 91 KB (20 KB gz). Map: 230 KB raw, served gzipped.
+  - About 0.7 MB to download in all.
+- **Decision:** a Phaser build without physics saves only 235 KB raw / 66 KB gz. It needs Phaser bundled from
+  source with webpack's `typeof` flags patched (otherwise Spector.js debug starts). Not worth the risk; not done.
 
 ## 🐉 Mythic highlight (2026-11-20, your request, v1.9.2)
 `pets.json` rarityMult mythic 1.85 → 2.5, divine 3, secret 3.5. Sim (3 maxed, no cave bottom): basic Mahkota
@@ -573,7 +590,7 @@ The dungeon is now a turn-based pet battler (the old strike / block timing game 
 - Spam guard: 3 reports a minute, 40 a day per player.
 - **Reading them:** admins get an 📥 Inbox tab in the same window (unread count on the button, a toast when one
   arrives, ✓ Done / ↩ Reopen, 📋 Copy all). On the server PC: `npm run admin -- feedback` (open ones) or
-  `npm run admin -- feedback all`.
+  `npm run admin -- feedback all`; `npm run admin -- feedback-done <id>` closes one.
 
 ## 🏠 Bigger, brighter homes; 3D furniture; fewer pointers (2026-11-19)
 

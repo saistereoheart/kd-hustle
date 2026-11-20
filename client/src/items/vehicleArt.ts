@@ -2,7 +2,7 @@
 // green Ronda kapcai (ride-hailing; drawn with an NPC rider, see avatar.ts).
 import Phaser from 'phaser';
 import type { VehicleLook } from '@kh/shared';
-import { ensureShowroomTextures, isCarId, isShowroomVehicle, seatPoint, TEX_RES, townScale, viewSize, type View } from './carArt';
+import { ensureShowroomTextures, is3dVehicle, isCarId, seatPoint, TEX_RES, townScale, viewSize, type View } from './carArt';
 
 const RES = 2;
 
@@ -30,7 +30,7 @@ function wheel(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, 
 
 /** Texture key prefix for a vehicle id (`<prefix>_side`, `_front`, `_back`). */
 export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string, look?: VehicleLook | null): string {
-  if (isShowroomVehicle(vehicle)) return ensureShowroomTextures(scene, vehicle, look);
+  if (is3dVehicle(vehicle)) return ensureShowroomTextures(scene, vehicle, look);
   if (vehicle === 'bicycle') {
     ensureBicycleTextures(scene);
     return 'bicycle';
@@ -46,7 +46,7 @@ export function vehicleTexturePrefix(scene: Phaser.Scene, vehicle: string, look?
 /** How a vehicle's sprite sits: origin (ground line), where the rider sits, and whether the rider
  *  is hidden (inside a car). */
 export function vehicleFit(vehicle: string): { originY: number; riderY: number; riderX: number; hideRider: boolean; scale: number } {
-  if (isShowroomVehicle(vehicle)) {
+  if (is3dVehicle(vehicle)) {
     const s = viewSize(vehicle);
     const seat = riderOffset(vehicle, 'side');
     // The textures are drawn TEX_RES× larger than the layout (sharper): scale them back down, so
@@ -69,7 +69,7 @@ export function riderOffset(vehicle: string, view: View, seat = 0): { x: number;
 
 /** Where the vehicle's middle meets the ground in a view's texture (its anchor in town). */
 export function vehicleOriginY(vehicle: string, view: View): number {
-  if (isShowroomVehicle(vehicle)) {
+  if (is3dVehicle(vehicle)) {
     const s = viewSize(vehicle, view);
     return s.center / s.h;
   }

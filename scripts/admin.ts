@@ -6,6 +6,7 @@
 //                                logs that account out everywhere
 //   feedback [all]               show the 🐞 bug reports / suggestions players sent (open ones,
 //                                or every one with "all"), newest first
+//   feedback-done <id> [undo]    mark a report done (or open again with "undo")
 // Works while the server is running (SQLite WAL), but stopping it first is safest.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -87,7 +88,17 @@ switch (cmd) {
     }
     break;
   }
+  case 'feedback-done': {
+    const id = Number(name);
+    if (!Number.isInteger(id) || id <= 0) {
+      console.log('Usage: npm run admin -- feedback-done <id> [undo]');
+      break;
+    }
+    const done = arg !== 'undo';
+    console.log(repos.feedback.setDone(id, done) ? `#${id} marked ${done ? 'done ✅' : 'open again'}.` : `No report #${id}.`);
+    break;
+  }
   default:
-    console.log('Usage: npm run admin -- list | promote <user> | demote <user> | password <user> [newPassword] | feedback [all]');
+    console.log('Usage: npm run admin -- list | promote <user> | demote <user> | password <user> [newPassword] | feedback [all] | feedback-done <id> [undo]');
 }
 db.close();
