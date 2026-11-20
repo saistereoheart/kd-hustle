@@ -163,7 +163,10 @@ export class App {
       // integrated graphics); antialias stays on for smooth scaled textures.
       render: { antialias: true, antialiasGL: false, roundPixels: true, powerPreference: 'high-performance' },
       input: { keyboard: false },
-      fps: { target: 60 },
+      // About 60 frames a second at most: a 120/144 Hz screen would otherwise draw twice as many
+      // (twice the work on integrated graphics) for no visible gain. 62, not 60: Phaser skips a frame
+      // that comes a hair early, and with exactly 60 a 60 Hz screen would judder at 30.
+      fps: { target: 60, limit: 62 },
       banner: false,
       scene: [],
     });

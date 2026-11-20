@@ -10,7 +10,7 @@
     { "id": "secret", "name": "Secret", "color": "#212529", "weight": 1, "valueFactor": 5000, "shards": 25000, "announce": true }
   ],
   "luckAffectsFrom": "rare",
-  "maxLuck": 50,
+  "maxLuck": 1000,
   "variants": [
     { "id": "normal", "name": "Normal", "oneIn": 1, "valueMult": 1 },
     { "id": "shiny", "name": "Shiny", "oneIn": 20, "valueMult": 2 },

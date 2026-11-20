@@ -80,9 +80,14 @@ export class ChunkRenderer {
     workerFor(map); // start it early: it has to receive the map before it can paint
   }
 
+  /** Painted chunks waiting to go on screen (one per frame). */
+  private ready: Array<() => void> = [];
+
   /** Ensure chunks around the camera exist; evict far ones. Call every frame. With `force`
    *  everything on screen is painted right now (the first frame, after a resize). */
   update(view: Phaser.Geom.Rectangle, budgetMs = 8, force = false) {
+    if (force) while (this.ready.length) this.ready.shift()!();
+    else this.ready.shift()?.();
     const T = this.map.tileSize;
     const S = CHUNK * T;
     const pad = S * 1.1; // paint chunks well before they scroll into view
@@ -163,7 +168,14 @@ export class ChunkRenderer {
       }
       if (r.failed || !r.ground) return; // painted on the main thread next frame instead
       const bitmaps = [r.ground, r.canopy, r.deck].filter((b): b is ImageBitmap => !!b);
-      this.addChunk(cx, cy, this.counter, r.px, { ground: r.ground, canopy: r.canopy ?? null, deck: r.deck ?? null }, r.canopyOcc ?? null, r.deckOcc ?? null, bitmaps);
+      // Uploaded on the next update, one chunk a frame.
+      this.ready.push(() => {
+        if (this.dead || this.live.has(key)) {
+          for (const b of bitmaps) b.close();
+          return;
+        }
+        this.addChunk(cx, cy, this.counter, r.px, { ground: r.ground!, canopy: r.canopy ?? null, deck: r.deck ?? null }, r.canopyOcc ?? null, r.deckOcc ?? null, bitmaps);
+      });
     });
     w.postMessage({ type: 'paint', id, cx, cy, res: this.res });
   }

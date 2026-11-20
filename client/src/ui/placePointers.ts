@@ -60,6 +60,11 @@ export class PlacePointers {
     // Safe box the pointers sit on (clear of the HUD corners).
     const L = 14, R = W - 14, TOP = 96, BOT = H - (document.body.classList.contains('touch') ? 180 : 125);
     const cx = W / 2, cy = H / 2;
+    // Read the layout ONCE (reading it after writing styles forces the browser to lay the page out
+    // again, once per pointer).
+    const mm = document.querySelector<HTMLElement>('.minimap:not(.hidden)')?.getBoundingClientRect();
+    const goalEl = document.querySelector<HTMLElement>('.progress-hud');
+    const goal = goalEl?.getBoundingClientRect();
     for (const [id, p] of want) {
       const sx = ((p.x * T - view.x) / view.width) * W;
       const sy = ((p.y * T - view.y) / view.height) * H;
@@ -94,14 +99,15 @@ export class PlacePointers {
       const px = cx + dx * t;
       let py = cy + dy * t;
       // Keep clear of the minimap (top right) and the goal card (top left).
-      const mm = document.querySelector<HTMLElement>('.minimap:not(.hidden)')?.getBoundingClientRect();
       if (mm && px > mm.left - 30 && py < mm.bottom + 28) py = mm.bottom + 28;
-      const goal = document.querySelector<HTMLElement>('.progress-hud')?.getBoundingClientRect();
       if (goal && goal.height && px < goal.right + 30 && py < goal.bottom + 28) py = goal.bottom + 28;
-      e.box.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px) translate(-50%, -50%)`;
-      e.arrow.style.transform = `rotate(${(Math.atan2(dy, dx) * 180) / Math.PI + 90}deg)`;
+      const tr = `translate(${Math.round(px)}px, ${Math.round(py)}px) translate(-50%, -50%)`;
+      if (e.box.style.transform !== tr) e.box.style.transform = tr;
+      const rot = `rotate(${Math.round((Math.atan2(dy, dx) * 180) / Math.PI + 90)}deg)`;
+      if (e.arrow.style.transform !== rot) e.arrow.style.transform = rot;
       const m = Math.hypot(p.x - meTx, p.y - meTy) * mpt;
-      e.dist.textContent = m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`;
+      const dist = m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`;
+      if (e.dist.textContent !== dist) e.dist.textContent = dist;
     }
     for (const [id, e] of this.els) if (!want.has(id)) e.box.classList.add('hidden');
   }

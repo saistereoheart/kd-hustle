@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.2 (2026-11-20)
+- **🍀 Luck cap raised to ×1000** (was ×50). Luck lifts Rare and above together, so even huge luck only crowds
+  out Common / Uncommon; it can't make a Mythic likelier than a Rare.
+- **Smoother on slow devices:**
+  - The signposts were vector shapes re-drawn every frame; they're baked into pictures once.
+  - The place pointers made the browser lay out the page again for every pointer, 10× a second; now once.
+  - New map chunks go on screen one per frame (several at once was a hitch).
+  - At most ~60 frames a second: 120/144 Hz screens no longer make weak graphics draw twice as much.
+  - Simulated slow device (CPU 6× slower): 15–19 → 29 FPS, longest task 96–178 → 65 ms.
+
 ## 1.8.1 (2026-11-20)
 - **🍀 Luck multiplies across everything:** every luck source (Lucky Charm, potions, title, gear, rebirth,
   events) now multiplies. A ×5 and a ×2 potion give ×10, and on top of ×5 from your other luck that's ×50

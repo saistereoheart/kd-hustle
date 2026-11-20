@@ -29,6 +29,7 @@ import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 import { governor } from '../perf/governor';
 import { Walkers } from './walkers';
+import { bake } from './bake';
 
 interface Sample {
   t: number;
@@ -1217,14 +1218,23 @@ export class TownScene extends Phaser.Scene {
       const sub = this.add.text(0, 2, p.sub, { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#f1f3f5', resolution: 3 }).setOrigin(0.5, 0);
       const w = Math.max(title.width, sub.width) + 22;
       const h = title.height + (p.sub ? sub.height : 0) + 10;
-      const board = this.add.graphics();
-      board.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2 + 3, -title.height - 5 + 4, w, h, 10);
-      board.fillStyle(KIND_COLOR[p.kind] ?? 0x495057, 0.95).fillRoundedRect(-w / 2, -title.height - 5, w, h, 10);
-      board.lineStyle(2, 0xffffff, 0.85).strokeRoundedRect(-w / 2, -title.height - 5, w, h, 10);
+      // The board and the pole are baked into pictures once (vector Graphics are re-drawn every frame).
+      const top = -title.height - 5;
+      const col = KIND_COLOR[p.kind] ?? 0x495057;
+      const bw = Math.ceil(w + 8), bh = Math.ceil(h + 9);
+      const boardKey = bake(this, `sign_${col}_${bw}x${bh}`, bw, bh, (g) => {
+        g.fillStyle(0x000000, 0.3).fillRoundedRect(5, 6, w, h, 10);
+        g.fillStyle(col, 0.95).fillRoundedRect(2, 2, w, h, 10);
+        g.lineStyle(2, 0xffffff, 0.85).strokeRoundedRect(2, 2, w, h, 10);
+      });
+      const board = this.add.image(-w / 2 - 2, top - 2, boardKey).setOrigin(0, 0);
       // a pole down to the spot, with a little base
-      const pole = this.add.graphics();
-      pole.fillStyle(0x343a40, 1).fillRect(-2, -title.height - 5 + h, 4, 70 - (-title.height - 5 + h));
-      pole.fillStyle(0x000000, 0.25).fillEllipse(0, 72, 18, 6);
+      const poleLen = Math.max(1, Math.ceil(70 - (top + h)));
+      const poleKey = bake(this, `signpole_${poleLen}`, 20, poleLen + 6, (g) => {
+        g.fillStyle(0x343a40, 1).fillRect(8, 0, 4, poleLen);
+        g.fillStyle(0x000000, 0.25).fillEllipse(10, poleLen + 2, 18, 6);
+      });
+      const pole = this.add.image(-10, top + h, poleKey).setOrigin(0, 0);
       const sign = this.add.container(x, y - 72, [pole, board, title, ...(p.sub ? [sub] : [])]).setDepth(999_000 + y / 100);
       sign.setAlpha(p.kind === 'soon' ? 0.75 : 1);
       this.tweens.add({ targets: [board, title, sub], y: '-=3', duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
