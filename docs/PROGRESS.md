@@ -2,19 +2,46 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.9.3: 3D basikal / kapcai / Ronda; rider split going up)_
+_Last updated: 2026-11-20 (v1.9.3; pending list refreshed)_
 
-**Version 1.0.0: every phase is done.** Phases 1 to 8 of the spec (§20), plus all the feedback rounds below. The
-§19 content list is met, including the 50+ achievements (74). The last Phase 8 items (the sound pass, a juice pass
-on driving and battles, and a bug sweep) are in the round below. What's next is whatever you find while playing.
+**Now at v1.9.3 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 354 unit tests |
-| `npm run e2e` (Playwright: desktop + phone) | ✅ phases 1–4 pass (2026-11-19; not re-run this round) |
+| `npm test` (Vitest) | ✅ 366 unit tests (2026-11-20) |
+| `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
+
+### Pending (2026-11-20)
+**Needs you:**
+1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
+   from v1.8.2 to v1.9.3 reaches the game only then.
+2. **Real phones on the LAN:**
+   - the joystick;
+   - tap-to-use prompts (shop counter, parked vehicles' Put away);
+   - icons and panels at phone size (390×844).
+3. **F3 readings from the slow laptops / phones** after the rebuild (FPS, worst frame, resolution, Graphics
+   mode). That shows whether they now hold a steady 30 FPS.
+4. **Look at things only seen in screenshots so far:**
+   - a kopitiam's shop floor (stoves, two cooks, steam);
+   - the 3D kapcai and basikal in normal play, including a second player riding pillion;
+   - the Ronda ride-hailing bike with its rider.
+5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). Real people can't go in the game
+   (parody rule). Offer parody characters instead if you like, then close it: `npm run admin -- feedback-done 9`.
+6. **Review and push** the local commits when you're happy with them.
+
+**Open on the code side (small, optional):**
+7. Re-run the full Playwright suite (`npm run e2e`). It hasn't been run since the shop / vehicle changes.
+8. The balance sim (`npm run sim`) doesn't cover Gua Gelap or the new shop-star multiplier yet.
+9. The 3D kapcai has no burnout smoke / skid marks (those still key off showroom vehicles), and the basikal
+   and kapcai have no engine model of their own.
+10. **Load size:** about 0.7 MB to download. Possible but low-value: a Phaser build without physics (−66 KB gz,
+    needs Phaser bundled from source), and lazy-loading rarely opened screens (casino, dungeon, editor).
+
+**Decisions waiting on you:** none.
 
 ### Notes for you
 - **The game you're playing isn't touched while I work.** It runs the built copy (`node server/dist/index.js`, port
