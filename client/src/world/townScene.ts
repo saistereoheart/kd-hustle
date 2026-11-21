@@ -1359,7 +1359,8 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
   private homeSignsKey = '';
   private homeSigns = new Map<string, Phaser.GameObjects.Text>();
 
-  /** 🏷️ FOR SALE / 🏠 owner signs at every home building's door (refreshed when owners change). */
+  /** 🏷️ FOR SALE / 🏠 owner signs at every home building's door (refreshed when owners change).
+   *  Shoplots get none (their lofts' sale shows in the door prompt only), except 🏠 YOUR HOME. */
   private syncHomeSigns() {
     const T = this.app.map.tileSize;
     const me = this.selfId;
@@ -1375,12 +1376,14 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     key += `|k:${[...kopi].join(',')}`;
     if (key === this.homeSignsKey) return;
     this.homeSignsKey = key;
+    const shoplots = new Set(this.app.map.buildings.filter((b) => b.kind === 'shoplot').map((b) => b.id));
     const byBuilding = new Map<string, typeof this.app.listings>();
     for (const u of this.app.listings) byBuilding.set(u.building, [...(byBuilding.get(u.building) ?? []), u]);
     for (const [bid, units] of byBuilding) {
       const owners = units.map((u) => this.app.store.props.get(u.id));
       const free = owners.filter((o) => !o).length;
       const mine = owners.some((o) => o?.owner === me);
+      const shoplot = shoplots.has(bid);
       const text = mine ? '🏠 YOUR HOME' : free === units.length ? (units.length > 1 ? `🏷️ FOR SALE · ${free} units` : '🏷️ FOR SALE') : free ? `🏷️ ${free} FOR SALE` : `🏠 ${owners[0]?.ownerName ?? ''}`;
       const color = mine ? '#8ce99a' : free ? '#ffe066' : '#a5d8ff';
       let t = this.homeSigns.get(bid);
@@ -1406,7 +1409,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       }
       const want = mine ? '#ffffff' : color;
       if (t.style.color !== want) t.setColor(want);
-      t.setAlpha(kopi.has(bid) ? 0 : 1);
+      t.setAlpha(kopi.has(bid) || (shoplot && !mine) ? 0 : 1);
     }
   }
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.6 (2026-11-21)
+- **🏪 A shoplot you run is your shop's door, not a home for sale.** Walking into your kopitiam (or anyone's
+  kopitiam or Venture) used to open the lofts upstairs with "🎁 Claim free (first home)". It now goes straight
+  into the shop. The door prompt names the business ("🍔 Your Burger Bakar Abang Jo · go in"), and adds
+  "🪜 your loft upstairs" if you own one there.
+- Venture shops have **🪜 Stairs to the lofts** inside, like the kopitiam, so loft owners can still get home.
+- **No more 🏷️ FOR SALE tags over shoplots** (459 of them). Free lofts show only in the door prompt when you
+  walk up. Your own loft keeps its 🏠 YOUR HOME sign; condos, terraces and semi-Ds keep theirs.
+
 ## 1.9.5 (2026-11-21)
 - **Other players move smoother and look more up to date.** Their positions are now placed at the moment the
   server took them, not when they reached your device, so WiFi hiccups no longer make them stutter. How far in

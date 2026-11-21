@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.9.5)_
+_Last updated: 2026-11-21 (v1.9.6)_
 
-**Now at v1.9.5 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.9.6 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.9.5 reaches the game only then.
+   from v1.8.2 to v1.9.6 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,16 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🏪 Shoplot doors (2026-11-21, your report, v1.9.6)
+- Bug: `app.walkIntoDoor` checked the lofts (listings) before the shop, so a kopitiam / Venture shoplot with
+  lofts opened `openPropertyPanel` (claim / buy). Now a building with `shopCtxFor` goes to `enterBuilding`
+  first. `doorPrompt` also knows Venture shoplots (`store.shoplots`). Venture `ShopCtx` has `stairs`.
+- `townScene.syncHomeSigns`: shoplot buildings' signs are hidden unless the loft is yours.
+- Checked in a browser (test-results/kopidoor.cjs, venturedoor.cjs, signs.cjs). The old code opened the claim
+  panel; the new code opens the shop floor. 459 shoplot signs hidden, 78 home signs still shown.
+- Decision: lofts above a business can still be bought, through the shop's stairs (existing loft owners need
+  the way up).
 
 ## 📡 Performance audit: network, server, client (2026-11-21, your request, v1.9.5)
 Measured all three sides. Probes in `test-results/`: `netprobe.ts` (bots; bytes per event, ping, snapshot

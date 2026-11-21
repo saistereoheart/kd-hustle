@@ -833,10 +833,19 @@ export class App {
 
   doorPrompt(b: BuiltBuilding): string {
     const kopi = this.kopitiamIn(b);
-    if (kopi) return kopi.s.owner === this.lastInit?.you.id ? '🏪 Your kopitiam · go in to cook' : `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'} · go in`;
+    const me = this.lastInit?.you.id;
+    // A loft of yours upstairs: the shop's stairs take you there.
+    const loft = this.listings.some((u) => u.building === b.id && this.store.props.get(u.id)?.owner === me) ? ' · 🪜 your loft upstairs' : '';
+    if (kopi) return (kopi.s.owner === me ? '🏪 Your kopitiam · go in to cook' : `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'} · go in`) + loft;
+    // A shoplot claimed by a business is that business's door (no lofts for sale here).
+    const lot = this.store.shoplots.find((s) => s.building === b.id);
+    if (lot) {
+      const t = this.cfg.businesses.types.find((x) => x.id === lot.ref);
+      const name = t?.name ?? 'shop';
+      return `${t?.icon ?? '🏪'} ${lot.ownerId === me ? `Your ${name}` : `${lot.ownerName}'s ${name}`} · go in${loft}`;
+    }
     const units = this.listings.filter((u) => u.building === b.id);
     if (units.length) {
-      const me = this.lastInit?.you.id;
       const mine = units.filter((u) => this.store.props.get(u.id)?.owner === me).length;
       const free = units.filter((u) => !this.store.props.has(u.id)).length;
       const t = this.cfg.properties.types[units[0].type];
@@ -856,6 +865,16 @@ export class App {
    */
   walkIntoDoor(b: BuiltBuilding): boolean {
     if (this.interior || this.home) return true;
+    // A shoplot run as a kopitiam or a Venture: its door is the shop's (the lofts are up its stairs).
+    if (this.shopCtxFor(b)) {
+      if (this.store.riding) {
+        sfx.locked();
+        toast('Hop off your ride first (press its hotbar key).');
+        return false;
+      }
+      this.enterBuilding(b); // plays the door sound once it opens
+      return true;
+    }
     const units = this.listings.filter((u) => u.building === b.id);
     if (units.length) {
       const me = this.lastInit?.you.id;
@@ -984,6 +1003,7 @@ export class App {
       cashier: staffName(b.id),
       greeting: mine ? 'Boss! Kedai okay hari ni 👍' : `Selamat datang ke ${t?.name ?? 'kedai kami'}!`,
       counter: mine ? { label: `📱 Run ${t?.name ?? 'your Venture'}`, use: () => this.openPhone('ventures') } : undefined,
+      stairs: this.listings.some((u) => u.building === b.id) ? { label: '🪜 Stairs to the lofts', use: () => openPropertyPanel(this, b) } : undefined,
     };
   }
 
