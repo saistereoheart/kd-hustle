@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.10.0)_
+_Last updated: 2026-11-21 (v1.11.0)_
 
-**Now at v1.10.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.11.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 382 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 389 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.10.0 reaches the game only then.
+   from v1.8.2 to v1.11.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,25 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🗝️ Labirin Purba, phase 2 of 5: fights (2026-11-21, v1.11.0)
+- `shared/src/lab/battle.ts` (+ tests):
+  - party vs group, rounds by speed, focus / skill / guard / crit / run;
+  - `rollGroup` (bigger deeper and with more players), `groupCoins`, `temanBoost`, `labPlayerStats`.
+- `server/src/systems/lab/labBattles.ts` (+ tests):
+  - a battle per encounter, the round timer, and the end of each player's fight;
+  - fainted party members wait it out: back at 1 HP if the party wins;
+  - falling: −`deathLoss` of carried, to your save point, healed. Running: back through the door you came in by.
+- `LabSystem`: HP (saved; regen out of fights, full at campfires), `cleared` rooms (`battle.respawnMin`),
+  no walking / doors / using while fighting.
+- Client: `ui/lab/labBattle.ts` (Pokémon-style screen; works at 390 px), HP in the HUD; the 📱 app shows
+  HP and the Teman boost.
+- **Balance** (test-results/labsim.ts, solo, full HP), win rate by floor:
+  - no gear: F1 100% · F2 82% · F3 26%;
+  - gear ×2: F3 85% · F4 50%;
+  - ×3.4: F5 72%;
+  - ×4.7: F6 81% · F8 30% (deep floors want potions / a party).
+- Checked in a browser: test-results/labfight.cjs (walk to a monster room, fight, win; 1280 and 390 wide).
 
 ## 🗝️ Labirin Purba, phase 1 of 5: explore (2026-11-21, your request, v1.10.0)
 Design and phases: `docs/LABYRINTH.md` (GAME_SPEC §22 points there).

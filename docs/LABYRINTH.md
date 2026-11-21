@@ -89,9 +89,9 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   the entrance hall.
 
 ## 8. Phases
-1. **Explore:** generator and tests, enter/leave, rooms, doors, walking, others in the room, minimap and
+1. ✅ **Explore** (1.10.0): generator and tests, enter/leave, rooms, doors, walking, others in the room, minimap and
    map, rest chambers, stairs, loot boxes (🪙).
-2. **Fight:** weakened stats, monster groups, solo battle engine and UI, death and respawn, Teman buff.
+2. ✅ **Fight** (1.11.0): weakened stats, monster groups, solo battle engine and UI, death and respawn, Teman buff.
 3. **Gear:** merchant, gear and potions, equipping, treasure rooms and keys.
 4. **Party:** lobby, invites, shared rooms and battles.
 5. **Bosses and polish:** floor bosses gating the stairs, balance sim, phone layout pass.

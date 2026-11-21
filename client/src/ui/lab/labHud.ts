@@ -16,6 +16,7 @@ export class LabHud {
   private root: HTMLElement;
   private title: HTMLElement;
   private coins: HTMLElement;
+  private hp: HTMLElement;
   private leaveBtn: HTMLButtonElement;
   private mini: HTMLCanvasElement;
   private full: HTMLElement | null = null;
@@ -24,11 +25,12 @@ export class LabHud {
   constructor(private app: App) {
     this.title = el('b', { class: 'lab-title' });
     this.coins = el('span', { class: 'lab-coins', 'data-testid': 'lab-coins' });
+    this.hp = el('span', { class: 'lab-hp', 'data-testid': 'lab-hp' });
     const mapBtn = el('button', { class: 'btn small', type: 'button', title: 'The whole floor (M)' }, '🗺️ Map');
     mapBtn.addEventListener('click', () => this.openFull());
     this.leaveBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-leave' }, '🚪 Leave') as HTMLButtonElement;
     this.leaveBtn.addEventListener('click', () => this.app.leaveLab());
-    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.coins, mapBtn, this.leaveBtn);
+    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, mapBtn, this.leaveBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
@@ -50,13 +52,22 @@ export class LabHud {
     const f = labFloor(lc, v.floor);
     const room = f.rooms[v.room];
     this.title.textContent = `🗝️ ${lc.floors[v.floor].name} · B${v.floor + 1}`;
-    this.coins.replaceChildren(coinIcon(), ` ${v.self.coins}${v.self.carried ? ` (+${v.self.carried} carried)` : ''}`);
+    this.updateSelf(v.self);
     this.coins.title = 'Banked coins are safe. Carried coins are banked when you rest or leave; half is lost if your party falls.';
     const canLeave = (v.floor === 0 && room.kind === 'start') || room.kind === 'rest';
     this.leaveBtn.disabled = !canLeave;
     this.leaveBtn.title = canLeave ? 'Back to town (your carried coins are banked)' : 'Leave from the entrance hall or a rest chamber';
     this.drawMini(f, v);
     if (this.full) this.openFull(true);
+  }
+
+  /** Coins and HP (after a fight, a chest...). */
+  updateSelf(self: LabRoomView['self']) {
+    if (this.view) this.view = { ...this.view, self };
+    this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`);
+    const pct = self.maxHp ? self.hp / self.maxHp : 1;
+    this.hp.textContent = `❤️ ${self.hp}/${self.maxHp}`;
+    this.hp.classList.toggle('low', pct < 0.3);
   }
 
   // ---------------------------------------------------------------- maps

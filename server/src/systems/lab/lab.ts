@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, labFloor, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, labFloor, labPlayerStats, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -25,10 +25,16 @@ export interface LabSave {
   looted: string[];
   /** Where you were when you last left / dropped (not used to resume: you come back at `save`). */
   last?: { floor: number; room: number };
+  /** ⚔️ Your HP down here (it carries over between fights; campfires and time heal it). */
+  hp?: number;
+  /** When `hp` was last brought up to date (out-of-fight healing). */
+  hpAt?: number;
+  /** Monster groups beaten: `${floor}:${room}` → when (they're back after a while). */
+  cleared: Record<string, number>;
 }
 
 export function emptyLab(): LabSave {
-  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [] };
+  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {} };
 }
 
 /** How near (tiles) you must be to a door / chest / fire to use it. */
@@ -37,12 +43,79 @@ const REACH = 1.9;
 export class LabSystem {
   private cache = new Map<number, LabSave>();
 
+  /** The lead Teman's tiny boost for a player (set by the game; 0 without one). */
+  temanBoost: (p: OnlinePlayer) => number = () => 0;
+  /** Is this player in a fight right now (set by the battles)? */
+  inFight: (p: OnlinePlayer) => boolean = () => false;
+
   constructor(
-    private cfg: LabConfig,
+    readonly cfg: LabConfig,
     private repos: Repos,
     private rand: () => number,
     private clock: () => number = Date.now,
   ) {}
+
+  // ---------------------------------------------------------------- ⚔️ HP and stats
+  stats(p: OnlinePlayer) {
+    return labPlayerStats(this.cfg, this.temanBoost(p));
+  }
+
+  /** Current HP (healing a little for the time spent out of a fight since last asked). */
+  hp(p: OnlinePlayer): number {
+    const s = this.state(p);
+    const max = this.stats(p).hp;
+    const now = this.clock();
+    if (s.hp === undefined) s.hp = max;
+    if (!this.inFight(p) && s.hpAt !== undefined && s.hp < max) s.hp = Math.min(max, s.hp + max * this.cfg.player.regenPer10s * ((now - s.hpAt) / 10_000));
+    s.hp = Math.min(max, s.hp);
+    s.hpAt = now;
+    return Math.max(0, Math.round(s.hp));
+  }
+
+  setHp(p: OnlinePlayer, hp: number) {
+    const s = this.state(p);
+    s.hp = Math.max(0, Math.min(this.stats(p).hp, hp));
+    s.hpAt = this.clock();
+  }
+
+  /** Does this room have a monster group waiting for this player? */
+  monstersHere(p: OnlinePlayer): boolean {
+    const pos = p.lab;
+    if (!pos) return false;
+    const room = this.floor(pos.floor).rooms[pos.room];
+    if (!room.monsters) return false;
+    const at = this.state(p).cleared[`${pos.floor}:${pos.room}`];
+    return at === undefined || this.clock() - at > this.cfg.battle.respawnMin * 60_000;
+  }
+
+  /** Beat the group here: Syiling (carried) and the room stays quiet for a while. */
+  won(p: OnlinePlayer, floor: number, room: number, coins: number) {
+    const s = this.state(p);
+    s.cleared[`${floor}:${room}`] = this.clock();
+    s.carried += coins;
+    this.save(p);
+  }
+
+  /** Fell in battle: lose part of the carried coins, wake at your save point, healed. */
+  fell(p: OnlinePlayer): number {
+    const s = this.state(p);
+    const lost = Math.floor(s.carried * this.cfg.deathLoss);
+    s.carried -= lost;
+    const save = s.save.room < 0 ? { floor: 0, room: this.floor(0).start } : s.save;
+    this.place(p, save.floor, save.room, null);
+    this.setHp(p, this.stats(p).hp);
+    this.see(p);
+    this.save(p);
+    return lost;
+  }
+
+  /** Ran away: back through the door you came in by (or stay put if there isn't one). */
+  fled(p: OnlinePlayer) {
+    const pos = p.lab;
+    if (!pos?.from) return;
+    this.place(p, pos.floor, pos.from.room, pos.from.by);
+    this.save(p);
+  }
 
   floor(n: number): LabFloor {
     return labFloor(this.cfg, n);
@@ -69,7 +142,7 @@ export class LabSystem {
   self(p: OnlinePlayer): LabSelf {
     const s = this.state(p);
     const save = s.save.room < 0 ? { floor: 0, room: this.floor(0).start } : s.save;
-    return { coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab };
+    return { coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab, hp: this.hp(p), maxHp: this.stats(p).hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)) };
   }
 
   // ---------------------------------------------------------------- entering, leaving
@@ -114,7 +187,7 @@ export class LabSystem {
   /** A step inside the room (room-local px). Returns false if it's refused (the client is told where it is). */
   move(p: OnlinePlayer, x: number, y: number, dir: LabRoomView['dir'], moving: boolean): boolean {
     const pos = p.lab;
-    if (!pos) return false;
+    if (!pos || this.inFight(p)) return false;
     const f = this.floor(pos.floor);
     const L = roomLayout(this.cfg, f, f.rooms[pos.room]);
     const T = this.cfg.tile;
@@ -152,7 +225,9 @@ export class LabSystem {
         s.unlocked.push(k);
       }
     }
+    const from = { room: pos.room, by: dir };
     this.place(p, pos.floor, d.to, LAB_OPPOSITE[dir]);
+    p.lab!.from = from;
     this.see(p);
     this.save(p);
     return this.view(p);
@@ -215,8 +290,9 @@ export class LabSystem {
       s.coins += s.carried;
       s.carried = 0;
       s.save = { floor: pos.floor, room: room.id };
+      this.setHp(p, this.stats(p).hp);
       this.save(p);
-      return { text: `🔥 Rested. You'll come back here.${banked ? ` Banked ${banked} Syiling.` : ''}`, view: this.view(p) };
+      return { text: `🔥 Rested. HP full. You'll come back here.${banked ? ` Banked ${banked} Syiling.` : ''}`, view: this.view(p) };
     }
     if (what === 'down') {
       if (room.kind !== 'boss') throw new GameError('No stairs down here.');
@@ -246,6 +322,13 @@ export class LabSystem {
   // ---------------------------------------------------------------- helpers
   private at(p: OnlinePlayer) {
     if (!p.lab) throw new GameError("You're not in the labyrinth.");
+    if (this.inFight(p)) throw new GameError("You're in a fight!");
+    return p.lab;
+  }
+
+  /** Where you are (reading only: fine during a fight). */
+  private inside(p: OnlinePlayer) {
+    if (!p.lab) throw new GameError("You're not in the labyrinth.");
     return p.lab;
   }
 
@@ -261,13 +344,13 @@ export class LabSystem {
   }
 
   private see(p: OnlinePlayer) {
-    const pos = this.at(p);
+    const pos = this.inside(p);
     const s = this.state(p);
     s.seen[pos.floor] = seenAdd(s.seen[pos.floor] ?? '', pos.room);
   }
 
   view(p: OnlinePlayer, others: LabRoomView['others'] = []): LabRoomView {
-    const pos = this.at(p);
+    const pos = this.inside(p);
     const s = this.state(p);
     const f = this.floor(pos.floor);
     const room: LabRoom = f.rooms[pos.room];

@@ -1,19 +1,387 @@
 {
   "name": "Labirin Purba",
   "floors": [
-    { "name": "Lorong Berlumut", "seed": 9101, "w": 12, "h": 12, "wall": "#5c5f66", "floor": "#8d8f94" },
-    { "name": "Bilik Akar", "seed": 9202, "w": 12, "h": 13, "wall": "#5d4a3a", "floor": "#8b7355" },
-    { "name": "Dewan Kristal", "seed": 9303, "w": 13, "h": 13, "wall": "#3b5b7a", "floor": "#7fa3c4" },
-    { "name": "Terowong Api", "seed": 9404, "w": 13, "h": 13, "wall": "#7a3b2e", "floor": "#b0654a" },
-    { "name": "Taman Hantu", "seed": 9505, "w": 13, "h": 14, "wall": "#3d5a45", "floor": "#6f8f74" },
-    { "name": "Perpustakaan Bisu", "seed": 9606, "w": 14, "h": 14, "wall": "#4b3f63", "floor": "#7d6f99" },
-    { "name": "Kubur Raja", "seed": 9707, "w": 14, "h": 14, "wall": "#2f2f3a", "floor": "#5a5a6e" },
-    { "name": "Takhta Purba", "seed": 9808, "w": 14, "h": 15, "wall": "#6b5420", "floor": "#b89442" }
+    {
+      "name": "Lorong Berlumut",
+      "seed": 9101,
+      "w": 12,
+      "h": 12,
+      "wall": "#5c5f66",
+      "floor": "#8d8f94"
+    },
+    {
+      "name": "Bilik Akar",
+      "seed": 9202,
+      "w": 12,
+      "h": 13,
+      "wall": "#5d4a3a",
+      "floor": "#8b7355"
+    },
+    {
+      "name": "Dewan Kristal",
+      "seed": 9303,
+      "w": 13,
+      "h": 13,
+      "wall": "#3b5b7a",
+      "floor": "#7fa3c4"
+    },
+    {
+      "name": "Terowong Api",
+      "seed": 9404,
+      "w": 13,
+      "h": 13,
+      "wall": "#7a3b2e",
+      "floor": "#b0654a"
+    },
+    {
+      "name": "Taman Hantu",
+      "seed": 9505,
+      "w": 13,
+      "h": 14,
+      "wall": "#3d5a45",
+      "floor": "#6f8f74"
+    },
+    {
+      "name": "Perpustakaan Bisu",
+      "seed": 9606,
+      "w": 14,
+      "h": 14,
+      "wall": "#4b3f63",
+      "floor": "#7d6f99"
+    },
+    {
+      "name": "Kubur Raja",
+      "seed": 9707,
+      "w": 14,
+      "h": 14,
+      "wall": "#2f2f3a",
+      "floor": "#5a5a6e"
+    },
+    {
+      "name": "Takhta Purba",
+      "seed": 9808,
+      "w": 14,
+      "h": 15,
+      "wall": "#6b5420",
+      "floor": "#b89442"
+    }
   ],
-  "gen": { "holes": 0.2, "loops": 0.12, "chests": 0.08, "monsters": 0.45, "treasure": 2 },
-  "room": { "w": 17, "h": 11 },
-  "coins": { "chest": 12, "perFloor": 0.35, "spread": 0.3, "treasureMult": 8 },
+  "gen": {
+    "holes": 0.2,
+    "loops": 0.12,
+    "chests": 0.08,
+    "monsters": 0.45,
+    "treasure": 2
+  },
+  "room": {
+    "w": 17,
+    "h": 11
+  },
+  "coins": {
+    "chest": 12,
+    "perFloor": 0.35,
+    "spread": 0.3,
+    "treasureMult": 8
+  },
   "deathLoss": 0.5,
   "tile": 48,
-  "walkSpeed": 190
+  "walkSpeed": 190,
+  "player": {
+    "hp": 100,
+    "atk": 10,
+    "def": 4,
+    "spd": 10,
+    "focusMax": 3,
+    "skillCost": 2,
+    "skillPower": 1.9,
+    "guardCut": 0.45,
+    "crit": 0.07,
+    "critMult": 1.6,
+    "regenPer10s": 0.03
+  },
+  "battle": {
+    "roundSec": 20,
+    "runChance": 0.6,
+    "respawnMin": 20,
+    "variance": 0.15,
+    "extraMax": 2
+  },
+  "teman": {
+    "rarity": {
+      "common": 0.01,
+      "uncommon": 0.015,
+      "rare": 0.02,
+      "epic": 0.028,
+      "legendary": 0.036,
+      "mythic": 0.05,
+      "divine": 0.058,
+      "secret": 0.065
+    },
+    "soften": 0.5,
+    "max": 0.08
+  },
+  "scale": {
+    "hp": 1.24,
+    "atk": 1.19,
+    "def": 1.17,
+    "spd": 1.03
+  },
+  "monsters": [
+    {
+      "id": "tikus_lumut",
+      "name": "Tikus Lumut",
+      "icon": "🐀",
+      "hp": 26,
+      "atk": 5,
+      "def": 2,
+      "spd": 11,
+      "floors": [
+        0,
+        1
+      ],
+      "coins": 3,
+      "move": "Gigit",
+      "line": "A moss-green rat. It squeaks a warning."
+    },
+    {
+      "id": "kelawar",
+      "name": "Kelawar Gua",
+      "icon": "🦇",
+      "hp": 20,
+      "atk": 6,
+      "def": 1,
+      "spd": 15,
+      "floors": [
+        0,
+        2
+      ],
+      "coins": 3,
+      "move": "Sambar",
+      "line": "It dives out of the dark."
+    },
+    {
+      "id": "siput_batu",
+      "name": "Siput Batu",
+      "icon": "🐌",
+      "hp": 40,
+      "atk": 4,
+      "def": 6,
+      "spd": 5,
+      "floors": [
+        0,
+        1
+      ],
+      "coins": 4,
+      "move": "Hempap Cangkerang",
+      "line": "Slow. Very, very hard."
+    },
+    {
+      "id": "labah_akar",
+      "name": "Labah-labah Akar",
+      "icon": "🕷️",
+      "hp": 32,
+      "atk": 9,
+      "def": 3,
+      "spd": 12,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 4,
+      "move": "Jaring Akar",
+      "line": "Eight legs, all of them roots."
+    },
+    {
+      "id": "cacing_gergasi",
+      "name": "Cacing Gergasi",
+      "icon": "🪱",
+      "hp": 48,
+      "atk": 8,
+      "def": 4,
+      "spd": 7,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 5,
+      "move": "Belit",
+      "line": "It came up through the floor."
+    },
+    {
+      "id": "kristal_jalan",
+      "name": "Golem Kristal",
+      "icon": "💎",
+      "hp": 55,
+      "atk": 9,
+      "def": 9,
+      "spd": 6,
+      "floors": [
+        2,
+        4
+      ],
+      "coins": 6,
+      "move": "Tumbuk Kristal",
+      "line": "It rings like a bell when it walks."
+    },
+    {
+      "id": "pelesit",
+      "name": "Pelesit",
+      "icon": "🦗",
+      "hp": 30,
+      "atk": 12,
+      "def": 3,
+      "spd": 16,
+      "floors": [
+        2,
+        5
+      ],
+      "coins": 5,
+      "move": "Sengat Halus",
+      "line": "A cricket spirit. Small and vicious."
+    },
+    {
+      "id": "api_liar",
+      "name": "Api Liar",
+      "icon": "🔥",
+      "hp": 36,
+      "atk": 13,
+      "def": 4,
+      "spd": 13,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 6,
+      "move": "Jilat Api",
+      "line": "A flame that walks."
+    },
+    {
+      "id": "salamander",
+      "name": "Salamander Lava",
+      "icon": "🦎",
+      "hp": 52,
+      "atk": 12,
+      "def": 7,
+      "spd": 9,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 7,
+      "move": "Ekor Bara",
+      "line": "Its footprints smoke."
+    },
+    {
+      "id": "pocong_taman",
+      "name": "Pocong Taman",
+      "icon": "👻",
+      "hp": 50,
+      "atk": 13,
+      "def": 6,
+      "spd": 8,
+      "floors": [
+        4,
+        6
+      ],
+      "coins": 7,
+      "move": "Lompat Hentam",
+      "line": "*lompat* *lompat*"
+    },
+    {
+      "id": "toyol_kebun",
+      "name": "Toyol Kebun",
+      "icon": "👶",
+      "hp": 34,
+      "atk": 14,
+      "def": 4,
+      "spd": 18,
+      "floors": [
+        4,
+        7
+      ],
+      "coins": 8,
+      "move": "Curi Syiling",
+      "line": "It wants your coins. All of them."
+    },
+    {
+      "id": "buku_hidup",
+      "name": "Buku Hidup",
+      "icon": "📕",
+      "hp": 44,
+      "atk": 15,
+      "def": 6,
+      "spd": 12,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 8,
+      "move": "Hempas Muka Surat",
+      "line": "A book that bites."
+    },
+    {
+      "id": "hantu_pustaka",
+      "name": "Penunggu Pustaka",
+      "icon": "🕯️",
+      "hp": 58,
+      "atk": 14,
+      "def": 8,
+      "spd": 10,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 9,
+      "move": "Sumpah Senyap",
+      "line": "Shhh."
+    },
+    {
+      "id": "jerangkung_raja",
+      "name": "Pengawal Rangka",
+      "icon": "💀",
+      "hp": 64,
+      "atk": 16,
+      "def": 10,
+      "spd": 10,
+      "floors": [
+        6,
+        7
+      ],
+      "coins": 10,
+      "move": "Tetak Tulang",
+      "line": "It still guards the king."
+    },
+    {
+      "id": "mumia",
+      "name": "Mumia Lama",
+      "icon": "🧟",
+      "hp": 80,
+      "atk": 15,
+      "def": 9,
+      "spd": 7,
+      "floors": [
+        6,
+        7
+      ],
+      "coins": 11,
+      "move": "Balut Maut",
+      "line": "Older than the town."
+    },
+    {
+      "id": "naga_kecil",
+      "name": "Naga Emas Kecil",
+      "icon": "🐉",
+      "hp": 70,
+      "atk": 18,
+      "def": 11,
+      "spd": 13,
+      "floors": [
+        7,
+        7
+      ],
+      "coins": 13,
+      "move": "Nafas Emas",
+      "line": "A small dragon. Still a dragon."
+    }
+  ]
 }

@@ -59,6 +59,7 @@ import { ambience } from './ui/ambience';
 import { InteriorScene, type ExtraStation } from './world/interiorScene';
 import { LabScene } from './world/labScene';
 import { LabHud } from './ui/lab/labHud';
+import { LabBattleUi } from './ui/lab/labBattle';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
@@ -121,6 +122,7 @@ export class App {
   /** 🗝️ In Labirin Purba: the room scene and its HUD. */
   lab: LabScene | null = null;
   labHud: LabHud | null = null;
+  labBattle: LabBattleUi | null = null;
   /** Inside one of our own homes (its scene runs over the town), or null. */
   home: HomeScene | null = null;
   /** Every home for sale on the map (computed from the map + properties.json). */
@@ -546,6 +548,9 @@ export class App {
       this.store.myShops = props.filter(isShop);
       this.store.emit();
     });
+    // 🗝️ Labirin Purba fights.
+    socket.on('lab:battle', ({ view }) => this.labBattleShow(view));
+    socket.on('lab:round', (p) => this.labBattle?.round(p));
     socket.on('shoplots', ({ shoplots }) => {
       this.store.shoplots = shoplots;
       this.store.emit();
@@ -1112,7 +1117,7 @@ export class App {
 
   // ------------------------------------------------------------------ 🗝️ Labirin Purba
   /** Down into the labyrinth (the server has put us in a room). Town stays running, hidden. */
-  enterLab(view: import('@kh/shared').LabRoomView) {
+  enterLab(view: import('@kh/shared').LabRoomView, battle: import('@kh/shared').LabBattleView | null = null) {
     if (this.lab) return this.lab.showRoom(view);
     if (this.interior || this.home) this.exitBuilding();
     this.town?.cameras.main.setVisible(false);
@@ -1122,11 +1127,33 @@ export class App {
     this.lab = this.game.scene.getScene('lab') as LabScene;
     this.labHud.update(view);
     ambience.set('indoor');
+    if (battle) this.labBattleShow(battle);
+  }
+
+  /** A fight starts (or its state changed: someone picked). Walking stops while it's on. */
+  labBattleShow(view: import('@kh/shared').LabBattleView) {
+    if (!this.lab) return;
+    if (this.labBattle) return this.labBattle.update(view);
+    this.lab.setFighting(true);
+    this.labBattle = new LabBattleUi(this, view);
+  }
+
+  /** The fight is over (Continue): back to walking, in the room the server put us in. */
+  labBattleDone(room?: import('@kh/shared').LabRoomView) {
+    this.labBattle?.destroy();
+    this.labBattle = null;
+    this.lab?.setFighting(false);
+    if (room) this.lab?.showRoom(room);
+    else this.socket?.timeout(5000).emit('lab:self', (err, res) => {
+      if (!err && res.ok && this.lab) this.labHud?.updateSelf(res.self);
+    });
   }
 
   /** Back to town (the server has already let us out, or the connection dropped). */
   exitLab(_self?: import('@kh/shared').LabSelf) {
     if (!this.lab) return;
+    this.labBattle?.destroy();
+    this.labBattle = null;
     this.game.scene.stop('lab');
     this.lab = null;
     this.labHud?.destroy();

@@ -18,7 +18,7 @@ export function openLabPanel(app: App) {
       app.socket?.timeout(6000).emit('lab:enter', { at }, (err, res) => {
         if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
         closePanel();
-        app.enterLab(res.view);
+        app.enterLab(res.view, res.battle);
       });
     };
     const main = el('button', { class: 'btn primary', type: 'button', 'data-action': 'lab-enter' }, atEntrance ? '▶ Enter the labyrinth' : `▶ Continue at your rest chamber (B${s.save.floor + 1} · ${saveFloor.name})`);
@@ -26,10 +26,12 @@ export function openLabPanel(app: App) {
     const fromTop = atEntrance ? null : el('button', { class: 'btn', type: 'button' }, '🏙️ Start at the entrance hall');
     fromTop?.addEventListener('click', () => enter('entrance'));
     body.replaceChildren(
-      el('p', {}, "Walk it yourself, room by room. Down here you're in a weakened state: your town gear, luck and skills stay outside. Find loot boxes, keys to locked treasure rooms, and the hidden 🔥 rest chamber on each floor (your save point)."),
+      el('p', {}, "Walk it yourself, room by room. Down here you're in a weakened state: your town gear, luck and skills stay outside, and your Teman don't fight. Monsters jump out in some rooms (Pokémon style). Find loot boxes, keys to locked treasure rooms, and the hidden 🔥 rest chamber on each floor (your save point; it heals you)."),
       el('div', { class: 'lab-stats' },
         el('div', {}, coinIcon(), el('b', {}, ` ${s.coins}`), el('span', { class: 'muted small' }, ' Syiling Purba (only spent down there)')),
         el('div', {}, el('b', {}, `B${s.deepest + 1}`), el('span', { class: 'muted small' }, ` deepest of ${lc.floors.length} floors`)),
+        el('div', {}, el('b', {}, `❤️ ${s.hp}/${s.maxHp}`), el('span', { class: 'muted small' }, ' HP down there')),
+        el('div', { title: 'Teman stay out of the fights down there. Your lead Teman (first in your team) gives a small boost by rarity, tier and variant.' }, el('b', {}, `🐾 +${(s.boost * 100).toFixed(1)}%`), el('span', { class: 'muted small' }, ' lead Teman boost (ATK, DEF, HP)')),
       ),
       el('div', { class: 'actions' }, main, fromTop),
       el('p', { class: 'muted small' }, 'Coins you pick up are carried until you rest at a campfire or leave. Leave from the entrance hall or a rest chamber.'),

@@ -123,3 +123,55 @@ describe('Labirin Purba (server)', () => {
     expect(s.lab.self(s.p).coins).toBe(40); // read back from the database
   });
 });
+
+describe('Labirin Purba fights (server)', () => {
+  it('a monster room starts a fight; winning pays carried Syiling and quiets the room for a while', async () => {
+    const { LabBattles } = await import('./labBattles');
+    const s = setup();
+    const events: string[] = [];
+    let ended: { outcome: string; coins: number } | undefined;
+    const timers: Array<() => void> = [];
+    const battles = new LabBattles(lc, s.lab, {
+      started: () => events.push('start'),
+      picked: () => events.push('picked'),
+      round: (_ps, _ev, _v, ends) => {
+        events.push('round');
+        ended = ends.get(s.p.id) ?? ended;
+      },
+    }, () => 0.3, () => 1_700_000_000_000, (fn) => (timers.push(fn), 0 as never), () => {});
+    s.lab.enter(s.p, 'entrance');
+    const f = s.lab.floor(0);
+    // Stand in the nearest monster room (placed directly: walking is tested above).
+    const room = f.rooms.filter((r) => r.monsters).sort((a, b) => a.dist - b.dist)[0];
+    s.p.lab = { ...s.p.lab!, room: room.id };
+    expect(s.lab.monstersHere(s.p)).toBe(true);
+    expect(battles.encounter([s.p])).toBe(true);
+    expect(() => s.lab.use(s.p, 'chest')).toThrow(/fight/);
+    // Strong enough to win quickly.
+    for (let i = 0; i < 40 && !ended; i++) battles.act(s.p, { kind: 'attack' });
+    expect(ended?.outcome).toBe('win');
+    expect(ended!.coins).toBeGreaterThan(0);
+    expect(s.lab.self(s.p).carried).toBe(ended!.coins);
+    expect(s.lab.monstersHere(s.p)).toBe(false);
+    expect(s.lab.hp(s.p)).toBeLessThanOrEqual(lc.player.hp);
+  });
+
+  it('falling costs half the carried Syiling and wakes you at your save point, healed', async () => {
+    const { LabBattles } = await import('./labBattles');
+    const s = setup();
+    let ended: { outcome: string; lost: number } | undefined;
+    const battles = new LabBattles(lc, s.lab, { started: () => {}, picked: () => {}, round: (_p, _e, _v, ends) => (ended = ends.get(s.p.id) ?? ended) }, () => 0.5, () => 1_700_000_000_000, () => 0 as never, () => {});
+    s.lab.enter(s.p, 'entrance');
+    s.lab.state(s.p).carried = 100;
+    const deep = s.lab.floor(7);
+    s.p.lab = { ...s.p.lab!, floor: 7, room: deep.rooms.find((r) => r.monsters)!.id };
+    battles.encounter([s.p]);
+    for (let i = 0; i < 60 && !ended; i++) battles.act(s.p, { kind: 'guard' });
+    expect(ended?.outcome).toBe('wipe');
+    expect(ended!.lost).toBe(50);
+    expect(s.lab.self(s.p).carried).toBe(50);
+    expect(s.p.lab!.floor).toBe(0);
+    expect(s.p.lab!.room).toBe(s.lab.floor(0).start);
+    expect(s.lab.hp(s.p)).toBe(s.lab.stats(s.p).hp);
+  });
+});

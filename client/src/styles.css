@@ -1395,3 +1395,63 @@ body[data-lab] .place-pointers { display: none !important; }
   background: radial-gradient(circle at 35% 30%, #fff3bf 0 18%, #fcc419 40%, #e67700 100%);
   box-shadow: inset 0 0 0 0.09em #b35900;
 }
+.lab-hud .lab-hp { font-weight: 700; color: #ffc9c9; }
+.lab-hud .lab-hp.low { color: #ff6b6b; animation: lb-blink 1s infinite; }
+@keyframes lb-blink { 50% { opacity: 0.5; } }
+
+/* ⚔️ Labirin battle (Pokémon style) */
+.lab-battle {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: radial-gradient(ellipse at 70% 25%, #3b3f58 0, #1a1c2b 55%, #0b0c14 100%);
+  color: #fff; animation: lb-in 0.35s ease-out;
+}
+@keyframes lb-in { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+.lb-field { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 72px 16px 12px; max-width: 900px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.lb-foes { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+.lb-party { display: flex; gap: 12px; justify-content: flex-start; flex-wrap: wrap; }
+.lb-card {
+  position: relative; display: flex; align-items: center; gap: 10px; min-width: 200px; max-width: 260px;
+  background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 8px 12px;
+  transition: opacity 0.3s, transform 0.15s;
+}
+.lb-card.foe { cursor: pointer; }
+.lb-card.aimed { border-color: #ffd43b; box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.35); }
+.lb-card.me { border-color: #69db7c; }
+.lb-card.out { opacity: 0.35; filter: grayscale(1); }
+.lb-card.hit { animation: lb-shake 0.35s; }
+@keyframes lb-shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+.lb-art { font-size: 44px; line-height: 1; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.45)); }
+.lb-card.foe .lb-art { font-size: 56px; }
+.lb-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.lb-info b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-info small { color: #ced4da; font-size: 11px; }
+.lb-hp { height: 8px; background: rgba(0, 0, 0, 0.5); border-radius: 6px; overflow: hidden; }
+.lb-hp i { display: block; height: 100%; background: #51cf66; transition: width 0.4s; }
+.lb-hp i.mid { background: #fcc419; } .lb-hp i.low { background: #ff6b6b; }
+.lb-focus { display: flex; gap: 3px; }
+.lb-focus b { width: 12px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.2); }
+.lb-focus b.on { background: #74c0fc; }
+.lb-ready { color: #69db7c; margin-left: 6px; }
+.lb-pop { position: absolute; top: -6px; right: 8px; font-weight: 900; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #c92a2a, 0 0 6px #000; animation: lb-pop 0.9s ease-out forwards; pointer-events: none; }
+.lb-pop.crit { color: #ffe066; font-size: 26px; }
+@keyframes lb-pop { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-34px); opacity: 0; } }
+.lb-bottom { background: #10121d; border-top: 2px solid rgba(255, 255, 255, 0.1); padding: 10px 16px calc(14px + var(--safe-b, 0px)); }
+.lb-msg { max-width: 900px; margin: 0 auto 8px; min-height: 2.6em; font-size: 16px; line-height: 1.3; background: #f8f9fa; color: #212529; border-radius: 10px; padding: 8px 12px; border: 3px solid #495057; }
+.lb-timer { max-width: 900px; margin: 0 auto 8px; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; }
+.lb-timer i { display: block; height: 100%; background: #74c0fc; transition: width 0.2s linear; }
+.lb-actions { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.lb-actions .btn { padding: 12px 6px; font-size: 15px; }
+@media (max-width: 600px) {
+  .lb-field { padding-top: 110px; }
+  .lb-card { min-width: 0; max-width: none; flex: 1 1 150px; padding: 6px 8px; }
+  .lb-art { font-size: 32px; } .lb-card.foe .lb-art { font-size: 40px; }
+  .lb-actions { grid-template-columns: repeat(3, 1fr); }
+  .lb-msg { font-size: 14px; }
+}
+.lb-foes, .lb-party { position: relative; padding-bottom: 18px; }
+.lb-foes::after, .lb-party::after {
+  content: ''; position: absolute; bottom: 0; height: 26px; width: min(420px, 90%); border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(130, 160, 110, 0.55), rgba(60, 80, 50, 0.15) 70%, transparent 72%);
+  z-index: -1;
+}
+.lb-foes::after { right: 0; } .lb-party::after { left: 0; }

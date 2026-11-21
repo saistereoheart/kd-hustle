@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.11.0 (2026-11-21): 🗝️ Labirin Purba, part 2 (fights)
+- **Monsters jump out** when you walk into some rooms. It's a Pokémon-style battle: monsters at the top,
+  you at the bottom, a message box, and ⚔️ Attack / 💥 Skill (uses focus) / 🛡️ Guard / 🏃 Run. Tap a
+  monster to aim at it. You have 20 s a round, then you just attack.
+- **Weakened state:** HP 100 · ATK 10 · DEF 4 down there, whatever your town gear. 16 monsters over
+  the 8 floors, harder each floor. Without gear you can handle floors 1–2.
+- **HP carries over** between fights. It slowly comes back while you walk, and a 🔥 campfire fills it.
+- **Win:** Syiling Purba (carried), and that room stays quiet for 20 minutes. **Fall:** you lose half
+  your carried Syiling and wake at your rest chamber, healed. **Run:** back to the room you came from.
+- **Teman don't fight here.** Your lead Teman gives a tiny boost to ATK, DEF and HP: +1% (common) up to
+  +8% (a maxed one). The 📱 Labirin app shows yours.
+
 ## 1.10.0 (2026-11-21): 🗝️ Labirin Purba, part 1 (explore)
 - **A new walkable dungeon.** Open 📱 → 🗝️ Labirin. It's 8 floors and 1,120 rooms. Each floor's layout is
   fixed and the same for everyone.

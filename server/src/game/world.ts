@@ -33,7 +33,7 @@ export interface OnlinePlayer {
   /** Building the player is inside (they stand at its door; see interiors). */
   interior: string | null;
   /** 🗝️ In Labirin Purba: which room, and where in it (px, room-local). Their town spot is kept. */
-  lab?: { floor: number; room: number; x: number; y: number; dir: Direction; moving: boolean; at: number } | null;
+  lab?: { floor: number; room: number; x: number; y: number; dir: Direction; moving: boolean; at: number; from?: { room: number; by: 'n' | 'e' | 's' | 'w' } } | null;
   /** Late paying the Ah Long (set by the loan system; shown to everyone). */
   owesAhLong?: boolean;
   /** Times reborn (stars by the name). */

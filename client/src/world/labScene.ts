@@ -69,6 +69,18 @@ export class LabScene extends Phaser.Scene {
   private near: Feature | null = null;
   /** Waiting for the server (going through a door, using something). */
   private busy = false;
+  /** In a fight (the battle screen is up): no walking. */
+  private fighting = false;
+
+  setFighting(on: boolean) {
+    this.fighting = on;
+    if (on) {
+      this.moving = false;
+      this.me?.setState(this.dir, false);
+      this.app.hud?.setPrompt(null, this.app.touch);
+      this.near = null;
+    }
+  }
   private sendAcc = 0;
   private lastSent = '';
   private bound: Array<() => void> = [];
@@ -335,7 +347,7 @@ export class LabScene extends Phaser.Scene {
   override update(_t: number, delta: number) {
     const now = performance.now();
     const dt = Math.min(delta, 100) / 1000;
-    if (!this.busy) {
+    if (!this.busy && !this.fighting) {
       let { x: vx, y: vy } = this.app.inputVector();
       const len = Math.hypot(vx, vy);
       if (len > 1) {
@@ -428,7 +440,7 @@ export class LabScene extends Phaser.Scene {
   /** E / the interact button. */
   interact() {
     const f = this.near;
-    if (!f || this.busy) return;
+    if (!f || this.busy || this.fighting) return;
     this.busy = true;
     this.app.socket?.timeout(5000).emit('lab:use', { what: f.use }, (err, res) => {
       this.busy = false;

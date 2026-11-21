@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Appearance, Direction } from '../character/appearance';
 import type { Cosmetics } from '../protocol/messages';
 import type { LabDir } from './generate';
+import type { LabFighter, LabOutcome } from './battle';
 
 /** Someone else in the same room (drawn walking about). */
 export interface LabOther {
@@ -33,6 +34,11 @@ export interface LabSelf {
   looted: string[];
   /** In the labyrinth right now. */
   inside: boolean;
+  /** ⚔️ HP down here (it carries over between fights). */
+  hp: number;
+  maxHp: number;
+  /** 🐾 Your lead Teman's boost (0.03 = +3% ATK, DEF and HP). */
+  boost: number;
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -51,11 +57,36 @@ export interface LabRoomView {
   self: LabSelf;
 }
 
+// ---------------------------------------------------------------- ⚔️ battles
+export interface LabBattleView {
+  id: number;
+  floor: number;
+  room: number;
+  round: number;
+  /** Server time the round resolves by itself (everyone then ⚔️ Attacks). */
+  deadline: number;
+  roundSec: number;
+  fighters: LabFighter[];
+  /** Fighters (ids) who have picked this round. */
+  chosen: string[];
+}
+
+/** How a battle ended for one player. */
+export interface LabBattleEnd {
+  outcome: Exclude<LabOutcome, null>;
+  /** Syiling won (carried). */
+  coins: number;
+  /** Syiling lost by falling. */
+  lost: number;
+}
+
+
 export const LAB_C2S = {
   labEnter: z.object({ at: z.enum(['save', 'entrance']).default('save') }),
   labMove: z.object({ x: z.number().finite(), y: z.number().finite(), dir: z.enum(['up', 'down', 'left', 'right']), moving: z.boolean() }),
   labDoor: z.object({ dir: z.enum(['n', 'e', 's', 'w']) }),
   labUse: z.object({ what: z.enum(['chest', 'key', 'rest', 'down', 'up', 'exit']) }),
+  labAct: z.object({ kind: z.enum(['attack', 'skill', 'guard', 'run']), target: z.string().max(8).optional() }),
 };
 
 export type LabUse = z.infer<typeof LAB_C2S.labUse>['what'];

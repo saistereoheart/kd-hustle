@@ -35,6 +35,7 @@ export * from './rebirth/rebirth';
 export * from './dungeon/dungeon';
 export * from './lab/config';
 export * from './lab/generate';
+export * from './lab/battle';
 export * from './lab/view';
 export * from './pets/pets';
 export * from './garage/garage';

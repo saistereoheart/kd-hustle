@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 // Phase 2 socket handlers: crates, inventory, pawn shop, jobs, vehicles and admin /give.
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
-import { variantLabel,
+import { variantLabel, petLook, temanBoost,
   C2S, collides, setBoxes, stallFootprint, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
   type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid, type RerollPity
 } from '@kh/shared';
@@ -255,7 +255,15 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   const dungeon = new DungeonSystem(cfg, repos, econ, prog, pets, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
   // 🗝️ Labirin Purba
   const labSys = new LabSystem(cfg.lab, repos, () => cryptoRand(1_000_000) / 1_000_000);
-  const labNet = createLabHandlers(io as never, world, labSys, (p) => socketOf(p) as never);
+  const labNet = createLabHandlers(io as never, world, labSys, (p) => socketOf(p) as never, () => cryptoRand(1_000_000) / 1_000_000);
+  // Your lead Teman stays out of the fights down there, but gives a tiny boost.
+  labSys.temanBoost = (p) => {
+    const iid = pets.state(p).team[0];
+    const it = iid === undefined ? undefined : p.inventory.find((i) => i.iid === iid);
+    if (!it) return 0;
+    const look = petLook(cfg.pets, it.grade, it.variant);
+    return temanBoost(cfg.lab, cfg.itemById.get(it.itemId)?.rarity ?? 'common', look.gradeMult, look.variantMult);
+  };
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
     publicChanged: (list) => {
       io.emit('stalls', { stalls: list });
