@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.17.0)_
+_Last updated: 2026-11-22 (v1.17.1)_
 
-**Now at v1.17.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.17.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,23 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## ☕ Kopitiam rating: no toilet or bathtub, furniture counts more (2026-11-22, your request, v1.17.1)
+- **A kopitiam's must-haves are now aircond and wifi.** It no longer asks for a toilet. A Venture's shop still
+  needs aircond, wifi and a toilet.
+- **Shop floors have their own extras.** A bathtub, washer or bed extra no longer counts or gets suggested.
+  - Kopitiam: TV, coffee/teh station, outdoor seating (balcony set, BBQ pit, hammock), smart lock.
+  - Venture shop: TV, coffee, console, smart lock.
+  - 3 of them give full marks.
+- **Each piece adds more stars on a shop floor.**
+  - Comfort needs 0.18 per m² instead of 0.46.
+  - The "not empty" range starts lower: 7–25% of the floor covered instead of 11–23%.
+  - Same kopitiam fit-out (2 aircond, wifi, 6 tables, teh station, TV, balcony set): 2.5★ before, **4.1★ now**.
+    Each table adds +0.1–0.3★ instead of +0.0–0.1★.
+- These numbers live in `shared/config/properties.json` under the shop types: `amenities` and `rating`.
+- Homes (Airbnb) are unchanged.
+- **Test:** open your kopitiam, press 🛠️ Decorate. The star bar should not ask for a toilet, and the suggestions
+  should not mention a toilet or bathtub. Add tables: the stars should climb noticeably.
 
 ## 📱 Simpler phone + 💡 Tips, and a memory budget (2026-11-22, your requests, v1.17.0)
 

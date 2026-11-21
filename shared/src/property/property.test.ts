@@ -148,3 +148,27 @@ describe('shop floors with the door in the top wall', () => {
     expect(layoutProblem(cfg, shop, [{ iid: 1, item: 'toilet', x: mid, y: t.h - 1, rot: 0 }])).toBeNull();
   });
 });
+
+describe('a kopitiam floor', () => {
+  const t = properties.types.kopitiam_floor;
+  const unit = { w: t.w, h: t.h, type: 'kopitiam_floor', loc: 1 };
+  const tables = (n: number) => Array.from({ length: n }, (_, i) => at('kopitiam_table', 1 + (i % 5) * 2, 2 + Math.floor(i / 5) * 2));
+  it('needs aircond and wifi, not a toilet', () => {
+    expect(rateUnit(cfg, unit, [], 100).missing.sort()).toEqual(['aircond', 'wifi']);
+    expect(rateUnit(cfg, unit, [at('aircond', 2, 0), at('wifi_router', 0, 0)], 100).missing).toEqual([]);
+  });
+  it('never suggests a toilet, bathtub or washer', () => {
+    const tips = suggestions(cfg, unit, [at('aircond', 2, 0), at('wifi_router', 0, 0), ...tables(3)], 100, []);
+    expect(tips.length).toBeGreaterThan(0);
+    for (const s of tips) if ('item' in s.action) expect(['toilet', 'bathtub', 'jacuzzi', 'washer', 'dryer']).not.toContain(s.action.item);
+  });
+  it('a bathtub adds nothing there (not one of its extras)', () => {
+    const base = [at('aircond', 2, 0), at('wifi_router', 0, 0), ...tables(4)];
+    expect(rateUnit(cfg, unit, [...base, at('bathtub', 8, 8)], 100).factors.amenities).toBe(0);
+    expect(rateUnit(cfg, unit, [...base, at('teh_station', 8, 8)], 100).factors.amenities).toBeGreaterThan(0);
+  });
+  it('a modest fit-out reaches 3★+', () => {
+    const fit = [at('aircond', 2, 0), at('wifi_router', 0, 0), ...tables(8), at('teh_station', 11, 3), at('smart_tv', 4, 0)];
+    expect(rateUnit(cfg, unit, fit, 100).stars).toBeGreaterThanOrEqual(3);
+  });
+});

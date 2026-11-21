@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.17.1 (2026-11-22): ☕ kopitiam rating fixes
+- A kopitiam no longer needs a toilet (aircond and wifi only), and never suggests a toilet or bathtub.
+- Shop floors count their own extras (kopitiam: TV, coffee, outdoor seating, smart lock; Venture: TV, coffee,
+  console, smart lock). Bathtubs and washers don't count there.
+- Furniture raises a shop floor's stars much more: a kopitiam with tables, a teh station, a TV and outdoor seating
+  is about 4★ instead of 2.5★.
+
 ## 1.17.0 (2026-11-22): 📱 a simpler phone with 💡 Tips, and a memory budget
 - **The phone's apps are in groups now:** 🎁 Today, 💰 Make money, 🛍️ Shop & bank, 🎒 Me, ⚔️ Adventure,
   🏆 Goals & ranks, 🧭 Town & tools. A 🔔 Waiting for you row on top shows everything you can claim or need to fix.

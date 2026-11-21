@@ -81,8 +81,14 @@ function addPiece(cfg: RatingCfg, a: Agg, item: string) {
   if (!p.floor && !p.wall) a.covered += p.w * p.h;
 }
 
+/** The extras that count for this kind of place (a kopitiam: no bathtub or washer). */
+export function amenityList(cfg: RatingCfg, type?: string): string[] {
+  return (type ? cfg.properties.types[type]?.amenities : undefined) ?? cfg.furniture.amenities;
+}
+
 function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a: Agg, cleanliness: number, blocked: boolean, rooms = 1) {
-  const r = cfg.properties.rating;
+  const t = unit.type ? cfg.properties.types[unit.type] : undefined;
+  const r = { ...cfg.properties.rating, ...t?.rating };
   const area = unit.w * unit.h;
   const comfort = Math.min(1, a.comfort / (area * r.comfortPerM2));
   const bestTheme = Math.max(0, ...Object.values(a.themes));
@@ -91,7 +97,9 @@ function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a:
   const avgStyle = a.n ? a.styleSum / a.n / 10 : 0;
   const style = Math.min(1, set * 0.7 + avgStyle * 0.5);
   const rarity = a.n ? Math.min(1, a.raritySum / a.n / r.rarityForMax) : 0;
-  const amenities = Math.min(1, a.amenities.size / r.amenitiesForMax);
+  const counted = amenityList(cfg, unit.type);
+  const have = [...a.amenities].filter((x) => counted.includes(x)).length;
+  const amenities = Math.min(1, have / Math.min(r.amenitiesForMax, counted.length || 1));
   const clean = Math.max(0, Math.min(1, cleanliness / 100));
   const fill = a.covered / area;
   const [lo, hi] = r.idealFill;
@@ -100,8 +108,8 @@ function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a:
   const factors: Factors = { comfort, style, rarity, amenities, clean, space, rooms };
   const w = r.weights;
   const total = comfort * w.comfort + style * w.style + rarity * w.rarity + amenities * w.amenities + clean * w.clean + space * w.space + rooms * (w.rooms ?? 0);
-  // A shop has its own must-haves (customers expect aircond, wifi and a toilet, not a bed).
-  const must = (unit.type ? cfg.properties.types[unit.type]?.essentials : undefined) ?? cfg.furniture.essentials;
+  // A shop has its own must-haves (customers expect aircond and wifi, not a bed).
+  const must = t?.essentials ?? cfg.furniture.essentials;
   const missing = must.filter((e) => !a.essentials.has(e));
   let stars = 0.5 + 4.5 * total;
   if (missing.length) stars = Math.min(stars - r.missingPenalty * missing.length, r.missingCap - r.missingCapStep * (missing.length - 1));
@@ -376,7 +384,7 @@ export function suggestions(
     push(`${next[0] - n} more ${themeName} piece${next[0] - n > 1 ? 's' : ''} complete${next[0] - n > 1 ? '' : 's'} a ${next[0]}-set (try ${name(c.item)})`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
   }
   // Missing amenities.
-  for (const am of cfg.furniture.amenities) {
+  for (const am of amenityList(cfg, unit.type)) {
     if (a0.amenities.has(am)) continue;
     const c = pick((p) => p.amenity === am);
     if (c) push(`${c.owned ? 'Place your' : 'Add a'} ${name(c.item)} (amenity)`, tryAdd(c.item), { kind: c.owned ? 'place' : 'buy', item: c.item });
@@ -410,7 +418,7 @@ export function suggestions(
     }
   }
   // Cramped or blocked: take out the piece whose removal helps most.
-  if (base.blocked || base.fill > cfg.properties.rating.idealFill[1]) {
+  if (base.blocked || base.fill > (cfg.properties.types[unit.type]?.rating?.idealFill ?? cfg.properties.rating.idealFill)[1]) {
     let best: { iid: number; stars: number; item: string } | null = null;
     for (const pl of placed) {
       const p = cfg.furniture.pieces[pl.item];

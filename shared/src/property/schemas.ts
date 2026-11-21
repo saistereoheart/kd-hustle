@@ -71,6 +71,10 @@ export const propertiesConfigSchema = z.object({
       shop: z.boolean().default(false),
       /** What this kind of place must have (instead of the home essentials). */
       essentials: z.array(z.string()).optional(),
+      /** The extras that count for this kind of place (instead of the home amenities: no bathtub in a kopitiam). */
+      amenities: z.array(z.string()).optional(),
+      /** This kind of place's own rating numbers (a shop fills up and feels "done" with less). */
+      rating: z.object({ comfortPerM2: z.number().positive().optional(), idealFill: z.tuple([z.number(), z.number()]).optional(), amenitiesForMax: z.number().positive().optional() }).optional(),
     }),
   ),
   /** Building kind → its homes. `perM2`: one unit per this much floor (capped at `units`), so a
