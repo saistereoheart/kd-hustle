@@ -15,6 +15,7 @@ sections before working on any feature. Progress is tracked in **`docs/PROGRESS.
 - **Monorepo** with npm workspaces: `/client`, `/server`, `/shared`, `/scripts`, `/docs`
 - **Language:** TypeScript everywhere (strict mode)
 - **Client:** Phaser 3 + Vite. UI overlays (menus, inventory, editors) may use plain DOM/HTML+CSS on top of the canvas.
+  three.js only for the Labirin 3D fight screen (approved 2026-11-22; lazy-loaded, with a 2D fallback).
 - **Server:** Node.js (LTS) + Express + Socket.IO
 - **Database:** SQLite via `better-sqlite3` (WAL mode), file at `/server/data/game.db`
 - **Auth:** username + password, `bcrypt` hashing, random session token stored in localStorage

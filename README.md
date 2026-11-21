@@ -129,7 +129,7 @@ and parody names are in `shared/map/town.overrides.json`. Restart the server aft
 
 ## Project layout
 ```
-client/   Phaser 3 + Vite game client (scenes, art drawn in code, DOM UI)
+client/   Phaser 3 + Vite game client (scenes, art drawn in code, DOM UI; three.js for Labirin 3D fights)
 server/   Express + Socket.IO + SQLite (auth, game systems, saving, backups)
 shared/   Types, zod schemas, config JSON (balance), the town map + collision
 scripts/  backup, seed, admin, balance simulators, map tools

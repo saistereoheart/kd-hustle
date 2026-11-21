@@ -82,4 +82,29 @@ describe('Labirin Purba floors', () => {
       }
     }
   });
+
+  it('rooms are caves (rock that makes nooks), but every spot is clear and all floor is reachable', () => {
+    let rockTiles = 0, rooms = 0;
+    for (const f of floors.slice(0, 3)) {
+      for (const r of f.rooms) {
+        const L = roomLayout(cfg, f, r);
+        rooms++;
+        rockTiles += L.solid.size;
+        for (const s of Object.values(L.spot)) expect(L.solid.has(s[1] * L.w + s[0])).toBe(false);
+        expect(L.roofs.length).toBeGreaterThanOrEqual(Object.keys(L.doorAt).length);
+        // Every open inner tile is reachable from the middle.
+        const open = new Set<number>();
+        for (let y = 1; y < L.h - 1; y++) for (let x = 1; x < L.w - 1; x++) if (!L.solid.has(y * L.w + x)) open.add(y * L.w + x);
+        const start = L.spot.centre[1] * L.w + L.spot.centre[0];
+        const seen = new Set([start]);
+        const q = [start];
+        while (q.length) {
+          const i = q.pop()!;
+          for (const j of [i + 1, i - 1, i + L.w, i - L.w]) if (open.has(j) && !seen.has(j)) (seen.add(j), q.push(j));
+        }
+        expect(seen.size).toBe(open.size);
+      }
+    }
+    expect(rockTiles / rooms).toBeGreaterThan(12); // not a plain box
+  });
 });

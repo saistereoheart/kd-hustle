@@ -26,7 +26,21 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
     come back, and has a merchant. Deliberately hard to find: it's at the dead end furthest from both the
     start and the stairs.
   - 👹 **Boss room**: guards the stairs down. Beat the boss once to open the stairs for good (see §4b).
-- **Pillars and rubble** inside rooms come from the room's own seed (always the same), for looks and cover.
+- **Rooms are caves, not boxes** (`roomLayout`, from the room's own seed, so always the same):
+  - jagged rock juts in from the walls;
+  - ordinary chambers get outcrops, bent rock walls that close off little nooks, and boulders;
+  - the cross of main paths between the doors (3 tiles wide), every spot and the way to it always stay clear;
+  - floor you can't reach becomes rock.
+- **Roofs:** a rock tunnel over each doorway, and sometimes an overhang across a path. They hide what's under
+  them and turn see-through when you walk under.
+- **Look** (drawn in code, `client/src/world/labRoomArt.ts`): a moody night palette.
+  - Irregular flagstones, and a winding cobbled path with edge stones between the doors.
+  - Raised rock that hides whoever stands behind it, with frost and cracks.
+  - Torches with warm glow, and a dark vignette.
+  - It's drawn once per room into a few pictures, so a frame costs the same as a plain room.
+- **Signs say what each thing does**, e.g. "🚪 EXIT: back to town / banks your carried Syiling",
+  "🛒 SHOP / gear & potions", "🔥 Campfire: rest & save", "🗝️ Key / opens this floor's 🔒 treasure door".
+  Doors say where they lead: ↩ Back, ❔ Unexplored, 🔒 Locked door, or the kind of room once you've seen it.
 
 ## 2. Weakened state and gear
 - Inside, your stats are the labyrinth's own: **HP 100 · ATK 10 · DEF 4 · SPD 10**, plus your labyrinth gear.
@@ -86,8 +100,19 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 - **Win:** coins and labyrinth XP (it raises the labyrinth's own level a little). The group is gone for you
   for 20 minutes.
 - **Party wipe:** see §3. **Run:** you step back to the room you came from.
-- The server resolves everything; the client plays it back (enemy art at the top, the party at the bottom,
-  a text box).
+- The server resolves everything; the client plays it back.
+- **3D** (default, Settings → ⚔️ Labirin fights): three.js, `client/src/ui/lab/battle3d/`.
+  - A torch-lit cave arena, with chibi models built in code for each monster, each boss (bigger, with a
+    crown) and each player (in their own colours).
+  - Exaggerated moves: wind-up, lunge, a short freeze on impact (hit-stop), knockback, screen shake, slash
+    arcs, sparks, shockwave rings, a charge aura and zoom punch on skills, giant damage numbers.
+  - Tap a monster to aim at it.
+- **Kept light** for the 30 FPS rule:
+  - three.js is its own download, loaded only when a fight starts; the graphics are freed when it ends.
+  - The 2D game pauses while the fight draws.
+  - Low-poly shapes, cheap lighting and capped particles.
+  - If a device drops below 30 FPS it first lowers the sharpness, then switches to the 2D cards and
+    remembers that choice.
 
 ## 4b. Floor bosses
 - Each floor's stairs room has its boss:

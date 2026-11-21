@@ -13,6 +13,7 @@
 | Package | Licence |
 |---|---|
 | [Phaser 3](https://phaser.io) | MIT |
+| [three.js](https://threejs.org) (Labirin 3D fights) | MIT |
 | [Socket.IO](https://socket.io) (server + client) | MIT |
 | [Express](https://expressjs.com) | MIT |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | MIT |

@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.17.2)_
+_Last updated: 2026-11-22 (v1.18.0)_
 
-**Now at v1.17.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.18.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,46 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🗝️ Labirin: 3D fights, cave rooms, clear signs (2026-11-22, your request, v1.18.0)
+**FPS check first (your new rule).** Before building, I flagged two risks:
+- A real 3D fight could drop weak devices below 30 FPS.
+- Realistic painted art would break the "drawn in code" rule and use a lot of memory.
+
+You chose: real 3D (three.js), a moody look drawn in code, and maze-like rooms.
+
+- **3D fights** (`client/src/ui/lab/battle3d/`: kit, models, fx, stage). three.js 0.170.0 (MIT).
+  - 17 monster bodies built from simple shapes: rat, bat, snail, spider, worm, golem, cricket, flame,
+    lizard, pocong, ghost, toyol, biting book, candle spirit, skeleton, mummy, dragon, ogre.
+  - Bosses are bigger and wear a crown. Players are chibi, in their own colours.
+  - Effects: hit-stop, knockback, shake, slash arcs, sparks, rings, aura, zoom punch, big numbers.
+- **Kept to the 30 FPS rule:**
+  - three.js is its own chunk (about 132 KB gzipped), loaded only when a fight starts.
+  - Phaser's loop sleeps during the fight.
+  - Everything is freed and the context released at the end.
+  - Background rocks are drawn in 3 batches. Particles come from one capped pool.
+  - "Low" memory mode: 1× sharpness, no antialias, one torch light, no dust.
+  - FPS guard: under 28 FPS it first lowers the sharpness; if it's still slow, it switches to 2D and saves
+    that in Settings.
+  - Measured in the test browser (software rendering, the slowest case): 50–60 FPS at phone size; about
+    16 FPS at 1920 wide, where the guard would switch to 2D. On a real graphics card it's much faster.
+- **Cave rooms** (`shared/src/lab/generate.ts` `roomLayout`, plus `client/src/world/labRoomArt.ts`):
+  - Jagged edges; outcrops, bent walls with nooks and boulders in chambers.
+  - The paths between the doors and every spot are kept clear, so server walking rules and tests are
+    unchanged. A new test checks that all floor is reachable and every spot is clear.
+  - Roofs over doorways and some overhangs fade to 22% when you're under them.
+  - Each room is drawn once into a few pictures (about 3–10 MB).
+- **Signs:** every feature has a title and a "what it does" line. Doors show where they lead. Signs get
+  bigger when the room is shown small (phones). HUD prompts say what will happen.
+- **Decisions:**
+  - Kept the 3-wide cross of paths, so the server's straight-line movement checks still hold.
+  - Turn-based fight logic is untouched (only the playback is new).
+- **Test:**
+  1. Enter Labirin. Rooms should look like caves.
+  2. Walk under a doorway roof: it fades.
+  3. Start a fight: it's 3D. Attack, Skill (after 2 rounds) and Guard should each look different.
+  4. Tap a monster to aim at it.
+  5. Settings → ⚔️ Labirin fights → 2D cards gives the old screen back.
 
 ## 📱 Phone fixed in the middle (2026-11-22, your request, v1.17.2)
 - **The phone stays put.** It is always centred, whether 💡 Tips is open or not.

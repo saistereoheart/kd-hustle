@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.18.0 (2026-11-22): 🗝️ Labirin: 3D fights, cave rooms, clear signs
+- **⚔️ Fights are 3D.**
+  - A torch-lit cave arena, with chibi models for every monster, every boss (bigger, with a crown) and you,
+    in your own colours.
+  - Big, exaggerated moves: wind-up and lunge, a short freeze on impact, knockback, screen shake, slash
+    arcs, sparks, shockwaves, a charge aura and zoom on skills, giant damage numbers.
+  - Tap a monster to aim at it.
+- **Light on weak devices.**
+  - The 3D part only downloads when a fight starts and is freed after it.
+  - The map pauses during the fight.
+  - If a device can't hold 30 FPS, it switches to the 2D cards by itself.
+  - Choose in Settings → ⚔️ Labirin fights.
+- **Rooms are caves, not boxes.**
+  - Jagged rock walls, outcrops and nooks.
+  - A winding cobbled path between the doors.
+  - Irregular flagstones, frost, torches with warm light.
+  - Rock that hides you when you walk behind it.
+  - Roofs over the doorways that turn see-through when you walk under.
+- **Signs say what things do:**
+  - 🚪 EXIT back to town (banks your Syiling)
+  - 🛒 SHOP (gear & potions)
+  - 🔥 Campfire (rest & save)
+  - 🌀 Exit portal
+  - 🗝️ Key (opens this floor's 🔒 treasure door)
+  - 📦 Loot box (refills daily)
+  - ⬇️ Stairs down (locked until the boss falls)
+  - Doors show ↩ Back, ❔ Unexplored, 🔒 Locked, or the room you know is there.
+
 ## 1.17.2 (2026-11-22): 📱 the phone stays in the middle
 - The phone no longer moves when you open 💡 Tips: it stays fixed in the middle of the screen. The Tips window
   sits a little to its right, always the same size and place, whichever app you point at.

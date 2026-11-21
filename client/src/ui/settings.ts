@@ -15,6 +15,8 @@ export interface Prefs {
   quality: 'auto' | 'high' | 'saver';
   /** 🧠 Memory use: low (the default: fewer, slightly softer map pictures, for 8 GB PCs and phones) or normal. */
   memory: 'low' | 'normal';
+  /** ⚔️ Labirin fights: 3D models and effects, or the flat cards (fastest). */
+  fight3d: boolean;
   /** Coin sounds when money comes in or you pay. */
   moneySound: boolean;
   /** "+RM" pop-ups by your cash and over your stall. */
@@ -31,7 +33,7 @@ export interface Prefs {
   revLimiter: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', memory: 'low', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', memory: 'low', fight3d: true, moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -160,6 +162,13 @@ export function openSettings(opts: {
     window.dispatchEvent(new Event('resize')); // the map is redrawn for the new budget
   });
 
+  const fight = el('select', { 'aria-label': 'Labirin fight view' },
+    ...([['3d', '3D (models & big effects)'], ['2d', '2D cards (fastest)']] as const).map(([v, label]) => el('option', { value: v, selected: (prefs.fight3d ? '3d' : '2d') === v }, label)));
+  fight.addEventListener('change', () => {
+    prefs.fight3d = fight.value === '3d';
+    savePrefs(prefs);
+  });
+
   const edit = el('button', { class: 'btn', type: 'button' }, '👕 Edit character');
   const logout = el('button', { class: 'btn danger', type: 'button', 'data-action': 'logout' }, 'Log out');
   const close = el('button', { class: 'btn', type: 'button', 'data-action': 'settings-close' }, '‹ Done');
@@ -180,6 +189,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     el('div', { class: 'setting-row muted small' }, el('span', {}, `Now: ${governor.describe()}${governor.lite ? ' · lite effects' : ''}`), el('span', {}, 'Auto lowers the resolution when the frame rate drops')),
     el('div', { class: 'setting-row' }, el('span', {}, '🧠 Memory use'), memory),
+    el('div', { class: 'setting-row' }, el('span', {}, '⚔️ Labirin fights'), fight),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),

@@ -1,10 +1,16 @@
 // 🗝️ Labirin Purba: the battle screen, Pokémon style. Monsters at the top, your party at the bottom,
 // a message box that plays each round out, and your choices: ⚔️ Attack, 💥 Skill, 🛡️ Guard,
 // 🧪 Items, 🏃 Run. Tap a monster to aim at it. The server decides everything.
-import type { LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
+//
+// ⚔️ In 3D (Settings → Labirin fights, on by default): the fight plays out with 3D models and big
+// effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
+// it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
+import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
+import type { Battle3D, StageFighter } from './battle3d/stage';
 
 const STEP_MS = 750;
 
@@ -26,6 +32,11 @@ export class LabBattleUi {
   private potions: Record<string, number>;
   /** Rounds that arrived while the last one was still playing out. */
   private queue: Array<{ events: LabEvent[]; view: LabBattleView; end?: LabBattleEnd; room?: LabRoomView }> = [];
+  /** The 3D stage (null: the flat cards). */
+  private stage: Battle3D | null = null;
+  private stageHost: HTMLElement;
+  private paused = false;
+  private gone = false;
 
   constructor(private app: App, view: LabBattleView) {
     this.view = view;
@@ -35,10 +46,11 @@ export class LabBattleUi {
     this.msg = el('div', { class: 'lb-msg', 'data-testid': 'lb-msg' });
     this.actions = el('div', { class: 'lb-actions' });
     this.timerBar = el('i');
+    this.stageHost = el('div', { class: 'lb-3d' });
     this.root = el(
       'div',
       { class: 'lab-battle', 'data-testid': 'lab-battle' },
-      el('div', { class: 'lb-field' }, this.foesBox, this.partyBox),
+      el('div', { class: 'lb-field' }, this.stageHost, this.foesBox, this.partyBox),
       el('div', { class: 'lb-bottom' }, this.msg, el('div', { class: 'lb-timer' }, this.timerBar), this.actions),
     );
     document.body.append(this.root);
@@ -50,11 +62,72 @@ export class LabBattleUi {
     sfx.locked();
     this.render();
     this.tick = window.setInterval(() => this.drawTimer(), 200);
+    void this.start3d();
   }
 
   destroy() {
+    this.gone = true;
     clearInterval(this.tick);
+    this.stop3d();
     this.root.remove();
+  }
+
+  // ---------------------------------------------------------------- 3D
+  private async start3d() {
+    if (!loadPrefs().fight3d) return;
+    const probe = document.createElement('canvas');
+    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return;
+    try {
+      const { Battle3D } = await import('./battle3d/stage');
+      if (this.gone) return;
+      const fc = this.app.cfg.lab.floors[this.view.floor];
+      this.stage = new Battle3D({
+        host: this.stageHost, quality: loadPrefs().memory === 'normal' ? 'normal' : 'low', wall: fc.wall, floor: fc.floor, boss: !!this.view.boss,
+        onAim: (id) => {
+          this.target = id;
+          sfx.click();
+          this.renderCards();
+        },
+        onSlow: () => {
+          this.stop3d();
+          const prefs = loadPrefs();
+          prefs.fight3d = false;
+          savePrefs(prefs);
+          toast('⚔️ 3D fights were too slow on this device, so they are now 2D (fastest). Change it in Settings → Labirin fights.', 'info', 6000);
+        },
+      });
+      this.root.classList.add('is3d');
+      this.stage.setFighters(this.stageFighters(), this.target);
+      // Only one thing draws at a time: the 2D game rests until the fight is over.
+      this.app.game?.loop.sleep();
+      this.paused = true;
+    } catch (err) {
+      console.warn('[lab] 3D fight unavailable, using 2D', err);
+      this.stop3d();
+    }
+  }
+
+  private stop3d() {
+    this.stage?.destroy();
+    this.stage = null;
+    this.root.classList.remove('is3d');
+    if (this.paused) this.app.game?.loop.wake();
+    this.paused = false;
+  }
+
+  /** The fighters for the 3D stage (players with their own colours). */
+  private stageFighters(): StageFighter[] {
+    const looks = new Map<string, Appearance>();
+    const you = this.app.lastInit?.you;
+    if (you) looks.set(`p${you.id}`, you.appearance);
+    for (const o of this.app.lab?.view?.others ?? []) looks.set(`p${o.id}`, o.appearance);
+    return this.view.fighters.map((f) => {
+      const a = looks.get(f.id);
+      return {
+        id: f.id, side: f.side, name: f.name, kind: f.kind, icon: f.icon, boss: f.boss, out: f.out, fled: f.fled, hp: f.hp, maxHp: f.maxHp,
+        look: a ? { skin: a.skin, hair: a.hairColor, top: a.topColor, bottom: a.bottomColor, shoes: a.shoesColor, eyes: a.eyeColor } : undefined,
+      };
+    });
   }
 
   private get meId() {
@@ -83,7 +156,8 @@ export class LabBattleUi {
       const e = p.events[i++];
       if (!e) return this.afterRound(p);
       this.apply(e);
-      window.setTimeout(next, e.kind === 'guard' ? STEP_MS * 0.6 : STEP_MS);
+      const ms = this.stage?.play(e) ?? 0;
+      window.setTimeout(next, Math.max(e.kind === 'guard' ? STEP_MS * 0.6 : STEP_MS, ms));
     };
     next();
   }
@@ -142,6 +216,7 @@ export class LabBattleUi {
     if (!this.target || foes.find((f) => f.id === this.target)?.out) this.target = foes.find((f) => !f.out)?.id ?? null;
     this.foesBox.replaceChildren(...foes.map((f) => this.card(f)));
     this.partyBox.replaceChildren(...this.view.fighters.filter((f) => f.side === 'party').map((f) => this.card(f)));
+    this.stage?.setFighters(this.stageFighters(), this.target);
   }
 
   private render() {

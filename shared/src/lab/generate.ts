@@ -201,19 +201,27 @@ export function labFloor(cfg: LabConfig, n: number): LabFloor {
 }
 
 // ------------------------------------------------------------------ inside a room
-/** A room's inside: its size in tiles, where its doors are, and its pillars / rubble. */
+/** A room's inside: its size in tiles, where its doors are, its rock and its roofs. */
 export interface RoomLayout {
   w: number;
   h: number;
   /** Tile of each door (on the wall row / column). */
   doorAt: Partial<Record<LabDir, [number, number]>>;
-  /** Solid tiles (pillars, rubble), y * w + x. */
+  /** Solid tiles (rock outcrops, boulders, pillars), y * w + x. */
   solid: Set<number>;
   /** Where things stand (tiles): the middle, a loot box, the room's feature (stairs, fire, key) and the
    *  🛒 merchant (entrance hall and rest chambers). */
   spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number] };
+  /** Overhanging rock / ceiling over walkable floor (tile rects): drawn on top, see-through when you're under. */
+  roofs: Array<{ x: number; y: number; w: number; h: number }>;
 }
 
+/**
+ * A room is a cave, not a box: jagged rock along its edges, and (in ordinary chambers) rock
+ * outcrops and walls that make nooks and dead-end passages. Always kept clear: the cross of main
+ * paths between the doors (3 tiles wide), every spot and the way to it, so the server's straight-line
+ * walking rules and the doors still work. Floor that can't be reached becomes rock.
+ */
 export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): RoomLayout {
   const w = cfg.room.w, h = cfg.room.h;
   const mx = Math.floor(w / 2), my = Math.floor(h / 2);
@@ -222,25 +230,91 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
   if (room.doors.s) doorAt.s = [mx, h - 1];
   if (room.doors.w) doorAt.w = [0, my];
   if (room.doors.e) doorAt.e = [w - 1, my];
+  const spot: RoomLayout['spot'] = { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2] };
+  const rnd = labRng(cfg.floors[floor.n].seed * 7919 + room.id * 104729);
+  const idx = (x: number, y: number) => y * w + x;
+  // Never rock: the cross of paths, each spot and its neighbours, the way from the cross to the loot box.
+  const keep = new Set<number>();
+  const keepRect = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let y = Math.max(0, y0); y <= Math.min(h - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(w - 1, x1); x++) keep.add(idx(x, y));
+  };
+  keepRect(mx - 1, 0, mx + 1, h - 1);
+  keepRect(0, my - 1, w - 1, my + 1);
+  for (const [x, y] of [spot.feature, spot.merchant, [spot.feature[0] + 3, spot.feature[1]] as [number, number], [spot.feature[0], spot.feature[1] + 2] as [number, number]]) keepRect(x - 1, y - 1, x + 1, y + 1);
+  keepRect(spot.chest[0] - 1, spot.chest[1] - 1, spot.chest[0] + 1, my);
   const solid = new Set<number>();
-  // Pillars in ordinary rooms only, never on the cross of paths between the doors or by the walls.
+  const rock = (x: number, y: number) => {
+    if (x >= 1 && y >= 1 && x <= w - 2 && y <= h - 2 && !keep.has(idx(x, y))) solid.add(idx(x, y));
+  };
+  // 1. Jagged edges: rock juts in from the walls (a second layer here and there).
+  for (let x = 1; x <= w - 2; x++)
+    for (const [y, y2] of [[1, 2], [h - 2, h - 3]]) {
+      if (rnd() < 0.5) {
+        rock(x, y);
+        if (rnd() < 0.3) rock(x, y2);
+      }
+    }
+  for (let y = 1; y <= h - 2; y++)
+    for (const [x, x2] of [[1, 2], [w - 2, w - 3]]) {
+      if (rnd() < 0.5) {
+        rock(x, y);
+        if (rnd() < 0.3) rock(x2, y);
+      }
+    }
+  // 2. Ordinary chambers: each corner area gets an outcrop, a bent wall (a dead-end nook) or boulders.
   if (room.kind === 'chamber') {
-    const rnd = labRng(cfg.floors[floor.n].seed * 7919 + room.id * 104729);
-    const pattern = Math.floor(rnd() * 4);
-    const clear = (x: number, y: number) => x <= 1 || y <= 1 || x >= w - 2 || y >= h - 2 || Math.abs(x - mx) <= 1 || Math.abs(y - my) <= 1;
-    const add = (x: number, y: number) => {
-      if (!clear(x, y)) solid.add(y * w + x);
-    };
-    if (pattern === 1) {
-      // four pillars
-      for (const [x, y] of [[mx - 4, my - 2], [mx + 4, my - 2], [mx - 4, my + 2], [mx + 4, my + 2]]) add(x, y);
-    } else if (pattern === 2) {
-      // a colonnade
-      for (let x = 3; x < w - 3; x += 3) (add(x, 2), add(x, h - 3));
-    } else if (pattern === 3) {
-      // scattered rubble
-      for (let i = 0; i < 6; i++) add(2 + Math.floor(rnd() * (w - 4)), 2 + Math.floor(rnd() * (h - 4)));
+    const quads: Array<[number, number, number, number]> = [
+      [2, 2, mx - 2, my - 2], [mx + 2, 2, w - 3, my - 2], [2, my + 2, mx - 2, h - 3], [mx + 2, my + 2, w - 3, h - 3],
+    ];
+    for (const [x0, y0, x1, y1] of quads) {
+      const kind = Math.floor(rnd() * 4);
+      const rx = () => x0 + Math.floor(rnd() * (x1 - x0 + 1));
+      const ry = () => y0 + Math.floor(rnd() * (y1 - y0 + 1));
+      if (kind === 0) {
+        // An outcrop: a blob of rock that grows from a wall.
+        let x = rx(), y = rnd() < 0.5 ? y0 : y1;
+        for (let k = 0; k < 6; k++) {
+          rock(x, y);
+          if (rnd() < 0.5) x = Math.max(x0, Math.min(x1, x + (rnd() < 0.5 ? -1 : 1)));
+          else y = Math.max(y0, Math.min(y1, y + (rnd() < 0.5 ? -1 : 1)));
+        }
+      } else if (kind === 1) {
+        // A bent wall: an L of rock that closes off a little nook.
+        const y = ry(), x = rx();
+        for (let xx = x0; xx <= x1; xx++) if (xx !== x) rock(xx, y);
+        const down = y === y0 ? 1 : -1;
+        rock(x1, y + down);
+      } else if (kind === 2) {
+        // Boulders.
+        for (let k = 0; k < 3; k++) rock(rx(), ry());
+      }
+      // kind 3: an open corner.
     }
   }
-  return { w, h, doorAt, solid, spot: { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2] } };
+  // 3. Floor you can't reach from the middle becomes rock (no sealed-off pockets).
+  const seen = new Set<number>([idx(mx, my)]);
+  const q = [idx(mx, my)];
+  while (q.length) {
+    const i = q.pop()!;
+    const x = i % w, y = (i - x) / w;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 1 || ny < 1 || nx > w - 2 || ny > h - 2) continue;
+      const j = idx(nx, ny);
+      if (!seen.has(j) && !solid.has(j)) (seen.add(j), q.push(j));
+    }
+  }
+  for (let y = 1; y <= h - 2; y++) for (let x = 1; x <= w - 2; x++) if (!seen.has(idx(x, y))) solid.add(idx(x, y));
+  // 4. Roofs: a rock tunnel over each doorway's passage, and in chambers sometimes an overhang.
+  const roofs: RoomLayout['roofs'] = [];
+  if (doorAt.n) roofs.push({ x: mx - 1, y: 0, w: 3, h: 2 });
+  if (doorAt.s) roofs.push({ x: mx - 1, y: h - 2, w: 3, h: 2 });
+  if (doorAt.w) roofs.push({ x: 0, y: my - 1, w: 2, h: 3 });
+  if (doorAt.e) roofs.push({ x: w - 2, y: my - 1, w: 2, h: 3 });
+  if (room.kind === 'chamber' && rnd() < 0.6) {
+    // An overhang across one arm of the cross (never over the loot box or the feature).
+    const left = rnd() < 0.5;
+    roofs.push(left ? { x: 3, y: my - 1, w: 3, h: 3 } : { x: w - 6, y: my - 1, w: 3, h: 3 });
+  }
+  return { w, h, doorAt, solid, spot, roofs };
 }

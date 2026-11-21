@@ -14,7 +14,8 @@ export default defineConfig({
       output: {
         // Phaser (most of the download) in its own file: it rarely changes, so browsers keep it
         // cached and an update only re-downloads the game's own code.
-        manualChunks: (id) => (id.includes('node_modules/phaser') ? 'phaser' : id.includes('node_modules/') ? 'vendor' : undefined),
+        // three.js gets its own chunk: only the 3D Labirin fight loads it (not at startup).
+        manualChunks: (id) => (id.includes('node_modules/phaser') ? 'phaser' : id.includes('node_modules/three') ? 'three' : id.includes('node_modules/') ? 'vendor' : undefined),
       },
     },
   },

@@ -12,7 +12,9 @@ import { SnapClock } from '../net/snapClock';
 import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
-import { Avatar } from './avatar';
+import { AVATAR_DEPTH, Avatar } from './avatar';
+import { buildRoomArt, LABEL_DEPTH, type RoomArt } from './labRoomArt';
+import { memoryBudget } from '../perf/memory';
 import { openLabBag } from '../ui/lab/labBag';
 
 interface Sample {
@@ -69,6 +71,10 @@ export class LabScene extends Phaser.Scene {
   private clock!: SnapClock;
   private features: Feature[] = [];
   private near: Feature | null = null;
+  /** The room's pictures (floor, rock, torches, roofs). */
+  private art: RoomArt | null = null;
+  /** The room you came from (its door says "back"). */
+  private prevRoom = -1;
   /** Waiting for the server (going through a door, using something). */
   private busy = false;
   /** In a fight (the battle screen is up): no walking. */
@@ -142,6 +148,7 @@ export class LabScene extends Phaser.Scene {
   // ---------------------------------------------------------------- the room
   /** Show a room (on entering, or after a door / the stairs). */
   showRoom(view: LabRoomView) {
+    if (this.view && this.room && (view.floor !== this.view.floor || view.room !== this.view.room)) this.prevRoom = view.floor === this.view.floor ? this.view.room : -1;
     this.view = view;
     this.floor = labFloor(this.app.cfg.lab, view.floor);
     this.room = this.floor.rooms[view.room];
@@ -160,6 +167,8 @@ export class LabScene extends Phaser.Scene {
   }
 
   private clearRoom() {
+    this.art?.destroy();
+    this.art = null;
     for (const o of this.roomObjs) o.destroy();
     this.roomObjs = [];
     this.features = [];
@@ -170,63 +179,57 @@ export class LabScene extends Phaser.Scene {
   /** 🛒 Tok Peraih, in the entrance hall and every rest chamber. */
   private merchant: Avatar | null = null;
 
+  /** How far the camera zooms in to frame the room. */
+  private zoomFor() {
+    const W = this.L.w * this.T, H = this.L.h * this.T;
+    return Math.min((this.scale.width * 0.96) / (W + this.T), (this.scale.height * 0.78) / (H + this.T * 1.5), 2.4 * this.app.dpr);
+  }
+
   private drawRoom() {
     const { T, L, room } = this;
     const fc = this.app.cfg.lab.floors[this.view.floor];
-    const W = L.w * T, H = L.h * T;
-    const floorC = col(fc.floor), wallC = col(fc.wall);
-    const g = this.add.graphics().setDepth(-10);
-    this.roomObjs.push(g);
-    // Floor: big flagstones, a little uneven.
-    g.fillStyle(shade(floorC, 0.55), 1).fillRect(-T, -T, W + 2 * T, H + 2 * T);
-    for (let y = 1; y < L.h - 1; y++)
-      for (let x = 1; x < L.w - 1; x++) {
-        const k = 0.9 + (((x * 73 + y * 151 + room.id * 31) % 17) / 17) * 0.16;
-        g.fillStyle(shade(floorC, k), 1).fillRect(x * T + 1, y * T + 1, T - 2, T - 2);
-      }
-    // Walls: a tall back wall (you see its face), thinner sides and front.
-    const face = shade(wallC, 0.85), top = shade(wallC, 1.25);
-    g.fillStyle(top, 1).fillRect(0, 0, W, T * 0.35);
-    g.fillStyle(face, 1).fillRect(0, T * 0.35, W, T * 0.65);
-    for (let x = 0; x < W; x += T / 2) g.fillStyle(shade(face, 0.9), 1).fillRect(x, T * 0.62, T / 2 - 2, 2);
-    g.fillStyle(top, 1).fillRect(0, 0, T, H).fillRect(W - T, 0, T, H).fillRect(0, H - T * 0.6, W, T * 0.6);
-    g.fillStyle(shade(wallC, 0.6), 1).fillRect(T - 4, T, 4, H - T * 1.6).fillRect(W - T, T, 4, H - T * 1.6);
-    // Doors: gaps in the wall, a dark way through, and a sign of where they lead.
-    const doorLabel: Record<LabDir, string> = { n: '▲', s: '▼', w: '◀', e: '▶' };
+    const budget = memoryBudget();
+    const locked: Partial<Record<LabDir, boolean>> = {};
+    for (const d of Object.keys(L.doorAt) as LabDir[]) {
+      const door = room.doors[d]!;
+      locked[d] = door.lock !== undefined && !this.view.self.unlocked.includes(`${this.view.floor}:${door.lock}`);
+    }
+    this.art = buildRoomArt(this, L, {
+      T, seed: fc.seed * 31 + room.id * 977 + 13, wall: fc.wall, floor: fc.floor, locked,
+      res: Math.min(budget.maxChunkRes + 0.25, Math.max(1, this.zoomFor())),
+      torches: loadPrefs().memory === 'normal' ? 4 : 3,
+    });
+    // Doors: a sign of where each one leads.
+    const arrow: Record<LabDir, string> = { n: '▲', s: '▼', w: '◀', e: '▶' };
     for (const [d, at] of Object.entries(L.doorAt) as Array<[LabDir, [number, number]]>) {
       const door = room.doors[d]!;
-      const locked = door.lock !== undefined && !this.view.self.unlocked.includes(`${this.view.floor}:${door.lock}`);
-      const [tx, ty] = at;
-      const horiz = d === 'n' || d === 's';
-      const x0 = horiz ? (tx - 0.5) * T : d === 'w' ? 0 : W - T;
-      const y0 = horiz ? (d === 'n' ? 0 : H - T * 0.6) : (ty - 0.5) * T;
-      const w = horiz ? T * 2 : T, h = horiz ? (d === 'n' ? T : T * 0.6) : T * 2;
-      g.fillStyle(0x07080c, 1).fillRect(x0, y0, w, h);
-      if (locked) {
-        // A barred gate.
-        g.fillStyle(0x8d6e3f, 1);
-        for (let i = 0; i < 5; i++) {
-          if (horiz) g.fillRect(x0 + 4 + (i * (w - 8)) / 4 - 2, y0, 4, h);
-          else g.fillRect(x0, y0 + 4 + (i * (h - 8)) / 4 - 2, w, 4);
-        }
-      }
-      const lx = horiz ? tx * T + T / 2 : d === 'w' ? T * 0.5 : W - T * 0.5;
-      const ly = horiz ? (d === 'n' ? T * 0.5 : H - T * 0.3) : ty * T + T / 2;
-      const nextRoom = this.floor.rooms[door.to];
+      const next = this.floor.rooms[door.to];
       const seen = this.app.labHud?.hasSeen(this.view.floor, door.to, this.view.seen) ?? false;
-      const sign = locked ? '🔒' : nextRoom.kind === 'rest' && seen ? '🔥' : doorLabel[d];
-      this.roomObjs.push(
-        this.add.text(lx, ly, sign, { fontFamily: 'system-ui, sans-serif', fontSize: locked ? '18px' : '16px', fontStyle: 'bold', color: seen ? '#c3fae8' : '#ffffff', stroke: '#000000', strokeThickness: 4, resolution: 3 }).setOrigin(0.5).setDepth(5),
-      );
-    }
-    // Pillars / rubble.
-    for (const i of L.solid) {
-      const x = (i % L.w) * T, y = Math.floor(i / L.w) * T;
-      g.fillStyle(0x000000, 0.25).fillEllipse(x + T / 2, y + T * 0.95, T * 0.9, T * 0.3);
-      g.fillStyle(shade(wallC, 1.05), 1).fillRoundedRect(x + 5, y - T * 0.35, T - 10, T * 1.2, 6);
-      g.fillStyle(shade(wallC, 1.35), 1).fillRoundedRect(x + 5, y - T * 0.35, T - 10, T * 0.3, 6);
+      const sign =
+        locked[d] ? ['🔒 Locked door', "needs this floor's 🗝️ key"]
+        : door.to === this.prevRoom ? ['↩ Back', 'the way you came']
+        : seen && next.kind === 'rest' ? ['🔥 Rest chamber', 'save · heal · shop']
+        : seen && next.kind === 'boss' ? ['👹 Boss room', 'the stairs down']
+        : seen && next.kind === 'treasure' ? ['💰 Treasure room', '']
+        : seen && next.kind === 'start' ? (this.view.floor === 0 ? ['🏙️ Entrance hall', 'exit to town'] : ['⬆️ Stairs up', ''])
+        : seen ? ['Explored', ''] : ['❔ Unexplored', ''];
+      const [tx, ty] = at;
+      const p: [number, number] = d === 'n' ? [tx, 0.2] : d === 's' ? [tx, L.h - 1.05] : d === 'w' ? [1.25, ty - 0.55] : [L.w - 2.25, ty - 0.55];
+      this.sign(p, `${arrow[d]} ${sign[0]}`, sign[1], locked[d] ? '#ffa8a8' : seen ? '#c3fae8' : '#ffffff', 11);
     }
     this.drawFeatures();
+  }
+
+  /** A two-line sign: what it is, and what it does (always on top). */
+  private sign(t: [number, number], title: string, sub = '', color = '#ffe8a3', size0 = 13) {
+    const { T } = this;
+    // Bigger in the world when the room is shown small (a phone), so it stays readable.
+    const size = Math.round(size0 * Math.min(1.8, Math.max(1, 0.8 / this.zoomFor())));
+    const x = (t[0] + 0.5) * T, y = (t[1] + 0.5) * T;
+    const style = { fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4, resolution: 3 };
+    const a = this.add.text(x, y - (sub ? size * 0.55 : 0), title, { ...style, fontSize: `${size}px`, color }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH);
+    this.roomObjs.push(a);
+    if (sub) this.roomObjs.push(this.add.text(x, y + size * 0.6, sub, { ...style, fontStyle: 'normal', fontSize: `${size - 2}px`, color: '#dee2e6', strokeThickness: 3 }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH));
   }
 
   /** What's in the room: the town gate / campfire / stairs / key, the loot box, the treasure. */
@@ -235,52 +238,68 @@ export class LabScene extends Phaser.Scene {
     const at = (t: [number, number]) => ({ x: (t[0] + 0.5) * T, y: (t[1] + 0.5) * T });
     const emoji = (t: [number, number], e: string, size = 34, dy = 0) => {
       const p = at(t);
-      const o = this.add.text(p.x, p.y + dy, e, { fontSize: `${size}px`, resolution: 3 }).setOrigin(0.5, 0.7).setDepth(1000 + p.y);
+      const o = this.add.text(p.x, p.y + dy, e, { fontSize: `${size}px`, resolution: 3 }).setOrigin(0.5, 0.7).setDepth(AVATAR_DEPTH + p.y - 1);
       this.roomObjs.push(o);
       return o;
     };
-    const label = (t: [number, number], s: string) => {
-      const p = at(t);
-      this.roomObjs.push(this.add.text(p.x, p.y - T * 0.95, s, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#ffe8a3', stroke: '#000000', strokeThickness: 4, resolution: 3 }).setOrigin(0.5, 1).setDepth(5000));
-    };
+    /** A sign over a thing: what it is, and (smaller) what it does. */
+    const label = (t: [number, number], title: string, sub = '') => this.sign([t[0], t[1] - 1.05], title, sub);
     const f = L.spot.feature;
-    const floorName = this.app.cfg.lab.floors[view.floor].name;
+    const lc = this.app.cfg.lab;
+    const floorName = lc.floors[view.floor].name;
+    const glowAt = (t: [number, number], tint: number) => {
+      const p = at(t);
+      const g = this.add.image(p.x, p.y, 'lab_glow').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45).setScale((T * 2.6) / 128).setDepth(-4);
+      this.roomObjs.push(g);
+      this.tweens.add({ targets: g, alpha: { from: 0.32, to: 0.55 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    };
     if (view.floor === 0 && room.kind === 'start') {
-      emoji(f, '🏙️', 40);
-      label(f, 'Back to town');
-      this.features.push({ use: 'exit', label: '🚪 Back to town (your Syiling are banked)', at: f });
+      // The way out: a big gate on the back wall.
+      glowAt(f, 0x74c0fc);
+      emoji(f, '🚪', 46);
+      label(f, '🚪 EXIT: back to town', 'banks your carried Syiling');
+      this.features.push({ use: 'exit', label: '🚪 Exit the labyrinth: back to town (banks your carried Syiling)', at: f });
     } else if (room.kind === 'start') {
-      emoji(f, '🪜', 38);
-      label(f, `Up to ${this.app.cfg.lab.floors[view.floor - 1].name}`);
-      this.features.push({ use: 'up', label: '⬆️ Stairs up', at: f });
+      glowAt(f, 0xa5d8ff);
+      emoji(f, '🪜', 40);
+      label(f, '⬆️ Stairs up', `to ${lc.floors[view.floor - 1].name} (B${view.floor})`);
+      this.features.push({ use: 'up', label: `⬆️ Stairs up to ${lc.floors[view.floor - 1].name} (B${view.floor})`, at: f });
     } else if (room.kind === 'rest') {
-      const fire = emoji(f, '🔥', 40);
+      glowAt(f, 0xff922b);
+      const fire = emoji(f, '🔥', 42);
       this.tweens.add({ targets: fire, scale: { from: 0.94, to: 1.08 }, duration: 520, yoyo: true, repeat: -1 });
-      label(f, 'Rest chamber');
-      this.features.push({ use: 'rest', label: '🔥 Rest here (save point · banks your Syiling)', at: f });
-      this.features.push({ use: 'exit', label: '🚪 Leave the labyrinth', at: [f[0] + 3, f[1]] });
-      emoji([f[0] + 3, f[1]], '🌀', 34);
+      label(f, '🔥 Campfire: rest & save', 'heals you · banks Syiling · you come back here');
+      this.features.push({ use: 'rest', label: '🔥 Rest at the campfire: heals you, banks your Syiling, and you come back here if you fall', at: f });
+      const portal: [number, number] = [f[0] + 3, f[1]];
+      glowAt(portal, 0x9775fa);
+      const pe = emoji(portal, '🌀', 36);
+      this.tweens.add({ targets: pe, angle: 360, duration: 4000, repeat: -1 });
+      this.sign([portal[0] + 0.4, portal[1] + 0.95], '🌀 Exit portal', 'back to town');
+      this.features.push({ use: 'exit', label: '🌀 Exit portal: leave the labyrinth, back to town (banks your Syiling)', at: portal });
     } else if (room.kind === 'boss') {
-      emoji(f, '🕳️', 40);
-      const last = view.floor + 1 >= this.app.cfg.lab.floors.length;
-      const boss = this.app.cfg.lab.bosses[view.floor];
+      emoji(f, '🕳️', 42);
+      const last = view.floor + 1 >= lc.floors.length;
+      const boss = lc.bosses[view.floor];
       const beaten = view.self.bosses.includes(view.floor);
       if (!beaten && boss) {
         // 👹 The floor's boss stands in front of the stairs.
+        glowAt([f[0], f[1] + 2], 0xe03131);
         const b = emoji([f[0], f[1] + 2], boss.icon, 64);
         this.tweens.add({ targets: b, scale: { from: 0.96, to: 1.06 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        label([f[0], f[1] + 1.4], `👹 ${boss.name}`);
+        this.sign([f[0], f[1] + 3.2], `👹 BOSS: ${boss.name}`, 'beat it to open the stairs down', '#ffa8a8');
       }
-      label(f, last ? (beaten ? 'The bottom · you made it!' : 'The bottom') : beaten ? 'Stairs down' : 'Stairs down (beat the boss)');
-      if (!last) this.features.push({ use: 'down', label: beaten ? `⬇️ Down to ${this.app.cfg.lab.floors[view.floor + 1].name}` : `👹 ${boss?.name ?? 'The boss'} guards the stairs`, at: f });
+      if (last) label(f, '🏁 The bottom', beaten ? 'you made it!' : 'the deepest floor');
+      else label(f, '⬇️ Stairs down', beaten ? `to ${lc.floors[view.floor + 1].name} (B${view.floor + 2})` : 'locked until the boss falls');
+      if (!last) this.features.push({ use: 'down', label: beaten ? `⬇️ Stairs down to ${lc.floors[view.floor + 1].name} (B${view.floor + 2})` : `👹 ${boss?.name ?? 'The boss'} guards the stairs: beat it first`, at: f });
     } else if (room.kind === 'treasure') {
+      if (!view.chestDone) glowAt(L.spot.centre, 0xfcc419);
       emoji(L.spot.centre, view.chestDone ? '🗃️' : '💰', 44);
-      if (!view.chestDone) this.features.push({ use: 'chest', label: '💰 Open the treasure', at: L.spot.centre });
+      label(L.spot.centre, view.chestDone ? '🗃️ Emptied' : '💰 Treasure', view.chestDone ? 'you took it all' : 'a big pile of Syiling');
+      if (!view.chestDone) this.features.push({ use: 'chest', label: '💰 Open the treasure: a big pile of Syiling', at: L.spot.centre });
     }
     // 🛒 The merchant: the entrance hall and every rest chamber.
     if ((view.floor === 0 && room.kind === 'start') || room.kind === 'rest') {
       const m = L.spot.merchant;
-      const lc = this.app.cfg.lab;
       let seed = 7;
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
       this.merchant = new Avatar(this, this.app.cfg.character, this.app.items, {
@@ -288,25 +307,28 @@ export class LabScene extends Phaser.Scene {
       });
       this.merchant.setState('down', false);
       emoji([m[0] + 1, m[1]], '🎒', 26, 6);
-      label([m[0], m[1] - 0.25], '🛒 Gear & potions');
-      this.features.push({ use: 'shop', label: `🛒 ${lc.merchant.name}: gear and potions`, at: m });
+      label([m[0], m[1] - 0.25], '🛒 SHOP', 'gear & potions (Syiling)');
+      this.features.push({ use: 'shop', label: `🛒 ${lc.merchant.name}'s shop: buy gear and potions with Syiling`, at: m });
     }
     if (room.key !== undefined) {
       const k = `${view.floor}:${room.key}`;
       const have = view.self.keys.includes(k) || view.self.unlocked.includes(k);
       if (!have) {
+        glowAt(f, 0xffd43b);
         const key = emoji(f, '🗝️', 32);
         this.tweens.add({ targets: key, y: key.y - 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        this.features.push({ use: 'key', label: '🗝️ Take the key', at: f });
+        label(f, '🗝️ Key', "opens this floor's 🔒 treasure door");
+        this.features.push({ use: 'key', label: "🗝️ Take the key: it opens this floor's locked 🔒 treasure door", at: f });
       }
     }
     if (room.chest && room.kind === 'chamber') {
       emoji(L.spot.chest, view.chestDone ? '📭' : '📦', 32);
-      if (!view.chestDone) this.features.push({ use: 'chest', label: '📦 Open the loot box', at: L.spot.chest });
+      label(L.spot.chest, view.chestDone ? '📭 Opened' : '📦 Loot box', view.chestDone ? 'refills tomorrow' : 'Syiling · refills daily');
+      if (!view.chestDone) this.features.push({ use: 'chest', label: '📦 Open the loot box: Syiling (it refills every day)', at: L.spot.chest });
     }
-    // The floor's name, faint, on the back wall.
+    // The floor's name, carved faint into the back wall.
     this.roomObjs.push(
-      this.add.text((L.w * T) / 2, T * 0.32, `${floorName} · B${view.floor + 1}`, { fontFamily: 'Georgia, serif', fontSize: '13px', color: 'rgba(255,255,255,0.45)', resolution: 3 }).setOrigin(0.5, 0.5).setDepth(4),
+      this.add.text((L.w * T) / 2 + T * 2.6, T * 0.1, `${floorName} · B${view.floor + 1}`, { fontFamily: 'Georgia, serif', fontSize: '13px', color: 'rgba(220,230,255,0.55)', stroke: '#000000', strokeThickness: 3, resolution: 3 }).setOrigin(0, 0.5).setDepth(AVATAR_DEPTH + T + 1),
     );
   }
 
@@ -315,8 +337,7 @@ export class LabScene extends Phaser.Scene {
     const cam = this.cameras.main;
     if (!cam || !this.L) return;
     const W = this.L.w * this.T, H = this.L.h * this.T;
-    const zoom = Math.min((this.scale.width * 0.96) / (W + this.T), (this.scale.height * 0.78) / (H + this.T * 1.5), 2.4 * this.app.dpr);
-    cam.setZoom(zoom);
+    cam.setZoom(this.zoomFor());
     cam.centerOn(W / 2, H / 2 + this.T * 0.2);
   }
 
@@ -399,6 +420,7 @@ export class LabScene extends Phaser.Scene {
       this.checkNear();
     }
     this.me.tick(now);
+    this.art?.update(this.pos.x, this.pos.y, delta);
     this.merchant?.tick(now);
     const renderT = now - this.clock.delay;
     for (const r of this.remotes.values()) {
