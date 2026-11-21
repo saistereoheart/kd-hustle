@@ -42,6 +42,16 @@
       "engine": { "cc": 1868, "cylinders": 2, "layout": "V-twin (45°)", "firing": [0, 315], "idleRpm": 850, "redline": 5500, "gears": 6, "body": 70, "rough": 0.5 }
     }
   },
+  "rides": {
+    "motorbike": {
+      "kind": "bike", "maker": "Hondo", "model": "EX-5", "accelSec": 9,
+      "engine": { "cc": 109, "cylinders": 1, "layout": "single", "firing": [0], "idleRpm": 1400, "redline": 9000, "gears": 4, "body": 150, "rough": 0.3 }
+    },
+    "ronda": {
+      "kind": "bike", "maker": "Yamaho", "model": "Y-15", "accelSec": 9.5,
+      "engine": { "cc": 150, "cylinders": 1, "layout": "single", "firing": [0], "idleRpm": 1500, "redline": 10500, "gears": 5, "body": 170, "rough": 0.25 }
+    }
+  },
   "paints": {
     "merah": { "name": "Merah Api", "color": "#c92a2a", "priceSen": 150000 },
     "merah_rosso": { "name": "Rosso Corsa", "color": "#e3170a", "priceSen": 250000 },

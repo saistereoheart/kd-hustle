@@ -3,7 +3,7 @@
 // interpolated between server snapshots so they move smoothly despite network jitter.
 import Phaser from 'phaser';
 import {
-  darkness, gameTime, pathClear, collides, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine,
+  darkness, gameTime, pathClear, collides, DIRECTIONS, districtAt, gridIndexAt, moveWithCollision, vehicleSpeedGrid, formatMoney, manifestRateSen, rideAccelSec, tireGrip, driveSpec, newDriveState, stepDrive, followDrive, shiftGear, coast, packEngine, unpackEngine, engineModel,
   type DriveSpec, type DriveState,
   type BuiltBuilding, type BuiltMap, type ChatMsg, type Direction, type InitPayload, type PetPublic, type SeatInfo, type PlayerPublic, type ServerToClientEvents, type SnapshotPayload,
 } from '@kh/shared';
@@ -14,7 +14,7 @@ import { Avatar } from './avatar';
 import { hearing, startEngine, type EngineVoice } from '../ui/engineSound';
 import { dashboard } from '../ui/dashboard';
 import { AVATAR_DEPTH } from './avatar';
-import { isCarId, isShowroomVehicle, rearWheels } from '../items/carArt';
+import { is3dVehicle, isCarId, rearWheels } from '../items/carArt';
 
 /** Tyre marks: on the road, under everything else. */
 const SKID_DEPTH = -850;
@@ -590,7 +590,7 @@ export class TownScene extends Phaser.Scene {
     // 🏍️ Showroom cars and bikes run a gearbox (shared/garage/drive): speed comes from torque and
     // the gear. Let go and they roll on and slow gently; push the other way to brake. In neutral
     // (manual) the throttle just revs the engine.
-    const model = this.me.vehicle && !this.away ? cfg.garage.models[this.me.vehicle] : undefined;
+    const model = this.me.vehicle && !this.away ? engineModel(cfg.garage, this.me.vehicle) : undefined;
     let coasting = false;
     if (model) {
       const v = cfg.vehicles.vehicles[this.me.vehicle!];
@@ -970,7 +970,7 @@ export class TownScene extends Phaser.Scene {
   private updateDashboard() {
     const d = this.drive;
     const id = this.me?.vehicle;
-    const m = d && id ? this.app.cfg.garage.models[id] : undefined;
+    const m = d && id ? engineModel(this.app.cfg.garage, id) : undefined;
     if (!d || !m || this.away) return dashboard.hide();
     dashboard.show(
       { kmh: (d.st.speed / 16) * 3.6, rpm: d.st.rpm, redline: d.spec.redline, idle: d.spec.idle, gear: d.st.gear, gears: d.spec.gearTop.length, auto: d.st.auto, limiter: d.st.limiter, shiftAt: d.spec.upAt, name: `${m.maker} ${m.model}` },
@@ -988,7 +988,7 @@ export class TownScene extends Phaser.Scene {
     if (particles) ensureGlowTexture(this);
     const burn = (id: number, av: Avatar, slip: number) => {
       const v = av.vehicle;
-      if (!v || !isShowroomVehicle(v) || slip < 0.08 || !av.container.visible) {
+      if (!v || !engineModel(this.app.cfg.garage, v) || !is3dVehicle(v) || slip < 0.08 || !av.container.visible) {
         this.markFrom.delete(id);
         return;
       }
@@ -1056,7 +1056,7 @@ export class TownScene extends Phaser.Scene {
     const dt = Math.min(0.1, this.game.loop.delta / 1000);
     // Ours
     const id = this.me?.vehicle;
-    const m = id && !inside ? g.models[id] : undefined;
+    const m = id && !inside ? engineModel(g, id) : undefined;
     const look = this.me?.vehicleLook;
     const key = m ? `${id}|${look?.exhaust ?? 'stock'}` : '';
     // (Sounds were off when it started and are on now: start it again.)
@@ -1075,7 +1075,7 @@ export class TownScene extends Phaser.Scene {
     }
     // Nearby riders: as far as their exhaust carries (a straight pipe reaches much further).
     const near = inside ? [] : [...this.remotes.values()]
-      .filter((r) => r.avatar.vehicle && g.models[r.avatar.vehicle] && r.avatar.container.visible)
+      .filter((r) => engineModel(g, r.avatar.vehicle) && r.avatar.container.visible)
       .map((r) => {
         const d = Math.hypot(r.avatar.x - this.pos.x, r.avatar.y - this.pos.y);
         return { r, d, level: hearing(g, r.avatar.vehicleLook?.exhaust ?? 'stock', d, this.app.map.tileSize) };
@@ -1092,7 +1092,7 @@ export class TownScene extends Phaser.Scene {
     }
     for (const { r, level } of near) {
       const vid = r.avatar.vehicle!;
-      const rm = g.models[vid];
+      const rm = engineModel(g, vid)!;
       const rk = `${vid}|${r.avatar.vehicleLook?.exhaust ?? 'stock'}`;
       let e = this.remoteEngines.get(r.id);
       if (e && e.key !== rk) {

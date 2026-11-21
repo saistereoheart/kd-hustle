@@ -13,7 +13,7 @@
 // inline-4 bike also gets its high-rev howl (the firing frequency itself, rich in harmonics).
 // Gear changes cut the drive for a moment with a clunk (and a pop on a loud pipe), the rev
 // limiter chops the sound, lifting off pops and crackles, and the turbo whistles and blows off.
-import type { GarageConfig, GarageModel } from '@kh/shared';
+import { engineModel, type EngineModel, type GarageConfig } from '@kh/shared';
 import { audioCtx } from './sound';
 import { loadPrefs } from './settings';
 
@@ -31,7 +31,7 @@ function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
 }
 
 /** The engine's recorded cycles (made once per model), at a middle RPM. */
-function engineLoop(ctx: BaseAudioContext, id: string, m: GarageModel) {
+function engineLoop(ctx: BaseAudioContext, id: string, m: EngineModel) {
   const have = loops.get(id);
   if (have && have.buf.sampleRate === ctx.sampleRate) return have;
   const e = m.engine;
@@ -120,7 +120,7 @@ export class EngineVoice {
   constructor(
     private ctx: AudioContext,
     private dest: AudioNode,
-    private model: GarageModel,
+    private model: EngineModel,
     id: string,
     private ex: Exhaust,
   ) {
@@ -344,7 +344,7 @@ window.addEventListener('kh-prefs', () => {
 
 /** Starts an engine (null if sound isn't available or is off). */
 export function startEngine(cfg: GarageConfig, id: string, exhaust: string): EngineVoice | null {
-  const m = cfg.models[id];
+  const m = engineModel(cfg, id);
   const ex = cfg.exhausts[exhaust] ?? cfg.exhausts.stock;
   if (!m || !ex || !loadPrefs().engineSound) return null;
   const ctx = audioCtx();
@@ -372,7 +372,7 @@ export function hearing(cfg: GarageConfig, exhaust: string, dist: number, tilePx
 /** Showroom: idle, a blip, then a run up through three gears and a lift (with pops). */
 export function revDemo(cfg: GarageConfig, id: string, exhaust: string): () => void {
   const v = startEngine(cfg, id, exhaust);
-  const m = cfg.models[id];
+  const m = engineModel(cfg, id);
   if (!v || !m) return () => {};
   const e = m.engine;
   const at = (share: number) => e.idleRpm + (e.redline - e.idleRpm) * share;

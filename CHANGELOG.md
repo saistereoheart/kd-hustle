@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.16.0 (2026-11-22): 🛵 the kapcai and the Ronda get real engines
+- **The Kapcai Motorbike (a Hondo EX-5) and the Ronda (a Yamaho Y-15) now drive like the showroom bikes:**
+  a single-cylinder engine you can hear (and others hear), a gearbox (4 and 5 gears, automatic or manual like the
+  showroom), the speedo / rev counter, rolling to a stop when you let go, and braking by pushing the other way.
+- **Tyre smoke and skid marks** on hard launches and wheelspin on grass, like the big bikes.
+- They now speed up to their top speed (about 9 s) instead of reaching it at once. The top speed is unchanged.
+- The basikal stays as it was (no engine).
+
 ## 1.15.1 (2026-11-21): blank map after a refresh
 - A refresh sometimes left the map, characters and minimap blank, with only names and labels showing. The
   browser had thrown the page's graphics away (a graphics reset while the old page was still letting go

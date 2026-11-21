@@ -28,6 +28,22 @@ const exhaustSchema = z.object({
   tip: z.enum(['stock', 'sport', 'racing', 'straight']),
 });
 
+const engineSchema = z.object({
+  cc: z.number().int().positive(),
+  cylinders: z.number().int().min(1).max(12),
+  /** Layout, for the spec sheet ("inline", "V", "L"...). */
+  layout: z.string(),
+  /** When each cylinder fires in the 720° cycle (uneven = the V-twin "potato-potato"). */
+  firing: z.array(z.number().min(0).max(720)).min(1),
+  idleRpm: z.number().positive(),
+  redline: z.number().positive(),
+  gears: z.number().int().min(1).max(8),
+  /** Body of the exhaust note (Hz) and how rough it runs (0..1). */
+  body: z.number().positive(),
+  rough: z.number().min(0).max(1),
+  turbo: z.boolean().default(false),
+});
+
 export const garageConfigSchema = z.object({
   name: z.string(),
   models: z.record(z.string(), z.object({
@@ -41,22 +57,13 @@ export const garageConfigSchema = z.object({
     accelSec: z.number().positive(),
     paint: z.string(),
     wheel: z.string(),
-    engine: z.object({
-      cc: z.number().int().positive(),
-      cylinders: z.number().int().min(1).max(12),
-      /** Layout, for the spec sheet ("inline", "V", "L"...). */
-      layout: z.string(),
-      /** When each cylinder fires in the 720° cycle (uneven = the V-twin "potato-potato"). */
-      firing: z.array(z.number().min(0).max(720)).min(1),
-      idleRpm: z.number().positive(),
-      redline: z.number().positive(),
-      gears: z.number().int().min(1).max(8),
-      /** Body of the exhaust note (Hz) and how rough it runs (0..1). */
-      body: z.number().positive(),
-      rough: z.number().min(0).max(1),
-      turbo: z.boolean().default(false),
-    }),
+    engine: engineSchema,
   })),
+  /** Everyday rides that aren't sold in the showroom but still have an engine (the kapcai, the
+   *  Ronda): the same gearbox, sound, smoke and skid marks, with no upgrades or paint. */
+  rides: z
+    .record(z.string(), z.object({ kind: z.enum(['car', 'bike']), maker: z.string(), model: z.string(), accelSec: z.number().positive(), engine: engineSchema }))
+    .default({}),
   paints: z.record(z.string(), z.object({ name: z.string(), color: hex, priceSen: z.number().int().nonnegative() })),
   wheels: z.record(z.string(), z.object({ name: z.string(), color: hex, priceSen: z.number().int().nonnegative() })),
   exhausts: z.record(z.string(), exhaustSchema),
@@ -80,6 +87,14 @@ export const garageConfigSchema = z.object({
 });
 export type GarageConfig = z.infer<typeof garageConfigSchema>;
 export type GarageModel = GarageConfig['models'][string];
+/** What the gearbox and the engine sound need: a showroom model or an everyday ride. */
+export type EngineModel = Pick<GarageModel, 'kind' | 'maker' | 'model' | 'accelSec' | 'engine'>;
+
+/** The engine of a vehicle: a showroom model, an everyday ride with an engine, or none (basikal, walking). */
+export function engineModel(cfg: GarageConfig, id: string | null | undefined): EngineModel | undefined {
+  if (!id) return undefined;
+  return cfg.models[id] ?? cfg.rides[id];
+}
 
 /** What others see of your ride. */
 export interface VehicleLook {
@@ -122,7 +137,7 @@ export function rideSpeed(cfg: GarageConfig, baseSpeed: number, s: VehicleSetup)
 
 /** Seconds from standing to top speed, with the torque upgrades. */
 export function rideAccelSec(cfg: GarageConfig, model: string, s: VehicleSetup | null): number {
-  const m = cfg.models[model];
+  const m = engineModel(cfg, model);
   if (!m) return 0;
   return m.accelSec / (1 + cfg.upgrades.torque.per * (s?.torque ?? 0));
 }
@@ -142,7 +157,7 @@ export function partCostSen(cfg: GarageConfig, model: string, part: GaragePart, 
 }
 
 /** The engine's revs for a speed share (0..1), going up through the gears. */
-export function engineRpm(m: GarageModel, speedShare: number): number {
+export function engineRpm(m: EngineModel, speedShare: number): number {
   const e = m.engine;
   if (speedShare < 0.02) return e.idleRpm;
   const s = Math.min(1, speedShare);

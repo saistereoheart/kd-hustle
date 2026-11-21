@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { coast, driveSpec, engineRpm, NEUTRAL, packEngine, unpackEngine, newDriveState, partCostSen, rideAccelSec, rideSpeed, shiftGear, stepDrive, tireGrip, timeToTop, torqueShare, newSetup, wheelRpm } from '@kh/shared';
+import { coast, driveSpec, engineModel, engineRpm, NEUTRAL, packEngine, unpackEngine, newDriveState, partCostSen, rideAccelSec, rideSpeed, shiftGear, stepDrive, tireGrip, timeToTop, torqueShare, newSetup, wheelRpm } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -39,6 +39,20 @@ describe('garage config', () => {
       expect(m.engine.redline).toBeGreaterThan(m.engine.idleRpm);
     }
     expect(gc.exhausts.stock.priceSen).toBe(0);
+  });
+
+  it('everyday rides with an engine are real vehicles not sold in the showroom; the basikal has none', () => {
+    expect(Object.keys(gc.rides).length).toBeGreaterThan(0);
+    for (const [id, m] of Object.entries(gc.rides)) {
+      expect(cfg.vehicles.vehicles[id], id).toBeTruthy();
+      expect(gc.models[id], id).toBeUndefined();
+      expect(m.engine.firing).toHaveLength(m.engine.cylinders);
+      expect(m.engine.redline).toBeGreaterThan(m.engine.idleRpm);
+      expect(engineModel(gc, id)).toBe(m);
+      expect(rideAccelSec(gc, id, null)).toBe(m.accelSec);
+    }
+    expect(engineModel(gc, 'bicycle')).toBeUndefined();
+    expect(engineModel(gc, null)).toBeUndefined();
   });
 
   it('upgrades raise speed, cut the 0-to-top time, add grip; revs climb through the gears', () => {
@@ -120,13 +134,13 @@ describe('garage (server)', () => {
 
 describe('gearbox (drive model)', () => {
   const run = (id: string) => {
-    const m = gc.models[id];
+    const m = engineModel(gc, id)!;
     const top = cfg.vehicles.vehicles[id].speed;
     return { m, spec: driveSpec(m, top, m.accelSec), top };
   };
 
   it('a full-throttle automatic run takes about the promised 0-to-top time, for every model', () => {
-    for (const id of Object.keys(gc.models)) {
+    for (const id of [...Object.keys(gc.models), ...Object.keys(gc.rides)]) {
       const { m, spec } = run(id);
       expect(timeToTop(spec), id).toBeGreaterThan(m.accelSec * 0.85);
       expect(timeToTop(spec), id).toBeLessThan(m.accelSec * 1.15);
@@ -137,7 +151,7 @@ describe('gearbox (drive model)', () => {
   });
 
   it('the low gears fly by and each higher gear takes longer (stock, full throttle)', () => {
-    for (const [id, m] of Object.entries(gc.models)) {
+    for (const [id, m] of [...Object.entries(gc.models), ...Object.entries(gc.rides)]) {
       const { spec } = run(id);
       const st = newDriveState(spec, true);
       const dt = 1 / 120;

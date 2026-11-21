@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.15.1)_
+_Last updated: 2026-11-22 (v1.16.0)_
 
-**Now at v1.15.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.16.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 411 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 412 unit tests (2026-11-22) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.15.1 reaches the game only then.
+   from v1.8.2 to v1.16.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -37,8 +37,8 @@ rounds below. The §19 content list is met, including 74 achievements.
 **Open on the code side (small, optional):**
 7. Re-run the full Playwright suite (`npm run e2e`). It hasn't been run since the shop / vehicle changes.
 8. The balance sim (`npm run sim`) doesn't cover Gua Gelap or the new shop-star multiplier yet.
-9. The 3D kapcai has no burnout smoke / skid marks (those still key off showroom vehicles), and the basikal
-   and kapcai have no engine model of their own.
+9. ~~The 3D kapcai has no burnout smoke / skid marks, and no engine model of its own.~~ Done in v1.16.0 (the
+   basikal stays engine-less on purpose).
 10. **Load size:** about 0.7 MB to download. Possible but low-value: a Phaser build without physics (−66 KB gz,
     needs Phaser bundled from source), and lazy-loading rarely opened screens (casino, dungeon, editor).
 
@@ -52,6 +52,21 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🛵 Kapcai and Ronda engines (2026-11-22, v1.16.0)
+- **What changed:** `garage.json` has a new `rides` section: everyday vehicles that aren't sold in the showroom
+  but have an engine. The kapcai (`motorbike`: Hondo EX-5, 109 cc single, 4 gears) and the `ronda` (Yamaho Y-15,
+  150 cc single, 5 gears) are in it. `engineModel(cfg, id)` (shared/src/garage/garage.ts) returns a showroom model
+  or a ride, and the gearbox, the engine sound, the dashboard, other riders' engines and the tyre smoke / skid
+  marks all use it now. No server or database change.
+- **How to test it (PC or phone):** ride the kapcai (or a Ronda). You should hear a single-cylinder thump and see
+  the speedo and gear. It pulls away through the gears, rolls to a stop when you let go, and leaves a puff of
+  smoke and a short mark on a hard launch. A second player nearby should hear it.
+- **Decisions:**
+  - 0 to top speed is about 9 s (Ronda 9.5 s). Before, the kapcai was at full speed at once. The top speed
+    is unchanged. Tune `rides.*.accelSec` in `shared/config/garage.json` if it feels slow.
+  - The basikal has no engine, so it keeps the old instant movement and makes no sound.
+  - Rides have no upgrades, paint or exhausts. They always use the `stock` exhaust sound.
 
 ## 🎨 Blank map after a refresh (2026-11-21, your report, v1.15.1)
 - Symptom: after F5 / Shift+F5, the world, characters and minimap were blank, while the text (labels, names)

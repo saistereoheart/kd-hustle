@@ -13,7 +13,7 @@
 // staying in a gear past its top bounces off the rev limiter (or holds a flat note with it off).
 // Manual also has neutral (below first, gear −1): the throttle just revs the engine and the
 // vehicle coasts. Pulling away hard from a stop spins the tyres for a moment (a burnout).
-import type { GarageModel } from './garage';
+import type { EngineModel } from './garage';
 
 export interface DriveSpec {
   /** Top speed (px/s). */
@@ -67,7 +67,7 @@ export const NEUTRAL = -1;
 export type ShiftEvent = 'up' | 'down' | null;
 
 /** Where torque peaks (share of the redline), by engine type. */
-function peakOf(m: GarageModel): number {
+function peakOf(m: EngineModel): number {
   const e = m.engine;
   if (e.turbo) return 0.45;
   if (m.kind === 'bike') return e.cylinders >= 4 ? 0.8 : e.cylinders === 2 && e.redline < 7000 ? 0.45 : 0.62;
@@ -240,7 +240,7 @@ export function timeToTop(spec: DriveSpec): number {
  * garage promises (with torque upgrades): the pull is calibrated so a full-throttle run with the
  * automatic takes that long.
  */
-export function driveSpec(m: GarageModel, top: number, accelSec: number): DriveSpec {
+export function driveSpec(m: EngineModel, top: number, accelSec: number): DriveSpec {
   const key = `${m.maker}|${m.model}|${Math.round(top)}|${accelSec.toFixed(3)}`;
   const have = specs.get(key);
   if (have) return have;
