@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.2 (2026-11-22): 📱 the phone stays in the middle
+- The phone no longer moves when you open 💡 Tips: it stays fixed in the middle of the screen. The Tips window
+  sits a little to its right, always the same size and place, whichever app you point at.
+
 ## 1.17.1 (2026-11-22): ☕ kopitiam rating fixes
 - A kopitiam no longer needs a toilet (aircond and wifi only), and never suggests a toilet or bathtub.
 - Shop floors count their own extras (kopitiam: TV, coffee, outdoor seating, smart lock; Venture: TV, coffee,

@@ -562,8 +562,10 @@ body.touch .goal-text { font-size: 12px; }
 @keyframes confetti-fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 0.8; } }
 
 /* --- the HustlePhone --- */
-.panel-frame.phone-frame-frame { position: relative; width: auto; max-width: 100%; height: min(780px, 94vh); gap: 0; }
-.panel.phone-frame { flex: 0 1 390px; width: 390px; max-width: 100%; height: 100%; max-height: none; border-radius: 38px; border: 10px solid #0b0d16; box-shadow: 0 0 0 2px #3b4060, 0 30px 80px rgba(0,0,0,0.6); background: linear-gradient(160deg, #23284a, #151826 55%, #1f1630); }
+/* The phone stays put in the middle of the screen: the Tips tab and window hang off its right side
+   (absolutely placed), so opening them never moves the phone. */
+.panel-frame.phone-frame-frame { position: relative; width: min(390px, 100%); max-width: 100%; height: min(780px, 94vh); gap: 0; }
+.panel.phone-frame { flex: 1 1 auto; width: 390px; max-width: 100%; height: 100%; max-height: none; border-radius: 38px; border: 10px solid #0b0d16; box-shadow: 0 0 0 2px #3b4060, 0 30px 80px rgba(0,0,0,0.6); background: linear-gradient(160deg, #23284a, #151826 55%, #1f1630); }
 .phone-frame .panel-head { padding: 10px 14px 6px; border: 0; }
 .phone-frame .panel-head h3 { font-size: 15px; }
 .phone-frame .panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; overflow: hidden; }
@@ -586,25 +588,25 @@ body.touch .goal-text { font-size: 12px; }
 .phone-app.previewed .phone-icon, .phone-alert.previewed { outline: 2px solid #ffd43b; outline-offset: 2px; }
 .phone-icon { position: relative; width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; font-size: 26px; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 4px 10px rgba(0,0,0,0.3); }
 /* 💡 The Tips bookmark on the phone's side, and the Tips window beside the phone. */
-.phone-tips-tab { flex: 0 0 auto; align-self: flex-start; margin: 120px 0 0 -3px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 12px; border: 2px solid #ffd43b; border-left: 0; border-radius: 0 12px 12px 0; background: linear-gradient(180deg, #ffe066, #f59f00); color: #1b1300; font: 900 11px system-ui, sans-serif; letter-spacing: 0.08em; cursor: pointer; box-shadow: 4px 4px 12px rgba(0,0,0,0.4); z-index: 2; touch-action: manipulation; }
+.phone-tips-tab { position: absolute; left: calc(100% - 3px); top: 120px; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 12px; border: 2px solid #ffd43b; border-left: 0; border-radius: 0 12px 12px 0; background: linear-gradient(180deg, #ffe066, #f59f00); color: #1b1300; font: 900 11px system-ui, sans-serif; letter-spacing: 0.08em; cursor: pointer; box-shadow: 4px 4px 12px rgba(0,0,0,0.4); z-index: 2; touch-action: manipulation; }
 .phone-tips-tab:hover { padding-right: 9px; }
 .phone-tips-tab.active { background: linear-gradient(180deg, #fff3bf, #ffd43b); }
 .phone-tips-tab-icon { font-size: 16px; letter-spacing: 0; }
 .phone-tips-tab-text { writing-mode: vertical-rl; text-orientation: upright; }
-.phone-tips { flex: 0 0 260px; align-self: center; max-height: 100%; margin-left: 8px; display: flex; flex-direction: column; background: var(--panel-solid); border: 2px solid #ffd43b; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.55); }
+.phone-tips { position: absolute; left: calc(100% + 48px); top: 96px; width: 260px; height: min(480px, calc(100% - 96px)); margin: 0; z-index: 3; display: flex; flex-direction: column; background: var(--panel-solid); border: 2px solid #ffd43b; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.55); }
 .phone-tips[hidden] { display: none; }
 .phone-tips-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 14px; font-weight: 900; border-bottom: 1px solid var(--line); }
-.phone-tips-card { overflow-y: auto; padding: 16px 16px 18px; text-align: center; }
+.phone-tips-card { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; padding: 16px 16px 18px; text-align: center; }
 .phone-tips-icon { width: 96px; height: 96px; margin: 0 auto 10px; border-radius: 26px; display: grid; place-items: center; font-size: 52px; box-shadow: inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px rgba(0,0,0,0.4); }
 .phone-tips-name { margin: 0; font-size: 22px; font-weight: 900; }
 .phone-tips-cat { margin: 2px 0 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .phone-tips-cat:empty { display: none; }
 .phone-tips-does { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: #ffd43b; }
 .phone-tips-about { margin: 0 0 14px; font-size: 14px; line-height: 1.45; color: var(--text, #e9ecf5); text-align: left; }
-.phone-tips-go { width: 100%; }
+.phone-tips-go { width: 100%; margin-top: auto; flex: 0 0 auto; }
 /* Not enough room beside the phone: the Tips window sits over the bottom of the phone instead. */
-@media (max-width: 760px) {
-  .phone-tips { position: absolute; left: 10px; right: 42px; bottom: 34px; margin: 0; max-height: 52%; z-index: 3; }
+@media (max-width: 1040px) {
+  .phone-tips { left: 10px; right: 10px; top: auto; bottom: 34px; width: auto; height: auto; max-height: 52%; }
   .phone-tips-card { display: grid; grid-template-columns: 64px 1fr; gap: 0 12px; text-align: left; padding: 12px; }
   .phone-tips-icon { grid-row: span 3; width: 64px; height: 64px; font-size: 34px; border-radius: 18px; margin: 0; }
   .phone-tips-name { font-size: 18px; align-self: end; }
@@ -627,7 +629,7 @@ body.touch .goal-text { font-size: 12px; }
 @media (max-width: 520px), (max-height: 640px) {
   .panel-backdrop:has(.phone-frame) { padding: 0; }
   .panel-frame.phone-frame-frame { width: 100%; height: 100%; }
-  .phone-tips-tab { position: absolute; right: 0; top: calc(96px + var(--safe-t)); margin: 0; border: 2px solid #ffd43b; border-right: 0; border-radius: 12px 0 0 12px; padding: 8px 4px 10px; opacity: 0.92; }
+  .phone-tips-tab { left: auto; right: 0; top: calc(96px + var(--safe-t)); margin: 0; border: 2px solid #ffd43b; border-right: 0; border-radius: 12px 0 0 12px; padding: 8px 4px 10px; opacity: 0.92; }
   .phone-tips { right: 10px; }
   .panel.phone-frame { flex: 1 1 auto; width: 100%; height: 100%; border-radius: 0; border: 0; box-shadow: none; padding-top: var(--safe-t); padding-bottom: var(--safe-b); }
 }

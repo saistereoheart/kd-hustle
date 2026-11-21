@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.17.1)_
+_Last updated: 2026-11-22 (v1.17.2)_
 
-**Now at v1.17.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.17.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,16 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 📱 Phone fixed in the middle (2026-11-22, your request, v1.17.2)
+- **The phone stays put.** It is always centred, whether 💡 Tips is open or not.
+  - The tab and the Tips window are now placed beside the phone rather than laid out with it, so they never push it.
+- **The Tips window is static.** It sits 48 px to the right of the phone, below the tab, and is always 260×480.
+  Its text scrolls if it's long, and the Open button stays at the bottom.
+- **Narrow screens:** up to 1040 px wide there's no room beside the phone, so the window sits over the bottom of
+  the phone, as before.
+- Checked at 1920×1080: the phone's centre stays at 960 px with Tips open or closed, and the window stays the same
+  size and place while you point at different apps. Also checked at 900×900.
 
 ## ☕ Kopitiam rating: no toilet or bathtub, furniture counts more (2026-11-22, your request, v1.17.1)
 - **A kopitiam's must-haves are now aircond and wifi.** It no longer asks for a toilet. A Venture's shop still
