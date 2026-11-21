@@ -2,6 +2,7 @@
 // materials are shared (one sphere, one box... scaled per use), so a whole fight is a handful of
 // buffers on the graphics card, and everything is freed with disposeKit() when the fight ends.
 import * as THREE from 'three';
+import { disposePaint } from './paint';
 
 const geos = new Map<string, THREE.BufferGeometry>();
 const mats = new Map<string, THREE.Material>();
@@ -13,13 +14,13 @@ function geo<T extends THREE.BufferGeometry>(key: string, make: () => T): T {
 }
 
 export const G = {
-  sphere: () => geo('sphere', () => new THREE.SphereGeometry(1, 14, 10)),
+  sphere: () => geo('sphere', () => new THREE.SphereGeometry(1, 20, 14)),
   lowSphere: () => geo('lowSphere', () => new THREE.IcosahedronGeometry(1, 1)),
   rock: () => geo('rock', () => new THREE.DodecahedronGeometry(1, 0)),
   box: () => geo('box', () => new THREE.BoxGeometry(1, 1, 1)),
   cyl: () => geo('cyl', () => new THREE.CylinderGeometry(1, 1, 1, 10)),
   cone: () => geo('cone', () => new THREE.ConeGeometry(1, 1, 10)),
-  capsule: () => geo('capsule', () => new THREE.CapsuleGeometry(0.5, 1, 4, 10)),
+  capsule: () => geo('capsule', () => new THREE.CapsuleGeometry(0.5, 1, 6, 14)),
   torus: () => geo('torus', () => new THREE.TorusGeometry(1, 0.28, 8, 18)),
   octa: () => geo('octa', () => new THREE.OctahedronGeometry(1, 0)),
   plane: () => geo('plane', () => new THREE.PlaneGeometry(1, 1)),
@@ -37,13 +38,29 @@ export const G = {
     }),
 };
 
-/** A flat-shaded cartoon material (Lambert: cheap on weak graphics). */
-export function mat(color: number | string, o: { emissive?: number; glow?: number; flat?: boolean; opacity?: number } = {}): THREE.MeshLambertMaterial {
-  const key = `${color}|${o.emissive ?? 0}|${o.glow ?? 0}|${o.flat ? 1 : 0}|${o.opacity ?? 1}`;
+/** A cool rim of light round every model's edge (fake depth: it separates the model from the dark
+ *  background the way a back light would, for the cost of a few shader instructions). */
+function addRim(m: THREE.MeshLambertMaterial) {
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `float rimK = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
+       outgoingLight += vec3(0.55, 0.65, 1.0) * pow(rimK, 3.0) * 0.42;
+       #include <opaque_fragment>`,
+    );
+  };
+  m.customProgramCacheKey = () => 'kh-rim';
+}
+
+/** A cartoon material (Lambert: cheap on weak graphics), optionally with a painted texture (the
+ *  colour is then white so the painting shows as painted), always with the rim light. */
+export function mat(color: number | string, o: { emissive?: number; glow?: number; flat?: boolean; opacity?: number; map?: THREE.Texture; rim?: boolean } = {}): THREE.MeshLambertMaterial {
+  const key = `${color}|${o.emissive ?? 0}|${o.glow ?? 0}|${o.flat ? 1 : 0}|${o.opacity ?? 1}|${o.map?.uuid ?? ''}|${o.rim === false ? 0 : 1}`;
   let m = mats.get(key);
   if (!m) {
-    m = new THREE.MeshLambertMaterial({
-      color: new THREE.Color(color as THREE.ColorRepresentation),
+    const lm = new THREE.MeshLambertMaterial({
+      color: o.map ? 0xffffff : new THREE.Color(color as THREE.ColorRepresentation),
+      map: o.map ?? null,
       emissive: new THREE.Color(o.emissive ?? 0x000000),
       emissiveIntensity: o.glow ?? 1,
       flatShading: !!o.flat,
@@ -51,6 +68,8 @@ export function mat(color: number | string, o: { emissive?: number; glow?: numbe
       opacity: o.opacity ?? 1,
       side: THREE.DoubleSide,
     });
+    if (o.rim !== false) addRim(lm);
+    m = lm;
     mats.set(key, m);
   }
   return m as THREE.MeshLambertMaterial;
@@ -94,6 +113,7 @@ export function eye(parent: THREE.Object3D, pos: [number, number, number], r: nu
 
 /** Frees every shared shape and material (the fight is over). */
 export function disposeKit() {
+  disposePaint();
   for (const g of geos.values()) g.dispose();
   for (const m of mats.values()) m.dispose();
   geos.clear();

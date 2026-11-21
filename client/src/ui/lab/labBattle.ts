@@ -11,6 +11,8 @@ import { el, toast } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
 import type { Battle3D, StageFighter } from './battle3d/stage';
+import { loadMonsterPics, monsterPic, playerPics } from './portraits';
+import { battleMusic, beatSec } from '../battleMusic';
 
 const STEP_MS = 750;
 
@@ -37,6 +39,11 @@ export class LabBattleUi {
   private stageHost: HTMLElement;
   private paused = false;
   private gone = false;
+  /** The "entering battle" screen is over (the fight shows from then). */
+  private introDone: Promise<void>;
+  private introEl: HTMLElement | null = null;
+  /** Showing the flat cards (2D chosen, no 3D here, or it fell back): they get portraits. */
+  private flat = !loadPrefs().fight3d;
 
   constructor(private app: App, view: LabBattleView) {
     this.view = view;
@@ -59,7 +66,7 @@ export class LabBattleUi {
     const boss = view.boss ? app.cfg.lab.bosses[view.floor] : undefined;
     if (boss) this.root.classList.add('boss-fight');
     this.say(boss ? `👹 ${boss.name}: "${boss.line}"` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
-    sfx.locked();
+    this.introDone = this.intro(boss ? 'boss' : 'fight', boss ? `👹 ${boss.name}` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     this.render();
     this.tick = window.setInterval(() => this.drawTimer(), 200);
     void this.start3d();
@@ -67,16 +74,53 @@ export class LabBattleUi {
 
   destroy() {
     this.gone = true;
+    this.introEl?.remove();
+    document.body.classList.remove('lb-entering');
     clearInterval(this.tick);
     this.stop3d();
     this.root.remove();
+  }
+
+  // ---------------------------------------------------------------- ⚔️ entering battle
+  /**
+   * The "entering battle" screen, in time with the music: the battle track starts on its first beat
+   * as this starts, and everything lands on a beat (4 beats, then the fight shows):
+   *   beat 1: a flash, the room behind swirls; bars sweep in from both sides;
+   *   beat 2: the screen is covered, "BATTLE!" slams in;  beat 3: it pulses with the kick;
+   *   beat 4: the bars sweep away and the fight is there.
+   */
+  private async intro(track: 'fight' | 'boss', who: string): Promise<void> {
+    const beat = beatSec(track);
+    const bars = Array.from({ length: 8 }, (_, i) => el('i', { style: `--i:${i};--d:${i % 2 ? -1 : 1}` }));
+    const box = el('div', { class: `lb-intro${track === 'boss' ? ' boss' : ''}`, style: `--beat:${beat}s`, 'data-testid': 'lb-intro' },
+      el('div', { class: 'lbi-bars' }, ...bars),
+      el('div', { class: 'lbi-title' }, el('b', {}, track === 'boss' ? '👹 BOSS BATTLE!' : '⚔️ BATTLE!'), el('small', {}, who)),
+      el('div', { class: 'lbi-flash' }),
+    );
+    this.introEl = box;
+    this.root.classList.add('intro');
+    document.body.append(box);
+    // Start the music first (the loops were made when you came down here), then go on its downbeat.
+    await battleMusic.playNow(track);
+    if (this.gone) return;
+    box.classList.add('go');
+    document.body.style.setProperty('--lbi-beat', `${beat}s`);
+    document.body.classList.add('lb-entering');
+    sfx.locked();
+    await new Promise((r) => window.setTimeout(r, beat * 2000));
+    if (this.gone) return;
+    this.root.classList.remove('intro'); // behind the bars now
+    document.body.classList.remove('lb-entering');
+    await new Promise((r) => window.setTimeout(r, beat * 2000));
+    if (this.gone) return;
+    window.setTimeout(() => box.remove(), beat * 1000 + 100);
   }
 
   // ---------------------------------------------------------------- 3D
   private async start3d() {
     if (!loadPrefs().fight3d) return;
     const probe = document.createElement('canvas');
-    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return;
+    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return void ((this.flat = true), this.renderCards());
     try {
       const { Battle3D } = await import('./battle3d/stage');
       if (this.gone) return;
@@ -97,6 +141,9 @@ export class LabBattleUi {
         },
       });
       this.root.classList.add('is3d');
+      // The monsters drop in as the bars open, not behind them.
+      await this.introDone;
+      if (this.gone || !this.stage) return;
       this.stage.setFighters(this.stageFighters(), this.target);
       // Only one thing draws at a time: the 2D game rests until the fight is over.
       this.app.game?.loop.sleep();
@@ -110,6 +157,10 @@ export class LabBattleUi {
   private stop3d() {
     this.stage?.destroy();
     this.stage = null;
+    if (!this.flat && !this.gone) {
+      this.flat = true;
+      window.setTimeout(() => !this.gone && this.renderCards(), 0);
+    }
     this.root.classList.remove('is3d');
     if (this.paused) this.app.game?.loop.wake();
     this.paused = false;
@@ -117,10 +168,7 @@ export class LabBattleUi {
 
   /** The fighters for the 3D stage (players with their own colours). */
   private stageFighters(): StageFighter[] {
-    const looks = new Map<string, Appearance>();
-    const you = this.app.lastInit?.you;
-    if (you) looks.set(`p${you.id}`, you.appearance);
-    for (const o of this.app.lab?.view?.others ?? []) looks.set(`p${o.id}`, o.appearance);
+    const looks = this.looks();
     return this.view.fighters.map((f) => {
       const a = looks.get(f.id);
       return {
@@ -195,7 +243,7 @@ export class LabBattleUi {
     const bar = el('div', { class: 'lb-hp' }, el('i', { style: `width:${pct}%`, class: pct < 25 ? 'low' : pct < 55 ? 'mid' : '' }));
     const pips = f.side === 'party' ? el('div', { class: 'lb-focus', title: 'Focus (💥 Skill uses 2)' }, ...Array.from({ length: this.app.cfg.lab.player.focusMax }, (_, k) => el('b', { class: k < f.focus ? 'on' : '' }))) : null;
     const ready = f.side === 'party' && this.view.chosen.includes(f.id) ? el('span', { class: 'lb-ready' }, '✓') : null;
-    const art = el('div', { class: 'lb-art' }, f.icon ?? (f.id === this.meId ? '🧑' : '🧑‍🤝‍🧑'));
+    const art = el('div', { class: 'lb-art' }, this.figure(f));
     const c = el(
       'div',
       { class: `lb-card ${f.side}${f.boss ? ' boss' : ''}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
@@ -211,7 +259,31 @@ export class LabBattleUi {
     return c;
   }
 
+  /** The fighter as a picture with fake 3D (2D cards): you in your own look, monsters from their
+   *  3D models (the emoji until that picture is ready). */
+  private figure(f: LabFighter): HTMLElement | string {
+    if (f.side === 'party') {
+      const a = this.looks().get(f.id);
+      if (!a) return f.id === this.meId ? '🧑' : '🧑‍🤝‍🧑';
+      const p = playerPics(a, this.app.cfg.character);
+      return el('div', { class: 'lb-fig' },
+        el('img', { class: 'idle', src: p.idle, alt: '' }), el('img', { class: 'act', src: p.act, alt: '' }), el('img', { class: 'hurt', src: p.hurt, alt: '' }));
+    }
+    const url = monsterPic(f.kind, f.icon, f.boss);
+    return url ? el('div', { class: 'lb-fig' }, el('img', { class: 'idle', src: url, alt: '' })) : (f.icon ?? '👾');
+  }
+
+  private looks() {
+    const looks = new Map<string, Appearance>();
+    const you = this.app.lastInit?.you;
+    if (you) looks.set(`p${you.id}`, you.appearance);
+    for (const o of this.app.lab?.view?.others ?? []) looks.set(`p${o.id}`, o.appearance);
+    return looks;
+  }
+
   private renderCards() {
+    // (Only for the flat cards: the snapshot shares the 3D parts, so never while the stage runs.)
+    if (this.flat) void loadMonsterPics(this.view.fighters.filter((f) => f.side === 'foe'), () => !this.gone && this.renderCards());
     const foes = this.view.fighters.filter((f) => f.side === 'foe');
     if (!this.target || foes.find((f) => f.id === this.target)?.out) this.target = foes.find((f) => !f.out)?.id ?? null;
     this.foesBox.replaceChildren(...foes.map((f) => this.card(f)));
@@ -344,6 +416,8 @@ export class LabBattleUi {
       this.renderCards();
       const card = this.root.querySelector(`[data-fighter="${e.target}"]`);
       card?.classList.add('hit');
+      // 2D: the attacker lunges at it.
+      this.root.querySelector(`[data-fighter="${e.actor}"]`)?.classList.add('lunge');
       const pop = el('span', { class: `lb-pop${e.crit ? ' crit' : ''}` }, `−${e.dmg}`);
       card?.append(pop);
       window.setTimeout(() => pop.remove(), 900);

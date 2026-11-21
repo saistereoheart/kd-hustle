@@ -4,12 +4,14 @@
 //    crickets at night;
 //  - casino: a murmuring crowd, slot jingles and chips clinking;
 //  - indoor (shops, homes): almost silent, just a soft room tone;
+//  - labirin: an eerie cave: wind moaning through tunnels, a low drone, water dripping (with an
+//    echo), now and then a distant rumble or a creak;
 //  - sizzle: a frying pan while you cook (on top of whichever bed is playing).
 // Everything goes through one gain that follows the volume and the "Ambient sounds" setting.
 import { audioCtx } from './sound';
 import { loadPrefs } from './settings';
 
-export type AmbienceKind = 'town' | 'casino' | 'indoor' | null;
+export type AmbienceKind = 'town' | 'casino' | 'indoor' | 'labirin' | null;
 
 let bus: GainNode | null = null;
 let kind: AmbienceKind = null;
@@ -240,6 +242,74 @@ function startCasino(ctx: AudioContext, out: GainNode) {
   }, 700);
 }
 
+/** A drop of water and its echoes off the cave walls. */
+function drip(ctx: AudioContext, dest: AudioNode) {
+  const t = ctx.currentTime;
+  const f = 1100 + Math.random() * 1300;
+  const pan = ctx.createStereoPanner();
+  pan.pan.value = Math.random() * 1.8 - 0.9;
+  pan.connect(dest);
+  for (const [dt, g] of [[0, 0.06], [0.21, 0.022], [0.43, 0.009]] as const) blip(ctx, pan, f, t + dt, 0.09, g, 'sine', f * 0.55);
+}
+
+/** Something big and far away: a low rumble that swells and fades. */
+function rumble(ctx: AudioContext, dest: AudioNode) {
+  const t = ctx.currentTime;
+  const s = ctx.createBufferSource();
+  s.buffer = noise(ctx, 'brown');
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 110;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.35, t + 1.2);
+  g.gain.linearRampToValueAtTime(0.0001, t + 3.5);
+  s.connect(f).connect(g).connect(dest);
+  s.start(t, Math.random() * 2);
+  s.stop(t + 3.6);
+}
+
+/** An old creak somewhere (a beam, a door). */
+function creak(ctx: AudioContext, dest: AudioNode) {
+  const t = ctx.currentTime;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 6;
+  f.frequency.setValueAtTime(500, t);
+  f.frequency.linearRampToValueAtTime(900, t + 0.7);
+  f.connect(dest);
+  blip(ctx, f, 70 + Math.random() * 40, t, 0.8, 0.05, 'sawtooth', 60);
+}
+
+function startLabirin(ctx: AudioContext, out: GainNode) {
+  // Wind moaning through tunnels: noise through a slowly wandering band.
+  const wind = loopNoise(ctx, 'pink', 'bandpass', 420, 1.4, 0.11, out);
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.06;
+  const lg = ctx.createGain();
+  lg.gain.value = 220;
+  lfo.connect(lg).connect(wind.f.frequency);
+  lfo.start();
+  // A low drone of two close notes that beat slowly against each other.
+  const d1 = ctx.createOscillator(), d2 = ctx.createOscillator();
+  d1.frequency.value = 55;
+  d2.frequency.value = 55.6;
+  const dg = ctx.createGain();
+  dg.gain.value = 0.035;
+  d1.connect(dg);
+  d2.connect(dg);
+  dg.connect(out);
+  d1.start();
+  d2.start();
+  bed = { nodes: [wind.s, lfo, d1, d2], out };
+  timer = window.setInterval(() => {
+    if (!bed) return;
+    if (Math.random() < 0.3) drip(ctx, out);
+    if (Math.random() < 0.025) rumble(ctx, out);
+    if (Math.random() < 0.02) creak(ctx, out);
+  }, 1000);
+}
+
 function startIndoor(ctx: AudioContext, out: GainNode) {
   const room = loopNoise(ctx, 'pink', 'lowpass', 260, 0.5, 0.12, out); // air con and room tone
   bed = { nodes: [room.s], out };
@@ -262,6 +332,7 @@ export const ambience = {
       out.connect(master(ctx));
       if (next === 'town') startTown(ctx, out);
       else if (next === 'casino') startCasino(ctx, out);
+      else if (next === 'labirin') startLabirin(ctx, out);
       else startIndoor(ctx, out);
     } catch {
       bed = null;

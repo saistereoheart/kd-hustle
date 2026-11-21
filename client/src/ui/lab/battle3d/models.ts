@@ -3,6 +3,7 @@
 // (wings flap, legs scuttle, flames flicker) plus a `swing` pose for its attack (0 → 1).
 import * as THREE from 'three';
 import { G, add, eye, mat, part } from './kit';
+import { clothTex, faceTex, furTex, hairTex, scaleTex, skinTex, softTex, stoneTex, wrapTex } from './paint';
 
 export interface Model {
   root: THREE.Group;
@@ -34,41 +35,55 @@ function base(height: number, hover = false): Model & { parts: Record<string, TH
 export function playerModel(look: Look): Model {
   const m = base(2.1);
   const b = m.body;
-  const skin = mat(look.skin);
-  // Legs and shoes.
+  const skin = mat(look.skin, { map: skinTex(look.skin) });
+  const top = mat(look.top, { map: clothTex(look.top, 'top') });
+  const bottom = mat(look.bottom, { map: clothTex(look.bottom, 'bottom') });
+  const shoes = mat(look.shoes, { map: softTex(new THREE.Color(look.shoes).getHex()) });
+  const hair = mat(look.hair, { map: hairTex(look.hair) });
+  // Legs and shoes (a sole and a lighter toe cap).
   const legL = part(b, [-0.2, 0.55, 0]);
   const legR = part(b, [0.2, 0.55, 0]);
   for (const leg of [legL, legR]) {
-    add(leg, G.capsule(), look.bottom, [0, -0.22, 0], [0.32, 0.45, 0.32]);
-    add(leg, G.sphere(), look.shoes, [0, -0.5, 0.06], [0.2, 0.12, 0.26]);
+    add(leg, G.capsule(), bottom, [0, -0.22, 0], [0.32, 0.45, 0.32]);
+    add(leg, G.sphere(), shoes, [0, -0.5, 0.06], [0.2, 0.12, 0.27]);
+    add(leg, G.box(), 0x1b1b1b, [0, -0.6, 0.06], [0.34, 0.04, 0.5]);
   }
-  // Body and arms.
-  add(b, G.capsule(), look.top, [0, 0.95, 0], [0.75, 0.6, 0.55]);
+  // Body (a belt line), neck, arms in sleeves with hands.
+  add(b, G.capsule(), top, [0, 0.95, 0], [0.75, 0.6, 0.55]);
+  add(b, G.torus(), mat(new THREE.Color(look.top).offsetHSL(0, 0, -0.2).getHex()), [0, 0.68, 0], [0.36, 0.3, 0.2], [Math.PI / 2, 0, 0]);
+  add(b, G.cyl(), skin, [0, 1.32, 0], [0.13, 0.16, 0.13]);
   const armL = part(b, [-0.42, 1.15, 0]);
   const armR = part(b, [0.42, 1.15, 0]);
-  add(armL, G.capsule(), look.top, [0, -0.2, 0], [0.24, 0.4, 0.24]);
-  add(armL, G.sphere(), skin, [0, -0.48, 0], 0.13);
-  add(armR, G.capsule(), look.top, [0, -0.2, 0], [0.24, 0.4, 0.24]);
-  add(armR, G.sphere(), skin, [0, -0.48, 0], 0.13);
-  // The keris (a wavy-ish blade) in the right hand, a round shield on the left.
+  for (const arm of [armL, armR]) {
+    add(arm, G.capsule(), top, [0, -0.15, 0], [0.25, 0.3, 0.25]);
+    add(arm, G.capsule(), skin, [0, -0.38, 0], [0.18, 0.22, 0.18]);
+    add(arm, G.sphere(), skin, [0, -0.5, 0], 0.12);
+  }
+  // The keris (a gold-hilted blade with a blue sheen) in the right hand, a round shield on the left.
   const blade = part(armR, [0, -0.5, 0.05], [Math.PI / 2.4, 0, 0]);
   add(blade, G.cyl(), 0x6b3f1d, [0, 0, 0], [0.05, 0.25, 0.05]);
-  add(blade, G.box(), 0xffd43b, [0, 0.14, 0], [0.22, 0.05, 0.08]);
-  add(blade, G.cone(), mat(0xdee2e6, { emissive: 0x3b5bdb, glow: 0.25 }), [0, 0.55, 0], [0.07, 0.8, 0.03]);
-  add(armL, G.cyl(), 0x8d6e3f, [-0.08, -0.4, 0.12], [0.3, 0.05, 0.3], [Math.PI / 2, 0, 0.3]);
+  add(blade, G.box(), mat(0xffd43b, { emissive: 0x7a5b00, glow: 0.4 }), [0, 0.14, 0], [0.22, 0.05, 0.08]);
+  add(blade, G.cone(), mat(0xdee2e6, { emissive: 0x3b5bdb, glow: 0.3 }), [0, 0.55, 0], [0.07, 0.8, 0.03]);
+  add(armL, G.cyl(), mat(0x8d6e3f, { map: stoneTex(0x8d6e3f) }), [-0.08, -0.4, 0.12], [0.3, 0.05, 0.3], [Math.PI / 2, 0, 0.3]);
   add(armL, G.sphere(), 0xced4da, [-0.08, -0.4, 0.16], [0.08, 0.08, 0.04]);
-  // The big chibi head: face, eyes, blush, hair cap and fringe.
+  // The big chibi head: a painted face (irises, lashes, brows, blush), ears, hair.
   const head = part(b, [0, 1.62, 0]);
-  add(head, G.sphere(), skin, [0, 0, 0], [0.55, 0.52, 0.5]);
-  eye(head, [-0.19, 0.02, 0.42], 0.09, new THREE.Color(look.eyes).getHex());
-  eye(head, [0.19, 0.02, 0.42], 0.09, new THREE.Color(look.eyes).getHex());
-  add(head, G.sphere(), 0xff8787, [-0.3, -0.12, 0.38], [0.08, 0.04, 0.03]);
-  add(head, G.sphere(), 0xff8787, [0.3, -0.12, 0.38], [0.08, 0.04, 0.03]);
-  add(head, G.sphere(), 0x8a3b3b, [0, -0.2, 0.46], [0.06, 0.025, 0.02]);
-  add(head, G.sphere(), look.hair, [0, 0.14, -0.05], [0.6, 0.48, 0.55]);
-  add(head, G.sphere(), look.hair, [0, 0.3, 0.25], [0.5, 0.2, 0.3], [0.4, 0, 0]);
-  add(head, G.sphere(), look.hair, [-0.42, 0.0, 0.05], [0.16, 0.36, 0.3]);
-  add(head, G.sphere(), look.hair, [0.42, 0.0, 0.05], [0.16, 0.36, 0.3]);
+  add(head, G.sphere(), mat(look.skin, { map: faceTex(look.skin, look.eyes, look.hair) }), [0, 0, 0], [0.55, 0.52, 0.5]);
+  add(head, G.sphere(), skin, [-0.53, -0.02, 0], [0.08, 0.12, 0.06]);
+  add(head, G.sphere(), skin, [0.53, -0.02, 0], [0.08, 0.12, 0.06]);
+  // Hair: a strand-painted cap, then locks (each a tapered strand clump) round the fringe, sides and back.
+  add(head, G.sphere(), hair, [0, 0.12, -0.04], [0.59, 0.5, 0.56]);
+  const lock = (pos: [number, number, number], len: number, rot: [number, number, number], w = 0.11) => add(head, G.cone(), hair, pos, [w, len, w * 0.45], rot);
+  for (let i = 0; i < 7; i++) {
+    const a = -0.9 + (i / 6) * 1.8; // across the forehead
+    lock([Math.sin(a) * 0.42, 0.26, Math.cos(a) * 0.42], 0.34 + (i % 2) * 0.08, [Math.PI - 0.5, a, (i - 3) * 0.08]);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI * 0.55 + (i / 5) * Math.PI * 0.9; // round the back
+    lock([Math.sin(a) * 0.5, -0.05, Math.cos(a) * 0.48], 0.5 + (i % 2) * 0.12, [Math.PI + 0.25, a, 0], 0.14);
+  }
+  for (const sx of [-1, 1]) lock([sx * 0.5, -0.02, 0.18], 0.45, [Math.PI, 0, sx * -0.15], 0.1);
+  add(head, G.cone(), hair, [0.05, 0.6, -0.05], [0.07, 0.25, 0.04], [0.3, 0, -0.4]); // a stray tuft
   m.idle = (t) => {
     const s = Math.sin(t * 2.4);
     head.rotation.z = s * 0.04;
@@ -89,18 +104,19 @@ export function playerModel(look: Look): Model {
 type Builder = (c: number) => Model;
 
 const rat: Builder = (c) => {
+  const C = mat(c, { map: furTex(c) });
   const m = base(1.2);
   const b = m.body;
-  add(b, G.sphere(), c, [0, 0.55, 0], [0.62, 0.5, 0.8]);
+  add(b, G.sphere(), C, [0, 0.55, 0], [0.62, 0.5, 0.8]);
   add(b, G.sphere(), new THREE.Color(c).offsetHSL(0, 0, 0.15).getHex(), [0, 0.45, 0.25], [0.45, 0.35, 0.5]);
   const head = part(b, [0, 0.75, 0.7]);
-  add(head, G.sphere(), c, [0, 0, 0], [0.38, 0.34, 0.4]);
-  add(head, G.cone(), c, [0, -0.04, 0.36], [0.2, 0.4, 0.2], [Math.PI / 2, 0, 0]);
+  add(head, G.sphere(), C, [0, 0, 0], [0.38, 0.34, 0.4]);
+  add(head, G.cone(), C, [0, -0.04, 0.36], [0.2, 0.4, 0.2], [Math.PI / 2, 0, 0]);
   add(head, G.sphere(), 0xff8fab, [0, -0.04, 0.58], 0.07);
   eye(head, [-0.17, 0.1, 0.27], 0.09, 0x111111);
   eye(head, [0.17, 0.1, 0.27], 0.09, 0x111111);
   for (const s of [-1, 1]) {
-    add(head, G.sphere(), c, [s * 0.28, 0.32, -0.05], [0.18, 0.2, 0.06]);
+    add(head, G.sphere(), C, [s * 0.28, 0.32, -0.05], [0.18, 0.2, 0.06]);
     add(head, G.sphere(), 0xff8fab, [s * 0.28, 0.32, -0.02], [0.12, 0.14, 0.04]);
     add(b, G.sphere(), 0xffc9de, [s * 0.3, 0.12, 0.45], [0.12, 0.08, 0.16]);
     add(b, G.sphere(), 0xffc9de, [s * 0.32, 0.12, -0.4], [0.12, 0.08, 0.16]);
@@ -123,15 +139,16 @@ const rat: Builder = (c) => {
 };
 
 const bat: Builder = (c) => {
+  const C = mat(c, { map: furTex(c) });
   const m = base(1.6, true);
   const b = m.body;
-  add(b, G.sphere(), c, [0, 1.2, 0], [0.4, 0.42, 0.36]);
+  add(b, G.sphere(), C, [0, 1.2, 0], [0.4, 0.42, 0.36]);
   eye(b, [-0.14, 1.3, 0.3], 0.08, 0xc92a2a, 0xffe066);
   eye(b, [0.14, 1.3, 0.3], 0.08, 0xc92a2a, 0xffe066);
   add(b, G.cone(), 0xffffff, [-0.07, 1.05, 0.32], [0.03, 0.1, 0.03], [Math.PI, 0, 0]);
   add(b, G.cone(), 0xffffff, [0.07, 1.05, 0.32], [0.03, 0.1, 0.03], [Math.PI, 0, 0]);
-  add(b, G.cone(), c, [-0.2, 1.62, 0], [0.12, 0.35, 0.1]);
-  add(b, G.cone(), c, [0.2, 1.62, 0], [0.12, 0.35, 0.1]);
+  add(b, G.cone(), C, [-0.2, 1.62, 0], [0.12, 0.35, 0.1]);
+  add(b, G.cone(), C, [0.2, 1.62, 0], [0.12, 0.35, 0.1]);
   const wl = part(b, [-0.3, 1.25, 0]);
   const wr = part(b, [0.3, 1.25, 0]);
   const wm = mat(new THREE.Color(c).offsetHSL(0, 0, -0.08).getHex());
@@ -147,11 +164,12 @@ const bat: Builder = (c) => {
 };
 
 const snail: Builder = (c) => {
+  const C = mat(c, { map: stoneTex(c) });
   const m = base(1.3);
   const b = m.body;
   add(b, G.capsule(), 0xc0a98e, [0, 0.25, 0.1], [0.5, 1.1, 0.45], [Math.PI / 2, 0, 0]);
   const shell = part(b, [0, 0.75, -0.15]);
-  add(shell, G.sphere(), c, [0, 0, 0], [0.32, 0.6, 0.6]);
+  add(shell, G.sphere(), C, [0, 0, 0], [0.32, 0.6, 0.6]);
   add(shell, G.torus(), new THREE.Color(c).offsetHSL(0, 0, -0.12).getHex(), [0.3, 0, 0], [0.38, 0.38, 0.5], [0, Math.PI / 2, 0]);
   add(shell, G.torus(), new THREE.Color(c).offsetHSL(0, 0, -0.18).getHex(), [0.34, 0, 0], [0.2, 0.2, 0.4], [0, Math.PI / 2, 0]);
   const stalks: THREE.Object3D[] = [];
@@ -167,9 +185,10 @@ const snail: Builder = (c) => {
 };
 
 const spider: Builder = (c) => {
+  const C = mat(c, { map: furTex(c) });
   const m = base(1.2);
   const b = m.body;
-  add(b, G.sphere(), c, [0, 0.65, -0.35], [0.55, 0.5, 0.6]);
+  add(b, G.sphere(), C, [0, 0.65, -0.35], [0.55, 0.5, 0.6]);
   add(b, G.sphere(), new THREE.Color(c).offsetHSL(0, 0, 0.08).getHex(), [0, 0.6, 0.25], [0.36, 0.3, 0.36]);
   for (const [x, y] of [[-0.12, 0.72], [0.12, 0.72], [-0.2, 0.62], [0.2, 0.62]]) eye(b, [x, y, 0.55], 0.06, 0xc92a2a, 0xffe066);
   const legs: THREE.Object3D[] = [];
@@ -193,6 +212,7 @@ const spider: Builder = (c) => {
 };
 
 const worm: Builder = (c) => {
+  const C = mat(c, { map: softTex(c) });
   const m = base(1.9);
   const b = m.body;
   const segs: THREE.Object3D[] = [];
@@ -237,10 +257,11 @@ const golem: Builder = (c) => {
 };
 
 const cricket: Builder = (c) => {
+  const C = mat(c, { map: softTex(c) });
   const m = base(1.2);
   const b = m.body;
-  add(b, G.capsule(), c, [0, 0.55, -0.1], [0.42, 0.9, 0.42], [Math.PI / 2, 0, 0]);
-  add(b, G.sphere(), c, [0, 0.72, 0.45], [0.3, 0.3, 0.28]);
+  add(b, G.capsule(), C, [0, 0.55, -0.1], [0.42, 0.9, 0.42], [Math.PI / 2, 0, 0]);
+  add(b, G.sphere(), C, [0, 0.72, 0.45], [0.3, 0.3, 0.28]);
   eye(b, [-0.16, 0.82, 0.6], 0.09, 0x111111, 0xffe066);
   eye(b, [0.16, 0.82, 0.6], 0.09, 0x111111, 0xffe066);
   const ants: THREE.Object3D[] = [];
@@ -277,11 +298,12 @@ const flame: Builder = (c) => {
 };
 
 const lizard: Builder = (c) => {
+  const C = mat(c, { map: scaleTex(c) });
   const m = base(1.0);
   const b = m.body;
-  add(b, G.capsule(), c, [0, 0.4, 0], [0.5, 1.1, 0.42], [Math.PI / 2, 0, 0]);
+  add(b, G.capsule(), C, [0, 0.4, 0], [0.5, 1.1, 0.42], [Math.PI / 2, 0, 0]);
   const head = part(b, [0, 0.5, 0.75]);
-  add(head, G.sphere(), c, [0, 0, 0], [0.3, 0.22, 0.38]);
+  add(head, G.sphere(), C, [0, 0, 0], [0.3, 0.22, 0.38]);
   eye(head, [-0.17, 0.12, 0.12], 0.08, 0x111111, 0xffe066);
   eye(head, [0.17, 0.12, 0.12], 0.08, 0x111111, 0xffe066);
   const glow = mat(0xff922b, { emissive: 0xff6b00, glow: 1 });
@@ -289,11 +311,11 @@ const lizard: Builder = (c) => {
   const legs: THREE.Object3D[] = [];
   for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const l = part(b, [x * 0.3, 0.32, z * 0.38]);
-    add(l, G.capsule(), c, [x * 0.1, -0.12, 0], [0.13, 0.3, 0.13], [0, 0, x * 0.8]);
+    add(l, G.capsule(), C, [x * 0.1, -0.12, 0], [0.13, 0.3, 0.13], [0, 0, x * 0.8]);
     legs.push(l);
   }
   const tail = part(b, [0, 0.4, -0.7]);
-  add(tail, G.cone(), c, [0, 0, -0.4], [0.18, 0.9, 0.18], [-Math.PI / 2, 0, 0]);
+  add(tail, G.cone(), C, [0, 0, -0.4], [0.18, 0.9, 0.18], [-Math.PI / 2, 0, 0]);
   m.idle = (t) => {
     tail.rotation.y = Math.sin(t * 3) * 0.4;
     legs.forEach((l, i) => (l.rotation.x = Math.sin(t * 6 + i * Math.PI) * 0.15));
@@ -303,9 +325,10 @@ const lizard: Builder = (c) => {
 };
 
 const ghost: Builder = (c) => {
+  const C = mat(c, { map: softTex(c) });
   const m = base(1.9, true);
   const b = m.body;
-  const cloth = mat(c, { opacity: 0.92 });
+  const cloth = mat(c, { opacity: 0.92, map: softTex(c) });
   add(b, G.sphere(), cloth, [0, 1.3, 0], [0.5, 0.55, 0.48]);
   add(b, G.cone(), cloth, [0, 0.62, 0], [0.55, 1.1, 0.52], [Math.PI, 0, 0]);
   add(b, G.sphere(), 0x111111, [-0.16, 1.34, 0.42], [0.09, 0.13, 0.05]);
@@ -321,9 +344,10 @@ const ghost: Builder = (c) => {
 };
 
 const pocong: Builder = (c) => {
+  const C = mat(c, { map: wrapTex(c) });
   const m = base(1.9);
   const b = m.body;
-  const cloth = mat(c);
+  const cloth = mat(c, { map: wrapTex(c) });
   add(b, G.capsule(), cloth, [0, 0.9, 0], [0.62, 1.25, 0.55]);
   add(b, G.sphere(), 0xf1e3c6, [0, 1.35, 0.25], [0.26, 0.24, 0.1]);
   eye(b, [-0.09, 1.38, 0.33], 0.05, 0xc92a2a);
@@ -338,16 +362,17 @@ const pocong: Builder = (c) => {
 };
 
 const imp: Builder = (c) => {
+  const C = mat(c, { map: softTex(c) });
   const m = base(1.3);
   const b = m.body;
-  add(b, G.capsule(), c, [0, 0.45, 0], [0.4, 0.4, 0.35]);
+  add(b, G.capsule(), C, [0, 0.45, 0], [0.4, 0.4, 0.35]);
   const head = part(b, [0, 0.95, 0]);
-  add(head, G.sphere(), c, [0, 0, 0], [0.42, 0.4, 0.38]);
+  add(head, G.sphere(), C, [0, 0, 0], [0.42, 0.4, 0.38]);
   eye(head, [-0.15, 0.04, 0.3], 0.11, 0xc92a2a, 0xffe066);
   eye(head, [0.15, 0.04, 0.3], 0.11, 0xc92a2a, 0xffe066);
   add(head, G.sphere(), 0x2b0a0a, [0, -0.18, 0.34], [0.12, 0.05, 0.03]);
-  add(head, G.cone(), c, [-0.38, 0.12, 0], [0.08, 0.3, 0.08], [0, 0, 1.2]);
-  add(head, G.cone(), c, [0.38, 0.12, 0], [0.08, 0.3, 0.08], [0, 0, -1.2]);
+  add(head, G.cone(), C, [-0.38, 0.12, 0], [0.08, 0.3, 0.08], [0, 0, 1.2]);
+  add(head, G.cone(), C, [0.38, 0.12, 0], [0.08, 0.3, 0.08], [0, 0, -1.2]);
   add(head, G.sphere(), 0x2b0a0a, [0, 0.36, 0], [0.05, 0.08, 0.05]);
   const sack = part(b, [0.35, 0.55, 0.1]);
   add(sack, G.sphere(), 0xc9a227, [0, 0, 0], [0.2, 0.22, 0.2]);
@@ -358,9 +383,10 @@ const imp: Builder = (c) => {
 };
 
 const book: Builder = (c) => {
+  const C = mat(c, { map: stoneTex(c) });
   const m = base(1.4, true);
   const b = m.body;
-  const cover = mat(c);
+  const cover = mat(c, { map: stoneTex(c) });
   const page = mat(0xfff9db);
   const spine = part(b, [0, 1.0, 0]);
   add(spine, G.box(), cover, [0, 0, -0.04], [0.9, 0.12, 0.08]);
@@ -398,9 +424,10 @@ const candle: Builder = (c) => {
 };
 
 const skeleton: Builder = (c) => {
+  const C = mat(c, { map: stoneTex(c) });
   const m = base(2.0);
   const b = m.body;
-  const bone = mat(c);
+  const bone = mat(c, { map: stoneTex(c) });
   add(b, G.cyl(), bone, [0, 0.95, 0], [0.07, 0.8, 0.07]);
   for (let i = 0; i < 4; i++) add(b, G.torus(), bone, [0, 1.25 - i * 0.14, 0], [0.3 - i * 0.03, 0.22, 0.3 - i * 0.03], [Math.PI / 2, 0, 0]);
   const head = part(b, [0, 1.68, 0]);
@@ -427,9 +454,10 @@ const skeleton: Builder = (c) => {
 };
 
 const mummy: Builder = (c) => {
+  const C = mat(c, { map: wrapTex(c) });
   const m = base(2.0);
   const b = m.body;
-  const wrap = mat(c);
+  const wrap = mat(c, { map: wrapTex(c) });
   const dark = mat(new THREE.Color(c).offsetHSL(0, 0, -0.15).getHex());
   add(b, G.capsule(), wrap, [0, 1.0, 0], [0.65, 0.9, 0.5]);
   for (let i = 0; i < 6; i++) add(b, G.torus(), dark, [0, 0.55 + i * 0.17, 0], [0.33, 0.27, 0.12], [Math.PI / 2, 0, i * 0.3]);
@@ -449,15 +477,16 @@ const mummy: Builder = (c) => {
 };
 
 const dragon: Builder = (c) => {
+  const C = mat(c, { map: scaleTex(c) });
   const m = base(1.9);
   const b = m.body;
   const belly = new THREE.Color(c).offsetHSL(0.05, 0, 0.2).getHex();
-  add(b, G.sphere(), c, [0, 0.75, 0], [0.6, 0.55, 0.75]);
+  add(b, G.sphere(), C, [0, 0.75, 0], [0.6, 0.55, 0.75]);
   add(b, G.sphere(), belly, [0, 0.65, 0.3], [0.42, 0.42, 0.45]);
   const neck = part(b, [0, 1.05, 0.45], [-0.5, 0, 0]);
-  add(neck, G.capsule(), c, [0, 0.25, 0], [0.26, 0.5, 0.26]);
+  add(neck, G.capsule(), C, [0, 0.25, 0], [0.26, 0.5, 0.26]);
   const head = part(neck, [0, 0.6, 0], [0.5, 0, 0]);
-  add(head, G.sphere(), c, [0, 0, 0.05], [0.34, 0.3, 0.42]);
+  add(head, G.sphere(), C, [0, 0, 0.05], [0.34, 0.3, 0.42]);
   add(head, G.sphere(), belly, [0, -0.1, 0.35], [0.22, 0.14, 0.2]);
   eye(head, [-0.17, 0.1, 0.25], 0.09, 0x111111, 0xffe066);
   eye(head, [0.17, 0.1, 0.25], 0.09, 0x111111, 0xffe066);
@@ -469,8 +498,8 @@ const dragon: Builder = (c) => {
   add(wl, G.wing(), wm, [0, 0, 0], [1.4, 1.2, 1], [0, Math.PI, 0]);
   add(wr, G.wing(), wm, [0, 0, 0], [1.4, 1.2, 1]);
   const tail = part(b, [0, 0.6, -0.7]);
-  add(tail, G.cone(), c, [0, 0, -0.5], [0.22, 1.1, 0.22], [-Math.PI / 2, 0, 0]);
-  for (const x of [-0.3, 0.3]) for (const z of [0.35, -0.35]) add(b, G.capsule(), c, [x, 0.25, z], [0.18, 0.35, 0.18]);
+  add(tail, G.cone(), C, [0, 0, -0.5], [0.22, 1.1, 0.22], [-Math.PI / 2, 0, 0]);
+  for (const x of [-0.3, 0.3]) for (const z of [0.35, -0.35]) add(b, G.capsule(), C, [x, 0.25, z], [0.18, 0.35, 0.18]);
   m.idle = (t) => {
     wl.rotation.y = -0.3 - Math.sin(t * 3) * 0.4;
     wr.rotation.y = 0.3 + Math.sin(t * 3) * 0.4;
@@ -482,12 +511,13 @@ const dragon: Builder = (c) => {
 };
 
 const ogre: Builder = (c) => {
+  const C = mat(c, { map: softTex(c) });
   const m = base(2.2);
   const b = m.body;
-  add(b, G.sphere(), c, [0, 1.0, 0], [0.75, 0.75, 0.6]);
+  add(b, G.sphere(), C, [0, 1.0, 0], [0.75, 0.75, 0.6]);
   add(b, G.box(), 0x5c3d2e, [0, 0.6, 0], [1.3, 0.3, 1.05]);
   const head = part(b, [0, 1.75, 0.05]);
-  add(head, G.sphere(), c, [0, 0, 0], [0.4, 0.36, 0.38]);
+  add(head, G.sphere(), C, [0, 0, 0], [0.4, 0.36, 0.38]);
   eye(head, [-0.14, 0.06, 0.32], 0.09, 0x111111, 0xffe066);
   eye(head, [0.14, 0.06, 0.32], 0.09, 0x111111, 0xffe066);
   add(head, G.cone(), 0xfff3bf, [-0.25, 0.35, 0], [0.07, 0.3, 0.07], [0, 0, 0.4]);
@@ -495,14 +525,14 @@ const ogre: Builder = (c) => {
   add(head, G.cone(), 0xfff3bf, [-0.1, -0.15, 0.33], [0.04, 0.12, 0.04]);
   add(head, G.cone(), 0xfff3bf, [0.1, -0.15, 0.33], [0.04, 0.12, 0.04]);
   const armR = part(b, [0.75, 1.3, 0]);
-  add(armR, G.capsule(), c, [0, -0.3, 0], [0.3, 0.6, 0.3]);
+  add(armR, G.capsule(), C, [0, -0.3, 0], [0.3, 0.6, 0.3]);
   const club = part(armR, [0, -0.7, 0.1], [Math.PI / 2.3, 0, 0]);
   add(club, G.cyl(), 0x5c3d2e, [0, 0.4, 0], [0.08, 0.9, 0.08]);
   add(club, G.capsule(), mat(0xff6b00, { emissive: 0xff4500, glow: 0.6 }), [0, 0.9, 0], [0.3, 0.4, 0.3]);
   const armL = part(b, [-0.75, 1.3, 0]);
-  add(armL, G.capsule(), c, [0, -0.3, 0], [0.3, 0.6, 0.3]);
-  add(b, G.capsule(), c, [-0.3, 0.3, 0], [0.32, 0.5, 0.32]);
-  add(b, G.capsule(), c, [0.3, 0.3, 0], [0.32, 0.5, 0.32]);
+  add(armL, G.capsule(), C, [0, -0.3, 0], [0.3, 0.6, 0.3]);
+  add(b, G.capsule(), C, [-0.3, 0.3, 0], [0.32, 0.5, 0.32]);
+  add(b, G.capsule(), C, [0.3, 0.3, 0], [0.32, 0.5, 0.32]);
   m.idle = (t) => ((armL.rotation.z = Math.sin(t * 1.8) * 0.08), (head.rotation.y = Math.sin(t * 1.2) * 0.15));
   m.swing = (k) => (armR.rotation.x = -Math.sin(k * Math.PI) * 2.8);
   return m;

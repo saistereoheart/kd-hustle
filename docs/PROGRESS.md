@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.18.0)_
+_Last updated: 2026-11-22 (v1.19.0)_
 
-**Now at v1.18.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.19.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,40 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🎨 Labirin: richer models, 2D portraits, cave music, battle intro (2026-11-22, your requests, v1.19.0)
+**FPS check:** low risk.
+- Painted textures (64–256 px, made once per fight, freed after).
+- The edge light is a few shader instructions; I skipped outlines, which would double the drawing.
+- Portraits are made once per session.
+- The music is pre-rendered loops.
+
+**What changed:**
+- **Painted detail** (`battle3d/paint.ts`):
+  - hair strands with a shine band, plus locks (fringe, sides, back);
+  - painted face (irises, lashes, brows, blush);
+  - cloth folds, seams and collar shadow; fur, scales, stone and bandage textures;
+  - darker underneath on everything (fake AO).
+- **Lighting and shadows:**
+  - Edge light on models only (not scenery), in `kit.ts` `addRim`.
+  - Soft painted contact shadows that shrink and fade as a model rises.
+- **2D cards** (`ui/lab/portraits.ts`, `battle3d/snapshot.ts`):
+  - Players are drawn by `drawCharacter` in idle, act and hurt poses.
+  - Monsters are a one-off 200 px render of their 3D model, then the graphics are freed. Only in 2D mode,
+    never while the 3D stage runs. If there's no WebGL at all, the emoji stays.
+  - CSS fake 3D: shadow, rim, turn-and-breathe, lunge, recoil.
+- **Sound** (`battleMusic.ts`, `ambience.ts`):
+  - New 'labirin' track (66 bpm, harmonic minor pads, a music box with a cave echo).
+  - New 'labirin' ambience (wind, drone, drips with echoes, rumbles, creaks).
+  - Battles use `playNow`: no fade-in, so the downbeat is right at the start.
+- **Battle intro:** `LabBattleUi.intro()`, timed in beats (`beatSec`, about 1.6 s for a fight, 1.9 s for a
+  boss). The 3D monsters drop in only when the bars open.
+
+**Test:**
+1. In the Labirin, you should hear the eerie cave and calm music.
+2. Walk into a fight: the beat-synced intro plays, then the 8-bit track.
+3. After the fight, the cave music comes back.
+4. Settings → ⚔️ Labirin fights → 2D: the cards show your character and the monster pictures.
 
 ## 🗝️ Labirin: 3D fights, cave rooms, clear signs (2026-11-22, your request, v1.18.0)
 **FPS check first (your new rule).** Before building, I flagged two risks:

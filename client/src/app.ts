@@ -60,6 +60,7 @@ import { InteriorScene, type ExtraStation } from './world/interiorScene';
 import { LabScene } from './world/labScene';
 import { LabHud } from './ui/lab/labHud';
 import { LabBattleUi } from './ui/lab/labBattle';
+import { battleMusic } from './ui/battleMusic';
 import { showLabInvite } from './ui/lab/labParty';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
@@ -1154,8 +1155,11 @@ export class App {
     this.game.scene.run('lab', { app: this, view });
     this.lab = this.game.scene.getScene('lab') as LabScene;
     this.labHud.update(view);
-    ambience.set('indoor');
+    // 🗝️ The cave's own sound: an eerie bed and calm, uneasy music (the battle loops get ready too).
+    ambience.set('labirin');
+    battleMusic.warm('labirin', 'fight', 'boss');
     if (battle) this.labBattleShow(battle);
+    else battleMusic.play('labirin');
   }
 
   /** A fight starts (or its state changed: someone picked). Walking stops while it's on. */
@@ -1171,6 +1175,7 @@ export class App {
     this.labBattle?.destroy();
     this.labBattle = null;
     this.lab?.setFighting(false);
+    battleMusic.play('labirin');
     if (room) this.lab?.showRoom(room);
     else this.socket?.timeout(5000).emit('lab:self', (err, res) => {
       if (!err && res.ok && this.lab) this.labHud?.updateSelf(res.self);
@@ -1187,6 +1192,7 @@ export class App {
     this.labHud?.destroy();
     this.labHud = null;
     delete document.body.dataset.lab;
+    battleMusic.play(null);
     this.town?.cameras.main.setVisible(true);
     if (this.town) ambience.set('town');
     this.hud?.setPrompt(null, this.touch);

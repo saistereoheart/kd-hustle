@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import type { LabEvent } from '@kh/shared';
 import { G, add, disposeKit, mat } from './kit';
 import { Flashes, Particles, dotTexture } from './fx';
+import { shadowTex } from './paint';
 import { monsterModel, playerModel, type Look, type Model } from './models';
 
 export interface StageFighter {
@@ -165,8 +166,8 @@ export class Battle3D {
     s.add(floor);
     // Rock all around (denser behind the monsters), frost caps on some, a few stalagmites.
     const rockC = new THREE.Color(this.o.wall).lerp(new THREE.Color(0x8c99bd), 0.5).getHex();
-    const rockM = mat(rockC, { flat: true });
-    const frost = mat(0xdbe4ff, { flat: true });
+    const rockM = mat(rockC, { flat: true, rim: false });
+    const frost = mat(0xdbe4ff, { flat: true, rim: false });
     // Drawn as three batches (rocks, frost caps, stalagmites): one draw each, however many there are.
     const rocks: THREE.Matrix4[] = [], caps: THREE.Matrix4[] = [], spikes: THREE.Matrix4[] = [];
     const m4 = (pos: [number, number, number], sc: [number, number, number], rot: [number, number, number]) =>
@@ -313,10 +314,12 @@ export class Battle3D {
           m.root.traverse((o) => {
             if ((o as THREE.Mesh).isMesh) ((o as THREE.Mesh).userData.mat = (o as THREE.Mesh).material, meshes.push(o as THREE.Mesh));
           });
-          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false });
+          // A soft painted shadow (dark in the middle, fading out), not a hard black disc.
+          const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false });
           this.own.push(shadowMat);
-          const shadow = new THREE.Mesh(G.sphere(), shadowMat);
-          shadow.scale.set(0.6 * m.root.scale.x, 0.02, 0.5 * m.root.scale.x);
+          const shadow = new THREE.Mesh(G.plane(), shadowMat);
+          shadow.rotation.x = -Math.PI / 2;
+          shadow.scale.set(1.5 * m.root.scale.x, 1.15 * m.root.scale.x, 1);
           this.scene.add(shadow, m.root);
           a = { f, m, home: new THREE.Vector3(x, 0, z), face: 0, off: new THREE.Vector3(), lean: 0, squash: 1, swingK: 0, spin: 0, down: f.out && !f.fled ? 1 : 0, gone: f.out && (f.fled || side === 'foe') ? 1 : 0, flashT: 0, meshes, shadow, busy: 0, base: m.root.scale.x };
           // Monsters drop in from above when the fight starts.
@@ -625,6 +628,11 @@ export class Battle3D {
     if (a.gone > 0 && vis) m.root.scale.setScalar(a.base * (1 - a.gone));
     a.shadow.visible = vis;
     a.shadow.position.set(m.root.position.x, 0.02, m.root.position.z);
+    // Fake depth: the higher it is off the ground, the smaller and fainter its shadow.
+    const lift = Math.max(0, m.root.position.y);
+    const k = 1 / (1 + lift * 0.35);
+    a.shadow.scale.set(1.5 * a.base * k * (1 - a.gone), 1.15 * a.base * k * (1 - a.gone), 1);
+    (a.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.25, k);
     // The white flash when hit.
     if (a.flashT > 0) {
       a.flashT -= real;

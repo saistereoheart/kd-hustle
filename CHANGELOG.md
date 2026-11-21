@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.19.0 (2026-11-22): 🗝️ Labirin: richer 3D models, 2D portraits, cave music, battle intro
+- **3D models look more real, for almost no extra cost.**
+  - Detail is painted in 2D and wrapped on: hair strands with a shine band and hair locks, painted faces
+    (irises, lashes, brows, blush), cloth folds and seams, fur, scales, stone, bandages.
+  - Soft painted shadows that shrink as things leave the ground.
+  - A cool edge light that lifts models out of the dark.
+- **2D fight cards show real pictures, not emoji.**
+  - You are drawn with the game's own character art, in 3 poses: ready, swinging, hurt.
+  - Monsters are pictures of their 3D models.
+  - Fake 3D: a soft floor shadow, a back-light rim, a slow turn-and-breathe, a lunge when attacking, a
+    white flash and recoil when hit.
+- **🎵 Labirin sound.**
+  - An eerie cave bed: wind through tunnels, a low drone, echoing water drips, distant rumbles, creaks.
+  - Calm, uneasy music: slow minor pads and a far-off music box with echoes.
+- **⚔️ Battles start with an "entering battle" screen in time with the 8-bit battle music.** The music
+  starts on its first beat as the screen starts:
+  - beat 1: a flash, and the room swirls;
+  - beats 1–2: bars sweep in;
+  - beat 2: BATTLE! slams in;
+  - beat 3: it pulses with the kick;
+  - beat 4: the bars sweep away and the monsters drop in.
+  - Bosses get a red "BOSS BATTLE!" version on the heavier boss track.
+
 ## 1.18.0 (2026-11-22): 🗝️ Labirin: 3D fights, cave rooms, clear signs
 - **⚔️ Fights are 3D.**
   - A torch-lit cave arena, with chibi models for every monster, every boss (bigger, with a crown) and you,

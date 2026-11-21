@@ -1,11 +1,17 @@
-// ⚔️ Battle music, made in your browser like the lofi: two loops recorded once (off the main
-// thread) and played from memory. "fight" is a quick minor-key chip tune; "boss" is slower,
-// lower and heavier. While one plays, the lofi and the shared radio hush (`musicDucked`), and
-// they come back when the fight window closes. Follows the 🎵 music on/off and volume settings.
+// ⚔️ Battle music, made in your browser like the lofi: loops recorded once (off the main thread)
+// and played from memory. "fight" is a quick minor-key 8-bit chip tune; "boss" is slower, lower and
+// heavier; "labirin" is the calm, eerie walking music of Labirin Purba (slow minor pads, a far-off
+// music box with echoes, a low drone). While one plays, the lofi and the shared radio hush
+// (`musicDucked`), and they come back when it stops. Follows the 🎵 music on/off and volume settings.
 import { audioCtx } from './sound';
 import { loadPrefs } from './settings';
 
-export type BattleTrack = 'fight' | 'boss';
+export type BattleTrack = 'fight' | 'boss' | 'labirin';
+
+/** One beat of a track, in seconds (for things that move in time with it). */
+export function beatSec(track: BattleTrack): number {
+  return 60 / (track === 'labirin' ? CALM_BPM : STYLES[track].bpm);
+}
 
 let ducked = false;
 /** True while battle music owns the speakers (the lofi and radio stay quiet). */
@@ -28,12 +34,12 @@ interface Style {
   leadType: OscillatorType;
   heavy: boolean;
 }
-const STYLES: Record<BattleTrack, Style> = {
+const STYLES: Record<'fight' | 'boss', Style> = {
   fight: { bpm: 150, bars: 8, roots: [57, 53, 55, 52, 57, 53, 50, 52], bassOct: -24, leadType: 'square', heavy: false }, // Am F G E…
   boss: { bpm: 126, bars: 8, roots: [50, 51, 50, 56, 50, 51, 48, 49], bassOct: -24, leadType: 'sawtooth', heavy: true }, // D Eb D Ab… (tense)
 };
 
-async function record(track: BattleTrack): Promise<AudioBuffer> {
+async function record(track: 'fight' | 'boss'): Promise<AudioBuffer> {
   const st = STYLES[track];
   const step = 60 / st.bpm / 4;
   const len = Math.ceil(st.bars * 16 * step * RATE);
@@ -121,6 +127,77 @@ async function record(track: BattleTrack): Promise<AudioBuffer> {
   return loop;
 }
 
+// ------------------------------------------------------------------ 🗝️ the Labirin's calm music
+const CALM_BPM = 66;
+/** Slow and eerie: minor pads that swell in and out, a sub drone, and a music box far away whose
+ *  notes echo off the walls. Harmonic minor (the raised 7th) gives it the unease. */
+async function recordCalm(): Promise<AudioBuffer> {
+  const bars = 8;
+  const beat = 60 / CALM_BPM;
+  const len = Math.ceil(bars * 4 * beat * RATE);
+  const tail = Math.ceil(3 * RATE);
+  const ctx = new OfflineAudioContext(1, len + tail, RATE);
+  const master = ctx.createBiquadFilter();
+  master.type = 'lowpass';
+  master.frequency.value = 2400;
+  master.connect(ctx.destination);
+  // An echo for the music box (a cave).
+  const echoIn = ctx.createGain();
+  const delay = ctx.createDelay(2);
+  delay.delayTime.value = beat * 0.75;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.42;
+  const damp = ctx.createBiquadFilter();
+  damp.type = 'lowpass';
+  damp.frequency.value = 1600;
+  echoIn.connect(master);
+  echoIn.connect(delay).connect(damp).connect(fb).connect(delay);
+  damp.connect(master);
+  const tone = (f: number, t: number, dur: number, type: OscillatorType, gain: number, attack: number, dest: AudioNode = master, detune = 0) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = detune;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + attack);
+    g.gain.setTargetAtTime(0.0001, t + Math.max(attack, dur - attack), dur * 0.3 + 0.05);
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + dur + 2);
+  };
+  const roots = [57, 53, 50, 52, 57, 53, 55, 52]; // Am F Dm E(major: eerie) Am F G E
+  const scale = [0, 2, 3, 5, 7, 8, 11, 12, 14, 15]; // A harmonic minor
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let bar = 0; bar < bars; bar++) {
+    const t = bar * 4 * beat;
+    const root = roots[bar];
+    const third = bar % 4 === 3 ? 4 : 3;
+    // Pads: a soft swell over the whole bar, two slightly detuned voices per note.
+    for (const iv of [0, third, 7]) {
+      tone(hz(root - 12 + iv), t, 4 * beat, 'triangle', 0.035, 1.4, master, -6);
+      tone(hz(root - 12 + iv), t, 4 * beat, 'sine', 0.04, 1.6, master, 7);
+    }
+    tone(hz(root - 24), t, 4 * beat, 'sine', 0.09, 0.8); // the drone underneath
+    // The music box: a few notes per bar, some silences, a high bell harmonic on each.
+    for (let st = 0; st < 8; st++) {
+      if (rnd() > (st % 2 ? 0.18 : 0.42)) continue;
+      const n = root + 12 + scale[Math.floor(rnd() * scale.length)];
+      const nt = t + st * beat * 0.5;
+      tone(hz(n), nt, 1.2, 'sine', 0.05, 0.005, echoIn);
+      tone(hz(n + 24), nt, 0.4, 'sine', 0.012, 0.003, echoIn);
+    }
+  }
+  const out = await ctx.startRendering();
+  const loop = ctx.createBuffer(1, len, RATE);
+  const dst = loop.getChannelData(0);
+  const src = out.getChannelData(0);
+  dst.set(src.subarray(0, len));
+  for (let i = 0; i < tail; i++) dst[i] += src[len + i];
+  return loop;
+}
+
 class BattleMusic {
   private buffers = new Map<BattleTrack, Promise<AudioBuffer | null>>();
   private src: AudioBufferSourceNode | null = null;
@@ -135,20 +212,42 @@ class BattleMusic {
   private buffer(t: BattleTrack) {
     let b = this.buffers.get(t);
     if (!b) {
-      b = record(t).catch(() => null);
+      b = (t === 'labirin' ? recordCalm() : record(t)).catch(() => null);
       this.buffers.set(t, b);
     }
     return b;
   }
 
   /** Get the loops ready early (the battle window calls this when it opens). */
-  warm() {
-    void this.buffer('fight');
-    void this.buffer('boss');
+  warm(...tracks: BattleTrack[]) {
+    for (const t of tracks.length ? tracks : (['fight', 'boss'] as BattleTrack[])) void this.buffer(t);
   }
 
-  private level() {
-    return 0.5 * Math.max(0, Math.min(1, loadPrefs().musicVolume / 100));
+  private level(track: BattleTrack | null = this.current) {
+    return (track === 'labirin' ? 0.38 : 0.5) * Math.max(0, Math.min(1, loadPrefs().musicVolume / 100));
+  }
+
+  /** Start a track right now, at full volume from its first beat (no fade-in), cutting the old one
+   *  quickly: for a battle that starts on the downbeat. Resolves when it's playing (true) or not. */
+  async playNow(track: BattleTrack): Promise<boolean> {
+    this.wanted = track;
+    setDucked(true);
+    const buf = await Promise.race([this.buffer(track), new Promise<null>((r) => window.setTimeout(() => r(null), 1500))]);
+    const ctx = audioCtx();
+    if (!buf || !ctx || this.wanted !== track) return false;
+    this.fadeOut(0.12);
+    this.current = track;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(loadPrefs().musicOn ? this.level(track) : 0, ctx.currentTime);
+    g.connect(ctx.destination);
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    s.loop = true;
+    s.connect(g);
+    s.start();
+    this.src = s;
+    this.gain = g;
+    return true;
   }
 
   /** Play this track (crossfading from the other), or null to stop and give the speakers back. */
@@ -176,7 +275,7 @@ class BattleMusic {
     if (!buf || !ctx || this.current !== want || this.src) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, ctx.currentTime);
-    g.gain.linearRampToValueAtTime(loadPrefs().musicOn ? this.level() : 0, ctx.currentTime + 0.6);
+    g.gain.linearRampToValueAtTime(loadPrefs().musicOn ? this.level(want) : 0, ctx.currentTime + (want === 'labirin' ? 2.5 : 0.6));
     g.connect(ctx.destination);
     const s = ctx.createBufferSource();
     s.buffer = buf;
@@ -187,7 +286,7 @@ class BattleMusic {
     this.gain = g;
   }
 
-  private fadeOut() {
+  private fadeOut(sec = 0.5) {
     const ctx = audioCtx();
     const s = this.src, g = this.gain;
     this.src = null;
@@ -195,7 +294,7 @@ class BattleMusic {
     if (!s || !g || !ctx) return;
     g.gain.cancelScheduledValues(ctx.currentTime);
     g.gain.setValueAtTime(g.gain.value, ctx.currentTime);
-    g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+    g.gain.linearRampToValueAtTime(0, ctx.currentTime + sec);
     window.setTimeout(() => {
       try {
         s.stop();
@@ -203,7 +302,7 @@ class BattleMusic {
         /* stopped */
       }
       g.disconnect();
-    }, 600);
+    }, sec * 1000 + 100);
   }
 }
 
