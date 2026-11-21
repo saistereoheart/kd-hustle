@@ -51,11 +51,10 @@ const hashColor = (s: string) => {
 };
 
 /** Where the cooks stand at each kind of stall (px from the plot centre): beside the table,
- *  beside the truck, around the kopitiam's tables. */
+ *  beside the truck. (A kopitiam's cooks are inside, on its shop floor.) */
 const STAFF_SPOTS: Record<number, Array<[number, number]>> = {
   1: [[68, -2], [-68, -2]],
   2: [[78, 8], [-82, 8]],
-  3: [[-62, 8], [62, 8], [-22, 52], [22, 52]],
 };
 
 interface StaffView {
@@ -149,7 +148,9 @@ export class StallLayer {
     // Only plots with a stall (or cooks still standing there): not the hundreds of free shoplots.
     for (const plot of this.plots.filter((p) => this.app.store.stalls.has(p.id) || this.staff.has(p.id))) {
       const s = this.app.store.stalls.get(plot.id);
-      const want = s?.open ? Math.min(s.staff, (STAFF_SPOTS[plot.tier] ?? STAFF_SPOTS[1]).length) : 0;
+      // A kopitiam's cooks are inside at the stoves (its shop floor), not out on the street.
+      const inside = plot.tier >= this.app.cfg.stalls.cashierFromTier;
+      const want = s?.open && !inside ? Math.min(s.staff, (STAFF_SPOTS[plot.tier] ?? STAFF_SPOTS[1]).length) : 0;
       const list = this.staff.get(plot.id) ?? [];
       while (list.length > want) {
         const v = list.pop()!;

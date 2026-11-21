@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.9.6)_
+_Last updated: 2026-11-21 (v1.9.7)_
 
-**Now at v1.9.6 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.9.7 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 370 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 372 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.9.6 reaches the game only then.
+   from v1.8.2 to v1.9.7 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🏪 Shop doors, stars, facing (2026-11-21, your reports, v1.9.7)
+- **Your 0.5★ shop:** your save had every shop floor's layout empty. Account 1's aircons, wifi, lights and
+  closets were in the bag, unplaced. Cause: "✅ Done" only left decorate mode (Save was in the side panel),
+  and leaving asked "Leave without saving?". Fixed: Done → "💾 Save & done", Leave saves, the star bar says
+  what's missing. The 4 tables you saw were the free starter set (shown until you place your own).
+- `kopitiam_floor` essentials: kitchen dropped (the counter has stoves).
+- `ui/property/shopDoor.ts`: the shop / lofts choice. `app.shopLabel(b)` names the business.
+- `FloorPlan.frontTop` + `frontRow()`; `shopFrontTop(b)` (building's main door faces up). Used by the server
+  (`PropertySystem.frontTop`, cached) and the client (`HomeScene.frontTop`; `ShopFloor` mirrors the counter
+  band with `my()`). Furniture keeps its cells. Tests: shared/src/property/property.test.ts.
+- `stallLayer`: a kopitiam's cooks aren't drawn outside.
+- Checked in a browser (test-results/topshop.cjs): choice panel, top-door view, Save & done → server stars
+  match the bar.
 
 ## 🏪 Shoplot doors (2026-11-21, your report, v1.9.6)
 - Bug: `app.walkIntoDoor` checked the lofts (listings) before the shop, so a kopitiam / Venture shoplot with

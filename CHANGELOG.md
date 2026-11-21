@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.9.7 (2026-11-21)
+- **🏪 Shoplot doors give you a choice.** At a shoplot with a business and lofts, walking in asks: go in the shop
+  ("🍔 Go in your Burger Bakar" / "☕ Visit Ali's kopitiam") or the lofts ("🏷️ Lofts upstairs · 2 for sale" /
+  "🪜 Up to your loft"). The prompt shows both: "🍔 Your Burger Bakar Abang Jo · 🏷️ 2 lofts for sale".
+  Without lofts it goes straight in.
+- **⭐ Shop stars now go up when you decorate.** "✅ Done" used to stop decorating *without saving*, so your
+  shop kept being rated as an empty room (0.5★, −16% customers). Now:
+  - the button says **💾 Save & done** and saves first;
+  - **Leave** saves too (if it can't, it says why and asks);
+  - the star bar names what's missing ("needs toilet"). Missing must-haves cap the stars.
+- **A kopitiam no longer needs a kitchen piece.** Its counter already has the stoves. Its must-haves are
+  aircond, wifi and a toilet, like any shop.
+- **Shops face the door you came in by.** A shoplot whose door is on its top side has its door in the top wall
+  inside. You walk in at the top, and the counter, cashier and cooks are along the bottom. The rating's
+  walkway check uses that door too.
+- **No more cooks standing outside kopitiams.** They're inside at the stoves.
+
 ## 1.9.6 (2026-11-21)
 - **🏪 A shoplot you run is your shop's door, not a home for sale.** Walking into your kopitiam (or anyone's
   kopitiam or Venture) used to open the lofts upstairs with "🎁 Claim free (first home)". It now goes straight

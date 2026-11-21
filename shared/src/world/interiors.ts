@@ -87,6 +87,12 @@ export function doorSide(b: Pick<BuiltBuilding, 'bbox'>, d: { x: number; y: numb
   return { side: d.ny > 0 ? 'bottom' : 'top', at: Math.max(0, Math.min(1, (d.x - b.bbox.x0) / bw)) };
 }
 
+/** A shop floor faces its building's main door: true when that door is on the top side (the
+ *  shop's door is then in its top wall, the counter along the bottom). */
+export function shopFrontTop(b: Pick<BuiltBuilding, 'bbox' | 'door'>): boolean {
+  return !!b.door && doorSide(b, b.door).side === 'top';
+}
+
 /** Is a player at tile (tx, ty) standing at one of this building's doors? (server check) */
 export function atDoor(map: Pick<BuiltMap, 'buildings'>, buildingId: string, tx: number, ty: number, radius: number): boolean {
   const b = map.buildings.find((x) => x.id === buildingId);

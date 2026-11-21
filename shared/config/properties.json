@@ -1,7 +1,7 @@
 {
   "types": {
     "shop_floor": {"name": "Shop", "icon": "🏪", "w": 10, "h": 12, "priceSen": 1, "rentPerDaySen": 1, "nightBaseSen": 1, "bedrooms": 0, "shop": true, "essentials": ["aircond", "wifi", "toilet"]},
-    "kopitiam_floor": {"name": "Kopitiam", "icon": "☕", "w": 12, "h": 14, "priceSen": 1, "rentPerDaySen": 1, "nightBaseSen": 1, "bedrooms": 0, "shop": true, "essentials": ["aircond", "wifi", "toilet", "kitchen"]},
+    "kopitiam_floor": {"name": "Kopitiam", "icon": "☕", "w": 12, "h": 14, "priceSen": 1, "rentPerDaySen": 1, "nightBaseSen": 1, "bedrooms": 0, "shop": true, "essentials": ["aircond", "wifi", "toilet"]},
     "studio":   { "name": "Studio flat",      "icon": "🏢", "w": 10, "h": 8,  "priceSen": 2500000,   "requires": { "stage": 2 }, "rentPerDaySen": 30000,   "nightBaseSen": 70000, "bedrooms": 0 },
     "condo2":   { "name": "2-bedroom condo",  "icon": "🏙️", "w": 13, "h": 10,  "priceSen": 9000000,   "requires": { "stage": 3 }, "rentPerDaySen": 100000,  "nightBaseSen": 230000, "bedrooms": 2 },
     "condo3":   { "name": "3-bedroom condo",  "icon": "🏙️", "w": 15, "h": 11,  "priceSen": 22000000,  "requires": { "stage": 3 }, "rentPerDaySen": 230000,  "nightBaseSen": 520000, "bedrooms": 3 },

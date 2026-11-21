@@ -26,6 +26,7 @@ import { openStallPanel } from './ui/stall/stallPanel';
 import { openCasinoGame } from './ui/casino';
 import { refreshSpin } from './ui/phone/spin';
 import { sfx } from './ui/sound';
+import { openShopDoor } from './ui/property/shopDoor';
 import { Joystick } from './input/joystick';
 import { Keyboard } from './input/keyboard';
 import { checkSession, clearToken, fetchPublicConfig, loadToken } from './net/api';
@@ -831,18 +832,31 @@ export class App {
     return plot && s ? { plot, s } : null;
   }
 
-  doorPrompt(b: BuiltBuilding): string {
-    const kopi = this.kopitiamIn(b);
+  /** The business in a shoplot (a kopitiam or a Venture): the door prompt and the "go in" button. */
+  shopLabel(b: BuiltBuilding): { text: string; button: string } | null {
     const me = this.lastInit?.you.id;
-    // A loft of yours upstairs: the shop's stairs take you there.
-    const loft = this.listings.some((u) => u.building === b.id && this.store.props.get(u.id)?.owner === me) ? ' · 🪜 your loft upstairs' : '';
-    if (kopi) return (kopi.s.owner === me ? '🏪 Your kopitiam · go in to cook' : `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'} · go in`) + loft;
-    // A shoplot claimed by a business is that business's door (no lofts for sale here).
+    const kopi = this.kopitiamIn(b);
+    if (kopi) {
+      if (kopi.s.owner === me) return { text: '🏪 Your kopitiam', button: '🍳 Go in your kopitiam' };
+      return { text: `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'}`, button: `☕ Visit ${kopi.s.ownerName}'s kopitiam` };
+    }
     const lot = this.store.shoplots.find((s) => s.building === b.id);
-    if (lot) {
-      const t = this.cfg.businesses.types.find((x) => x.id === lot.ref);
-      const name = t?.name ?? 'shop';
-      return `${t?.icon ?? '🏪'} ${lot.ownerId === me ? `Your ${name}` : `${lot.ownerName}'s ${name}`} · go in${loft}`;
+    if (!lot) return null;
+    const t = this.cfg.businesses.types.find((x) => x.id === lot.ref);
+    const icon = t?.icon ?? '🏪', name = t?.name ?? 'shop';
+    if (lot.ownerId === me) return { text: `${icon} Your ${name}`, button: `${icon} Go in your ${name}` };
+    return { text: `${icon} ${lot.ownerName}'s ${name}`, button: `${icon} Visit ${lot.ownerName}'s shop` };
+  }
+
+  doorPrompt(b: BuiltBuilding): string {
+    const me = this.lastInit?.you.id;
+    // A business downstairs: its name, then the lofts upstairs (yours, or how many are for sale).
+    const shop = this.shopLabel(b);
+    if (shop) {
+      const lofts = this.listings.filter((u) => u.building === b.id);
+      const free = lofts.filter((u) => !this.store.props.has(u.id)).length;
+      const loft = lofts.some((u) => this.store.props.get(u.id)?.owner === me) ? ' · 🪜 your loft' : free ? ` · 🏷️ ${free} loft${free > 1 ? 's' : ''} for sale` : '';
+      return `${shop.text}${loft}`;
     }
     const units = this.listings.filter((u) => u.building === b.id);
     if (units.length) {
@@ -865,14 +879,16 @@ export class App {
    */
   walkIntoDoor(b: BuiltBuilding): boolean {
     if (this.interior || this.home) return true;
-    // A shoplot run as a kopitiam or a Venture: its door is the shop's (the lofts are up its stairs).
-    if (this.shopCtxFor(b)) {
+    // A shoplot run as a kopitiam or a Venture: go in the shop, or up to the lofts (pick one).
+    const shop = this.shopLabel(b);
+    if (shop) {
       if (this.store.riding) {
         sfx.locked();
         toast('Hop off your ride first (press its hotbar key).');
         return false;
       }
-      this.enterBuilding(b); // plays the door sound once it opens
+      if (!this.listings.some((u) => u.building === b.id)) this.enterBuilding(b); // plays the door sound once it opens
+      else openShopDoor(this, b, shop.button);
       return true;
     }
     const units = this.listings.filter((u) => u.building === b.id);

@@ -37,8 +37,15 @@ export interface FloorPlan {
   /** Room index of every cell (y * w + x). */
   roomAt: Int8Array;
   doors: Doorway[];
-  /** The front door's two cells along the bottom wall. */
+  /** The front door's two cells along the bottom wall (the top wall when frontTop). */
   front: [number, number];
+  /** A shop whose street door is on the building's top side: its door is in the top wall. */
+  frontTop?: boolean;
+}
+
+/** The row the front door opens onto. */
+export function frontRow(plan: Pick<FloorPlan, 'h' | 'frontTop'>): number {
+  return plan.frontTop ? 0 : plan.h - 1;
 }
 
 const ICON: Record<RoomKind, string> = { living: '🛋️', bedroom: '🛏️', kitchen: '🍳', bath: '🚿', office: '💼' };
@@ -161,6 +168,6 @@ export function doorwayCells(plan: FloorPlan): Array<[number, number]> {
     if (d.side === 'v') out.push([d.x - 1, d.y], [d.x, d.y]);
     else out.push([d.x, d.y - 1], [d.x, d.y]);
   }
-  for (const x of plan.front) out.push([x, plan.h - 1]);
+  for (const x of plan.front) out.push([x, frontRow(plan)]);
   return out;
 }

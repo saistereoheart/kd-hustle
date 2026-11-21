@@ -130,3 +130,21 @@ describe('listings', () => {
     expect(units.some((u) => u.type === 'studio')).toBe(true);
   });
 });
+
+describe('shop floors with the door in the top wall', () => {
+  const t = properties.types.shop_floor;
+  // A row of wardrobes (2×1) across the row in front of the door: top row (y 0) or bottom row.
+  const wall = (y: number): Placed[] => Array.from({ length: Math.floor(t.w / 2) }, (_, i) => ({ iid: i + 1, item: 'wardrobe', x: i * 2, y, rot: 0 }));
+  it('checks the walkway from the door it actually has', () => {
+    const shop = { w: t.w, h: t.h, type: 'shop_floor' };
+    expect(rateUnit(cfg, shop, wall(0), 100).blocked).toBe(false); // a bottom door: the top row is just a wall of wardrobes
+    expect(rateUnit(cfg, { ...shop, frontTop: true }, wall(0), 100).blocked).toBe(true); // a top door: they block it
+    expect(rateUnit(cfg, { ...shop, frontTop: true }, wall(t.h - 1), 100).blocked).toBe(false);
+  });
+  it('keeps the top doorway clear, not the bottom one', () => {
+    const shop = { w: t.w, h: t.h, type: 'shop_floor', frontTop: true };
+    const mid = Math.floor(t.w / 2) - 1;
+    expect(layoutProblem(cfg, shop, [{ iid: 1, item: 'toilet', x: mid, y: 0, rot: 0 }])).not.toBeNull();
+    expect(layoutProblem(cfg, shop, [{ iid: 1, item: 'toilet', x: mid, y: t.h - 1, rot: 0 }])).toBeNull();
+  });
+});

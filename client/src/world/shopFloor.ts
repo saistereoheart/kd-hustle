@@ -88,16 +88,31 @@ export class ShopFloor {
   /** The register's x (px) and the counter's left end. */
   readonly regX: number;
   private readonly c0: number;
+  /** The door is in the top wall: everything is mirrored top-to-bottom (the counter along the
+   *  bottom, the stoves against the bottom wall). Furniture keeps its own cells. */
+  private readonly flip: boolean;
+  /** The floor's height (px). */
+  private readonly HP: number;
+  /** A y (px) as laid out for a bottom door, mirrored for a top door. */
+  private my(y: number) {
+    return this.flip ? this.HP - y : y;
+  }
+  /** Facing towards the back (the stoves / the counter). */
+  private get back(): Dir {
+    return this.flip ? 'down' : 'up';
+  }
 
   constructor(
     private scene: Phaser.Scene,
     private app: App,
     readonly ctx: ShopCtx,
-    private g: { C: number; W: number; H: number; front: [number, number] },
+    private g: { C: number; W: number; H: number; front: [number, number]; frontTop?: boolean },
     private layout: () => Placed[],
     private stars: () => number,
   ) {
     const { C, W } = g;
+    this.flip = !!g.frontTop;
+    this.HP = g.H * C;
     this.c0 = 2 * C;
     this.regX = (W - 1.6) * C;
     this.walkers = new Walkers(scene, app.cfg.character, app.items, 8, 62);
@@ -142,7 +157,7 @@ export class ShopFloor {
         }
       }
     });
-    this.objs.push(this.scene.add.image(0, -S, backKey).setOrigin(0).setDepth(-4));
+    this.objs.push(this.scene.add.image(0, this.flip ? this.HP : -S, backKey).setOrigin(0).setFlipY(this.flip).setDepth(-4));
     // The counter: drawn over the staff (they stand behind it), under customers in front of it.
     const cw = w - this.c0, ch = C * 1.05;
     const counterKey = bake(this.scene, `shopcounter_${this.ctx.kind}_${W}`, cw, ch + 8, (g) => {
@@ -161,7 +176,8 @@ export class ShopFloor {
         g.lineStyle(2, 0xffffff, 0.8).strokeRoundedRect(dx, 2, dw, ch * 0.42, 4);
       }
     });
-    this.objs.push(this.scene.add.image(this.c0, -ch, counterKey).setOrigin(0).setDepth(AVATAR_DEPTH + 2));
+    // (Mirrored: below the floor's edge, under the staff standing in front of it.)
+    this.objs.push(this.scene.add.image(this.c0, this.flip ? this.HP : -ch, counterKey).setOrigin(0).setDepth(AVATAR_DEPTH + (this.flip ? this.HP : 0) + 2));
     // The register on the counter (in front of the cashier).
     const regKey = bake(this.scene, 'shop_register', C, C * 0.7, (g) => {
       g.fillStyle(0x343a40, 1).fillRoundedRect(C * 0.12, C * 0.25, C * 0.76, C * 0.4, 4);
@@ -169,10 +185,10 @@ export class ShopFloor {
       g.fillStyle(0x69db7c, 1).fillRect(C * 0.36, C * 0.05, C * 0.38, C * 0.16);
       for (let i = 0; i < 3; i++) g.fillStyle(0xadb5bd, 1).fillRect(C * 0.2 + i * C * 0.2, C * 0.36, C * 0.14, C * 0.08);
     });
-    this.objs.push(this.scene.add.image(this.regX, -ch + C * 0.32, regKey).setOrigin(0.5, 0.5).setDepth(AVATAR_DEPTH + 3));
+    this.objs.push(this.scene.add.image(this.regX, this.flip ? this.HP + C * 0.3 : -ch + C * 0.32, regKey).setOrigin(0.5, 0.5).setDepth(AVATAR_DEPTH + (this.flip ? this.HP : 0) + 3));
     // The shop's sign over the counter.
     const sign = this.scene.add
-      .text(w / 2, -S + C * 1.25, this.ctx.icon, { fontFamily: 'system-ui, sans-serif', fontSize: '22px', resolution: 3 })
+      .text(w / 2, this.my(-S + C * 1.25), this.ctx.icon, { fontFamily: 'system-ui, sans-serif', fontSize: '22px', resolution: 3 })
       .setOrigin(0.5)
       .setAlpha(0.9)
       .setDepth(-3);
@@ -185,9 +201,10 @@ export class ShopFloor {
     const r = seeded(this.ctx.building);
     if (this.ctx.cashier) {
       const av = new Avatar(this.scene, this.app.cfg.character, this.app.items, {
-        name: this.ctx.cashier, level: 1, appearance: randomAppearance(this.app.cfg.character, r), x: this.regX + C * 0.05, y: -C * 0.62, isSelf: false, npc: true, particles,
+        // Behind the counter (mirrored: in front of it, on the staff side, facing the floor).
+        name: this.ctx.cashier, level: 1, appearance: randomAppearance(this.app.cfg.character, r), x: this.regX + C * 0.05, y: this.flip ? this.HP + C * 1.85 : -C * 0.62, isSelf: false, npc: true, particles,
       });
-      av.setState('down', false);
+      av.setState(this.flip ? 'up' : 'down', false);
       av.playEmote('sit', { emoji: '🧾', loop: true, durationMs: 0 }, false);
       this.cashierAv = av;
       this.scene.time.delayedCall(450, () => this.cashierAv?.say(this.ctx.greeting, 4200));
@@ -202,9 +219,9 @@ export class ShopFloor {
     for (let i = 0; i < n; i++) {
       const x = stoves[Math.floor((i + 0.5) * (stoves.length / n))] ?? stoves[0];
       const av = new Avatar(this.scene, this.app.cfg.character, this.app.items, {
-        name: '', level: 1, appearance: randomAppearance(this.app.cfg.character, r), x, y: -SERVICE_ROWS * C + C * 1.55, isSelf: false, npc: true, particles,
+        name: '', level: 1, appearance: randomAppearance(this.app.cfg.character, r), x, y: this.my(-SERVICE_ROWS * C + C * 1.55), isSelf: false, npc: true, particles,
       });
-      av.setState('up', false);
+      av.setState(this.back, false);
       this.cooks.push({ av, stoves, target: x, until: performance.now() + 2000 + i * 1500 });
     }
   }
@@ -312,15 +329,15 @@ export class ShopFloor {
     const { C, H, front } = this.g;
     const kopi = this.ctx.kind === 'kopitiam';
     const fx = ((front[0] + front[1] + 1) / 2) * C;
-    const door: [number, number] = [Math.floor(fx / C), H - 1];
-    const counter: [number, number] = [Math.max(0, Math.min(this.g.W - 1, Math.floor(this.regX / C))), 0];
+    const door: [number, number] = [Math.floor(fx / C), this.flip ? 0 : H - 1];
+    const counter: [number, number] = [Math.max(0, Math.min(this.g.W - 1, Math.floor(this.regX / C))), this.flip ? H - 1 : 0];
     const solid = this.solidCells();
     const pt = (c: [number, number]) => ({ x: (c[0] + 0.5) * C, y: (c[1] + 0.75) * C });
     const toCounter = this.route(door, counter, solid);
     if (!toCounter) return;
     const lines = kopi ? COUNTER_LINES.kopitiam : COUNTER_LINES.shop;
     const steps: Parameters<Walkers['walk']>[1] = toCounter.map(pt);
-    steps.push({ x: this.regX, y: C * 0.55, face: 'up', say: lines[Math.floor(Math.random() * lines.length)], waitMs: 1700 });
+    steps.push({ x: this.regX, y: this.flip ? this.HP - C * 0.2 : C * 0.55, face: this.back, say: lines[Math.floor(Math.random() * lines.length)], waitMs: 1700 });
     // A free seat (and a route there and back), or it's a takeaway.
     const free = this.seats().filter((s) => !this.busy.has(s.key));
     const seat = free.length && Math.random() < 0.8 ? free[Math.floor(Math.random() * free.length)] : null;
@@ -360,8 +377,9 @@ export class ShopFloor {
       });
       steps.push(...back.slice(1).map(pt));
     } else if (back) steps.push(...back.slice(1).map(pt));
-    steps.push({ x: fx, y: H * C + C * 0.8 });
-    const ok = this.walkers.walk({ x: fx, y: H * C + C * 0.8 }, steps, undefined, () => seat && this.busy.delete(seat.key));
+    const outside = this.flip ? -C * 0.8 : H * C + C * 0.8;
+    steps.push({ x: fx, y: outside });
+    const ok = this.walkers.walk({ x: fx, y: outside }, steps, undefined, () => seat && this.busy.delete(seat.key));
     if (!ok && seat) this.busy.delete(seat.key);
   }
 
@@ -383,7 +401,7 @@ export class ShopFloor {
         c.av.setPosition(c.av.x + Math.sign(dx) * Math.min(Math.abs(dx), 1.1), c.av.y);
         c.av.setState(dx > 0 ? 'right' : 'left', true);
       } else {
-        c.av.setState('up', false);
+        c.av.setState(this.back, false);
         if (now > c.until) {
           c.target = c.stoves[Math.floor(Math.random() * c.stoves.length)];
           c.until = now + 3500 + Math.random() * 4000;
@@ -396,8 +414,8 @@ export class ShopFloor {
       this.steam = now + 700;
       for (const c of this.cooks) {
         if (Math.abs(c.target - c.av.x) > 2) continue;
-        const y0 = -SERVICE_ROWS * C + C * 0.45;
-        const puff = this.scene.add.circle(c.av.x + (Math.random() - 0.5) * C * 0.6, y0, 4 + Math.random() * 4, 0xffffff, 0.55).setDepth(AVATAR_DEPTH - SERVICE_ROWS * C + 20);
+        const y0 = this.my(-SERVICE_ROWS * C + C * 0.45);
+        const puff = this.scene.add.circle(c.av.x + (Math.random() - 0.5) * C * 0.6, y0, 4 + Math.random() * 4, 0xffffff, 0.55).setDepth(this.flip ? AVATAR_DEPTH + y0 + 40 : AVATAR_DEPTH - SERVICE_ROWS * C + 20);
         this.scene.tweens.add({ targets: puff, y: y0 - C * 0.9, alpha: 0, scale: 2.2, duration: 1300, onComplete: () => puff.destroy() });
         if (Math.random() < 0.15) {
           const e = this.scene.add.text(c.av.x, y0 - 6, COOKING[Math.floor(Math.random() * COOKING.length)], { fontSize: '14px', resolution: 3 }).setOrigin(0.5).setDepth(AVATAR_DEPTH + 10);
@@ -451,7 +469,7 @@ export class ShopFloor {
   /** What's within reach at this spot (px), if anything. */
   near(x: number, y: number): ShopFixture | null {
     const { C } = this.g;
-    if (y > C * 1.15) return null;
+    if (this.flip ? y < this.HP - C * 1.15 : y > C * 1.15) return null;
     if (x < this.c0) return this.ctx.stairs ?? null;
     if (this.ctx.till && Math.abs(x - this.regX) < C * 1.1) return this.ctx.till;
     if (this.ctx.counter) return this.ctx.counter;

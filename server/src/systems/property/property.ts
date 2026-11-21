@@ -6,6 +6,7 @@
 // Owners who are online are processed live; an owner who was away is caught up on login (up to
 // the offline cap, at the offline efficiency) and gets a "while you were away" summary.
 import {
+  shopFrontTop,
   bookingChance, buildListings, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
   type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit, type ShopView } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
@@ -156,6 +157,20 @@ export class PropertySystem {
     this.byUnit.set(unitId, u);
   }
 
+  /** A shop floor whose door is in its top wall (its building's main door faces up). */
+  private frontTop(unitId: string): boolean {
+    if (!unitId.endsWith(SHOP_SUFFIX)) return false;
+    let v = this.frontTops.get(unitId);
+    if (v === undefined) {
+      const id = unitId.slice(0, -SHOP_SUFFIX.length);
+      const b = this.cfg.map.buildings.find((x) => x.id === id);
+      v = !!b && shopFrontTop(b);
+      this.frontTops.set(unitId, v);
+    }
+    return v;
+  }
+  private frontTops = new Map<string, boolean>();
+
   isShop(unitId: string): boolean {
     const s = this.props.get(unitId);
     return !!s && !!this.cfg.properties.types[s.type]?.shop;
@@ -247,7 +262,7 @@ export class PropertySystem {
 
   ratingOf(s: PropState): Rating {
     const t = this.cfg.properties.types[s.type];
-    return rateUnit(this.rating, { w: t.w, h: t.h, type: s.type }, s.layout, s.cleanliness);
+    return rateUnit(this.rating, { w: t.w, h: t.h, type: s.type, frontTop: this.frontTop(s.unit) }, s.layout, s.cleanliness);
   }
 
   all(): PropPublic[] {
@@ -273,7 +288,7 @@ export class PropertySystem {
         fairNightSen: this.fairNight(p, s, r.stars),
         fairRentSen: this.fairRent(p, s, r.stars),
         happiness: s.tenant ? tenantHappiness(s.condition, r.stars, s.rentSen, this.fairRent(p, s, r.stars), this.tenantDef(s.tenant.kind).rentTolerance) : null,
-        suggestions: suggestions(this.rating, { w: t.w, h: t.h, type: s.type, loc: u.loc }, s.layout, s.cleanliness, ownedFree),
+        suggestions: suggestions(this.rating, { w: t.w, h: t.h, type: s.type, loc: u.loc, frontTop: this.frontTop(s.unit) }, s.layout, s.cleanliness, ownedFree),
         loc: u.loc,
       };
     });
@@ -452,7 +467,7 @@ export class PropertySystem {
       if (!inst || inst.itemId !== pl.item) throw new GameError("You don't own one of those pieces any more.");
       if (elsewhere.has(pl.iid)) throw new GameError('That piece is already in another of your homes.');
     }
-    const problem = layoutProblem(this.rating, { w: t.w, h: t.h, type: s.type }, layout);
+    const problem = layoutProblem(this.rating, { w: t.w, h: t.h, type: s.type, frontTop: this.frontTop(s.unit) }, layout);
     if (problem) throw new GameError(problem);
     s.layout = layout.map((pl) => ({ iid: pl.iid, item: pl.item, x: pl.x, y: pl.y, rot: ((pl.rot % 4) + 4) % 4 }));
     this.save(s);

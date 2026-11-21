@@ -8,7 +8,7 @@
 // Every factor is 0..1. Suggestions are found by trying a change (buy a piece, clean, remove
 // one) and re-rating, so the predicted gain is exactly what the change would do.
 import type { FurnitureConfig, FurniturePiece, Placed, PropertiesConfig } from './schemas';
-import { doorwayCells, openPlan, planForType, roomIndex, wallBetween, type FloorPlan, type RoomKind } from './floorPlan';
+import { doorwayCells, frontRow, openPlan, planForType, roomIndex, wallBetween, type FloorPlan, type RoomKind } from './floorPlan';
 
 export interface RatingCfg {
   furniture: FurnitureConfig;
@@ -110,9 +110,11 @@ function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a:
 }
 
 /** The unit's floor plan: rooms for a known home type, else one open room. */
-export function unitPlan(cfg: RatingCfg, unit: { w: number; h: number; type?: string }): FloorPlan {
+export function unitPlan(cfg: RatingCfg, unit: { w: number; h: number; type?: string; frontTop?: boolean }): FloorPlan {
   const t = unit.type ? cfg.properties.types[unit.type] : undefined;
-  return t && t.w === unit.w && t.h === unit.h ? planForType(t, unit.type!) : openPlan(unit.w, unit.h);
+  const plan = t && t.w === unit.w && t.h === unit.h ? planForType(t, unit.type!) : openPlan(unit.w, unit.h);
+  if (unit.frontTop) plan.frontTop = true;
+  return plan;
 }
 
 /** Free floor cells that can't be reached from the front door (walls and doorways count). */
@@ -125,7 +127,7 @@ function walkwayBlocked(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): bool
     const [w, h] = footprint(p, pl.rot);
     for (let y = pl.y; y < pl.y + h; y++) for (let x = pl.x; x < pl.x + w; x++) if (x >= 0 && y >= 0 && x < W && y < H) solid[y * W + x] = 1;
   }
-  const start = (H - 1) * W + plan.front[1];
+  const start = frontRow(plan) * W + plan.front[1];
   if (solid[start]) return true;
   const seen = new Uint8Array(W * H);
   const q = [start];
@@ -224,7 +226,7 @@ function roomsFit(cfg: RatingCfg, plan: FloorPlan, placed: Placed[]): { factor: 
   return { factor: 0.6 * fit + 0.4 * complete, fit, complete, misplaced, status };
 }
 
-export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[], cleanliness: number): Rating {
+export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: string; frontTop?: boolean }, placed: Placed[], cleanliness: number): Rating {
   const a = aggregate(cfg, placed);
   const blocked = walkwayBlocked(cfg, unitPlan(cfg, unit), placed);
   const plan = unitPlan(cfg, unit);
@@ -235,7 +237,7 @@ export function rateUnit(cfg: RatingCfg, unit: { w: number; h: number; type?: st
 // ------------------------------------------------------------------ layout rules
 /** Why a layout is invalid (out of the home, across a wall, overlapping, blocking a doorway, a
  *  wall item not on a wall), or null. */
-export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, placed: Placed[]): string | null {
+export function layoutProblem(cfg: RatingCfg, unit: { w: number; h: number; type?: string; frontTop?: boolean }, placed: Placed[]): string | null {
   const plan = unitPlan(cfg, unit);
   const W = plan.w, H = plan.h;
   const grid = new Int32Array(W * H).fill(-1);
@@ -325,7 +327,7 @@ export interface Suggestion {
  */
 export function suggestions(
   cfg: RatingCfg,
-  unit: { w: number; h: number; type: string; loc: number },
+  unit: { w: number; h: number; type: string; loc: number; frontTop?: boolean },
   placed: Placed[],
   cleanliness: number,
   owned: string[],
