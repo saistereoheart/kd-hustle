@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.9.7)_
+_Last updated: 2026-11-21 (v1.10.0)_
 
-**Now at v1.9.7 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.10.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 372 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 382 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.9.7 reaches the game only then.
+   from v1.8.2 to v1.10.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,30 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🗝️ Labirin Purba, phase 1 of 5: explore (2026-11-21, your request, v1.10.0)
+Design and phases: `docs/LABYRINTH.md` (GAME_SPEC §22 points there).
+- **Shared:**
+  - `shared/src/lab/`: `config.ts` (`labyrinth.json`), `generate.ts` (seeded floors, room layouts; tested),
+    `view.ts` (messages, seen bitsets).
+  - The floors have 1,120 rooms. Rest chambers are 21–56 rooms from the start; bosses 29–75.
+- **Server:**
+  - `systems/lab/lab.ts` (+ tests): save in playerData `lab`; enter / leave / move / door / use (chest, key,
+    rest, stairs, exit), checked against the room layout.
+  - `game/labHandlers.ts`: socket rooms `lab:<floor>:<room>`, "who's here" lists, room snapshots from the
+    town snapshot tick. While inside you're `interior: 'lab'` in town (hidden at your spot).
+- **Client:**
+  - `world/labScene.ts` (rooms, doors, walking, others); `ui/lab/labHud.ts` (bar, minimap, full map — M);
+    `ui/lab/labPanel.ts` (📱 Labirin).
+  - Hotbar off inside; town pins and minimap hidden.
+- **Bug found on the way:** a volatile emit right after another on the same connection is dropped
+  (the socket is still busy). The lab snapshots go out non-volatile. The snapshot loop now survives a
+  failing tick.
+- **Decisions:**
+  - A dropped connection takes you out; you come back at your rest chamber with carried coins kept.
+  - The entrance hall is a save point too.
+  - Boss fights gate the stairs from phase 5 (open for now).
+- Checked in a browser: test-results/labwalk.cjs, labtwo.cjs (two players see each other walk).
 
 ## 🏪 Shop doors, stars, facing (2026-11-21, your reports, v1.9.7)
 - **Your 0.5★ shop:** your save had every shop floor's layout empty. Account 1's aircons, wifi, lights and

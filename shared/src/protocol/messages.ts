@@ -17,6 +17,7 @@ import type { ActiveEvent } from '../events/events';
 import type { MarketListing, MarketSale } from '../market/market';
 import type { RebirthView } from '../rebirth/rebirth';
 import type { DungeonLoot, DungeonView } from '../dungeon/dungeon';
+import type { LabOther, LabRoomView, LabSelf } from '../lab/view';
 import { PET_STATS, type BattleEvent, type PetsView } from '../pets/pets';
 import { GARAGE_PARTS, type GarageView, type VehicleLook } from '../garage/garage';
 import { rouletteBetSchema, type BlackjackView, type Card, type CasinoSession, type CrashView, type RouletteView, type WheelView } from '../casino/casino';
@@ -753,6 +754,13 @@ export interface ClientToServerEvents {
   'market:view': (ack: Ack<Result<{ listings: MarketListing[] }>>) => void;
   'rebirth:view': (ack: Ack<Result<{ view: RebirthView }>>) => void;
   /** ⚔️ Gua Gelap: runs left today, best floor, the run in progress. */
+  // 🗝️ Labirin Purba
+  'lab:self': (ack: Ack<Result<{ self: LabSelf }>>) => void;
+  'lab:enter': (msg: { at?: 'save' | 'entrance' }, ack: Ack<Result<{ view: LabRoomView }>>) => void;
+  'lab:leave': (ack: Ack<Result<{ self: LabSelf }>>) => void;
+  'lab:move': (msg: { x: number; y: number; dir: Direction; moving: boolean }) => void;
+  'lab:door': (msg: { dir: 'n' | 'e' | 's' | 'w' }, ack: Ack<Result<{ view: LabRoomView }>>) => void;
+  'lab:use': (msg: { what: 'chest' | 'key' | 'rest' | 'down' | 'up' | 'exit' }, ack: Ack<Result<{ text: string; view?: LabRoomView; self: LabSelf; left?: boolean }>>) => void;
   'dungeon:view': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:enter': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:act': (msg: { action: 'attack' | 'charge' | 'ultimate' | 'auto'; skip?: boolean }, ack: Ack<Result<{ events: BattleEvent[]; view: DungeonView; paid: DungeonLoot | null; levelUps: Array<{ name: string; level: number }> }>>) => void;
@@ -824,6 +832,11 @@ export interface ServerToClientEvents {
   init: (p: InitPayload) => void;
   'player:joined': (p: PlayerPublic) => void;
   'player:left': (p: { id: number }) => void;
+  /** 🗝️ The others in your labyrinth room: who's here (on any change) and where (15 a second). */
+  'lab:others': (p: { room: string; others: LabOther[] }) => void;
+  'lab:snap': (p: { t: number; p: Array<[number, number, number, number, number]> }) => void;
+  /** 🗝️ A labyrinth step was refused: this is where you are. */
+  'lab:correct': (p: { x: number; y: number }) => void;
   'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null; pet?: PetPublic | null }) => void;
   'parked:update': (p: { parked: ParkedPublic }) => void;
   'shoplots': (p: { shoplots: ShoplotPublic[] }) => void;

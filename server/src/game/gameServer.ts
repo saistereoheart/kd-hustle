@@ -217,7 +217,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
 
     // --- movement -------------------------------------------------------------------
     socket.on('move', (msg) => {
-      if (!me.hasCharacter) return;
+      if (!me.hasCharacter || me.lab) return; // in the labyrinth: lab:move instead
       if (me.ride || economy.isCarried(me)) return; // Ronda / ride-along passengers are moved by the server
       const parsed = C2S.move.safeParse(msg);
       if (!parsed.success) return;
@@ -371,6 +371,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const reply = typeof ack === 'function' ? ack : () => {};
       const parsed = C2S.interior.safeParse(msg);
       if (!parsed.success || !me.hasCharacter) return reply({ ok: false, error: 'Bad request' });
+      if (me.lab) return reply({ ok: false, error: "You're in the labyrinth." });
       const id = parsed.data.building;
       if (id !== null) {
         const b = cfg.map.buildings.find((x) => x.id === id);
@@ -404,6 +405,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       // Save straight away (never lose progress), but keep them in the world for a short grace
       // period: a WiFi hiccup reconnects without anyone noticing. Logging out leaves at once.
       try {
+        economy.labDrop(current); // out of the labyrinth (you come back at your rest chamber)
         economy.flushManifest(current);
         economy.saveProgress(current);
         saves.saveNow(current); // save trigger 3
@@ -426,6 +428,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
           log.error(`Save on leave failed for ${me.name}`, err);
         }
         world.remove(me.id);
+        economy.labForget(me.id);
         if (p.hasCharacter) io.to(p.scene).emit('player:left', { id: me.id });
         log.info(`${me.name} left (${world.players.size} online)`);
         if (skip.leave(me.id, onlineCount(), Date.now())) skipNight();
@@ -447,7 +450,11 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   let snapshotTimer: NodeJS.Timeout;
   const scheduleSnapshot = () => {
     snapshotTimer = setTimeout(() => {
-      sendSnapshots();
+      try {
+        sendSnapshots();
+      } catch (err) {
+        log.error('snapshot tick failed', err); // keep ticking: one bad tick mustn't freeze everyone
+      }
       nextSnap += period;
       const now = performance.now();
       if (now - nextSnap > period * 4) nextSnap = now + period; // after a long stall: don't burst to catch up
@@ -473,6 +480,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         });
       io.to(scene).volatile.emit('snapshot', { t, p: rows });
     }
+    economy.labSnapshots(t);
   };
   scheduleSnapshot();
 

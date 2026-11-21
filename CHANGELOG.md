@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.10.0 (2026-11-21): 🗝️ Labirin Purba, part 1 (explore)
+- **A new walkable dungeon.** Open 📱 → 🗝️ Labirin. It's 8 floors and 1,120 rooms. Each floor's layout is
+  fixed and the same for everyone.
+- **One room at a time.** You only see the room you're in. Walk through a door and you come in by the
+  opposite door of the next room. Pillars and rubble change from room to room.
+- **What's down there:**
+  - 📦 loot boxes (they refill daily);
+  - 🗝️ keys that open 🔒 treasure rooms elsewhere on the same floor;
+  - one 🔥 **rest chamber** per floor, your save point, deliberately far off the main path;
+  - 🕳️ stairs down in each floor's deepest room.
+- **Syiling Purba**, the labyrinth's own currency. Coins you find are *carried* until you rest at a campfire
+  or leave. Leave from the entrance hall or a rest chamber.
+- **Map.** A minimap of the rooms you've explored, and **M** (or a tap) for the whole floor with fog of war.
+- **Others in the same room** walk about with you.
+- Coming in parts 2–5: fights, the merchant and gear, parties, bosses. See `docs/LABYRINTH.md`.
+
 ## 1.9.7 (2026-11-21)
 - **🏪 Shoplot doors give you a choice.** At a shoplot with a business and lofts, walking in asks: go in the shop
   ("🍔 Go in your Burger Bakar" / "☕ Visit Ali's kopitiam") or the lofts ("🏷️ Lofts upstairs · 2 for sale" /

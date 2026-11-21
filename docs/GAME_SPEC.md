@@ -481,6 +481,9 @@ The higher crates (Towkay → Diamond Vault), end-game assets (Cascades penthous
 
 ---
 
+## 22. Labirin Purba (walkable dungeon, added 2026-11-21)
+The design and phases are in **`docs/LABYRINTH.md`** (source of truth for that feature).
+
 ## 21. Notes
 - All money is virtual and has no real-world value. There's no real-money purchase anywhere.
 - Real place names are used as inspiration for a private LAN game; brands, malls and shops use parody names.

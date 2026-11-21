@@ -1369,3 +1369,29 @@ body.portrait .rest-cards { grid-template-columns: 1fr; }
 /* Shoplot door: the shop or the lofts upstairs. */
 .shop-door { display: flex; flex-direction: column; gap: 10px; min-width: min(320px, 80vw); }
 .shop-door .btn { padding: 14px 16px; font-size: 16px; text-align: left; }
+
+/* 🗝️ Labirin Purba */
+body[data-lab] .minimap, body[data-lab] .fullmap-sheet { display: none !important; }
+.lab-hud {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 40;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  background: rgba(13, 15, 26, 0.88); color: #fff; border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px; padding: 6px 10px; font-size: 14px; max-width: calc(100vw - 32px);
+}
+.lab-hud .lab-coins { color: #ffe066; font-weight: 700; }
+.lab-minimap { position: fixed; top: calc(60px + var(--safe-t)); right: calc(8px + var(--safe-r)); z-index: 40; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.18); cursor: pointer; }
+body.touch .lab-minimap { transform: scale(0.8); transform-origin: top right; }
+.lab-fullmap { background: #10131f; color: #fff; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: 96vw; }
+.lab-fullmap-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; }
+.lab-fullmap-canvas { border-radius: 8px; max-width: 92vw; height: auto !important; }
+@media (max-width: 600px) {
+  .lab-hud { top: 64px; font-size: 12px; gap: 6px; }
+}
+.lab-panel .lab-stats { display: flex; gap: 18px; flex-wrap: wrap; margin: 8px 0; }
+.lab-panel .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+body[data-lab] .place-pointers { display: none !important; }
+.lab-coin {
+  display: inline-block; width: 1em; height: 1em; border-radius: 50%; vertical-align: -0.15em;
+  background: radial-gradient(circle at 35% 30%, #fff3bf 0 18%, #fcc419 40%, #e67700 100%);
+  box-shadow: inset 0 0 0 0.09em #b35900;
+}

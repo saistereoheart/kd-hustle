@@ -1,0 +1,19 @@
+{
+  "name": "Labirin Purba",
+  "floors": [
+    { "name": "Lorong Berlumut", "seed": 9101, "w": 12, "h": 12, "wall": "#5c5f66", "floor": "#8d8f94" },
+    { "name": "Bilik Akar", "seed": 9202, "w": 12, "h": 13, "wall": "#5d4a3a", "floor": "#8b7355" },
+    { "name": "Dewan Kristal", "seed": 9303, "w": 13, "h": 13, "wall": "#3b5b7a", "floor": "#7fa3c4" },
+    { "name": "Terowong Api", "seed": 9404, "w": 13, "h": 13, "wall": "#7a3b2e", "floor": "#b0654a" },
+    { "name": "Taman Hantu", "seed": 9505, "w": 13, "h": 14, "wall": "#3d5a45", "floor": "#6f8f74" },
+    { "name": "Perpustakaan Bisu", "seed": 9606, "w": 14, "h": 14, "wall": "#4b3f63", "floor": "#7d6f99" },
+    { "name": "Kubur Raja", "seed": 9707, "w": 14, "h": 14, "wall": "#2f2f3a", "floor": "#5a5a6e" },
+    { "name": "Takhta Purba", "seed": 9808, "w": 14, "h": 15, "wall": "#6b5420", "floor": "#b89442" }
+  ],
+  "gen": { "holes": 0.2, "loops": 0.12, "chests": 0.08, "monsters": 0.45, "treasure": 2 },
+  "room": { "w": 17, "h": 11 },
+  "coins": { "chest": 12, "perFloor": 0.35, "spread": 0.3, "treasureMult": 8 },
+  "deathLoss": 0.5,
+  "tile": 48,
+  "walkSpeed": 190
+}

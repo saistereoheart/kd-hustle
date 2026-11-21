@@ -13,6 +13,8 @@ import type { Repos } from '../db/repos';
 import { log } from '../log';
 import { Economy, GameError } from '../systems/economy/economy';
 import { cryptoRand, Gacha } from '../systems/gacha/gacha';
+import { LabSystem } from '../systems/lab/lab';
+import { createLabHandlers } from './labHandlers';
 import { DungeonSystem } from '../systems/dungeon/dungeon';
 import { PetSystem } from '../systems/pets/pets';
 import { GarageSystem } from '../systems/garage/garage';
@@ -251,6 +253,9 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
   });
   const garageSys = garage;
   const dungeon = new DungeonSystem(cfg, repos, econ, prog, pets, cryptoRand, { wallet: (p, delta, reason) => pushWallet(p, delta, reason) });
+  // 🗝️ Labirin Purba
+  const labSys = new LabSystem(cfg.lab, repos, () => cryptoRand(1_000_000) / 1_000_000);
+  const labNet = createLabHandlers(io as never, world, labSys, (p) => socketOf(p) as never);
   stalls = new StallSystem(cfg, repos, econ, prog, world, cryptoRand, {
     publicChanged: (list) => {
       io.emit('stalls', { stalls: list });
@@ -577,6 +582,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));
     ventures.register(socket, me, handle);
+    labNet.register(socket as never, me, handle as never);
     finance.register(socket, me, handle);
     casino.register(socket, me, handle);
     radio.register(socket, me, handle);
@@ -1031,6 +1037,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     register: (socket: AnySocket, me: OnlinePlayer) => {
       register(socket, me);
     },
+    /** 🗝️ Labirin Purba: positions in its rooms (with the town snapshots), and out when disconnected. */
+    labSnapshots: (t: number) => labNet.snapshots(t),
+    labDrop: (p: OnlinePlayer) => labNet.drop(p),
+    labForget: (id: number) => labSys.forget(id),
     /** After `init`: hand out anything already earned (titles, goals...) and send the progress. */
     afterInit: (p: OnlinePlayer, awayMs = 0) => {
       if (!p.hasCharacter) return;

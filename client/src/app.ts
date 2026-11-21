@@ -57,6 +57,8 @@ import { openSettings } from './ui/settings';
 import { TownScene } from './world/townScene';
 import { ambience } from './ui/ambience';
 import { InteriorScene, type ExtraStation } from './world/interiorScene';
+import { LabScene } from './world/labScene';
+import { LabHud } from './ui/lab/labHud';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
@@ -116,6 +118,9 @@ export class App {
   town: TownScene | null = null;
   /** The building we're inside (its interior scene runs over the town), or null. */
   interior: InteriorScene | null = null;
+  /** 🗝️ In Labirin Purba: the room scene and its HUD. */
+  lab: LabScene | null = null;
+  labHud: LabHud | null = null;
   /** Inside one of our own homes (its scene runs over the town), or null. */
   home: HomeScene | null = null;
   /** Every home for sale on the map (computed from the map + properties.json). */
@@ -202,6 +207,7 @@ export class App {
     this.game.scene.add('town', TownScene, false);
     this.game.scene.add('interior', InteriorScene, false);
     this.game.scene.add('home', HomeScene, false);
+    this.game.scene.add('lab', LabScene, false);
     this.bindKeys();
     loading.remove();
 
@@ -318,7 +324,7 @@ export class App {
       this.chat?.open();
     });
     this.keyboard.onPress('KeyQ', () => inTown() && !decorating() && this.emotes?.toggle());
-    this.keyboard.onPress('KeyM', () => inTown() && this.minimap?.toggleFull());
+    this.keyboard.onPress('KeyM', () => inTown() && (this.labHud ? this.labHud.openFull() : this.minimap?.toggleFull()));
     this.keyboard.onPress('KeyX', () => inTown() && !decorating() && this.town?.putAwayNearby());
     this.keyboard.onPress('KeyN', () => inTown() && this.minimap?.toggle());
     this.keyboard.onPress('KeyE', () => inTown() && !decorating() && !isPanelOpen() && this.interact());
@@ -340,6 +346,7 @@ export class App {
       else if (this.home && !decorating() && !isPanelOpen() && !this.minimap?.fullOpen && !this.chat?.isOpen && !document.querySelector('.modal-backdrop')) this.home.leave();
       this.emotes?.close();
       this.minimap?.closeFull();
+      this.labHud?.closeFull();
     });
     // 1-9, 0 use the hotbar. With the emote wheel open (Q) they fire emotes instead, so emotes
     // stay spammable from the keyboard. − is always Manifest.
@@ -360,6 +367,7 @@ export class App {
   // ------------------------------------------------------------------ hotbar + vehicles
   /** Use hotbar slot i: hop on/off a vehicle, or wear/take off an item. */
   useHotbar(i: number) {
+    if (this.lab) return void toast("Your town things stay outside the labyrinth.", 'info');
     const ref = this.store.hotbar[i];
     if (!ref) {
       toast(`Slot ${(i + 1) % 10} is empty. Open the 🎒 Bag (B) and use "Add to hotbar".`);
@@ -682,6 +690,10 @@ export class App {
       this.openCreator(true);
     } else if (resume) {
       // Back after a short drop-out: keep the scene, just catch up with the world.
+      if (this.lab) {
+        this.exitLab();
+        toast('🗝️ The connection dropped, so you were taken out of the labyrinth. Your coins are safe.', 'info', 5000);
+      }
       this.town!.resync(p);
       this.store.emit();
       if (this.interior) this.socket?.emit('interior', { building: this.interior.building.id }, () => {});
@@ -819,7 +831,8 @@ export class App {
 
   /** E / the interact button: inside a building it uses what you're at, outdoors the town decides. */
   interact() {
-    if (this.interior) this.interior.interact();
+    if (this.lab) this.lab.interact();
+    else if (this.interior) this.interior.interact();
     else if (this.home) this.home.interact();
     else this.town?.interact();
   }
@@ -1097,6 +1110,43 @@ export class App {
     this.town?.refreshPrompt();
   }
 
+  // ------------------------------------------------------------------ 🗝️ Labirin Purba
+  /** Down into the labyrinth (the server has put us in a room). Town stays running, hidden. */
+  enterLab(view: import('@kh/shared').LabRoomView) {
+    if (this.lab) return this.lab.showRoom(view);
+    if (this.interior || this.home) this.exitBuilding();
+    this.town?.cameras.main.setVisible(false);
+    document.body.dataset.lab = '1';
+    this.labHud = new LabHud(this);
+    this.game.scene.run('lab', { app: this, view });
+    this.lab = this.game.scene.getScene('lab') as LabScene;
+    this.labHud.update(view);
+    ambience.set('indoor');
+  }
+
+  /** Back to town (the server has already let us out, or the connection dropped). */
+  exitLab(_self?: import('@kh/shared').LabSelf) {
+    if (!this.lab) return;
+    this.game.scene.stop('lab');
+    this.lab = null;
+    this.labHud?.destroy();
+    this.labHud = null;
+    delete document.body.dataset.lab;
+    this.town?.cameras.main.setVisible(true);
+    if (this.town) ambience.set('town');
+    this.hud?.setPrompt(null, this.touch);
+    this.town?.refreshPrompt();
+  }
+
+  /** The HUD's Leave button (the entrance hall or a rest chamber). */
+  leaveLab() {
+    this.socket?.timeout(5000).emit('lab:leave', (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.exitLab(res.self);
+      toast(`🚪 Back in town. ${res.self.coins} Syiling Purba banked.`, 'good');
+    });
+  }
+
   /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
   openInteractable(it: { type: import('@kh/shared').InteractType; crate?: string; game?: string }) {
     if (it.type === 'market') openMarketPanel(this);
@@ -1119,6 +1169,7 @@ export class App {
   }
 
   private leaveTown() {
+    if (this.lab) this.exitLab();
     if (this.interior) this.game.scene.stop('interior');
     if (this.home) this.game.scene.stop('home');
     this.interior = null;

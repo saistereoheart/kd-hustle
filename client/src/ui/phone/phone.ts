@@ -31,6 +31,7 @@ import { renderProperties } from './properties';
 import { renderRolls } from './rolls';
 import { openJobsPanel } from '../jobs';
 import { openDungeon } from '../dungeon/dungeon';
+import { openLabPanel } from '../lab/labPanel';
 import { openPetsPanel } from '../pets/petsPanel';
 import { openGarage } from '../garage/garage';
 
@@ -89,6 +90,7 @@ const APPS: PhoneApp[] = [
   { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
   { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
   { id: 'dungeon', name: 'Gua Gelap', icon: '⚔️', color: '#5f3dc4', open: (app) => openDungeon(app), stacks: true },
+  { id: 'lab', name: 'Labirin', icon: '🗝️', color: '#495057', open: (app) => openLabPanel(app), stacks: true },
   { id: 'pets', name: 'Teman', icon: '🐾', color: '#2b8a3e', open: (app) => openPetsPanel(app), stacks: true },
   { id: 'garage', name: 'Garage', icon: '🚗', color: '#c92a2a', open: (app) => openGarage(app), stacks: true },
   { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0), stacks: true },

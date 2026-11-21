@@ -20,6 +20,7 @@ import type { EventsConfig } from '../events/events';
 import type { MarketConfig } from '../market/market';
 import type { RebirthConfig } from '../rebirth/rebirth';
 import type { DungeonConfig } from '../dungeon/dungeon';
+import type { LabConfig } from '../lab/config';
 import type { PetsConfig } from '../pets/pets';
 import type { GarageConfig } from '../garage/garage';
 
@@ -177,6 +178,7 @@ export interface PublicConfig {
   market: MarketConfig;
   rebirth: RebirthConfig;
   dungeon: DungeonConfig;
+  lab: LabConfig;
   pets: PetsConfig;
   garage: GarageConfig;
 }
