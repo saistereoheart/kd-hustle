@@ -30,6 +30,7 @@ import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
 import { governor } from '../perf/governor';
 import { Walkers } from './walkers';
 import { bake } from './bake';
+import { SnapClock } from '../net/snapClock';
 
 interface Sample {
   t: number;
@@ -176,6 +177,8 @@ export class TownScene extends Phaser.Scene {
   create() {
     const { map, cfg } = this.app;
     const T = map.tileSize;
+    const n = cfg.net;
+    this.snapClock = new SnapClock({ periodMs: 1000 / n.snapshotRateHz, startMs: n.interpolationDelayMs, minMs: n.interpolationMinMs, maxMs: n.interpolationMaxMs, marginMs: n.interpolationMarginMs });
     this.mapRes = this.chunkRes();
     this.mapView = new MapView(this, map, this.mapRes);
     // World coordinates are relative to the fixed origin (Menara Mitraland), so bounds can be negative.
@@ -383,12 +386,14 @@ export class TownScene extends Phaser.Scene {
     this.remotes.set(p.id, { id: p.id, name: p.name, avatar, pub: { ...p }, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
+  /** Maps snapshots onto the server's timeline and sizes the interpolation delay to the link. */
+  private snapClock!: SnapClock;
   /** For the F3 overlay: when snapshots arrived (WiFi trouble shows as gaps) and snap-backs. */
   private snapTimes: number[] = [];
   /** The server's own timestamps on those snapshots (a gap there = the server paused). */
   private snapServer: number[] = [];
   private corrections: number[] = [];
-  netStats(): { avgMs: number; maxGapMs: number; serverGapMs: number; snapbacks: number } {
+  netStats(): { avgMs: number; maxGapMs: number; serverGapMs: number; snapbacks: number; delayMs: number } {
     const now = performance.now();
     const keep = this.snapTimes.map((x, i) => [x, this.snapServer[i]] as const).filter(([x]) => now - x < 5000);
     let max = 0, smax = 0;
@@ -398,11 +403,13 @@ export class TownScene extends Phaser.Scene {
     }
     if (keep.length) max = Math.max(max, now - keep[keep.length - 1][0]);
     const t = keep.map((k) => k[0]);
-    return { avgMs: t.length > 1 ? Math.round((t[t.length - 1] - t[0]) / (t.length - 1)) : 0, maxGapMs: Math.round(max), serverGapMs: Math.round(smax), snapbacks: this.corrections.filter((x) => now - x < 30000).length };
+    return { avgMs: t.length > 1 ? Math.round((t[t.length - 1] - t[0]) / (t.length - 1)) : 0, maxGapMs: Math.round(max), serverGapMs: Math.round(smax), snapbacks: this.corrections.filter((x) => now - x < 30000).length, delayMs: Math.round(this.snapClock.delay) };
   }
 
   private onSnapshot(s: SnapshotPayload) {
     const now = performance.now();
+    // Positions belong at the moment the server took them (not when they got here): no WiFi jitter.
+    const at = this.snapClock.map(s.t, now);
     this.snapTimes.push(now);
     if (this.snapTimes.length > 120) this.snapTimes.splice(0, this.snapTimes.length - 120);
     this.snapServer.push(s.t);
@@ -411,14 +418,14 @@ export class TownScene extends Phaser.Scene {
       if (id === this.selfId) {
         // As a Ronda passenger the server drives us: follow its positions like a remote player.
         if (this.isPassenger()) {
-          this.selfSamples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1 });
+          this.selfSamples.push({ t: at, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1 });
           if (this.selfSamples.length > 30) this.selfSamples.splice(0, this.selfSamples.length - 30);
         }
         continue;
       }
       const r = this.remotes.get(id);
       if (!r) continue;
-      r.samples.push({ t: now, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1, rpm, eng });
+      r.samples.push({ t: at, x, y, dir: DIRECTIONS[dirIdx] ?? 'down', moving: moving === 1, rpm, eng });
       if (r.samples.length > 30) r.samples.splice(0, r.samples.length - 30);
     }
   }
@@ -542,7 +549,7 @@ export class TownScene extends Phaser.Scene {
 
     // --- Ronda passenger: the server moves us along the route ---
     if (this.isPassenger()) {
-      const p = interpolate(this.selfSamples, now - cfg.net.interpolationDelayMs);
+      const p = interpolate(this.selfSamples, now - this.snapClock.delay);
       if (p) {
         this.pos = { x: p.x, y: p.y };
         this.dir = p.dir;
@@ -1123,7 +1130,7 @@ export class TownScene extends Phaser.Scene {
 
   /** The engine state a remote driver sent, as of the moment we're drawing them (a little in the past). */
   private engineSample(r: Remote): Sample | null {
-    const t = performance.now() - this.app.cfg.net.interpolationDelayMs;
+    const t = performance.now() - this.snapClock.delay;
     let pick: Sample | null = null;
     for (const smp of r.samples) {
       if (smp.t <= t) pick = smp;
@@ -1143,7 +1150,7 @@ export class TownScene extends Phaser.Scene {
 
   /** Remote players: interpolate between snapshots, a little in the past. */
   private updateRemotes(now: number) {
-    const renderT = now - this.app.cfg.net.interpolationDelayMs;
+    const renderT = now - this.snapClock.delay;
     for (const r of this.remotes.values()) {
       const p = interpolate(r.samples, renderT);
       if (!p) continue;

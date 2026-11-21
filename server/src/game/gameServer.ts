@@ -249,7 +249,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     /** Server-wide admin commands (spec §17); the rest are in economyHandlers. */
     const adminCommand = (text: string): string | null => {
       if (!text.startsWith('/') || !me.isAdmin) return null;
-      const [cmd, ...rest] = text.slice(1).split(/s+/);
+      const [cmd, ...rest] = text.slice(1).split(/\s+/);
       const arg = rest.join(' ');
       if (cmd === 'announce') {
         if (!arg) return 'Usage: /announce <message>';
@@ -438,12 +438,26 @@ export function attachGame(io: GameIO, deps: GameDeps) {
   });
 
   // --- snapshots ------------------------------------------------------------------------
+  // Deadline-scheduled, not setInterval: Windows timers tick every ~15.6 ms, so setInterval(66.7)
+  // fired every 78 ms (12.8 Hz). Aiming each timer at the next exact deadline keeps a true 15 Hz.
+  const period = 1000 / cfg.net.snapshotRateHz;
   let lastSnap = Date.now();
   let lastStallWarn = 0;
-  const snapshotTimer = setInterval(() => {
+  let nextSnap = performance.now() + period;
+  let snapshotTimer: NodeJS.Timeout;
+  const scheduleSnapshot = () => {
+    snapshotTimer = setTimeout(() => {
+      sendSnapshots();
+      nextSnap += period;
+      const now = performance.now();
+      if (now - nextSnap > period * 4) nextSnap = now + period; // after a long stall: don't burst to catch up
+      scheduleSnapshot();
+    }, Math.max(0, nextSnap - performance.now()));
+  };
+  const sendSnapshots = () => {
     const t = Date.now();
     // The server was busy (something slow ran): everyone's updates paused that long.
-    const late = t - lastSnap - 1000 / cfg.net.snapshotRateHz;
+    const late = t - lastSnap - period;
     lastSnap = t;
     if (late > 250 && t - lastStallWarn > 10_000) {
       lastStallWarn = t;
@@ -459,7 +473,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
         });
       io.to(scene).volatile.emit('snapshot', { t, p: rows });
     }
-  }, 1000 / cfg.net.snapshotRateHz);
+  };
+  scheduleSnapshot();
 
   saves.onAutosaved = (p, at) => {
     io.sockets.sockets.get(p.socketId)?.emit('saved', { at });
@@ -467,7 +482,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
 
   return {
     stop() {
-      clearInterval(snapshotTimer);
+      clearTimeout(snapshotTimer);
       clearInterval(voteTimer);
       for (const t of offline.values()) clearTimeout(t);
       economy.stop();

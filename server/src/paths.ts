@@ -14,6 +14,8 @@ export function getPaths() {
     clientRoot: path.join(ROOT, 'client'),
     clientDist: path.join(ROOT, 'client', 'dist'),
     dataDir: path.resolve(ROOT, process.env.KH_DATA_DIR || 'server/data'),
-    backupDir: path.resolve(ROOT, process.env.KH_BACKUP_DIR || 'server/backups'),
+    // A test server with its own data dir backs up inside it, never into the real backups (whose
+    // rotation would then delete real ones).
+    backupDir: path.resolve(ROOT, process.env.KH_BACKUP_DIR || (process.env.KH_DATA_DIR ? path.join(process.env.KH_DATA_DIR, 'backups') : 'server/backups')),
   };
 }

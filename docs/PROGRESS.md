@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.9.4)_
+_Last updated: 2026-11-21 (v1.9.5)_
 
-**Now at v1.9.4 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.9.5 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 366 unit tests (2026-11-20) |
+| `npm test` (Vitest) | ✅ 370 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.9.4 reaches the game only then.
+   from v1.8.2 to v1.9.5 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,29 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 📡 Performance audit: network, server, client (2026-11-21, your request, v1.9.5)
+Measured all three sides. Probes in `test-results/`: `netprobe.ts` (bots; bytes per event, ping, snapshot
+gaps), `srvprof.mjs` (CPU profile of a server started with `--inspect`), `trace.cjs` (Chrome trace of a phone
+client), `interp.cjs` (how smoothly a remote player is drawn), `weak.cjs` (CPU ÷6 client).
+
+| Side | Finding | Verdict |
+|---|---|---|
+| Server (copy of your real DB + 5 bots, 60 s) | 99% idle; ping max 8 ms; no stall across an autosave | not a cause of lag |
+| Network | 2 KB/s per player with 5 online; snapshots were 12.8 Hz on Windows (timer granularity) | fixed: true 15 Hz |
+| Remote players | stamped with arrival time → WiFi jitter = stutter; fixed 160 ms delay | fixed: server timeline + adaptive delay (109 ms measured, ~90 on clean WiFi) |
+| Client JS | ~0.4 ms a frame; DOM style + layout + paint ≈ 16 ms a second; chunk painting is on the worker | lean already |
+| Client GPU | SwiftShader is fill-bound; real devices: governor + 2× cap on phones (v1.3.0) | needs your F3 readings |
+
+- `client/src/net/snapClock.ts` (+ tests): maps the server's snapshot timestamps onto the local clock via the
+  least-delayed recent snapshot (slow drift, reset if the server clock steps back), and sizes the delay =
+  interval + p95 lateness + 20 ms within `net.json` `interpolationMinMs`–`interpolationMaxMs` (up fast, down
+  gently). `interpolationDelayMs` (now 140) is only the starting value.
+- `gameServer.ts`: snapshots are deadline-scheduled `setTimeout`s (no burst catch-up after a long stall).
+- Not done (measured as not worth it): caching `progression.mods` on the server (0.5% of an idle server);
+  moving the lofi recording elsewhere (one-off at start, already sliced).
+- **What's left is device-side:** the F3 readings from the slow devices after the rebuild (FPS + worst frame =
+  the device; "others shown N ms behind" + longest gap = the connection).
 
 ## 🎤 Idol Teman (2026-11-21, answer to report #9, v1.9.4)
 - `pet_arnab` (legendary, shape `arnab`) and `pet_rubah` (mythic, shape `rubah`) in items.json, pets.json and

@@ -71,7 +71,12 @@ export type MovementConfig = z.infer<typeof movementConfigSchema>;
 
 export const netConfigSchema = z.object({
   snapshotRateHz: z.number().positive(),
+  /** How far in the past others are drawn, to start with; then it adapts to the link (see below). */
   interpolationDelayMs: z.number().nonnegative(),
+  /** The adaptive delay stays in this range: one snapshot interval + how late snapshots arrive + a margin. */
+  interpolationMinMs: z.number().nonnegative().default(80),
+  interpolationMaxMs: z.number().positive().default(300),
+  interpolationMarginMs: z.number().nonnegative().default(20),
   /** A dropped connection keeps you in the world this long (server) and the game on screen
    *  (client) while it reconnects; after that you're back at the start screen. */
   reconnectGraceMs: z.number().int().nonnegative().default(20_000),

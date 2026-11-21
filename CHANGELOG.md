@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.5 (2026-11-21)
+- **Other players move smoother and look more up to date.** Their positions are now placed at the moment the
+  server took them, not when they reached your device, so WiFi hiccups no longer make them stutter. How far in
+  the past they're drawn now adapts to your connection: about 90 ms on good WiFi (it was always 160 ms), up to
+  300 ms on a jittery link (ZeroTier, a busy network). F3 shows it ("others shown N ms behind").
+- **Updates really go out 15 times a second on Windows.** Windows timers tick every ~15.6 ms, so the server was
+  sending 12.8 a second. They're now aimed at exact deadlines.
+- Admins: `/announce` and the other server-wide admin commands work again. Since Phase 8b they split the text
+  on the letter "s" instead of on spaces.
+- A test server started with its own `KH_DATA_DIR` now keeps its backups inside that folder. Before, its
+  backups landed in `server/backups/` and rotated your real ones away.
+
 ## 1.9.4 (2026-11-21)
 - **🎤 Two idol Teman in the Telur Teman egg** (original characters, not real people):
   - **Arnab Bintang** (Legendary): a bunny idol in a sparkly stage jacket and headset mic, with twinkling stage

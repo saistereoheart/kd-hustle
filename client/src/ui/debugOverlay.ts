@@ -75,7 +75,7 @@ export class DebugOverlay {
     const q = loadPrefs().quality;
     this.root.textContent = [
       `FPS ${this.fps}   worst frame ${this.worstShown} ms   ${governor.describe().replace(/^\d+ FPS · /, '')}   graphics: ${q === 'auto' ? 'Auto' : q === 'high' ? 'Sharpest (no auto-adjust)' : 'Battery saver'}`,
-      `ping ${this.ping ?? '?'} ms   updates every ${net?.avgMs ?? '?'} ms, longest gap ${net?.maxGapMs ?? '?'} ms (at the server ${net?.serverGapMs ?? '?'} ms)`,
+      `ping ${this.ping ?? '?'} ms   updates every ${net?.avgMs ?? '?'} ms, longest gap ${net?.maxGapMs ?? '?'} ms (at the server ${net?.serverGapMs ?? '?'} ms)   others shown ${net?.delayMs ?? '?'} ms behind`,
       `snap-backs ${net?.snapbacks ?? 0} (last 30 s)   ${verdict.length ? `⚠ ${verdict.join(' + ')}` : '✓ smooth'}`,
       self ? `pos ${(self.x / T).toFixed(1)}, ${(self.y / T).toFixed(1)} tiles${self.moving ? ' (moving)' : ''}` : 'pos -',
       `chunks ${self?.chunks ?? 0}   objects ${visible}/${objects}`,
