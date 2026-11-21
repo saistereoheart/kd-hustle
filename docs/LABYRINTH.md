@@ -90,10 +90,17 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   a text box).
 
 ## 5. Party / lobby
-- From the 📱 Labirin app or the entrance hall: create a party, invite online players (they get an Accept
-  prompt), up to 4 players.
-- Party members see each other on the map. In the same room they see each other walk and fight together.
+- From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a
+  Join / No thanks prompt, wherever they are, and the invite runs out after a minute. Inviting someone
+  makes you the leader (👑); the leader can remove members. Up to 4 players.
+- Party members are dots on each other's map (red while fighting), even in rooms you haven't seen.
+- When you walk into a monster room, the party members who are in that room fight with you, and the group
+  is bigger for more players. Walking into a room where your party is fighting joins that fight.
   Non-party players in the same room can see you but fight their own battles.
+- Each player gets the group's Syiling for a win. Someone who falls waits it out: if the party wins they're
+  back up at 1 HP; Air Penawar brings them back during the fight.
+- Parties live in the server's memory: a restart ends them, and so does leaving the game (after the
+  reconnect grace).
 
 ## 6. Map
 - A **minimap** of explored rooms near you (top right; it replaces the town minimap inside).
@@ -113,5 +120,5 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 2. ✅ **Fight** (1.11.0): weakened stats, monster groups, solo battle engine and UI, death and respawn, Teman buff.
 3. ✅ **Gear** (1.13.0): the merchant (Tok Peraih), 24 pieces of gear, 7 potions, equipping, 🧪 Items in battle.
    Treasure rooms and keys came with part 1.
-4. **Party:** lobby, invites, shared rooms and battles.
+4. ✅ **Party** (1.14.0): invites, a party panel, party members on the map, shared battles and joining a fight.
 5. **Bosses and polish:** floor bosses gating the stairs, balance sim, phone layout pass.

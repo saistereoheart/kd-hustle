@@ -18,7 +18,7 @@ import type { ActiveEvent } from '../events/events';
 import type { MarketListing, MarketSale } from '../market/market';
 import type { RebirthView } from '../rebirth/rebirth';
 import type { DungeonLoot, DungeonView } from '../dungeon/dungeon';
-import type { LabBattleEnd, LabBattleView, LabOther, LabRoomView, LabSelf } from '../lab/view';
+import type { LabBattleEnd, LabBattleView, LabOther, LabPartyView, LabRoomView, LabSelf } from '../lab/view';
 import type { LabEvent } from '../lab/battle';
 import { PET_STATS, type BattleEvent, type PetsView } from '../pets/pets';
 import { GARAGE_PARTS, type GarageView, type VehicleLook } from '../garage/garage';
@@ -777,6 +777,13 @@ export interface ClientToServerEvents {
   'lab:buy': (msg: { id: string; n?: number }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** ⚔️ Wear a piece of gear you own (id null: take the slot off). */
   'lab:equip': (msg: { slot: 'weapon' | 'shield' | 'armour' | 'charm'; id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 👥 Your party, and who's online to invite. */
+  'lab:party': (ack: Ack<Result<{ party: LabPartyView | null; online: Array<{ id: number; name: string; level: number; inParty: boolean }> }>>) => void;
+  'lab:invite': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
+  'lab:accept': (msg: { party: number }, ack: Ack<Result<{ party: LabPartyView }>>) => void;
+  'lab:decline': (msg: { party: number }, ack: Ack<SimpleResult>) => void;
+  'lab:partyLeave': (ack: Ack<SimpleResult>) => void;
+  'lab:kick': (msg: { id: number }, ack: Ack<SimpleResult>) => void;
   /** 🧪 A potion out of a fight: a heal, or 🧵 Tali Pulang (`left`: you're back in town). */
   'lab:item': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string; left?: boolean }>>) => void;
   'dungeon:view': (ack: Ack<Result<{ view: DungeonView }>>) => void;
@@ -859,6 +866,10 @@ export interface ServerToClientEvents {
   'lab:round': (p: { events: LabEvent[]; view: LabBattleView; end?: LabBattleEnd; room?: LabRoomView }) => void;
   /** 🗝️ A labyrinth step was refused: this is where you are. */
   'lab:correct': (p: { x: number; y: number }) => void;
+  /** 👥 Your party changed (someone joined, left, moved rooms); null: you're in none. */
+  'lab:partyState': (p: { party: LabPartyView | null }) => void;
+  /** 👥 Someone invites you into their Labirin party. */
+  'lab:invited': (p: { party: number; from: string }) => void;
   'player:updated': (p: { id: number; appearance?: Appearance; cosmetics?: Cosmetics; vehicle?: string | null; vehicleLook?: VehicleLook | null; level?: number; title?: string | null; interior?: string | null; owesAhLong?: boolean; rebirths?: number; seat?: SeatInfo | null; pet?: PetPublic | null }) => void;
   'parked:update': (p: { parked: ParkedPublic }) => void;
   'shoplots': (p: { shoplots: ShoplotPublic[] }) => void;

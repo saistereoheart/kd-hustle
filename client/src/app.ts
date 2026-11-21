@@ -60,6 +60,7 @@ import { InteriorScene, type ExtraStation } from './world/interiorScene';
 import { LabScene } from './world/labScene';
 import { LabHud } from './ui/lab/labHud';
 import { LabBattleUi } from './ui/lab/labBattle';
+import { showLabInvite } from './ui/lab/labParty';
 import { Guide } from './ui/guide';
 import { VoteBanner } from './ui/voteBanner';
 import { PhoneButton } from './ui/phoneButton';
@@ -123,6 +124,19 @@ export class App {
   lab: LabScene | null = null;
   labHud: LabHud | null = null;
   labBattle: LabBattleUi | null = null;
+  /** 👥 Your Labirin party (null: none). */
+  labParty: import('@kh/shared').LabPartyView | null = null;
+  private labPartyFns = new Set<() => void>();
+  /** Be told when the party changes; returns the unsubscribe. */
+  onLabParty(fn: () => void): () => void {
+    this.labPartyFns.add(fn);
+    return () => this.labPartyFns.delete(fn);
+  }
+  setLabParty(p: import('@kh/shared').LabPartyView | null) {
+    this.labParty = p;
+    this.labHud?.partyChanged();
+    for (const fn of this.labPartyFns) fn();
+  }
   /** Inside one of our own homes (its scene runs over the town), or null. */
   home: HomeScene | null = null;
   /** Every home for sale on the map (computed from the map + properties.json). */
@@ -550,6 +564,8 @@ export class App {
     });
     // 🗝️ Labirin Purba fights.
     socket.on('lab:battle', ({ view }) => this.labBattleShow(view));
+    socket.on('lab:partyState', ({ party }) => this.setLabParty(party));
+    socket.on('lab:invited', ({ party, from }) => showLabInvite(this, party, from));
     socket.on('lab:round', (p) => this.labBattle?.round(p));
     socket.on('shoplots', ({ shoplots }) => {
       this.store.shoplots = shoplots;

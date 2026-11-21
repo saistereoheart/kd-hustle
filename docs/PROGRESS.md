@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.13.0)_
+_Last updated: 2026-11-21 (v1.14.0)_
 
-**Now at v1.13.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.14.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 405 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 410 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.13.0 reaches the game only then.
+   from v1.8.2 to v1.14.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -50,6 +50,30 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🗝️ Labirin Purba, phase 4 of 5: parties (2026-11-21, v1.14.0)
+- `server/src/systems/lab/labParty.ts` (+ tests): `LabParties` (in memory) with invite (60 s), accept,
+  decline, leave and kick. The lead passes on when the leader leaves; a party of one ends.
+- `LabBattles.join(p, ally)`: walk into your party's fight and you're in, picking from this round
+  (+ tests in `labBattles.test.ts`).
+- `server/src/game/labHandlers.ts`:
+  - `encounter` gathers the party members in the room;
+  - messages `lab:party`, `lab:invite`, `lab:accept`, `lab:decline`, `lab:partyLeave`, `lab:kick`;
+  - pushes `lab:partyState` (on any change, a room move, or a fight ending) and `lab:invited`;
+  - `forget` takes a player who has left out of their party.
+- Client:
+  - `ui/lab/labParty.ts`: the party panel and the invite prompt;
+  - `App.labParty` / `setLabParty` / `onLabParty`;
+  - party dots in the `LabHud` maps;
+  - a 👥 button in the HUD and the phone app.
+- Checked in a browser with two players: invite, accept, both in one fight (two party cards), the win,
+  and the party panel showing where each one is.
+- **Decisions:**
+  - parties aren't saved (a restart ends them);
+  - a fight in progress takes up to 4 players;
+  - each player gets the full group Syiling (the group is bigger with more players anyway).
 
 ---
 

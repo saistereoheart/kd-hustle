@@ -4,6 +4,7 @@ import { labFloor, seenHas, type LabFloor, type LabRoomView } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
 import { openLabBag } from './labBag';
+import { openLabParty } from './labParty';
 
 /** A Syiling Purba coin, drawn in CSS (the 🪙 emoji is missing from older emoji fonts). */
 export function coinIcon(): HTMLElement {
@@ -31,9 +32,11 @@ export class LabHud {
     mapBtn.addEventListener('click', () => this.openFull());
     const bagBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-bag', title: 'Your Labirin gear and potions' }, '🎒 Bag');
     bagBtn.addEventListener('click', () => openLabBag(this.app, 'gear'));
+    const partyBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-party', title: 'Your party: fight together' }, '👥');
+    partyBtn.addEventListener('click', () => openLabParty(this.app));
     this.leaveBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-leave' }, '🚪 Leave') as HTMLButtonElement;
     this.leaveBtn.addEventListener('click', () => this.app.leaveLab());
-    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, mapBtn, this.leaveBtn);
+    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, partyBtn, mapBtn, this.leaveBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
@@ -61,6 +64,14 @@ export class LabHud {
     this.leaveBtn.disabled = !canLeave;
     this.leaveBtn.title = canLeave ? 'Back to town (your carried coins are banked)' : 'Leave from the entrance hall or a rest chamber';
     this.drawMini(f, v);
+    if (this.full) this.openFull(true);
+  }
+
+  /** 👥 The party changed (someone moved rooms): redraw where they are. */
+  partyChanged() {
+    const v = this.view;
+    if (!v) return;
+    this.drawMini(labFloor(this.app.cfg.lab, v.floor), v);
     if (this.full) this.openFull(true);
   }
 
@@ -117,6 +128,23 @@ export class LabHud {
         g.textBaseline = 'middle';
         g.fillText(icon, x + m, y + m + 1);
       }
+    }
+    // 👥 Party members on this floor (shown even in rooms you haven't seen: go and find them).
+    const me = this.app.lastInit?.you.id;
+    let k = 0;
+    for (const m of this.app.labParty?.members ?? []) {
+      if (m.id === me || !m.inside || m.floor !== v.floor || m.room === undefined) continue;
+      const r = f.rooms[m.room];
+      if (!r) continue;
+      const mx = (r.cx - x0 + 0.5) * cell + ((k++ % 3) - 1) * cell * 0.18, my = (r.cy - y0 + 0.5) * cell;
+      if (mx < 0 || my < 0 || mx > cols * cell || my > rows * cell) continue;
+      g.fillStyle = m.fighting ? '#ff6b6b' : '#4dabf7';
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.arc(mx, my, Math.max(3, cell * 0.14), 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
     }
     // You.
     const yx = (here.cx - x0 + 0.5) * cell, yy = (here.cy - y0 + 0.5) * cell;

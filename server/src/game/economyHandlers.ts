@@ -1065,7 +1065,10 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     /** 🗝️ Labirin Purba: positions in its rooms (with the town snapshots), and out when disconnected. */
     labSnapshots: (t: number) => labNet.snapshots(t),
     labDrop: (p: OnlinePlayer) => labNet.drop(p),
-    labForget: (id: number) => labSys.forget(id),
+    labForget: (id: number) => {
+      labSys.forget(id);
+      labNet.forget(id);
+    },
     /** After `init`: hand out anything already earned (titles, goals...) and send the progress. */
     afterInit: (p: OnlinePlayer, awayMs = 0) => {
       if (!p.hasCharacter) return;

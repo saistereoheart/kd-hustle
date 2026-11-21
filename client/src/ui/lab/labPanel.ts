@@ -5,6 +5,7 @@ import { el, toast } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { coinIcon } from './labHud';
 import { openLabBag } from './labBag';
+import { openLabParty } from './labParty';
 
 export function openLabPanel(app: App) {
   const lc = app.cfg.lab;
@@ -28,6 +29,8 @@ export function openLabPanel(app: App) {
     fromTop?.addEventListener('click', () => enter('entrance'));
     const bag = el('button', { class: 'btn', type: 'button', 'data-action': 'lab-bag' }, '🎒 Gear & potions');
     bag.addEventListener('click', () => openLabBag(app, 'gear'));
+    const party = el('button', { class: 'btn', type: 'button', 'data-action': 'lab-party' }, app.labParty ? `👥 Party (${app.labParty.members.length})` : '👥 Party');
+    party.addEventListener('click', () => openLabParty(app));
     body.replaceChildren(
       el('p', {}, "Walk it yourself, room by room. Down here you're in a weakened state: your town gear, luck and skills stay outside, and your Teman don't fight. Monsters jump out in some rooms (Pokémon style). Find loot boxes, keys to locked treasure rooms, and the hidden 🔥 rest chamber on each floor (your save point; it heals you)."),
       el('div', { class: 'lab-stats' },
@@ -40,7 +43,7 @@ export function openLabPanel(app: App) {
         el('div', {}, el('b', {}, `⚔️ ${s.stats.atk} · 🛡️ ${s.stats.def}`), el('span', { class: 'muted small' }, ' ATK · DEF with your Labirin gear')),
         el('div', {}, el('b', {}, `🧪 ${Object.values(s.potions).reduce((a, n) => a + n, 0)}`), el('span', { class: 'muted small' }, ' potions carried')),
       ),
-      el('div', { class: 'actions' }, main, fromTop, bag),
+      el('div', { class: 'actions' }, main, fromTop, bag, party),
       el('p', { class: 'muted small' }, 'Coins you pick up are carried until you rest at a campfire or leave. Leave from the entrance hall or a rest chamber. Gear and potions are sold by Tok Peraih in the entrance hall and every rest chamber.'),
     );
   };

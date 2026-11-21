@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0 (2026-11-21): 🗝️ Labirin Purba, part 4 (parties)
+- **👥 Parties of up to 4.** Invite anyone online from 👥 in the labyrinth's top bar or from the 📱 Labirin
+  app. They get a Join / No thanks prompt wherever they are.
+- **Fight together.** Party members in the same room fight the monsters there together, and the group is
+  bigger for more players. Walk into a room where your party is already fighting and you join in.
+- **Find each other.** Party members are dots on the minimap and the floor map (red while they're
+  fighting). The party panel says where everyone is.
+- The leader (👑) can remove members, and anyone can leave. Parties end when the server restarts.
+
 ## 1.13.0 (2026-11-21): 🗝️ Labirin Purba, part 3 (gear and potions)
 - **🛒 Tok Peraih**, the merchant, stands in the entrance hall and in every 🔥 rest chamber. Walk up to him
   and press E.

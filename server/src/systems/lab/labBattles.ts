@@ -74,6 +74,24 @@ export class LabBattles {
     return true;
   }
 
+  /** Walked into the room where a party member is fighting: join in (you can pick this round). */
+  join(p: OnlinePlayer, ally: OnlinePlayer): boolean {
+    const b = this.byPlayer.get(ally.id);
+    if (!b || !p.lab || this.byPlayer.has(p.id) || p.lab.floor !== b.floor || p.lab.room !== b.room) return false;
+    if (b.fighters.filter((f) => f.side === 'party').length >= 4) return false;
+    const f = this.fighterOf(p);
+    // Same id again (left the fight earlier and came back): replace the old entry.
+    b.fighters = b.fighters.filter((x) => x.id !== f.id);
+    const firstFoe = b.fighters.findIndex((x) => x.side === 'foe');
+    b.fighters.splice(firstFoe < 0 ? b.fighters.length : firstFoe, 0, f);
+    b.members.set(p.id, p);
+    this.byPlayer.set(p.id, b);
+    const view = this.viewOf(b);
+    this.hooks.started([p], view);
+    this.hooks.picked([...b.members.values()].filter((x) => x.id !== p.id), view);
+    return true;
+  }
+
   /** A player's pick for this round. Resolves at once when everyone still standing has picked. */
   act(p: OnlinePlayer, action: LabAction) {
     const b = this.byPlayer.get(p.id);

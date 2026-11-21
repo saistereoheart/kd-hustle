@@ -1518,3 +1518,9 @@ body[data-lab] .place-pointers { display: none !important; }
 @media (max-width: 480px) { .lab-bag-btns { flex-wrap: wrap; max-width: 170px; } }
 /* A window open over the labyrinth: its top bar and minimap step aside (they'd cover the window's tabs on a phone). */
 body:has(.panel-backdrop) .lab-hud, body:has(.panel-backdrop) .lab-minimap { visibility: hidden; }
+
+/* ---- 👥 Labirin party ---- */
+.lab-party-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,0.04); margin-bottom: 4px; }
+.lab-party-row > span { flex: 1; min-width: 0; }
+.lab-party-row .btn { width: auto; flex: none; }
+.lab-party > .btn { margin-top: 6px; }

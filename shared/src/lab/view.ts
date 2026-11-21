@@ -65,6 +65,26 @@ export interface LabRoomView {
   self: LabSelf;
 }
 
+// ---------------------------------------------------------------- 👥 parties
+/** Your party: who's in it, where they are (for the map) and who's been invited. */
+export interface LabPartyView {
+  id: number;
+  leader: number;
+  members: Array<{
+    id: number;
+    name: string;
+    level: number;
+    online: boolean;
+    /** In the labyrinth, and where (floor, room). */
+    inside: boolean;
+    floor?: number;
+    room?: number;
+    fighting: boolean;
+  }>;
+  invited: Array<{ id: number; name: string }>;
+  max: number;
+}
+
 // ---------------------------------------------------------------- ⚔️ battles
 export interface LabBattleView {
   id: number;
@@ -101,6 +121,10 @@ export const LAB_C2S = {
   labEquip: z.object({ slot: z.enum(['weapon', 'shield', 'armour', 'charm']), id: z.string().max(32).nullable() }),
   /** 🧪 A potion out of a fight (a heal, or 🧵 Tali Pulang home). */
   labItem: z.object({ id: z.string().max(32) }),
+  /** 👥 Parties: invite a player, answer an invite, the leader removes someone. */
+  labInvite: z.object({ id: z.number().int().positive() }),
+  labPartyId: z.object({ party: z.number().int().positive() }),
+  labKick: z.object({ id: z.number().int().positive() }),
 };
 
 export type LabUse = z.infer<typeof LAB_C2S.labUse>['what'];
