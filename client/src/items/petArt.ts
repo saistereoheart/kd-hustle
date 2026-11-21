@@ -239,6 +239,103 @@ export function drawPet(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string
       stroke(ctx, [9.5, -9.4, 10.6, -10.4], '#1b1b1b', 0.6); // lashes
       break;
     }
+    case 'arnab': {
+      // A bunny idol: long ears, a sparkly stage jacket, a headset mic, stage sparkles.
+      const fur = c1 ?? '#fff5f8', jacket = c2 ?? '#7950f2';
+      const inner = '#ffc9de';
+      ell(ctx, -10, 6, 3.4, 3.2, fur); // pom tail
+      legs(ctx, [-4, 4], 9, 5, fur, 3.6);
+      for (const x of [-4, 4]) ell(ctx, x + 0.8, 14, 2.6, 1.3, mix(fur, '#c0a0b0', 0.35)); // feet
+      blob(ctx, 0, 5, 9, 7, jacket, '#d0bfff'); // jacket body
+      stroke(ctx, [-1, -1, 2, 11], mix(jacket, '#ffffff', 0.55), 0.9); // zip line
+      for (const [x, y] of [[-5, 3], [4, 6], [-2, 9], [6, 1]] as const) ell(ctx, x, y, 0.7, 0.7, '#fff3bf'); // sequins
+      ell(ctx, -6, 4, 2.8, 4.4, mix(jacket, '#000000', 0.15), 0.3); // sleeve
+      ell(ctx, -6.5, 8.5, 1.9, 1.7, fur); // paw
+      // Ears (one up, one flopped), then the head.
+      ell(ctx, 2, -15.8, 2.6, 5.4, fur, -0.15); // tip at ~-21: inside the portrait box
+      ell(ctx, 2.2, -15.6, 1.2, 3.9, inner, -0.15);
+      ell(ctx, 9.5, -16, 2.4, 6.5, fur, 0.75);
+      ell(ctx, 9.6, -16, 1.1, 4.8, inner, 0.75);
+      blob(ctx, 5, -6, 8.5, 7.5, fur);
+      ell(ctx, 10.5, -3, 3.2, 2.5, '#ffffff'); // muzzle
+      ell(ctx, 12.4, -4, 0.9, 0.7, '#f06595');
+      // Headset: band over the head, earpiece, mic arm to the mouth.
+      ctx.beginPath();
+      ctx.arc(5, -6, 8.6, Math.PI * 1.05, Math.PI * 1.75);
+      ctx.strokeStyle = '#343a40';
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+      ell(ctx, -2.5, -5, 1.8, 2.4, '#343a40');
+      stroke(ctx, [-2.2, -3, 1, 1, 8, 0.5], '#343a40', 0.8);
+      ell(ctx, 8.6, 0.4, 1.2, 1, '#495057');
+      ell(ctx, 11.6, -1, 1.5, 0.9, 'rgba(255,135,180,0.5)'); // blush
+      eye(ctx, 8, -7, 2.1, t, '#5f3dc4');
+      stroke(ctx, [9, -9.6, 10.2, -10.6], '#1b1b1b', 0.6); // lashes
+      // Stage sparkles (they twinkle).
+      const tw = (k: number) => 0.6 + 0.6 * Math.abs(Math.sin(t / 300 + k));
+      for (const [x, y, k] of [[-12, -12, 0], [15, -14, 1.7], [-14, -2, 3.1]] as const) {
+        const r = 1.6 * tw(k);
+        poly(ctx, [x, y - r * 1.6, x + r * 0.4, y - r * 0.4, x + r * 1.6, y, x + r * 0.4, y + r * 0.4, x, y + r * 1.6, x - r * 0.4, y + r * 0.4, x - r * 1.6, y, x - r * 0.4, y - r * 0.4], '#ffe066');
+      }
+      break;
+    }
+    case 'rubah': {
+      // A fox idol: big fluffy tail with a white tip, a pink bow and star hairclip, a pink mic.
+      const o = c1 ?? '#ff922b', pink = c2 ?? '#f06595';
+      const cream = '#fff4e6';
+      // Tail: a big curl behind.
+      ell(ctx, -11, 0, 5.5, 8, o, 0.7);
+      ell(ctx, -14.5, -5, 3, 3.6, cream, 0.7);
+      legs(ctx, [-4, 0, 5, 8], 9, 5, mix(o, '#5c2c00', 0.45), 2.6);
+      blob(ctx, 0, 5, 9.5, 6.8, o);
+      ell(ctx, 2, 7.5, 5.5, 3.6, cream);
+      // Skirt-like ruffle at the waist.
+      ctx.beginPath();
+      ctx.moveTo(-8, 8);
+      for (let i = 0; i <= 8; i++) ctx.lineTo(-8 + i * 2, 8 + (i % 2 ? 2.4 : 0));
+      ctx.lineTo(8, 6.5);
+      ctx.lineTo(-8, 6.5);
+      ctx.closePath();
+      ctx.fillStyle = pink;
+      ctx.fill();
+      // Head + ears.
+      poly(ctx, [-0.5, -10, 0.5, -19, 5, -12], o);
+      poly(ctx, [7, -12, 11.5, -19, 12, -10], o);
+      poly(ctx, [0.8, -11, 1.3, -16.5, 4, -12], '#3b1f0b');
+      poly(ctx, [8, -12, 11, -16.5, 11.2, -11], '#3b1f0b');
+      blob(ctx, 5.5, -5.5, 8.5, 7.5, o);
+      poly(ctx, [7, -3, 16, -2.5, 9, 2.5], cream); // pointy cream muzzle
+      ell(ctx, 15.6, -2.6, 1, 0.8, '#1b1b1b');
+      ell(ctx, 1, -2, 3.2, 2.6, cream); // cheek fluff
+      // Bow with a star clip.
+      poly(ctx, [-1, -12, -5, -15, -5, -9], pink);
+      poly(ctx, [-1, -12, 3, -15, 3, -9], pink);
+      ell(ctx, -1, -12, 1.4, 1.4, mix(pink, '#000000', 0.2));
+      const sx = 6.5, sy = -13.5, sr = 2.2;
+      const star: number[] = [];
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI) / 5, r = k % 2 ? sr * 0.45 : sr;
+        star.push(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+      }
+      poly(ctx, star, '#ffe066');
+      // Mic held up in a paw.
+      stroke(ctx, [6, 4, 10, 1], o, 2.6);
+      stroke(ctx, [10, 1.5, 13.5, -1.5], '#343a40', 1.4);
+      ell(ctx, 14.2, -2.2, 1.8, 1.8, pink);
+      ell(ctx, 13.7, -2.7, 0.6, 0.6, 'rgba(255,255,255,0.8)');
+      ell(ctx, 11, -1.5, 1.4, 0.8, 'rgba(255,100,150,0.45)'); // blush
+      eye(ctx, 8.5, -6.5, 2, t, '#2b8a3e');
+      stroke(ctx, [9.6, -9, 10.8, -10], '#1b1b1b', 0.6);
+      // Music notes float up.
+      const nt = (t / 900) % 1;
+      ctx.save();
+      ctx.globalAlpha = 1 - nt;
+      ctx.fillStyle = pink;
+      ctx.font = 'bold 6px sans-serif';
+      ctx.fillText('♪', 16, -8 - nt * 8);
+      ctx.restore();
+      break;
+    }
     case 'naga':
     default: {
       const p = c1 ?? '#7048e8', y = c2 ?? '#ffd43b';

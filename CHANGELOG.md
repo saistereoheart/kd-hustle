@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.4 (2026-11-21)
+- **🎤 Two idol Teman in the Telur Teman egg** (original characters, not real people):
+  - **Arnab Bintang** (Legendary): a bunny idol in a sparkly stage jacket and headset mic, with twinkling stage
+    sparkles. It hops beside you in town like the unicorn. Fast and fragile: HP 62 · ATK 18 · DEF 11 · SPD 19.
+    Move *Lompat Pentas*, ultimate *Encore Bintang*.
+  - **Rubah Superstar** (Mythic): a fox idol with a pink bow, a star hairclip and a pink mic, with music notes
+    floating up. HP 68 · ATK 20 · DEF 13 · SPD 18. Move *Kenyit Mata*, ultimate *Konsert Bulan Purnama*.
+
 ## 1.9.3 (2026-11-20)
 - **🚲🛵 The basikal, the kapcai and the Ronda are 3D now**, like the showroom bikes. They have every
   direction including the 45° views, and their 3D icons appear in the hotbar and the Ronda app.

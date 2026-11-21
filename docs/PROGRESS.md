@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-20 (v1.9.3; pending list refreshed)_
+_Last updated: 2026-11-21 (v1.9.4)_
 
-**Now at v1.9.3 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.9.4 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.9.3 reaches the game only then.
+   from v1.8.2 to v1.9.4 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -30,7 +30,8 @@ rounds below. The §19 content list is met, including 74 achievements.
    - the 3D kapcai and basikal in normal play, including a second player riding pillion;
    - the Ronda ride-hailing bike with its rider.
 5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). Real people can't go in the game
-   (parody rule). Offer parody characters instead if you like, then close it: `npm run admin -- feedback-done 9`.
+   (parody rule). v1.9.4 adds two original idol Teman instead (Arnab Bintang, Rubah Superstar). Tell them,
+   then close it: `npm run admin -- feedback-done 9`.
 6. **Review and push** the local commits when you're happy with them.
 
 **Open on the code side (small, optional):**
@@ -51,6 +52,13 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
 
 ---
+
+## 🎤 Idol Teman (2026-11-21, answer to report #9, v1.9.4)
+- `pet_arnab` (legendary, shape `arnab`) and `pet_rubah` (mythic, shape `rubah`) in items.json, pets.json and
+  the `pet_egg` pool. Art: `drawPet` cases in `client/src/items/petArt.ts`, screenshot-checked next to the
+  unicorn and harimau. The bunny's upright ear stays inside the portrait box (y ≥ −21).
+- Town follower: the bunny hops like the unicorn (`avatar.tickPet`).
+- Stats sit in the band of their rarity (arnab ≈ harimau with more SPD, less DEF; rubah ≈ unicorn).
 
 ## 🚲 3D everyday rides + load-size check (2026-11-20, your request, v1.9.3)
 - New `client/src/items/vehicle3d/smallBikes.ts`, with shared parts moved to `bikeParts.ts`.

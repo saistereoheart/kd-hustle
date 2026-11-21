@@ -764,7 +764,7 @@ export class Avatar {
     this.petX = NaN;
   }
 
-  /** Follow along: a step behind / beside, hopping (the unicorn) or bobbing as it walks. */
+  /** Follow along: a step behind / beside, hopping (the unicorn, the bunny) or bobbing as it walks. */
   private tickPet(now: number) {
     const p = this.pet;
     if (!p) return;
@@ -793,7 +793,7 @@ export class Avatar {
     if (Math.abs(vx) > 0.05) p.setFlipX(vx < 0); // drawn facing right
     // Hop / bob.
     let lift = 0;
-    if (this.petShape === 'unicorn') lift = Math.abs(Math.sin(now / (this.petMoving ? 170 : 420))) * (this.petMoving ? 7 : 2.5);
+    if (this.petShape === 'unicorn' || this.petShape === 'arnab') lift = Math.abs(Math.sin(now / (this.petMoving ? 170 : 420))) * (this.petMoving ? 7 : 2.5);
     else if (this.petMoving) lift = Math.abs(Math.sin(now / 110)) * 1.6;
     p.setPosition(this.petX, this.petY - lift);
     p.setFrame(Math.floor(now / 200) % PET_FRAMES);

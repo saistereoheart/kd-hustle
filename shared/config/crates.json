@@ -279,6 +279,6 @@
         "durian_crown"
       ]
     },
-    {"id": "pet_egg", "name": "Telur Teman", "priceSen": 40000, "color": "#40c057", "pity": {"epic": 25, "legendary": 120}, "pool": ["pet_kucing", "pet_ayam", "pet_kancil", "pet_penyu", "pet_musang", "pet_enggang", "pet_kerbau", "pet_buaya", "pet_harimau", "pet_naga", "pet_unicorn", "pg_kolar", "pg_bandana", "pg_loceng", "pg_azimat", "pg_taring", "pg_perisai", "pg_sayap", "pg_mahkota"]}
+    {"id": "pet_egg", "name": "Telur Teman", "priceSen": 40000, "color": "#40c057", "pity": {"epic": 25, "legendary": 120}, "pool": ["pet_kucing", "pet_ayam", "pet_kancil", "pet_penyu", "pet_musang", "pet_enggang", "pet_kerbau", "pet_buaya", "pet_harimau", "pet_naga", "pet_unicorn", "pet_arnab", "pet_rubah", "pg_kolar", "pg_bandana", "pg_loceng", "pg_azimat", "pg_taring", "pg_perisai", "pg_sayap", "pg_mahkota"]}
   ]
 }

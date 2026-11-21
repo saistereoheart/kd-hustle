@@ -11,7 +11,9 @@
     "pet_buaya":   { "hp": 70, "atk": 18, "def": 14, "spd": 10, "move": "Rahang Besi",      "ultimate": "Gulung Maut",        "cry": "Senyum dulu... lepas tu ngap." },
     "pet_harimau": { "hp": 66, "atk": 20, "def": 12, "spd": 16, "move": "Cakaran Belang",   "ultimate": "Ngauman Malaya",     "cry": "RAWR! Ini tanah aku!" },
     "pet_naga":    { "hp": 75, "atk": 21, "def": 15, "spd": 15, "move": "Api Naga",         "ultimate": "Naga Langit Murka",  "cry": "Aku penjaga gua ini." },
-    "pet_unicorn": { "hp": 70, "atk": 19, "def": 14, "spd": 18, "move": "Tanduk Pelangi",   "ultimate": "Pelangi Ajaib",      "cry": "Neigh~! Percaya pada magik!" }
+    "pet_unicorn": { "hp": 70, "atk": 19, "def": 14, "spd": 18, "move": "Tanduk Pelangi",   "ultimate": "Pelangi Ajaib",      "cry": "Neigh~! Percaya pada magik!" },
+    "pet_arnab":   { "hp": 62, "atk": 18, "def": 11, "spd": 19, "move": "Lompat Pentas",    "ultimate": "Encore Bintang",     "cry": "Annyeong~! Tepuk tangan semua!" },
+    "pet_rubah":   { "hp": 68, "atk": 20, "def": 13, "spd": 18, "move": "Kenyit Mata",      "ultimate": "Konsert Bulan Purnama", "cry": "Fighting! Lightstick naik!" }
   },
   "gear": {
     "pg_kolar":   { "def": 0.125 },
