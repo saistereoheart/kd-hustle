@@ -81,6 +81,7 @@ import { showWelcomeBack } from './ui/property/welcome';
 import { setFurnitureCatalog } from './items/furnitureArt';
 import type { ShopView } from '@kh/shared';
 import { staffName, type ShopCtx } from './world/shopFloor';
+import { startMemoryWatch } from './perf/memory';
 
 export class App {
   cfg!: PublicConfig;
@@ -219,6 +220,16 @@ export class App {
     // ⚙️ Weak GPU: the governor lowers the render resolution (and raises it back) as the frame rate needs.
     this.game.events.on(Phaser.Core.Events.POST_STEP, (_t: number, delta: number) => governor.tick(delta));
     governor.onChange(queueFit);
+    // 🧠 Stay inside the memory budget (Settings → Memory); a runaway leak reloads instead of eating the PC.
+    startMemoryWatch({
+      game: () => this.game,
+      trimMap: () => this.town?.trimMemory(),
+      reload: (why) => {
+        console.warn(`[memory] reloading to free memory (${why})`);
+        toast('🧠 Memory was filling up: reloading to free it. Nothing is lost.', 'bad', 4000);
+        setTimeout(() => location.reload(), 2500);
+      },
+    });
     document.addEventListener('fullscreenchange', queueFit);
     this.game.scene.add('town', TownScene, false);
     this.game.scene.add('interior', InteriorScene, false);

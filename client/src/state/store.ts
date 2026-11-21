@@ -97,6 +97,7 @@ export class Store {
     this.index = new Set(you.index);
     this.best = new Map(Object.entries(you.best ?? {}));
     this.seen = [];
+    this.seenKeys.clear();
     this.pages = new Set(you.pagesClaimed);
     this.pity = { ...you.pity };
     this.jobs = { ...you.jobs };
@@ -162,10 +163,21 @@ export class Store {
   }
   private emitTimer = 0;
 
+  /** Adds to `seen`, one entry per item / tier / variant (auto-rolling for hours added thousands of copies). */
+  noteSeen(items: Array<{ itemId: string; grade?: string; variant: string }>) {
+    for (const i of items) {
+      const k = `${i.itemId}|${i.grade ?? ''}|${i.variant}`;
+      if (this.seenKeys.has(k)) continue;
+      this.seenKeys.add(k);
+      this.seen.push({ itemId: i.itemId, grade: i.grade, variant: i.variant });
+    }
+  }
+  private seenKeys = new Set<string>();
+
   addItems(items: InventoryItem[], index?: string[]) {
     const have = new Set(this.inventory.map((i) => i.iid));
     for (const i of items) if (!have.has(i.iid)) this.inventory.push(i);
-    this.seen.push(...items);
+    this.noteSeen(items);
     if (index) this.index = new Set(index);
     else for (const i of items) this.index.add(i.itemId);
     this.emit();

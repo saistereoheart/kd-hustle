@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import type { BuiltMap } from '@kh/shared';
 import { buildDecorSprites } from './tileset';
 import { addCanvasTexture } from './canvasTexture';
+import { memoryBudget } from '../perf/memory';
 import { BLEED, CHUNK, ChunkPainter, occupancy, type Ctx } from './chunkPainter';
 import type { ChunkReply } from './chunkWorker';
 
@@ -98,10 +99,10 @@ export class ChunkRenderer {
 
   constructor(private scene: Phaser.Scene, private map: BuiltMap, resolution: number) {
     this.res = resolution;
-    const bytesPerChunk = (CHUNK * map.tileSize * resolution) ** 2 * 4 * 1.5; // + canopy layers
-    // Enough to keep the chunks around you (and the prefetch ring) without redrawing them when
-    // you walk back and forth.
-    this.maxChunks = Math.max(24, Math.floor((112 * 1024 * 1024) / bytesPerChunk));
+    const bytesPerChunk = (CHUNK * map.tileSize * resolution) ** 2 * 4 * 2; // ground + trees (+ an overhead road)
+    // The memory budget (Settings → Memory): enough to keep a few chunks you just walked past, so
+    // walking back and forth doesn't redraw them. The ones around you always stay, whatever this says.
+    this.maxChunks = Math.max(8, Math.floor((memoryBudget().chunkMB * 1024 * 1024) / bytesPerChunk));
     workerFor(map); // start it early: it has to receive the map before it can paint
   }
 
@@ -115,7 +116,7 @@ export class ChunkRenderer {
     else this.ready.shift()?.();
     const T = this.map.tileSize;
     const S = CHUNK * T;
-    const pad = S * 1.1; // paint chunks well before they scroll into view
+    const pad = S * memoryBudget().prefetch; // paint chunks before they scroll into view
     const cx0 = Math.floor((view.x - pad) / S), cx1 = Math.floor((view.right + pad) / S);
     const cy0 = Math.floor((view.y - pad) / S), cy1 = Math.floor((view.bottom + pad) / S);
     const minCx = Math.floor(this.map.originTx / CHUNK), maxCx = Math.floor((this.map.originTx + this.map.width - 1) / CHUNK);
@@ -156,6 +157,11 @@ export class ChunkRenderer {
       const old = [...this.live.entries()].filter(([, c]) => c.lastUsed !== now).sort((a, b) => a[1].lastUsed - b[1].lastUsed);
       for (const [k, c] of old.slice(0, this.live.size - this.maxChunks)) this.destroyChunk(k, c);
     }
+  }
+
+  /** Low on memory: let go of every chunk that isn't on (or next to) the screen right now. */
+  trim() {
+    for (const [k, c] of [...this.live]) if (c.lastUsed !== this.counter) this.destroyChunk(k, c);
   }
 
   get chunkCount() {

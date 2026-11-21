@@ -266,7 +266,7 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
       spin(res.rolled, res.improved, () => {
         spinning = false;
         app.store.inventory = app.store.inventory.map((i) => (i.iid === res.item.iid ? res.item : i));
-        app.store.seen.push(res.item);
+        app.store.noteSeen([res.item]);
         if (res.improved) sfx.reveal(res.forced ? 5 : 4);
         else sfx.click();
         toast(res.improved ? `✨ ${res.forced ? 'Pity! ' : ''}${itemLine(app, res.item)}` : 'No luck this time (it stays the same).', res.improved ? 'good' : 'info');

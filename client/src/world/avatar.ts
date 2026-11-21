@@ -8,6 +8,7 @@ import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefi
 import { is3dVehicle, isCarId } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 import { drawPetStyled } from '../items/petArt';
+import { holdTexture } from '../perf/memory';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
@@ -33,9 +34,16 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
   const wornKey = [worn.hat, worn.face, worn.back].map((w) => (w ? `${w.shape}.${w.paint.c1}.${w.paint.variant}` : '-')).join('|');
   const key = `char_${appearanceKey(a)}_${appearanceKey({ wornKey } as unknown as Appearance)}`;
   if (scene.textures.exists(key)) return key;
-  const tex = addCanvasTexture(scene, key, renderSheet(a, cfg, worn))!;
+  const sheet = renderSheet(a, cfg, worn);
+  const tex = addCanvasTexture(scene, key, sheet)!;
   for (let i = 0; i < FRAME_COUNT; i++) {
     tex.add(i, 0, (i % COLS) * FRAME_PX_W, Math.floor(i / COLS) * FRAME_PX_H, FRAME_PX_W, FRAME_PX_H);
+  }
+  // With WebGL the sheet is on the graphics card now (a lost context reloads the page), so the
+  // ~4.6 MB copy in memory is only needed for the head badge: make that now and let the copy go.
+  if (scene.sys.renderer.type === Phaser.WEBGL) {
+    headTexture(scene, key);
+    sheet.width = sheet.height = 0;
   }
   const mk = (name: string, frames: number[], frameRate: number, repeat = -1) =>
     scene.anims.create({ key: `${key}:${name}`, frames: frames.map((f) => ({ key, frame: f })), frameRate, repeat });
@@ -190,6 +198,7 @@ export class Avatar {
       this.occIcon = this.scene.add.image(0, 0, key).setScale(0.62);
       this.container.add(this.occIcon);
     } else this.occIcon.setTexture(key);
+    holdTexture(this.occIcon);
     // The driver's face in the middle over the roof, passengers alternating right / left.
     const slot = this.seat?.seat ?? 0;
     const x = [0, 19, -19, 38][slot] ?? 0;
@@ -282,11 +291,14 @@ export class Avatar {
       if (!this.fit!.hideRider && !hasDriver(v)) {
         this.bikeFront = this.scene.add.image(0, 2, `${this.bikeTex}_side`).setOrigin(0.5, this.fit!.originY).setScale(this.fit!.scale).setVisible(false);
         this.container.add(this.bikeFront);
+        holdTexture(this.bikeFront);
       }
+      holdTexture(this.bike);
       this.container.addAt(this.bike, this.auraGlow ? 1 : 0);
       if (hasDriver(v)) {
         this.driverTex = ensureCharacterTexture(this.scene, RIDER, this.cfg);
         this.driver = this.scene.add.sprite(0, -9, this.driverTex, 0).setOrigin(0.5, ORIGIN_Y).setScale(1 / RES);
+        holdTexture(this.driver);
         this.container.add(this.driver);
       }
     }
@@ -379,6 +391,7 @@ export class Avatar {
     this.appearance = a;
     this.texKey = ensureCharacterTexture(this.scene, a, this.cfg, wornFrom(this.cosmetics, this.items));
     this.sprite.setTexture(this.texKey, 0);
+    holdTexture(this.sprite);
     this.emoteUntil = 0;
     this.applyAnim(true);
     this.updateOccupantIcon();

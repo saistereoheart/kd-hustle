@@ -3,6 +3,7 @@
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
 import { governor } from '../perf/governor';
+import { memoryStats } from '../perf/memory';
 import { loadPrefs } from './settings';
 
 export class DebugOverlay {
@@ -79,6 +80,10 @@ export class DebugOverlay {
       `snap-backs ${net?.snapbacks ?? 0} (last 30 s)   ${verdict.length ? `⚠ ${verdict.join(' + ')}` : '✓ smooth'}`,
       self ? `pos ${(self.x / T).toFixed(1)}, ${(self.y / T).toFixed(1)} tiles${self.moving ? ' (moving)' : ''}` : 'pos -',
       `chunks ${self?.chunks ?? 0}   objects ${visible}/${objects}`,
+      (() => {
+        const m = memoryStats(this.app.game);
+        return `memory: JS ${m.heapMB ?? '?'} MB   pictures ${m.textureMB} MB (${m.textures})   mode: ${loadPrefs().memory === 'normal' ? 'Normal' : 'Low'}`;
+      })(),
       `players ${(town?.debugRemotes().length ?? 0) + 1}   ${this.app.interior ? 'inside a building' : this.app.home ? 'at home' : 'in town'}`,
       'F3 to hide',
     ].join('\n');

@@ -4,6 +4,7 @@ import type Phaser from 'phaser';
 import type { Direction, ParkedPublic } from '@kh/shared';
 import { vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
 import { AVATAR_DEPTH } from './avatar';
+import { holdTexture } from '../perf/memory';
 
 const VIEW: Record<Direction, 'side' | 'front' | 'back'> = { left: 'side', right: 'side', up: 'back', down: 'front' };
 
@@ -37,6 +38,7 @@ export class ParkedLayer {
       img.on('pointerup', () => this.onTap(v.vid));
       this.sprites.set(v.vid, img);
     } else img.setTexture(key);
+    holdTexture(img);
     img.setVisible(true);
     img.setScale(vehicleFit(v.vehicle).scale);
     img.setOrigin(0.5, vehicleOriginY(v.vehicle, view));

@@ -13,6 +13,8 @@ export interface Prefs {
   musicVolume: number;
   /** Rendering sharpness: auto (phones ≤ 2×), high (up to 3×), saver (1.25×, for battery / old phones). */
   quality: 'auto' | 'high' | 'saver';
+  /** 🧠 Memory use: low (the default: fewer, slightly softer map pictures, for 8 GB PCs and phones) or normal. */
+  memory: 'low' | 'normal';
   /** Coin sounds when money comes in or you pay. */
   moneySound: boolean;
   /** "+RM" pop-ups by your cash and over your stall. */
@@ -29,7 +31,7 @@ export interface Prefs {
   revLimiter: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', memory: 'low', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -150,6 +152,14 @@ export function openSettings(opts: {
     window.dispatchEvent(new Event('resize')); // re-render at the new sharpness
   });
 
+  const memory = el('select', { 'aria-label': 'Memory use' },
+    ...([['low', 'Low (8 GB PCs, phones)'], ['normal', 'Normal (sharper map)']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.memory === v }, label)));
+  memory.addEventListener('change', () => {
+    prefs.memory = memory.value as Prefs['memory'];
+    savePrefs(prefs);
+    window.dispatchEvent(new Event('resize')); // the map is redrawn for the new budget
+  });
+
   const edit = el('button', { class: 'btn', type: 'button' }, '👕 Edit character');
   const logout = el('button', { class: 'btn danger', type: 'button', 'data-action': 'logout' }, 'Log out');
   const close = el('button', { class: 'btn', type: 'button', 'data-action': 'settings-close' }, '‹ Done');
@@ -169,6 +179,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row' }, el('span', {}, '🏙️ Ambient sounds (city, casino, cooking)'), amb),
     el('div', { class: 'setting-row' }, el('span', {}, '🖥️ Graphics'), quality),
     el('div', { class: 'setting-row muted small' }, el('span', {}, `Now: ${governor.describe()}${governor.lite ? ' · lite effects' : ''}`), el('span', {}, 'Auto lowers the resolution when the frame rate drops')),
+    el('div', { class: 'setting-row' }, el('span', {}, '🧠 Memory use'), memory),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),

@@ -31,6 +31,7 @@ import { governor } from '../perf/governor';
 import { Walkers } from './walkers';
 import { bake } from './bake';
 import { SnapClock } from '../net/snapClock';
+import { memoryBudget } from '../perf/memory';
 
 interface Sample {
   t: number;
@@ -145,7 +146,8 @@ export class TownScene extends Phaser.Scene {
 
   /** Map chunk resolution: about one texel per screen pixel (capped for memory). */
   private chunkRes() {
-    return Math.min(2.5, Math.max(1, Math.round(this.zoomFor() * 2) / 2));
+    const cap = memoryBudget().maxChunkRes;
+    return Math.min(cap, Math.max(1, Math.round(this.zoomFor() * 4) / 4));
   }
   private mapRes = 1;
 
@@ -168,6 +170,11 @@ export class TownScene extends Phaser.Scene {
       this.stalls = new StallLayer(this, this.app);
     }
     this.mapView.update(cam.worldView, true);
+  }
+
+  /** Low on memory (perf/memory.ts): drop the map chunks that aren't on screen. */
+  trimMemory() {
+    this.mapView?.trimMemory();
   }
 
   get selfId() {
@@ -309,7 +316,7 @@ export class TownScene extends Phaser.Scene {
     });
     on('snapshot', (s: SnapshotPayload) => this.onSnapshot(s));
     on('move:correct', ({ x, y, seq }) => {
-      if (seq > 0) this.corrections.push(performance.now()); // the server refused a move (seq 0: it moved us)
+      if (seq > 0 && this.corrections.push(performance.now()) > 50) this.corrections.shift(); // the server refused a move (seq 0: it moved us)
       this.selfSamples = [];
       this.pos = { x, y };
       this.me.setPosition(x, y);

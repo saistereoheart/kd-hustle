@@ -1,129 +1,16 @@
 // 📱 The HustlePhone (spec §16): a smartphone UI with apps. P or Tab opens it. On a phone it
-// fills the screen; on a PC it's a phone-shaped window. Apps render inside the phone screen; the
-// Bag, Index, Map and Settings open their own (bigger) windows.
-import { menuRecipes, questProgress, stockCount } from '@kh/shared';
+// fills the screen; on a PC it's a phone-shaped window. The home screen sorts the apps into a few
+// groups (apps.ts) with anything waiting for you on top; the 💡 Tips tab on its side explains
+// each app (tips.ts). Apps render inside the phone screen; the Bag, Map, Settings and a few
+// others open their own (bigger) windows.
 import type { App } from '../../app';
-import { openInventoryPanel } from '../inventoryPanel';
 import { el, keepUiState } from '../dom';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
-import { renderBusiness } from './business';
-import { renderVentures } from './ventures';
-import { renderBank } from './bank';
-import { renderBoutique } from './boutique';
-import { renderSpin } from './spin';
-import { renderRadio } from './radio';
-import { renderPlayers } from './players';
-import { renderBoards } from './boards';
-import { renderMarket } from './market';
-import { renderRebirth } from './rebirth';
-import { renderDaily } from './daily';
-import { renderPath } from './path';
-import { renderProfile } from './profile';
-import { renderQuests } from './quests';
-import { renderRides } from './rides';
-import { renderSkills } from './skills';
-import { renderTitles } from './titles';
-import { renderAchievements } from './achievements';
-import { renderHandbook } from './handbook';
-import { renderClock } from './clock';
-import { renderProperties } from './properties';
-import { renderRolls } from './rolls';
-import { openJobsPanel } from '../jobs';
-import { openDungeon } from '../dungeon/dungeon';
-import { openLabPanel } from '../lab/labPanel';
-import { openPetsPanel } from '../pets/petsPanel';
-import { openGarage } from '../garage/garage';
+import { APPS, CATEGORIES, appById, type PhoneApp, type PhoneCtx } from './apps';
+import { phoneTips } from './tips';
 
-export interface PhoneCtx {
-  app: App;
-  /** Re-render the current app (after an action). */
-  rerender: () => void;
-  go: (id: string | null) => void;
-}
-
-interface PhoneApp {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  /** Renders inside the phone. */
-  render?: (ctx: PhoneCtx) => Array<HTMLElement | null>;
-  /** Opens something outside the phone instead. */
-  open?: (app: App) => void;
-  /** `open` shows a window on top of the phone (‹ Back returns to the phone); otherwise the
-   *  phone closes first (the full map, settings). */
-  stacks?: boolean;
-  /** Not built yet: shows this note. */
-  soon?: string;
-  /** Red badge on the icon (e.g. "!" when something is claimable). */
-  badge?: (app: App) => string | null;
-}
-
-const APPS: PhoneApp[] = [
-  { id: 'rolls', name: 'Quick Rolls', icon: '🎰', color: '#f03e3e', render: renderRolls },
-  { id: 'jobs', name: 'Jobs', icon: '📋', color: '#2b8a3e', open: (app) => openJobsPanel(app, { remote: true }), stacks: true },
-  {
-    id: 'daily', name: 'Daily', icon: '🎁', color: '#e64980', render: renderDaily,
-    badge: (app) => (app.store.progress.daily.canClaim ? '!' : null),
-  },
-  {
-    id: 'quests', name: 'Quests', icon: '📋', color: '#f59f00', render: renderQuests,
-    badge: (app) => {
-      const pr = app.store.progress;
-      const n = [...pr.quests, ...(pr.weekly ?? [])].filter((q) => {
-        const def = app.cfg.quests.daily.find((d) => d.id === q.id) ?? app.cfg.quests.weekly.find((d) => d.id === q.id);
-        return def && !q.claimed && questProgress(def, q, pr.stats).done;
-      }).length;
-      return n ? String(n) : null;
-    },
-  },
-  { id: 'path', name: 'Hustle Path', icon: '🎯', color: '#40c057', render: renderPath },
-  { id: 'handbook', name: 'Handbook', icon: '📘', color: '#1971c2', render: renderHandbook },
-  {
-    id: 'clock', name: 'Clock', icon: '🕰️', color: '#5f3dc4', render: renderClock,
-    badge: (app) => (app.store.vote?.active ? '🗳' : null),
-  },
-  { id: 'skills', name: 'Skills', icon: '⬆️', color: '#7048e8', render: renderSkills },
-  { id: 'titles', name: 'Titles', icon: '🏷️', color: '#1c7ed6', render: renderTitles },
-  { id: 'trophies', name: 'Trophies', icon: '🏅', color: '#e67700', render: renderAchievements },
-  { id: 'profile', name: 'Profile', icon: '👤', color: '#0ca678', render: renderProfile },
-  { id: 'rides', name: 'Ronda', icon: '🛵', color: '#2f9e44', render: renderRides },
-  { id: 'dungeon', name: 'Gua Gelap', icon: '⚔️', color: '#5f3dc4', open: (app) => openDungeon(app), stacks: true },
-  { id: 'lab', name: 'Labirin', icon: '🗝️', color: '#495057', open: (app) => openLabPanel(app), stacks: true },
-  { id: 'pets', name: 'Teman', icon: '🐾', color: '#2b8a3e', open: (app) => openPetsPanel(app), stacks: true },
-  { id: 'garage', name: 'Garage', icon: '🚗', color: '#c92a2a', open: (app) => openGarage(app), stacks: true },
-  { id: 'bag', name: 'Bag', icon: '🎒', color: '#d9480f', open: (app) => openInventoryPanel(app, 0), stacks: true },
-  { id: 'map', name: 'Map', icon: '🗺️', color: '#1098ad', open: (app) => app.minimap?.openFull() },
-  {
-    id: 'properties', name: 'Properties', icon: '🏠', color: '#0b7285', render: renderProperties,
-    badge: (app) => (app.store.myProps.some((p) => p.requests.length) ? '!' : null),
-  },
-  {
-    id: 'business', name: 'Business', icon: '🏪', color: '#e8590c', render: renderBusiness,
-    // Nothing on the menu in stock = no customers.
-    badge: (app) => {
-      const st = app.store.stall;
-      return st && !menuRecipes(app.cfg.stalls, app.cfg.recipes.recipes, st).some((r) => stockCount(st, r.id) > 0) ? '!' : null;
-    },
-  },
-  {
-    id: 'ventures', name: 'Ventures', icon: '🏢', color: '#5c940d', render: renderVentures,
-    badge: (app) => (Object.values(app.store.ventures.businesses).some((b) => b.level && !b.manager && b.stored) ? '💰' : null),
-  },
-  { id: 'players', name: 'Players', icon: '👥', color: '#3b5bdb', render: renderPlayers },
-  { id: 'market', name: 'Pasar Online', icon: '🛒', color: '#2f9e44', render: renderMarket },
-  { id: 'boards', name: 'Leaderboards', icon: '🏆', color: '#e67700', render: renderBoards },
-  { id: 'radio', name: 'Radio', icon: '📻', color: '#0c8599', render: renderRadio },
-  { id: 'spin', name: 'Lucky Spin', icon: '🎡', color: '#f08c00', render: renderSpin, badge: (app) => (app.store.canSpin ? '!' : null) },
-  { id: 'boutique', name: 'Butik', icon: '👜', color: '#c2255c', render: renderBoutique },
-  {
-    id: 'bank', name: 'Bank', icon: '🏦', color: '#1864ab', render: renderBank,
-    badge: (app) => (app.store.bank?.owesAhLong ? '🦈' : app.store.bank?.loans.some((l) => l.missed) ? '!' : null),
-  },
-  { id: 'rebirth', name: 'Rebirth', icon: '⭐', color: '#5f3dc4', render: renderRebirth, badge: (app) => (app.store.rebirth?.can ? '⭐' : null) },
-  { id: 'settings', name: 'Settings', icon: '⚙️', color: '#495057', open: (app) => app.openSettings(), stacks: true },
-];
+export type { PhoneCtx } from './apps';
 
 /** How many apps want your attention (for the badge on the phone button). */
 export function phoneBadgeCount(app: App): number {
@@ -138,6 +25,9 @@ export function openPhone(app: App, startApp?: string) {
   const homeBar = el('button', { class: 'phone-home', type: 'button', 'aria-label': 'Home', 'data-action': 'phone-home' });
   panel.body.replaceChildren(status, screen, homeBar);
   let current: string | null = null;
+  /** Touch + Tips: the app tapped once (its tips are showing; a second tap opens it). */
+  let previewed: string | null = null;
+  const tips = phoneTips(panel.root.querySelector<HTMLElement>('.panel-frame')!, (id) => go(id));
 
   const tick = () => {
     const d = new Date();
@@ -149,7 +39,8 @@ export function openPhone(app: App, startApp?: string) {
   const ctx: PhoneCtx = { app, rerender: () => keepUiState(screen, render), go: (id) => go(id) };
 
   function go(id: string | null) {
-    const def = id ? APPS.find((a) => a.id === id) : null;
+    const def = appById(id);
+    previewed = null;
     if (def?.open) {
       if (!def.stacks) closePanel();
       sfx.click();
@@ -162,28 +53,65 @@ export function openPhone(app: App, startApp?: string) {
     screen.scrollTop = 0;
   }
 
-  function home() {
-    const grid = el('div', { class: 'phone-grid' });
-    for (const a of APPS) {
-      const badge = a.badge?.(app);
-      const icon = el('span', { class: 'phone-icon' }, a.icon, badge ? el('span', { class: 'phone-badge' }, badge) : null);
-      icon.style.background = a.color;
-      const b = el('button', { class: `phone-app${a.soon ? ' soon' : ''}`, type: 'button', 'data-app': a.id }, icon, el('span', { class: 'phone-app-name' }, a.name));
-      b.addEventListener('click', () => go(a.id));
-      grid.append(b);
+  /** A tap on an app: opens it, or (touch screen, Tips open) shows its tips first. */
+  function tap(a: PhoneApp) {
+    if (tips.tapToPreview && previewed !== a.id) {
+      previewed = a.id;
+      tips.show(a);
+      sfx.click();
+      for (const b of screen.querySelectorAll<HTMLElement>('[data-app], [data-alert-app]')) {
+        b.classList.toggle('previewed', (b.dataset.app ?? b.dataset.alertApp) === a.id);
+      }
+      return;
     }
+    go(a.id);
+  }
+
+  /** Pointing at (or tabbing to) an app shows its tips. */
+  function hoverable(b: HTMLElement, a: PhoneApp) {
+    b.addEventListener('pointerenter', (e) => e.pointerType !== 'touch' && tips.show(a));
+    b.addEventListener('focus', () => tips.show(a));
+    b.addEventListener('click', () => tap(a));
+  }
+
+  function appButton(a: PhoneApp) {
+    const badge = a.badge?.(app);
+    const icon = el('span', { class: 'phone-icon' }, a.icon, badge ? el('span', { class: 'phone-badge' }, badge) : null);
+    icon.style.background = a.color;
+    const b = el('button', { class: `phone-app${previewed === a.id ? ' previewed' : ''}`, type: 'button', 'data-app': a.id, 'aria-label': `${a.name}: ${a.does}` }, icon, el('span', { class: 'phone-app-name' }, a.name));
+    hoverable(b, a);
+    return b;
+  }
+
+  function home() {
     const pr = app.store.progress;
     const hello = el('div', { class: 'phone-hello' }, el('div', { class: 'phone-hello-big' }, `Hi, ${app.lastInit?.you.name ?? 'boss'} 👋`), el('div', { class: 'muted' }, `Level ${pr.level} · ${pr.titles.length} titles · ${pr.stats.jobs ?? 0} jobs done`));
-    screen.replaceChildren(hello, grid);
+    // 🔔 Anything waiting for you (a gift to claim, a quest done, money to collect...), on top.
+    const waiting = APPS.map((a) => ({ a, badge: a.badge?.(app) })).filter((x) => x.badge);
+    const alerts = waiting.length
+      ? el('div', { class: 'phone-alerts' }, el('div', { class: 'phone-cat' }, '🔔 Waiting for you'),
+          el('div', { class: 'phone-alert-row' }, ...waiting.map(({ a, badge }) => {
+            const b = el('button', { class: `phone-alert${previewed === a.id ? ' previewed' : ''}`, type: 'button', 'data-alert-app': a.id }, el('span', { class: 'phone-alert-icon' }, a.icon), el('span', {}, a.name), el('span', { class: 'phone-alert-badge' }, badge!));
+            b.style.setProperty('--app', a.color);
+            hoverable(b, a);
+            return b;
+          })))
+      : null;
+    const sections = CATEGORIES.map((c) => {
+      const list = APPS.filter((a) => a.cat === c.id);
+      return el('section', { class: 'phone-cat-box', 'data-cat': c.id }, el('h5', { class: 'phone-cat' }, `${c.icon} ${c.name}`), el('div', { class: 'phone-grid' }, ...list.map(appButton)));
+    });
+    screen.replaceChildren(...[hello, alerts, ...sections].filter((x): x is HTMLElement => !!x));
     panel.root.querySelector('.panel-head h3')!.textContent = '📱 HustlePhone';
   }
 
   function render() {
-    const def = current ? APPS.find((a) => a.id === current) : null;
+    const def = appById(current);
     if (!def) return home();
+    tips.show(def);
     const back = el('button', { class: 'phone-back', type: 'button', 'data-action': 'phone-back' }, '‹ Home');
     back.addEventListener('click', () => go(null));
-    const body = def.render ? def.render(ctx) : [el('div', { class: 'phone-soon' }, el('div', { class: 'phone-soon-icon' }, def.icon), el('h4', {}, def.name), el('p', {}, def.soon ?? 'Coming soon.'))];
+    const body = def.render ? def.render(ctx) : [];
     screen.replaceChildren(el('div', { class: 'phone-appbar' }, back, el('span', { class: 'phone-apptitle' }, `${def.icon} ${def.name}`)), el('div', { class: 'phone-appbody', 'data-phone-app': def.id }, ...body));
     panel.root.querySelector('.panel-head h3')!.textContent = `📱 ${def.name}`;
   }

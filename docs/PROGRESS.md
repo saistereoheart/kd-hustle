@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.16.1)_
+_Last updated: 2026-11-22 (v1.17.0)_
 
-**Now at v1.16.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.17.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 412 unit tests (2026-11-22) |
+| `npm test` (Vitest) | ✅ 412 unit tests (2026-11-22, v1.17.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.16.1 reaches the game only then.
+   from v1.8.2 to v1.17.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -50,6 +50,55 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 📱 Simpler phone + 💡 Tips, and a memory budget (2026-11-22, your requests, v1.17.0)
+
+**Phone.** The 30 apps were one long grid. Now:
+- They sit in 7 groups: 🎁 Today, 💰 Make money, 🛍️ Shop & bank, 🎒 Me, ⚔️ Adventure, 🏆 Goals & ranks, 🧭 Town & tools.
+- A 🔔 **Waiting for you** row on top lists every app with something to claim or fix.
+- Quests got its own icon (📜). Before, it shared 📋 with Jobs.
+- A yellow **💡 TIPS** bookmark sticks out of the phone's right side. It opens a Tips window beside the phone
+  with the app you point at: big icon, name, group, what it does (one line) and a short description, plus an
+  Open button.
+  - Inside an app, it explains that app.
+  - On a touch screen there's nothing to point with, so the first tap on an app shows its tips and a second
+    tap (or Open) opens it.
+  - The window is too wide to sit beside a phone-sized screen, so there it floats over the bottom of the phone.
+  - Open / closed is remembered on the device.
+- The tips text lives with the app list in `client/src/ui/phone/apps.ts`.
+- **Decision:** I kept the app names ("Business", "Daily"). Item descriptions and server messages say "📱 Business".
+
+**Memory (your 23 GB report).**
+- **What I measured** (Chromium with software graphics, 1920×1080, the v1.16.1 code):
+  - 6 to 9 minute runs of idling, walking, windows and teleports, plus 250 random map views: the whole
+    browser held at 1.2–2.1 GB and didn't grow.
+  - I could not reproduce 23 GB.
+- **One real leak found and fixed.** Every outfit change by any player made a new 4.6 MB character sheet
+  (kept twice: graphics card plus memory), and none were ever removed. Now:
+  - pictures nobody on screen uses (old outfit sheets, old paint jobs) go after a minute;
+  - the in-memory copy of each sheet is dropped once it's on the graphics card.
+- **New Settings → 🧠 Memory use: Low (default) / Normal.** Low means:
+  - the map is drawn at most 1.25× sharp (was up to 2.5×);
+  - fewer map squares are drawn ahead of time;
+  - 48 MB of map pictures are kept (was 112).
+  - Result: pictures went from 266–300 MB to 109–131 MB, and the whole browser from 1.25–2.1 GB to about 1.0 GB.
+  - Normal is the old, sharper map.
+- **Safety net every 20 s:**
+  - if pictures go over budget (320 MB on Low), everything unused is dropped at once;
+  - if JS memory stays over 1.1 GB for a minute (Chrome / Edge only report it), the page reloads itself with
+    a message. Nothing is lost: the server has everything.
+- F3 now shows a `memory:` line (JS MB, pictures MB, mode).
+- Also capped two small lists that grew forever (`store.seen`, snap-back times).
+- **Code:** `client/src/perf/memory.ts`.
+
+**To test (after the rebuild):**
+1. Phone (P): the groups and the Waiting row. Tap 💡 TIPS, point at apps, open one, look at the tips inside it.
+2. On a phone: TIPS on, tap once (tips), tap again (opens).
+3. Play for an hour. Watch the browser's own task manager (**Shift+Esc** in Chrome / Edge) and F3's memory line.
+4. If memory still climbs, send me which row is big there (the Kota Hustle tab, "GPU Process", or another
+   tab / extension) and the F3 memory line.
 
 ---
 

@@ -87,6 +87,11 @@ export class MapView {
     return this.chunks.chunkCount;
   }
 
+  /** Low on memory: drop the map chunks that aren't on screen. */
+  trimMemory() {
+    this.chunks.trim();
+  }
+
   destroy() {
     this.chunks.destroy();
     for (const t of this.labels) t.destroy();

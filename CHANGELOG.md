@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.17.0 (2026-11-22): 📱 a simpler phone with 💡 Tips, and a memory budget
+- **The phone's apps are in groups now:** 🎁 Today, 💰 Make money, 🛍️ Shop & bank, 🎒 Me, ⚔️ Adventure,
+  🏆 Goals & ranks, 🧭 Town & tools. A 🔔 Waiting for you row on top shows everything you can claim or need to fix.
+- **💡 TIPS bookmark** on the side of the phone. It opens a window beside the phone that explains the app you
+  point at: big icon, name, what it does and a short description, with an Open button.
+  - On a touch screen, tap an app once to read about it, and again to open it.
+- **Uses much less memory:**
+  - New Settings → 🧠 Memory use. "Low" (the default) is for 8 GB PCs and phones; "Normal" is the old, sharper map.
+  - Old outfit and paint-job pictures are now removed. Every outfit change by any player used to add 4.6 MB
+    that stayed until you closed the page.
+  - In testing, the game's pictures went from ~280 MB to ~120 MB and the whole browser from 1.2–2.1 GB to about 1 GB.
+- **Safety net:** if memory keeps climbing anyway, the game frees what it can, and as a last resort reloads
+  itself (nothing is lost).
+- F3 shows the game's memory use.
+
 ## 1.16.1 (2026-11-22): green squares on the map, memory, scrolling lists
 - **Green squares where the map should be (report #13):** when the background map painter failed on a piece of
   the map, the game kept asking it again every frame, so that piece never appeared. It's now painted the
