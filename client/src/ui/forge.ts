@@ -9,7 +9,7 @@ import {
   gradeDef, gradeIndex, nextGrade, variantLabel, variantParts, type InventoryItem, type ItemDef, type RerollPity,
 } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast } from './dom';
+import { el, keepUiState, rebuildNow, toast } from './dom';
 import { iconUrl, openPanel } from './panel';
 import { sfx } from './sound';
 import { openBulkWindow } from './bulkWindow';
@@ -42,7 +42,10 @@ export function openMergeWindow(app: App, firstIid?: number) {
   if (firstIid !== undefined && forgeable(app).some((i) => i.iid === firstIid)) slots[0] = firstIid;
   const get = (iid: number | null) => (iid === null ? undefined : app.store.inventory.find((i) => i.iid === iid));
 
-  const render = () => {
+  // Re-render without losing the list's scroll (picking an item, or a store update every second:
+  // report #12, the list jumped back to the top while scrolling).
+  const render = () => rebuildNow(panel.body, draw);
+  const draw = () => {
     const picked = slots.map(get);
     const first = picked.find(Boolean);
     const def = first ? app.items.get(first.itemId) : undefined;
@@ -139,9 +142,9 @@ export function openMergeWindow(app: App, firstIid?: number) {
       el('p', { class: 'hint' }, `Same tier in, one tier up out (e.g. ${n} × D → 1 C). Every variant is kept and they multiply (Shiny + Golden = both bonuses).`),
     );
   };
-  const off = app.store.on(render);
+  const off = app.store.on(() => keepUiState(panel.body, draw));
   panel.onClose = () => off();
-  render();
+  draw();
 }
 
 // ------------------------------------------------------------------ reroll (with the reel)

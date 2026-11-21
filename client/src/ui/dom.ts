@@ -134,6 +134,13 @@ export function keepUiState(root: HTMLElement, rebuild: () => void) {
   scheduleRebuild(root);
 }
 
+/** Re-renders `root` right now (after a click in it), keeping scroll positions, typing and focus. */
+export function rebuildNow(root: HTMLElement, rebuild: () => void) {
+  pendingRebuild.delete(root);
+  lastRebuild.set(root, performance.now());
+  rebuildKeepingState(root, rebuild);
+}
+
 function rebuildKeepingState(root: HTMLElement, rebuild: () => void) {
   const scrolls = new Map<string, [number, number]>();
   const typed = new Map<string, string>();

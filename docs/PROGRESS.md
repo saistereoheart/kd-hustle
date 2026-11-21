@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.16.0)_
+_Last updated: 2026-11-22 (v1.16.1)_
 
-**Now at v1.16.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.16.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.16.0 reaches the game only then.
+   from v1.8.2 to v1.16.1 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -52,6 +52,33 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🟩 Green map squares, memory, scrolling (2026-11-22, reports #12 and #13 + your memory report, v1.16.1)
+- **#13 (nytra, Firefox): plain green squares.** The camera background is grass green, so a green square is a
+  map chunk that was never added. In `client/src/world/chunkRenderer.ts`, a chunk the worker failed to paint was
+  meant to be painted on the main thread. Instead it was requested from the worker again on the next frame,
+  forever. Now:
+  - a failed chunk is painted on the main thread;
+  - a request with no reply after 6 s is asked again;
+  - after 4 failures in a row the worker is switched off;
+  - the worker's error goes to the browser console ("[map] …"). Why Firefox's worker failed is still unknown.
+- **Memory / PC hanging:** that retry loop also made 3 full-size canvases per try, every frame. Separately,
+  each chunk kept its picture in memory after the upload to the GPU (ImageBitmaps / canvases). Those copies
+  are now freed under WebGL; a lost graphics context reloads the page anyway (graphicsGuard).
+- **Checked in a browser** (Chromium, 1920×1080, `test-results/memprobe.cjs`): 30 teleports around town, no
+  chunk missing on screen. The JS heap went down (212 → 108 MB) and the texture count held at about 900. The
+  same run with the worker failing on purpose (`memprobe-fail.cjs`) recovered: nothing missing.
+- **#12 (Wendygosh): the item list jumps to the top while scrolling.** The ⚒️ Forge's merge window and the
+  Merge all / Scrap all window re-rendered on every store change (each money tick) without `keepUiState`, and
+  picking an item re-rendered from the top. Both now keep the scroll (`rebuildNow` in `ui/dom.ts` for clicks,
+  `keepUiState` for store updates).
+- **How to test:**
+  - Firefox: drive around town for a few minutes. There should be no green squares, and the F12 console should
+    show no "[map]" warnings (if it does, send me the text).
+  - Task Manager: the browser's memory should level off instead of climbing.
+  - Open ⚒️ Forge with lots of items, scroll down and wait a few seconds; then pick an item. The list should
+    stay where it is both times.
+- Reports #12 and #13 are still open: close them once confirmed (`npm run admin -- feedback-done 12` / `13`).
 
 ## 🛵 Kapcai and Ronda engines (2026-11-22, v1.16.0)
 - **What changed:** `garage.json` has a new `rides` section: everyday vehicles that aren't sold in the showroom

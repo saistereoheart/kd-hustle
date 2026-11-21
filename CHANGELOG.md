@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.16.1 (2026-11-22): green squares on the map, memory, scrolling lists
+- **Green squares where the map should be (report #13):** when the background map painter failed on a piece of
+  the map, the game kept asking it again every frame, so that piece never appeared. It's now painted the
+  normal way instead. If the background painter keeps failing, the game stops using it.
+- **Memory (PC hanging at 100% memory):** that endless retry also made fresh full-size pictures every frame,
+  so memory filled up faster than the browser could free it. It's gone. The map also no longer keeps a second
+  copy of every map picture once it's on the graphics card. That's up to ~7 MB less per map square, and about
+  40 squares are loaded on a big screen.
+- **Lists jumping back to the top while you scroll (report #12):** the ⚒️ Forge's item list and the Merge all /
+  Scrap all window were redrawn every second or so (each money tick) and lost their scroll. They keep it now,
+  also when you pick an item.
+
 ## 1.16.0 (2026-11-22): 🛵 the kapcai and the Ronda get real engines
 - **The Kapcai Motorbike (a Hondo EX-5) and the Ronda (a Yamaho Y-15) now drive like the showroom bikes:**
   a single-cylinder engine you can hear (and others hear), a gearbox (4 and 5 gears, automatic or manual like the

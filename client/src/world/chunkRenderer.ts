@@ -13,6 +13,8 @@ import type { ChunkReply } from './chunkWorker';
 export const DECK_DEPTH = 900_000;
 const CANOPY_DEPTH = 1_000_000;
 const GRID = 8;
+/** A chunk the worker hasn't sent back by now is asked for again. */
+const PENDING_TIMEOUT_MS = 6000;
 
 interface LiveChunk {
   ground: Phaser.GameObjects.Image;
@@ -35,6 +37,25 @@ let worker: { map: BuiltMap; w: Worker } | null = null;
 let workerBroken = false;
 const waiting = new Map<number, (r: ChunkReply) => void>();
 let nextId = 1;
+/** Chunks the worker couldn't paint, in a row: after a few, it's switched off (main thread only). */
+let workerFails = 0;
+const WORKER_GIVE_UP = 4;
+let warned = false;
+function noteWorkerFail(error: string | undefined) {
+  if (error === 'not ready') return; // it hadn't got the map yet: not its fault
+  if (!warned) {
+    warned = true;
+    console.warn('[map] the background painter failed a chunk; painting it here instead:', error);
+  }
+  if (++workerFails >= WORKER_GIVE_UP && worker) {
+    console.warn('[map] the background painter keeps failing: painting on the main thread from now on');
+    workerBroken = true;
+    worker.w.terminate();
+    worker = null;
+    for (const cb of waiting.values()) cb({ id: -1, failed: true, px: 0, ground: null, error: 'stopped' });
+    waiting.clear();
+  }
+}
 function workerFor(map: BuiltMap): Worker | null {
   if (workerBroken || typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') return null;
   if (worker?.map === map) return worker.w;
@@ -49,7 +70,7 @@ function workerFor(map: BuiltMap): Worker | null {
     w.onerror = () => {
       // No worker after all (old browser, blocked): paint on the main thread from now on.
       workerBroken = true;
-      for (const cb of waiting.values()) cb({ id: -1, failed: true } as ChunkReply);
+      for (const cb of waiting.values()) cb({ id: -1, failed: true, px: 0, ground: null, error: 'stopped' });
       waiting.clear();
     };
     w.postMessage({ type: 'init', map });
@@ -63,8 +84,12 @@ function workerFor(map: BuiltMap): Worker | null {
 
 export class ChunkRenderer {
   private live = new Map<string, LiveChunk>();
-  /** Chunks a worker is painting right now. */
-  private pending = new Set<string>();
+  /** Chunks a worker is painting right now (and when they were asked for). */
+  private pending = new Map<string, number>();
+  /** Chunks the worker failed on: painted on the main thread instead. */
+  private here = new Set<string>();
+  /** Chunks that failed on the main thread too: tried again after this time (ms). */
+  private retryAt = new Map<string, number>();
   private res: number;
   private maxChunks: number;
   private counter = 0;
@@ -98,12 +123,15 @@ export class ChunkRenderer {
     const midX = (view.x + view.right) / 2, midY = (view.y + view.bottom) / 2;
     const need: Array<[number, number, number, boolean]> = [];
     const now = ++this.counter;
+    // A reply that never came back (the worker was killed, a message was lost): ask again.
+    const t = performance.now();
+    for (const [k, at] of this.pending) if (t - at > PENDING_TIMEOUT_MS) this.pending.delete(k);
     for (let cy = Math.max(cy0, minCy); cy <= Math.min(cy1, maxCy); cy++)
       for (let cx = Math.max(cx0, minCx); cx <= Math.min(cx1, maxCx); cx++) {
         const key = `${cx},${cy}`;
         const live = this.live.get(key);
         if (live) live.lastUsed = now;
-        else if (!this.pending.has(key)) {
+        else if (!this.pending.has(key) && !((this.retryAt.get(key) ?? 0) > t)) {
           const onScreen = (cx + 1) * S > view.x && cx * S < view.right && (cy + 1) * S > view.y && cy * S < view.bottom;
           need.push([cx, cy, Math.hypot((cx + 0.5) * S - midX, (cy + 0.5) * S - midY), onScreen]);
         }
@@ -112,7 +140,7 @@ export class ChunkRenderer {
     const w = force ? null : workerFor(this.map);
     const start = performance.now();
     for (const [cx, cy, , onScreen] of need) {
-      if (w) {
+      if (w && !this.here.has(`${cx},${cy}`)) {
         // In the background, a few at a time (nearest first)...
         if (this.pending.size < 3) {
           this.request(w, cx, cy);
@@ -159,14 +187,21 @@ export class ChunkRenderer {
   private request(w: Worker, cx: number, cy: number) {
     const key = `${cx},${cy}`;
     const id = nextId++;
-    this.pending.add(key);
+    this.pending.set(key, performance.now());
     waiting.set(id, (r) => {
       this.pending.delete(key);
       if (this.dead || this.live.has(key)) {
         for (const b of [r.ground, r.canopy, r.deck]) b?.close();
         return;
       }
-      if (r.failed || !r.ground) return; // painted on the main thread next frame instead
+      if (r.failed || !r.ground) {
+        // Painted on the main thread next frame instead (never sent back to the worker: it would
+        // fail again, and the chunk would stay a bare green square).
+        this.here.add(key);
+        noteWorkerFail(r.error);
+        return;
+      }
+      workerFails = 0;
       const bitmaps = [r.ground, r.canopy, r.deck].filter((b): b is ImageBitmap => !!b);
       // Uploaded on the next update, one chunk a frame.
       this.ready.push(() => {
@@ -182,6 +217,19 @@ export class ChunkRenderer {
 
   /** Paint a chunk on the main thread (no worker, or it's needed this very frame). */
   private paintHere(cx: number, cy: number, now: number) {
+    const key = `${cx},${cy}`;
+    try {
+      this.paintHereNow(cx, cy, now);
+      this.here.delete(key);
+      this.retryAt.delete(key);
+    } catch (err) {
+      // Leave it as grass for now and try again in a few seconds (never every frame).
+      console.warn(`[map] couldn't paint chunk ${key}:`, err);
+      this.retryAt.set(key, performance.now() + 5000);
+    }
+  }
+
+  private paintHereNow(cx: number, cy: number, now: number) {
     const p = painterFor(this.map).paint(cx, cy, this.res, (px) => {
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = px;
@@ -219,6 +267,17 @@ export class ChunkRenderer {
       keys.push(`${keyBase}_d`);
       addCanvasTexture(this.scene, `${keyBase}_d`, src.deck as HTMLCanvasElement);
       deck = this.pieces(`${keyBase}_d`, px, deckOcc, ox, oy, DECK_DEPTH, this.deckAlpha);
+    }
+    // With WebGL the pictures are on the graphics card now (Phaser uploads them when they're added),
+    // and a lost graphics context reloads the page (graphicsGuard), so the copies in memory are
+    // never used again: let them go. That's up to ~7 MB a chunk, ~40 chunks on a big screen.
+    // (The Canvas renderer draws from them every frame: keep them there.)
+    if (this.scene.sys.renderer.type === Phaser.WEBGL) {
+      for (const b of bitmaps) b.close();
+      bitmaps = [];
+      for (const s of [src.ground, src.canopy, src.deck]) {
+        if (typeof HTMLCanvasElement !== 'undefined' && s instanceof HTMLCanvasElement) s.width = s.height = 0;
+      }
     }
     this.live.set(`${cx},${cy}`, { ground: img, canopy, deck, keys, bitmaps, lastUsed: now });
   }

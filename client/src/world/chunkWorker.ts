@@ -9,6 +9,8 @@ export type ChunkRequest = { type: 'init'; map: BuiltMap } | { type: 'paint'; id
 export interface ChunkReply {
   id: number;
   failed?: boolean;
+  /** Why it failed (shown in the console once). */
+  error?: string;
   px: number;
   ground: ImageBitmap | null;
   canopy?: ImageBitmap | null;
@@ -31,7 +33,7 @@ self.onmessage = (e: MessageEvent<ChunkRequest>) => {
   }
   if (m.type !== 'paint') return;
   const post = (r: ChunkReply, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(r, transfer);
-  if (!painter) return post({ id: m.id, failed: true, px: 0, ground: null });
+  if (!painter) return post({ id: m.id, failed: true, error: 'not ready', px: 0, ground: null });
   try {
     const p = painter.paint(m.cx, m.cy, m.res, (px) => {
       const canvas = new OffscreenCanvas(px, px);
@@ -44,7 +46,7 @@ self.onmessage = (e: MessageEvent<ChunkRequest>) => {
     const deck = p.deck ? p.deck.canvas.transferToImageBitmap() : null;
     const transfer: Transferable[] = [ground, ...(canopy ? [canopy] : []), ...(deck ? [deck] : [])];
     post({ id: m.id, px: p.px, ground, canopy, deck, canopyOcc, deckOcc }, transfer);
-  } catch {
-    post({ id: m.id, failed: true, px: 0, ground: null });
+  } catch (err) {
+    post({ id: m.id, failed: true, error: String((err as Error)?.message ?? err), px: 0, ground: null });
   }
 };

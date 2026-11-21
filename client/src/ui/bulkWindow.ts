@@ -4,7 +4,7 @@
 // work and says what it did.
 import { gradeDef, gradeIndex, gradeMult, mergePreview, planScrap, scrapShards, type ItemDef } from '@kh/shared';
 import type { App } from '../app';
-import { el, toast } from './dom';
+import { el, keepUiState, rebuildNow, toast } from './dom';
 import { iconUrl, openPanel, tierOf } from './panel';
 import { ITEM_GROUPS } from './itemGroups';
 import { forgeable, placedIids } from './forge';
@@ -105,7 +105,9 @@ export function openBulkWindow(app: App, mode: Mode) {
     return b;
   };
 
-  const render = () => {
+  // Re-render without losing the list's scroll (ticking a box, or a store update: report #12).
+  const render = () => rebuildNow(panel.body, draw);
+  const draw = () => {
     const all = rows();
     const shown = all.filter((r) => rarities.has(r.def.rarity) && groups.has(groupOf(r.def.type)));
     const picked = shown.filter((r) => !excluded.has(r.def.id));
@@ -216,7 +218,7 @@ export function openBulkWindow(app: App, mode: Mode) {
     }
   };
 
-  const off = app.store.on(() => !busy && render());
+  const off = app.store.on(() => !busy && keepUiState(panel.body, draw));
   panel.onClose = () => off();
-  render();
+  draw();
 }
