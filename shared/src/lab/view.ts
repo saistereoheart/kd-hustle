@@ -4,6 +4,7 @@ import type { Appearance, Direction } from '../character/appearance';
 import type { Cosmetics } from '../protocol/messages';
 import type { LabDir } from './generate';
 import type { LabFighter, LabOutcome } from './battle';
+import type { LabSlot } from './gear';
 
 /** Someone else in the same room (drawn walking about). */
 export interface LabOther {
@@ -39,6 +40,13 @@ export interface LabSelf {
   maxHp: number;
   /** 🐾 Your lead Teman's boost (0.03 = +3% ATK, DEF and HP). */
   boost: number;
+  /** ⚔️ Gear: what you wear (slot → gear id) and everything you own. */
+  gear: Partial<Record<LabSlot, string>>;
+  owned: string[];
+  /** 🧪 Potions carried: id → how many. */
+  potions: Record<string, number>;
+  /** Your fighting stats with all of that. */
+  stats: { hp: number; atk: number; def: number; spd: number; crit: number; block: number };
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -86,7 +94,13 @@ export const LAB_C2S = {
   labMove: z.object({ x: z.number().finite(), y: z.number().finite(), dir: z.enum(['up', 'down', 'left', 'right']), moving: z.boolean() }),
   labDoor: z.object({ dir: z.enum(['n', 'e', 's', 'w']) }),
   labUse: z.object({ what: z.enum(['chest', 'key', 'rest', 'down', 'up', 'exit']) }),
-  labAct: z.object({ kind: z.enum(['attack', 'skill', 'guard', 'run']), target: z.string().max(8).optional() }),
+  labAct: z.object({ kind: z.enum(['attack', 'skill', 'guard', 'run', 'item']), target: z.string().max(8).optional(), item: z.string().max(32).optional() }),
+  /** 🛒 At the merchant: buy gear (n = 1) or potions. */
+  labBuy: z.object({ id: z.string().max(32), n: z.number().int().min(1).max(20).default(1) }),
+  /** ⚔️ Wear a piece you own (or take a slot off: id null). Not in a fight. */
+  labEquip: z.object({ slot: z.enum(['weapon', 'shield', 'armour', 'charm']), id: z.string().max(32).nullable() }),
+  /** 🧪 A potion out of a fight (a heal, or 🧵 Tali Pulang home). */
+  labItem: z.object({ id: z.string().max(32) }),
 };
 
 export type LabUse = z.infer<typeof LAB_C2S.labUse>['what'];

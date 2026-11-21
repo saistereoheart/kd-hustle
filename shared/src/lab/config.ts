@@ -66,6 +66,43 @@ export const labConfigSchema = z.object({
     soften: z.number().min(0).max(1),
     max: z.number().min(0).max(0.5),
   }),
+  /** 🛒 The merchant in the entrance hall and every rest chamber. */
+  merchant: z.object({ name: z.string(), line: z.string() }).default({ name: 'Tok Peraih', line: '' }),
+  /** ⚔️ Gear (kept forever, bought with Syiling): each slot comes in every tier. A tier is sold once
+   *  you've reached `minFloor` (0-based). Stats per tier are added to the weakened state. */
+  gear: z.object({
+    tiers: z.array(z.object({ id: z.string(), name: z.string(), color: z.string(), minFloor: z.number().int().min(0), price: z.number().int().positive() })).min(1),
+    slots: z.array(z.object({
+      id: z.enum(['weapon', 'shield', 'armour', 'charm']),
+      name: z.string(),
+      icon: z.string(),
+      atk: z.array(z.number().min(0)).optional(),
+      def: z.array(z.number().min(0)).optional(),
+      hp: z.array(z.number().min(0)).optional(),
+      spd: z.array(z.number().min(0)).optional(),
+      /** Extra critical-hit chance. */
+      crit: z.array(z.number().min(0).max(0.5)).optional(),
+      /** Chance to block a hit (half damage). */
+      block: z.array(z.number().min(0).max(0.5)).optional(),
+    })),
+  }),
+  /** 🧪 Potions: carried (up to `max` of each), bought at the merchant. */
+  potions: z.object({
+    max: z.number().int().min(1),
+    list: z.array(z.object({
+      id: z.string(), name: z.string(), icon: z.string(), price: z.number().int().positive(), desc: z.string(),
+      /** Heals this share of max HP. */
+      heal: z.number().min(0).max(1).optional(),
+      /** Brings a fallen friend back with this share of max HP (in a fight). */
+      revive: z.number().min(0).max(1).optional(),
+      /** A sure getaway (in a fight, not from a boss). */
+      escape: z.boolean().optional(),
+      /** +this share of ATK for the rest of the fight. */
+      atkBuff: z.number().min(0).max(2).optional(),
+      /** Out of a fight: back to town from anywhere. */
+      home: z.boolean().optional(),
+    })),
+  }),
   /** Monsters' stats grow per floor (× growth^(floor)). */
   scale: z.object({ hp: z.number().min(1), atk: z.number().min(1), def: z.number().min(1), spd: z.number().min(1) }),
   monsters: z.array(z.object({

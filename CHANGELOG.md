@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.13.0 (2026-11-21): 🗝️ Labirin Purba, part 3 (gear and potions)
+- **🛒 Tok Peraih**, the merchant, stands in the entrance hall and in every 🔥 rest chamber. Walk up to him
+  and press E.
+- **⚔️ Gear** for four slots: 🗡️ Keris (ATK), 🛡️ Perisai (DEF + a chance to block half a hit), 🥋 Baju
+  Zirah (HP + DEF) and 📿 Tangkal (SPD + crit).
+  - Six tiers: Kayu, Besi, Gangsa, Perak, Emas, Mistik (30 up to 8,000 Syiling each).
+  - Deeper tiers go on sale as you reach deeper floors. A full Mistik set is about ×4.7 your weakened
+    stats.
+  - Gear is yours for good. A better piece is worn the moment you buy it; change what you wear from
+    🎒 Bag, or from the 📱 Labirin app in town.
+- **🧪 Potions**, up to 9 of each: Jamu Kecil / Sederhana / Besar (heal), Air Penawar (revive a friend),
+  Asap Lari (a sure getaway), Sambal Semangat (+30% ATK for the fight) and Tali Pulang (back to town from
+  anywhere, coins banked).
+- **🧪 Items works in battles now.** A potion takes your turn and acts before anyone attacks. Heals and
+  Tali Pulang also work out of a fight, from 🎒 Bag.
+- Carried Syiling are spent first, then banked ones.
+- New gear that adds max HP adds that much HP at once.
+- The labyrinth's top bar no longer covers windows on phones.
+- Report #12 (a list jumping back to the top while you scroll): windows and the phone now keep their own
+  scroll position when they refresh.
+
 ## 1.12.0 (2026-11-21): merge all, scrap all, the Item Index's best, wheels and fixes
 - **⚒️ Merge all** (🎒 Bag → Items, or the forge). Merges every full set of copies, tier by tier, up to
   the tier you pick. Filter by rarity and kind, and tick items in or out one by one; unticked items

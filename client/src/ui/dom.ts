@@ -158,7 +158,13 @@ function rebuildKeepingState(root: HTMLElement, rebuild: () => void) {
     }
     focus = { key: uiKey(active, root), start, end };
   }
+  // The root itself scrolls too (a panel body, the phone screen): querySelectorAll skips it, and a
+  // rebuild that reads layout half-way (or swaps in shorter content for a moment) would snap it back
+  // to the top while you're scrolling (report #12).
+  const rootScroll = [root.scrollLeft, root.scrollTop] as const;
   rebuild();
+  if (root.scrollTop !== rootScroll[1]) root.scrollTop = rootScroll[1];
+  if (root.scrollLeft !== rootScroll[0]) root.scrollLeft = rootScroll[0];
   if (!scrolls.size && !typed.size && !focus) return;
   // Only elements that could match: same tag as something we saved.
   const tags = new Set<string>();

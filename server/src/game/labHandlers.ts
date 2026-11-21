@@ -119,9 +119,30 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       if (r.left) setInside(me, false);
       return { text: r.text, view: r.view ? withOthers(me, r.view) : undefined, self: lab.self(me), left: r.left };
     });
-    handle(socket, 'lab:act', LAB_C2S.labAct, ({ kind, target }) => {
-      battles.act(me, kind === 'attack' || kind === 'skill' ? { kind, target } : { kind });
+    handle(socket, 'lab:act', LAB_C2S.labAct, ({ kind, target, item }) => {
+      if (kind === 'item') {
+        if (!item) throw new GameError('Pick a potion.');
+        battles.act(me, { kind, item, target });
+      } else battles.act(me, kind === 'attack' || kind === 'skill' ? { kind, target } : { kind });
       return {};
+    });
+    // 🛒 The merchant, ⚔️ gear and 🧪 potions out of a fight.
+    handle(socket, 'lab:buy', LAB_C2S.labBuy, ({ id, n }) => {
+      const text = lab.buy(me, id, n);
+      return { self: lab.self(me), text };
+    });
+    handle(socket, 'lab:equip', LAB_C2S.labEquip, ({ slot, id }) => {
+      lab.equip(me, slot, id);
+      return { self: lab.self(me) };
+    });
+    handle(socket, 'lab:item', LAB_C2S.labItem, ({ id }) => {
+      const from = keyOf(me);
+      const r = lab.useItem(me, id);
+      if (r.left) {
+        moved(me, from);
+        setInside(me, false);
+      }
+      return { self: lab.self(me), text: r.text, left: r.left };
     });
     socket.on('lab:move', (msg: unknown) => {
       const parsed = LAB_C2S.labMove.safeParse(msg);

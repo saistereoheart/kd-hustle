@@ -3,8 +3,8 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, labFloor, labPlayerStats, roomLayout, seenAdd,
-  type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabUse,
+  LAB_OPPOSITE, dayKey, gearBonus, labFloor, labGear, labPlayerStats, labPotion, roomLayout, seenAdd,
+  type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -31,10 +31,15 @@ export interface LabSave {
   hpAt?: number;
   /** Monster groups beaten: `${floor}:${room}` → when (they're back after a while). */
   cleared: Record<string, number>;
+  /** ⚔️ Gear worn (slot → gear id) and owned (kept forever). */
+  gear: Partial<Record<LabSlot, string>>;
+  owned: string[];
+  /** 🧪 Potions carried: id → count. */
+  potions: Record<string, number>;
 }
 
 export function emptyLab(): LabSave {
-  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {} };
+  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {} };
 }
 
 /** How near (tiles) you must be to a door / chest / fire to use it. */
@@ -57,7 +62,119 @@ export class LabSystem {
 
   // ---------------------------------------------------------------- ⚔️ HP and stats
   stats(p: OnlinePlayer) {
-    return labPlayerStats(this.cfg, this.temanBoost(p));
+    return labPlayerStats(this.cfg, this.temanBoost(p), gearBonus(this.cfg, this.state(p).gear));
+  }
+
+  // ---------------------------------------------------------------- 🛒 the merchant, gear, potions
+  /** Standing by the merchant (the entrance hall, or a rest chamber)? */
+  private atMerchant(p: OnlinePlayer): boolean {
+    const pos = p.lab;
+    if (!pos || this.inFight(p)) return false;
+    const room = this.floor(pos.floor).rooms[pos.room];
+    if (!((pos.floor === 0 && room.kind === 'start') || room.kind === 'rest')) return false;
+    const f = this.floor(pos.floor);
+    return this.near(pos, roomLayout(this.cfg, f, room).spot.merchant, 2.6);
+  }
+
+  /** Pay Syiling: carried first (it's at risk anyway), then banked. */
+  private pay(s: LabSave, price: number) {
+    if (s.carried + s.coins < price) throw new GameError(`That's ${price} Syiling. You have ${s.carried + s.coins}.`);
+    const fromCarried = Math.min(s.carried, price);
+    s.carried -= fromCarried;
+    s.coins -= price - fromCarried;
+  }
+
+  /** Buy gear (once; you wear it at once if the slot is empty or it's better) or potions. */
+  buy(p: OnlinePlayer, id: string, n = 1): string {
+    if (!this.atMerchant(p)) throw new GameError(`Buy from ${this.cfg.merchant.name}: in the entrance hall or a rest chamber.`);
+    const s = this.state(p);
+    const g = labGear(this.cfg, id);
+    if (g) {
+      if (s.owned.includes(g.id)) throw new GameError(`You already have ${g.name}.`);
+      if (s.deepest < g.minFloor) throw new GameError(`${g.name} is sold once you've reached floor ${g.minFloor + 1}.`);
+      this.pay(s, g.price);
+      s.owned.push(g.id);
+      const cur = labGear(this.cfg, s.gear[g.slot]);
+      const wear = !cur || g.tier > cur.tier;
+      const before = this.stats(p).hp;
+      if (s.hp !== undefined) this.hp(p);
+      if (wear) s.gear[g.slot] = g.id;
+      this.maxHpChanged(p, before);
+      this.save(p);
+      return `🛒 ${g.name}${wear ? ' · now wearing it' : ''}`;
+    }
+    const pot = labPotion(this.cfg, id);
+    if (!pot) throw new GameError("The merchant doesn't sell that.");
+    const have = s.potions[pot.id] ?? 0;
+    const room = this.cfg.potions.max - have;
+    if (room <= 0) throw new GameError(`You can carry ${this.cfg.potions.max} ${pot.name} at most.`);
+    const k = Math.min(n, room);
+    this.pay(s, pot.price * k);
+    s.potions[pot.id] = have + k;
+    this.save(p);
+    return `🛒 ${pot.icon} ${pot.name} ×${k}`;
+  }
+
+  /** Wear a piece you own (null: take that slot off). Not in a fight. */
+  equip(p: OnlinePlayer, slot: LabSlot, id: string | null) {
+    if (this.inFight(p)) throw new GameError("Not in the middle of a fight!");
+    const s = this.state(p);
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p); // bring healing up to date first
+    if (id === null) delete s.gear[slot];
+    else {
+      const g = labGear(this.cfg, id);
+      if (!g || g.slot !== slot) throw new GameError("That doesn't go there.");
+      if (!s.owned.includes(g.id)) throw new GameError("You don't have that yet.");
+      s.gear[slot] = g.id;
+    }
+    this.maxHpChanged(p, before);
+    this.save(p);
+  }
+
+  /** Gear changed max HP: more max → that much more HP now; less → HP stays within it. */
+  private maxHpChanged(p: OnlinePlayer, before: number) {
+    const s = this.state(p);
+    const after = this.stats(p).hp;
+    if (s.hp === undefined) return;
+    s.hp = Math.min(after, s.hp + Math.max(0, after - before));
+  }
+
+  potionCount(p: OnlinePlayer, id: string): number {
+    return this.state(p).potions[id] ?? 0;
+  }
+
+  /** Take used potions out of the bag (after a battle round). */
+  consume(p: OnlinePlayer, id: string) {
+    const s = this.state(p);
+    const n = (s.potions[id] ?? 0) - 1;
+    if (n > 0) s.potions[id] = n;
+    else delete s.potions[id];
+    this.save(p);
+  }
+
+  /** A potion out of a fight: a heal, or 🧵 home. `left`: you're out (back in town). */
+  useItem(p: OnlinePlayer, id: string): { text: string; left?: boolean } {
+    const pot = labPotion(this.cfg, id);
+    if (!pot) throw new GameError('Unknown potion.');
+    if (!p.lab) throw new GameError('Use it in the labyrinth.');
+    if (this.inFight(p)) throw new GameError('Use it from the 🧪 Items button in the fight.');
+    if (this.potionCount(p, id) < 1) throw new GameError(`You have no ${pot.name}.`);
+    if (pot.home) {
+      this.consume(p, id);
+      const carried = this.state(p).carried;
+      this.leave(p, true);
+      return { text: `🧵 ${pot.name}: back to town.${carried ? ` Banked ${carried} Syiling.` : ''}`, left: true };
+    }
+    if (pot.heal) {
+      const max = this.stats(p).hp;
+      const hp = this.hp(p);
+      if (hp >= max) throw new GameError("You're already at full HP.");
+      this.setHp(p, hp + max * pot.heal);
+      this.consume(p, id);
+      return { text: `${pot.icon} ${pot.name}: +${this.hp(p) - hp} HP` };
+    }
+    throw new GameError(`${pot.name} only works in a fight.`);
   }
 
   /** Current HP (healing a little for the time spent out of a fight since last asked). */
@@ -142,7 +259,12 @@ export class LabSystem {
   self(p: OnlinePlayer): LabSelf {
     const s = this.state(p);
     const save = s.save.room < 0 ? { floor: 0, room: this.floor(0).start } : s.save;
-    return { coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab, hp: this.hp(p), maxHp: this.stats(p).hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)) };
+    const st = this.stats(p);
+    return {
+      coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab,
+      hp: this.hp(p), maxHp: st.hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)),
+      gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st,
+    };
   }
 
   // ---------------------------------------------------------------- entering, leaving
@@ -332,9 +454,9 @@ export class LabSystem {
     return p.lab;
   }
 
-  private near(pos: { x: number; y: number }, tile: [number, number]) {
+  private near(pos: { x: number; y: number }, tile: [number, number], reach = REACH) {
     const T = this.cfg.tile;
-    return Math.hypot(pos.x - (tile[0] + 0.5) * T, pos.y - (tile[1] + 0.5) * T) <= REACH * T;
+    return Math.hypot(pos.x - (tile[0] + 0.5) * T, pos.y - (tile[1] + 0.5) * T) <= reach * T;
   }
 
   private coins(floor: number, mult: number): number {

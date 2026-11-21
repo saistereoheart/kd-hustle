@@ -1,7 +1,8 @@
 // 🗝️ Labirin Purba battles (docs/LABYRINTH.md §4): your party against a monster group, Pokémon
-// style. Each round every player picks ⚔️ Attack / 💥 Skill / 🛡️ Guard / 🏃 Run (🧪 items come with the
-// merchant); monsters pick their own. Then everyone acts, fastest first. Pure: the server owns it.
+// style. Each round every player picks ⚔️ Attack / 💥 Skill / 🛡️ Guard / 🧪 Item / 🏃 Run; monsters
+// pick their own. Guards and items first, then everyone acts, fastest first. Pure: the server owns it.
 import type { LabConfig } from './config';
+import { labPotion, type LabGearBonus } from './gear';
 
 export type LabSide = 'party' | 'foe';
 
@@ -25,23 +26,36 @@ export interface LabFighter {
   out: boolean;
   /** Ran away (as opposed to fainted). */
   fled?: boolean;
+  /** Players: crit chance (base + gear) and the chance to block a hit (shield). */
+  crit?: number;
+  block?: number;
+  /** 🌶️ ATK multiplier for the rest of the fight (Sambal Semangat). */
+  buff?: number;
 }
 
 export type LabAction =
   | { kind: 'attack'; target?: string }
   | { kind: 'skill'; target?: string }
   | { kind: 'guard' }
-  | { kind: 'run' };
+  | { kind: 'run' }
+  /** A potion (`target`: who it's for; yourself if left out). */
+  | { kind: 'item'; item: string; target?: string };
 
 export interface LabEvent {
-  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe';
+  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe' | 'item';
   actor: string;
   target?: string;
   dmg?: number;
   crit?: boolean;
   skill?: boolean;
-  /** The target's HP after the hit. */
+  /** The target's HP after the hit (or the heal). */
   hp?: number;
+  /** A shield blocked half of it. */
+  blocked?: boolean;
+  /** 🧪 The potion used. */
+  item?: string;
+  /** A fallen fighter got back up (Air Penawar). */
+  revived?: boolean;
   text: string;
 }
 
@@ -49,11 +63,19 @@ export type LabOutcome = 'win' | 'wipe' | 'fled' | null;
 
 export type Rand01 = () => number;
 
-/** A player's fighting stats: the labyrinth's base × (1 + their lead Teman's tiny boost). */
-export function labPlayerStats(cfg: LabConfig, temanBoost: number) {
+/** A player's fighting stats: (the labyrinth's base + their gear) × (1 + their lead Teman's tiny boost). */
+export function labPlayerStats(cfg: LabConfig, temanBoost: number, gear?: LabGearBonus) {
   const p = cfg.player;
   const k = 1 + Math.max(0, Math.min(cfg.teman.max, temanBoost));
-  return { hp: Math.round(p.hp * k), atk: Math.round(p.atk * k * 10) / 10, def: Math.round(p.def * k * 10) / 10, spd: p.spd };
+  const g = gear ?? { atk: 0, def: 0, hp: 0, spd: 0, crit: 0, block: 0 };
+  return {
+    hp: Math.round((p.hp + g.hp) * k),
+    atk: Math.round((p.atk + g.atk) * k * 10) / 10,
+    def: Math.round((p.def + g.def) * k * 10) / 10,
+    spd: p.spd + g.spd,
+    crit: Math.min(0.5, p.crit + g.crit),
+    block: Math.min(0.5, g.block),
+  };
 }
 
 /** The lead Teman's boost (0..max): rarity's share × tier and variant multipliers, softened. */
@@ -120,7 +142,15 @@ export function foeAction(cfg: LabConfig, me: LabFighter, fighters: LabFighter[]
  * One round. `actions` = what each party fighter (by id) picked; missing ones ⚔️ Attack. Fighters
  * are changed in place. Returns what happened, in order, and how the battle stands.
  */
-export function resolveLabRound(cfg: LabConfig, fighters: LabFighter[], actions: Record<string, LabAction>, rand: Rand01): { events: LabEvent[]; outcome: LabOutcome } {
+export function resolveLabRound(
+  cfg: LabConfig,
+  fighters: LabFighter[],
+  actions: Record<string, LabAction>,
+  rand: Rand01,
+  opts: { noEscape?: boolean } = {},
+): { events: LabEvent[]; outcome: LabOutcome; used: Array<{ actor: string; item: string }> } {
+  /** Potions actually drunk / thrown this round (the server takes them out of the bags). */
+  const used: Array<{ actor: string; item: string }> = [];
   const pc = cfg.player;
   const events: LabEvent[] = [];
   const picks = new Map<string, LabAction>();
@@ -136,7 +166,47 @@ export function resolveLabRound(cfg: LabConfig, fighters: LabFighter[], actions:
     const f = fighters.find((x) => x.id === id)!;
     events.push({ kind: 'guard', actor: id, text: `${f.name} braces behind their guard.` });
   }
-  const order = fighters.filter((f) => !f.out && picks.get(f.id)?.kind !== 'guard').sort((a, b) => b.spd + rand() - (a.spd + rand()));
+  // 🧪 Potions next (before anyone swings), fastest first.
+  const drinkers = fighters.filter((f) => !f.out && picks.get(f.id)?.kind === 'item').sort((a, b) => b.spd - a.spd);
+  for (const f of drinkers) {
+    const a = picks.get(f.id) as Extract<LabAction, { kind: 'item' }>;
+    const pot = labPotion(cfg, a.item);
+    if (!pot) continue;
+    const party = fighters.filter((x) => x.side === f.side);
+    const target = party.find((x) => x.id === a.target) ?? f;
+    if (pot.revive) {
+      const down = target.out && !target.fled ? target : party.find((x) => x.out && !x.fled);
+      if (!down) {
+        events.push({ kind: 'item', actor: f.id, item: pot.id, text: `${f.name} holds up the ${pot.name}, but nobody needs it.` });
+        continue;
+      }
+      down.out = false;
+      down.hp = Math.max(1, Math.round(down.maxHp * pot.revive));
+      used.push({ actor: f.id, item: pot.id });
+      events.push({ kind: 'item', actor: f.id, target: down.id, item: pot.id, hp: down.hp, revived: true, text: `${f.name} uses ${pot.name}! ${down.name} gets back up.` });
+    } else if (pot.heal) {
+      const t = target.out ? f : target;
+      const before = t.hp;
+      t.hp = Math.min(t.maxHp, Math.round(t.hp + t.maxHp * pot.heal));
+      used.push({ actor: f.id, item: pot.id });
+      events.push({ kind: 'item', actor: f.id, target: t.id, item: pot.id, hp: t.hp, text: `${f.name} drinks ${pot.name}. ${t.name} +${t.hp - before} HP` });
+    } else if (pot.escape) {
+      used.push({ actor: f.id, item: pot.id });
+      if (opts.noEscape) {
+        events.push({ kind: 'runfail', actor: f.id, item: pot.id, text: `${f.name} throws ${pot.name}, but there's no escaping this one!` });
+        continue;
+      }
+      f.out = true;
+      f.fled = true;
+      events.push({ kind: 'run', actor: f.id, item: pot.id, text: `${f.name} vanishes in a puff of ${pot.name}!` });
+    } else if (pot.atkBuff) {
+      f.buff = Math.max(f.buff ?? 1, 1 + pot.atkBuff);
+      used.push({ actor: f.id, item: pot.id });
+      events.push({ kind: 'item', actor: f.id, target: f.id, item: pot.id, text: `${f.name} eats ${pot.name}. 🔥 ATK up!` });
+    }
+  }
+  // Everyone else, fastest first (someone just revived has no pick yet: they act from the next round).
+  const order = fighters.filter((f) => !f.out && picks.has(f.id) && picks.get(f.id)!.kind !== 'guard' && picks.get(f.id)!.kind !== 'item').sort((a, b) => b.spd + rand() - (a.spd + rand()));
   for (const f of order) {
     if (f.out) continue;
     const a = picks.get(f.id)!;
@@ -154,11 +224,14 @@ export function resolveLabRound(cfg: LabConfig, fighters: LabFighter[], actions:
     const target = foes.find((x) => x.id === a.target) ?? foes[0];
     const skill = a.kind === 'skill' && f.focus >= pc.skillCost;
     if (skill) f.focus -= pc.skillCost;
-    const r = damage(cfg, f.atk, target.def, skill ? pc.skillPower : 1, rand, f.side === 'party' ? pc.crit : pc.crit / 2);
-    const dmg = guarding.has(target.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
+    const r = damage(cfg, f.atk * (f.buff ?? 1), target.def, skill ? pc.skillPower : 1, rand, f.side === 'party' ? (f.crit ?? pc.crit) : pc.crit / 2);
+    let dmg = guarding.has(target.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
+    // 🛡️ A shield sometimes takes half of it.
+    const blocked = !!target.block && rand() < target.block;
+    if (blocked) dmg = Math.max(1, Math.round(dmg / 2));
     target.hp = Math.max(0, target.hp - dmg);
     const how = skill ? `uses ${f.move || 'a skill'}` : f.side === 'foe' ? `uses ${f.move}` : 'attacks';
-    events.push({ kind: 'hit', actor: f.id, target: target.id, dmg, crit: r.crit, skill, hp: target.hp, text: `${f.name} ${how}! ${target.name} −${dmg}${r.crit ? ' (critical!)' : ''}` });
+    events.push({ kind: 'hit', actor: f.id, target: target.id, dmg, crit: r.crit, skill, blocked, hp: target.hp, text: `${f.name} ${how}! ${target.name} −${dmg}${r.crit ? ' (critical!)' : ''}${blocked ? ' (blocked!)' : ''}` });
     if (target.hp <= 0) {
       target.out = true;
       events.push({ kind: 'faint', actor: target.id, text: target.side === 'foe' ? `${target.name} is defeated!` : `${target.name} fainted!` });
@@ -178,5 +251,5 @@ export function resolveLabRound(cfg: LabConfig, fighters: LabFighter[], actions:
     outcome = anyFainted ? 'wipe' : 'fled';
     if (anyFainted) events.push({ kind: 'wipe', actor: '', text: 'Your party has fallen…' });
   }
-  return { events, outcome };
+  return { events, outcome, used };
 }

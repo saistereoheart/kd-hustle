@@ -175,3 +175,57 @@ describe('Labirin Purba fights (server)', () => {
     expect(s.lab.hp(s.p)).toBe(s.lab.stats(s.p).hp);
   });
 });
+
+describe('Labirin Purba merchant, gear and potions', () => {
+  it('sells only at the merchant, spends carried Syiling first, and wears better gear at once', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    st.carried = 20;
+    st.coins = 500;
+    expect(() => s.lab.buy(s.p, 'weapon_kayu')).toThrow(/Tok Peraih|merchant/); // not next to the merchant yet
+    const f = s.lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
+    const atk0 = s.lab.stats(s.p).atk;
+    s.lab.buy(s.p, 'weapon_kayu'); // 30: 20 carried + 10 banked
+    expect(st.carried).toBe(0);
+    expect(st.coins).toBe(490);
+    expect(st.gear.weapon).toBe('weapon_kayu');
+    expect(s.lab.stats(s.p).atk).toBeGreaterThan(atk0);
+    expect(() => s.lab.buy(s.p, 'weapon_kayu')).toThrow(/already/);
+    expect(() => s.lab.buy(s.p, 'weapon_gangsa')).toThrow(/floor 2/); // not deep enough yet
+    s.lab.buy(s.p, 'weapon_besi');
+    expect(st.gear.weapon).toBe('weapon_besi');
+    // Back to the old one if you like; a slot can be emptied.
+    s.lab.equip(s.p, 'weapon', 'weapon_kayu');
+    expect(st.gear.weapon).toBe('weapon_kayu');
+    s.lab.equip(s.p, 'weapon', null);
+    expect(st.gear.weapon).toBeUndefined();
+    expect(() => s.lab.equip(s.p, 'shield', 'shield_besi')).toThrow(/don't have/);
+  });
+
+  it('potions: carry limit, heal out of a fight, Tali Pulang home from anywhere', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    st.coins = 5000;
+    const f = s.lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
+    s.lab.buy(s.p, 'jamu_kecil', 20);
+    expect(st.potions.jamu_kecil).toBe(lc.potions.max);
+    expect(() => s.lab.buy(s.p, 'jamu_kecil')).toThrow(/at most/);
+    expect(() => s.lab.useItem(s.p, 'jamu_kecil')).toThrow(/full HP/);
+    s.lab.setHp(s.p, 10);
+    const r = s.lab.useItem(s.p, 'jamu_kecil');
+    expect(r.text).toMatch(/\+30 HP/);
+    expect(st.potions.jamu_kecil).toBe(lc.potions.max - 1);
+    expect(() => s.lab.useItem(s.p, 'asap_lari')).toThrow(/no Asap Lari/);
+    s.lab.buy(s.p, 'tali_pulang');
+    st.carried = 40;
+    const home = s.lab.useItem(s.p, 'tali_pulang');
+    expect(home.left).toBe(true);
+    expect(s.p.lab).toBeNull();
+    expect(st.carried).toBe(0);
+    expect(st.potions.tali_pulang).toBeUndefined();
+  });
+});

@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  groupCoins, resolveLabRound, rollGroup,
+  groupCoins, labPotion, resolveLabRound, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -81,6 +81,14 @@ export class LabBattles {
     const me = b.fighters.find((f) => f.id === pid(p));
     if (!me || me.out) throw new GameError("You're out of this fight.");
     if (action.kind === 'skill' && me.focus < this.cfg.player.skillCost) throw new GameError('Not enough focus yet.');
+    if (action.kind === 'item') {
+      const pot = labPotion(this.cfg, action.item);
+      if (!pot) throw new GameError('Unknown potion.');
+      if (this.lab.potionCount(p, pot.id) < 1) throw new GameError(`You have no ${pot.name} left.`);
+      if (pot.home) throw new GameError(`${pot.name} doesn't work in a fight. Try 🏃 Run or 💨 Asap Lari.`);
+      if (pot.revive && !b.fighters.some((f) => f.side === 'party' && f.out && !f.fled)) throw new GameError('Nobody has fallen.');
+      if (pot.heal && me.hp >= me.maxHp) throw new GameError("You're at full HP.");
+    }
     b.choices.set(me.id, action);
     if (this.everyoneReady(b)) this.play(b);
     else this.hooks.picked([...b.members.values()], this.viewOf(b));
@@ -105,7 +113,7 @@ export class LabBattles {
   // ---------------------------------------------------------------- the rounds
   private fighterOf(p: OnlinePlayer): LabFighter {
     const st = this.lab.stats(p);
-    return { id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false };
+    return { id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block };
   }
 
   private everyoneReady(b: Battle) {
@@ -128,8 +136,13 @@ export class LabBattles {
     b.timer = null;
     const actions = Object.fromEntries(b.choices);
     b.choices.clear();
-    const { events, outcome } = resolveLabRound(this.cfg, b.fighters, actions, this.rand);
+    const { events, outcome, used } = resolveLabRound(this.cfg, b.fighters, actions, this.rand);
     const players = [...b.members.values()];
+    // 🧪 Potions used this round come out of their bags.
+    for (const u of used) {
+      const who = players.find((x) => pid(x) === u.actor);
+      if (who) this.lab.consume(who, u.item);
+    }
     const ends = new Map<number, LabBattleEnd>();
     // Each player: HP carries over. Running away ends your fight at once; fainting doesn't (you
     // wait it out: if your party wins you're back up at 1 HP and share the Syiling).

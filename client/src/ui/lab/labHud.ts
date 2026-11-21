@@ -3,6 +3,7 @@
 import { labFloor, seenHas, type LabFloor, type LabRoomView } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
+import { openLabBag } from './labBag';
 
 /** A Syiling Purba coin, drawn in CSS (the 🪙 emoji is missing from older emoji fonts). */
 export function coinIcon(): HTMLElement {
@@ -28,9 +29,11 @@ export class LabHud {
     this.hp = el('span', { class: 'lab-hp', 'data-testid': 'lab-hp' });
     const mapBtn = el('button', { class: 'btn small', type: 'button', title: 'The whole floor (M)' }, '🗺️ Map');
     mapBtn.addEventListener('click', () => this.openFull());
+    const bagBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-bag', title: 'Your Labirin gear and potions' }, '🎒 Bag');
+    bagBtn.addEventListener('click', () => openLabBag(this.app, 'gear'));
     this.leaveBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-leave' }, '🚪 Leave') as HTMLButtonElement;
     this.leaveBtn.addEventListener('click', () => this.app.leaveLab());
-    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, mapBtn, this.leaveBtn);
+    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, mapBtn, this.leaveBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
@@ -59,6 +62,11 @@ export class LabHud {
     this.leaveBtn.title = canLeave ? 'Back to town (your carried coins are banked)' : 'Leave from the entrance hall or a rest chamber';
     this.drawMini(f, v);
     if (this.full) this.openFull(true);
+  }
+
+  /** Your labyrinth save as last heard (potions for the battle screen). */
+  get self(): LabRoomView['self'] | null {
+    return this.view?.self ?? null;
   }
 
   /** Coins and HP (after a fight, a chest...). */

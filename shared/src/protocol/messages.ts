@@ -772,7 +772,13 @@ export interface ClientToServerEvents {
   'lab:move': (msg: { x: number; y: number; dir: Direction; moving: boolean }) => void;
   'lab:door': (msg: { dir: 'n' | 'e' | 's' | 'w' }, ack: Ack<Result<{ view: LabRoomView }>>) => void;
   'lab:use': (msg: { what: 'chest' | 'key' | 'rest' | 'down' | 'up' | 'exit' }, ack: Ack<Result<{ text: string; view?: LabRoomView; self: LabSelf; left?: boolean }>>) => void;
-  'lab:act': (msg: { kind: 'attack' | 'skill' | 'guard' | 'run'; target?: string }, ack: Ack<SimpleResult>) => void;
+  'lab:act': (msg: { kind: 'attack' | 'skill' | 'guard' | 'run' | 'item'; target?: string; item?: string }, ack: Ack<SimpleResult>) => void;
+  /** 🛒 Buy from the merchant (gear: n = 1). Spends carried Syiling first, then banked. */
+  'lab:buy': (msg: { id: string; n?: number }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** ⚔️ Wear a piece of gear you own (id null: take the slot off). */
+  'lab:equip': (msg: { slot: 'weapon' | 'shield' | 'armour' | 'charm'; id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 🧪 A potion out of a fight: a heal, or 🧵 Tali Pulang (`left`: you're back in town). */
+  'lab:item': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string; left?: boolean }>>) => void;
   'dungeon:view': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:enter': (ack: Ack<Result<{ view: DungeonView }>>) => void;
   'dungeon:act': (msg: { action: 'attack' | 'charge' | 'ultimate' | 'auto'; skip?: boolean }, ack: Ack<Result<{ events: BattleEvent[]; view: DungeonView; paid: DungeonLoot | null; levelUps: Array<{ name: string; level: number }> }>>) => void;

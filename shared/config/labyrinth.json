@@ -120,6 +120,195 @@
     "soften": 0.5,
     "max": 0.08
   },
+  "merchant": {
+    "name": "Tok Peraih",
+    "line": "Barang baik, harga patut! Good gear for brave legs."
+  },
+  "gear": {
+    "tiers": [
+      {
+        "id": "kayu",
+        "name": "Kayu",
+        "color": "#b07a4f",
+        "minFloor": 0,
+        "price": 30
+      },
+      {
+        "id": "besi",
+        "name": "Besi",
+        "color": "#adb5bd",
+        "minFloor": 0,
+        "price": 150
+      },
+      {
+        "id": "gangsa",
+        "name": "Gangsa",
+        "color": "#e8590c",
+        "minFloor": 1,
+        "price": 500
+      },
+      {
+        "id": "perak",
+        "name": "Perak",
+        "color": "#dee2e6",
+        "minFloor": 2,
+        "price": 1400
+      },
+      {
+        "id": "emas",
+        "name": "Emas",
+        "color": "#fcc419",
+        "minFloor": 4,
+        "price": 3500
+      },
+      {
+        "id": "mistik",
+        "name": "Mistik",
+        "color": "#cc5de8",
+        "minFloor": 5,
+        "price": 8000
+      }
+    ],
+    "slots": [
+      {
+        "id": "weapon",
+        "name": "Keris",
+        "icon": "🗡️",
+        "atk": [
+          3,
+          7,
+          13,
+          20,
+          28,
+          37
+        ]
+      },
+      {
+        "id": "shield",
+        "name": "Perisai",
+        "icon": "🛡️",
+        "def": [
+          0.6,
+          1.7,
+          3.1,
+          4.8,
+          6.7,
+          8.9
+        ],
+        "block": [
+          0.03,
+          0.05,
+          0.07,
+          0.09,
+          0.11,
+          0.13
+        ]
+      },
+      {
+        "id": "armour",
+        "name": "Baju Zirah",
+        "icon": "🥋",
+        "hp": [
+          25,
+          70,
+          130,
+          200,
+          280,
+          370
+        ],
+        "def": [
+          0.4,
+          1.1,
+          2.1,
+          3.2,
+          4.5,
+          5.9
+        ]
+      },
+      {
+        "id": "charm",
+        "name": "Tangkal",
+        "icon": "📿",
+        "spd": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "crit": [
+          0.01,
+          0.02,
+          0.03,
+          0.04,
+          0.05,
+          0.06
+        ]
+      }
+    ]
+  },
+  "potions": {
+    "max": 9,
+    "list": [
+      {
+        "id": "jamu_kecil",
+        "name": "Jamu Kecil",
+        "icon": "🧪",
+        "price": 8,
+        "heal": 0.3,
+        "desc": "Heals 30% of your HP."
+      },
+      {
+        "id": "jamu_sederhana",
+        "name": "Jamu Sederhana",
+        "icon": "🧪",
+        "price": 20,
+        "heal": 0.6,
+        "desc": "Heals 60% of your HP."
+      },
+      {
+        "id": "jamu_besar",
+        "name": "Jamu Besar",
+        "icon": "🧪",
+        "price": 45,
+        "heal": 1,
+        "desc": "Heals you fully."
+      },
+      {
+        "id": "air_penawar",
+        "name": "Air Penawar",
+        "icon": "💫",
+        "price": 40,
+        "revive": 0.4,
+        "desc": "In a fight: brings a fallen friend back with 40% HP."
+      },
+      {
+        "id": "asap_lari",
+        "name": "Asap Lari",
+        "icon": "💨",
+        "price": 15,
+        "escape": true,
+        "desc": "In a fight: a sure getaway (not from bosses)."
+      },
+      {
+        "id": "sambal_semangat",
+        "name": "Sambal Semangat",
+        "icon": "🌶️",
+        "price": 25,
+        "atkBuff": 0.3,
+        "desc": "In a fight: +30% ATK until it ends."
+      },
+      {
+        "id": "tali_pulang",
+        "name": "Tali Pulang",
+        "icon": "🧵",
+        "price": 60,
+        "home": true,
+        "desc": "Out of a fight: straight back to town from anywhere (your Syiling are banked)."
+      }
+    ]
+  },
   "scale": {
     "hp": 1.24,
     "atk": 1.19,

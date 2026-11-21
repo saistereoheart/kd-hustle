@@ -4,7 +4,7 @@
 // The server checks everything; this draws and sends intents.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, labFloor, roomLayout,
+  DIRECTIONS, labFloor, randomAppearance, roomLayout,
   type Direction, type LabDir, type LabFloor, type LabOther, type LabRoom, type LabRoomView, type LabUse, type RoomLayout,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -13,6 +13,7 @@ import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { Avatar } from './avatar';
+import { openLabBag } from '../ui/lab/labBag';
 
 interface Sample {
   t: number;
@@ -28,7 +29,8 @@ interface Remote {
 }
 
 interface Feature {
-  use: LabUse;
+  /** A server action, or 'shop': the merchant's wares (a panel). */
+  use: LabUse | 'shop';
   label: string;
   /** Tile it stands on. */
   at: [number, number];
@@ -161,7 +163,12 @@ export class LabScene extends Phaser.Scene {
     for (const o of this.roomObjs) o.destroy();
     this.roomObjs = [];
     this.features = [];
+    this.merchant?.destroy();
+    this.merchant = null;
   }
+
+  /** 🛒 Tok Peraih, in the entrance hall and every rest chamber. */
+  private merchant: Avatar | null = null;
 
   private drawRoom() {
     const { T, L, room } = this;
@@ -261,6 +268,20 @@ export class LabScene extends Phaser.Scene {
     } else if (room.kind === 'treasure') {
       emoji(L.spot.centre, view.chestDone ? '🗃️' : '💰', 44);
       if (!view.chestDone) this.features.push({ use: 'chest', label: '💰 Open the treasure', at: L.spot.centre });
+    }
+    // 🛒 The merchant: the entrance hall and every rest chamber.
+    if ((view.floor === 0 && room.kind === 'start') || room.kind === 'rest') {
+      const m = L.spot.merchant;
+      const lc = this.app.cfg.lab;
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      this.merchant = new Avatar(this, this.app.cfg.character, this.app.items, {
+        name: lc.merchant.name, level: 1, appearance: randomAppearance(this.app.cfg.character, rnd), x: (m[0] + 0.5) * T, y: (m[1] + 0.7) * T, isSelf: false, npc: true, particles: false,
+      });
+      this.merchant.setState('down', false);
+      emoji([m[0] + 1, m[1]], '🎒', 26, 6);
+      label([m[0], m[1] - 0.25], '🛒 Gear & potions');
+      this.features.push({ use: 'shop', label: `🛒 ${lc.merchant.name}: gear and potions`, at: m });
     }
     if (room.key !== undefined) {
       const k = `${view.floor}:${room.key}`;
@@ -370,6 +391,7 @@ export class LabScene extends Phaser.Scene {
       this.checkNear();
     }
     this.me.tick(now);
+    this.merchant?.tick(now);
     const renderT = now - this.clock.delay;
     for (const r of this.remotes.values()) {
       const p = interpolate(r.samples, renderT);
@@ -441,6 +463,10 @@ export class LabScene extends Phaser.Scene {
   interact() {
     const f = this.near;
     if (!f || this.busy || this.fighting) return;
+    if (f.use === 'shop') {
+      this.merchant?.say(this.app.cfg.lab.merchant.line || 'Selamat datang!', 2600);
+      return void openLabBag(this.app, 'shop');
+    }
     this.busy = true;
     this.app.socket?.timeout(5000).emit('lab:use', { what: f.use }, (err, res) => {
       this.busy = false;

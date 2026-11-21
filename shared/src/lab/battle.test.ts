@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import labJson from '../../config/labyrinth.json';
 import { labConfigSchema } from './config';
 import { groupCoins, labPlayerStats, resolveLabRound, rollGroup, temanBoost, type LabFighter } from './battle';
+import { gearBonus, labGearList } from './gear';
 import { labRng } from './generate';
 
 const cfg = labConfigSchema.parse(labJson);
@@ -70,5 +71,61 @@ describe('Labirin battles', () => {
     expect(temanBoost(cfg, 'common', 1, 1)).toBeCloseTo(0.01, 5);
     expect(temanBoost(cfg, 'secret', 1.75, 1.55)).toBe(cfg.teman.max);
     expect(labPlayerStats(cfg, 0.08).atk).toBeLessThan(cfg.player.atk * 1.1);
+  });
+});
+
+describe('Labirin gear and potions in battle', () => {
+  const fullSet = (tier: string) => gearBonus(cfg, { weapon: `weapon_${tier}`, shield: `shield_${tier}`, armour: `armour_${tier}`, charm: `charm_${tier}` });
+
+  it('a full set of each tier lands where the balance plan says (about ×1.3 up to ×4.7)', () => {
+    const base = labPlayerStats(cfg, 0);
+    const top = labPlayerStats(cfg, 0, fullSet('mistik'));
+    expect(top.atk / base.atk).toBeCloseTo(4.7, 1);
+    expect(top.hp / base.hp).toBeCloseTo(4.7, 1);
+    expect(top.def / base.def).toBeCloseTo(4.7, 1);
+    expect(labPlayerStats(cfg, 0, fullSet('kayu')).atk / base.atk).toBeLessThan(1.4);
+    expect(labGearList(cfg)).toHaveLength(cfg.gear.slots.length * cfg.gear.tiers.length);
+  });
+
+  it('heals, ATK buffs and the getaway smoke work, and are reported as used', () => {
+    const me = hero();
+    me.hp = 20;
+    const foe = rollGroup(cfg, 0, 1, () => 0)[0];
+    foe.atk = 0.01;
+    const r1 = resolveLabRound(cfg, [me, foe], { p1: { kind: 'item', item: 'jamu_besar' } }, () => 0.5);
+    expect(me.hp).toBeGreaterThanOrEqual(me.maxHp - 2); // healed to full before the foe's tiny hit
+    expect(r1.used).toEqual([{ actor: 'p1', item: 'jamu_besar' }]);
+    resolveLabRound(cfg, [me, foe], { p1: { kind: 'item', item: 'sambal_semangat' } }, () => 0.5);
+    expect(me.buff).toBeCloseTo(1.3);
+    const r3 = resolveLabRound(cfg, [me, foe], { p1: { kind: 'item', item: 'asap_lari' } }, () => 0.99);
+    expect(r3.outcome).toBe('fled');
+  });
+
+  it('Air Penawar brings a fallen friend back', () => {
+    const a = hero('p1'), b = hero('p2');
+    b.hp = 0;
+    b.out = true;
+    const foe = rollGroup(cfg, 0, 1, () => 0)[0];
+    foe.atk = 0.01;
+    const r = resolveLabRound(cfg, [a, b, foe], { p1: { kind: 'item', item: 'air_penawar', target: 'p2' }, p2: { kind: 'attack' } }, () => 0.5);
+    expect(b.out).toBe(false);
+    expect(b.hp).toBeGreaterThan(0);
+    expect(r.events.some((e) => e.revived)).toBe(true);
+  });
+
+  it('gear makes the deep floors winnable with the real stats', () => {
+    const rand = labRng(99);
+    const geared = (): LabFighter => {
+      const s = labPlayerStats(cfg, 0, fullSet('mistik'));
+      return { id: 'p1', side: 'party', name: 'p1', move: '', hp: s.hp, maxHp: s.hp, atk: s.atk, def: s.def, spd: s.spd, focus: 0, out: false, crit: s.crit, block: s.block };
+    };
+    const rate = (floor: number) => {
+      let w = 0;
+      for (let i = 0; i < 400; i++) if (fight([geared(), ...rollGroup(cfg, floor, 1, rand)], rand) === 'win') w++;
+      return w / 400;
+    };
+    // Mistik is sold from floor 6: it handles floor 6 alone; the bottom floor still wants friends.
+    expect(rate(5)).toBeGreaterThan(0.85);
+    expect(rate(7)).toBeLessThan(0.5);
   });
 });

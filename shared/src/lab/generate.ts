@@ -209,8 +209,9 @@ export interface RoomLayout {
   doorAt: Partial<Record<LabDir, [number, number]>>;
   /** Solid tiles (pillars, rubble), y * w + x. */
   solid: Set<number>;
-  /** Where things stand (tile centres): the chest, the key, the fire, the stairs, the monsters. */
-  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number] };
+  /** Where things stand (tiles): the middle, a loot box, the room's feature (stairs, fire, key) and the
+   *  🛒 merchant (entrance hall and rest chambers). */
+  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number] };
 }
 
 export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): RoomLayout {
@@ -241,5 +242,5 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
       for (let i = 0; i < 6; i++) add(2 + Math.floor(rnd() * (w - 4)), 2 + Math.floor(rnd() * (h - 4)));
     }
   }
-  return { w, h, doorAt, solid, spot: { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2] } };
+  return { w, h, doorAt, solid, spot: { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2] } };
 }

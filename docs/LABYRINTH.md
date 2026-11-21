@@ -31,21 +31,40 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 ## 2. Weakened state and gear
 - Inside, your stats are the labyrinth's own: **HP 100 · ATK 10 · DEF 4 · SPD 10**, plus your labyrinth gear.
   Town gear, luck, potions and skills don't count.
-- **Gear** (kept forever, bought with 🪙):
-  - 🗡️ weapon: ATK;
-  - 🛡️ shield: DEF, plus a block chance;
-  - 🥋 armour: HP and DEF;
-  - 📿 charm: SPD and crit.
+- **Gear** (kept forever, bought from 🛒 **Tok Peraih**, the merchant in the entrance hall and every rest
+  chamber):
+  - 🗡️ Keris (weapon): ATK;
+  - 🛡️ Perisai (shield): DEF, plus a chance to block half of a hit;
+  - 🥋 Baju Zirah (armour): HP and DEF;
+  - 📿 Tangkal (charm): SPD and crit.
 
-  Each comes in tiers: Kayu → Besi → Gangsa → Perak → Emas → Mistik.
-- **Potions** (consumables, carried up to a limit):
-  - 🧪 Jamu Kecil / Sederhana / Besar: heal;
-  - 💫 Air Penawar: revives a fallen ally in battle;
-  - 💨 Asap Lari: guaranteed escape (not from bosses);
-  - 🌶️ Sambal Semangat: +ATK for the battle;
-  - 🧵 Tali Pulang: leave the labyrinth from anywhere.
+  Each comes in six tiers. A tier is sold once you've reached its floor:
+
+  | Tier | Sold from | Price (each) | A full set |
+  |---|---|---|---|
+  | Kayu | the start | 30 | ×1.3 |
+  | Besi | the start | 150 | ×1.7 |
+  | Gangsa | floor 2 | 500 | ×2.3 |
+  | Perak | floor 3 | 1,400 | ×3.0 |
+  | Emas | floor 5 | 3,500 | ×3.8 |
+  | Mistik | floor 6 | 8,000 | ×4.7 |
+
+  Buying a piece wears it at once if it beats what's in that slot. You can wear any piece you own from
+  🎒 Bag (also from the 📱 app in town).
+- **Potions** (carried, up to 9 of each):
+  - 🧪 Jamu Kecil / Sederhana / Besar (8 / 20 / 45): heal 30% / 60% / all of your HP;
+  - 💫 Air Penawar (40): revives a fallen ally in battle with 40% HP;
+  - 💨 Asap Lari (15): a sure getaway (not from bosses);
+  - 🌶️ Sambal Semangat (25): +30% ATK for the rest of the battle;
+  - 🧵 Tali Pulang (60): out of a fight, back to town from anywhere (banks your carried coins).
+
+  In a fight a potion takes your turn, and it acts before anyone attacks. Out of a fight, drink heals and
+  use Tali Pulang from 🎒 Bag.
 - **Teman don't fight here.** Your lead Teman gives a *tiny* buff, by rarity × tier × variant. Common ≈ +1%,
   a maxed mythic ≈ +8% at most, applied to one stat by species.
+- **Balance** (solo, one fight from full HP): a full set of the tier sold on a floor wins almost every
+  fight there, and about two in three on the next floor down. The bottom two floors stay hard alone: they
+  want a party. The win-rate tests in `shared/src/lab/battle.test.ts` guard this.
 
 ## 3. Currency: 🪙 Syiling Purba
 - Only earned in the labyrinth: battles, loot boxes, treasure rooms, bosses. Only spent at its merchants.
@@ -92,6 +111,7 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 1. ✅ **Explore** (1.10.0): generator and tests, enter/leave, rooms, doors, walking, others in the room, minimap and
    map, rest chambers, stairs, loot boxes (🪙).
 2. ✅ **Fight** (1.11.0): weakened stats, monster groups, solo battle engine and UI, death and respawn, Teman buff.
-3. **Gear:** merchant, gear and potions, equipping, treasure rooms and keys.
+3. ✅ **Gear** (1.13.0): the merchant (Tok Peraih), 24 pieces of gear, 7 potions, equipping, 🧪 Items in battle.
+   Treasure rooms and keys came with part 1.
 4. **Party:** lobby, invites, shared rooms and battles.
 5. **Bosses and polish:** floor bosses gating the stairs, balance sim, phone layout pass.
