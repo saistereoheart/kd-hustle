@@ -85,7 +85,10 @@ export class LabHud {
     if (this.view) this.view = { ...this.view, self };
     this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`);
     const pct = self.maxHp ? self.hp / self.maxHp : 1;
-    this.hp.textContent = `❤️ ${self.hp}/${self.maxHp}`;
+    // 🍵 A tavern drink working on you: its icon and the fights it has left.
+    const d = self.drink ? this.app.cfg.lab.tavern.drinks.find((x) => x.id === self.drink!.id) : undefined;
+    this.hp.textContent = `❤️ ${self.hp}/${self.maxHp}${d && self.drink ? `  ${d.icon}×${self.drink.left}` : ''}`;
+    this.hp.title = d ? `${d.name}: ${d.desc} (${self.drink!.left} fight${self.drink!.left === 1 ? '' : 's'} left)` : '';
     this.hp.classList.toggle('low', pct < 0.3);
   }
 

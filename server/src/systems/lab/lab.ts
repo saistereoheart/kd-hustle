@@ -38,6 +38,8 @@ export interface LabSave {
   potions: Record<string, number>;
   /** 👹 Floors whose boss you've beaten (their stairs down are open for you). */
   bosses: number[];
+  /** 🍵 The tavern drink working on you: fights left. */
+  drink?: { id: string; left: number };
 }
 
 export function emptyLab(): LabSave {
@@ -64,7 +66,84 @@ export class LabSystem {
 
   // ---------------------------------------------------------------- ⚔️ HP and stats
   stats(p: OnlinePlayer) {
-    return labPlayerStats(this.cfg, this.temanBoost(p), gearBonus(this.cfg, this.state(p).gear));
+    const st = labPlayerStats(this.cfg, this.temanBoost(p), gearBonus(this.cfg, this.state(p).gear));
+    // 🍵 A tavern drink: +a share of some stats while it lasts.
+    const d = this.state(p).drink;
+    const def = d ? this.cfg.tavern.drinks.find((x) => x.id === d.id) : undefined;
+    if (def) {
+      st.hp = Math.round(st.hp * (1 + (def.hp ?? 0)));
+      st.atk = Math.round(st.atk * (1 + (def.atk ?? 0)) * 10) / 10;
+      st.def = Math.round(st.def * (1 + (def.def ?? 0)) * 10) / 10;
+      st.spd = Math.round(st.spd * (1 + (def.spd ?? 0)) * 10) / 10;
+    }
+    return st;
+  }
+
+  // ---------------------------------------------------------------- 🍵 the tavern
+  /** Standing at the tavern counter (the entrance hall)? */
+  private atTavern(p: OnlinePlayer): boolean {
+    const pos = p.lab;
+    if (!pos || this.inFight(p) || pos.floor !== 0) return false;
+    const f = this.floor(0);
+    const room = f.rooms[pos.room];
+    if (room.kind !== 'start') return false;
+    return this.near(pos, roomLayout(this.cfg, f, room).spot.tavern, 2.4);
+  }
+
+  /** Buy a drink: it works for your next few fights (a new one replaces the old). */
+  drink(p: OnlinePlayer, id: string): string {
+    const t = this.cfg.tavern;
+    if (!this.atTavern(p)) throw new GameError(`Drinks are at ${t.name}, in the entrance hall.`);
+    const d = t.drinks.find((x) => x.id === id);
+    if (!d) throw new GameError(`${t.keeper} doesn't make that.`);
+    const s = this.state(p);
+    this.pay(s, d.price);
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p);
+    s.drink = { id: d.id, left: d.battles };
+    this.maxHpChanged(p, before);
+    this.save(p);
+    return `${d.icon} ${d.name}: ${d.desc}`;
+  }
+
+  // ---------------------------------------------------------------- 🌿 bushes and cobwebs
+  /** Which brush tile each player last stepped into (a new one rolls again). */
+  private brushAt = new Map<number, number>();
+  /** Something jumped out: the handler starts the fight. */
+  private ambushes = new Set<number>();
+  /** No ambush until then (a short calm after every fight). */
+  private calmUntil = new Map<number, number>();
+
+  /** Walked into a bush / cobweb tile (each new one): maybe something wakes up. */
+  private brushStep(p: OnlinePlayer, L: ReturnType<typeof roomLayout>) {
+    const pos = p.lab!;
+    const T = this.cfg.tile;
+    const i = Math.floor(pos.y / T) * L.w + Math.floor(pos.x / T);
+    if (!L.brush.has(i)) return void this.brushAt.delete(p.id);
+    if (this.brushAt.get(p.id) === i) return;
+    this.brushAt.set(p.id, i);
+    if (this.clock() < (this.calmUntil.get(p.id) ?? 0) || this.inFight(p)) return;
+    if (this.rand() < this.cfg.brush.chance) this.ambushes.add(p.id);
+  }
+
+  /** Did something jump out of the brush at this player (since the last check)? */
+  takeAmbush(p: OnlinePlayer): boolean {
+    return this.ambushes.delete(p.id);
+  }
+
+  /** A fight ended for this player: a short calm, and one fight less on their drink. */
+  battleDone(p: OnlinePlayer) {
+    this.calmUntil.set(p.id, this.clock() + this.cfg.brush.graceSec * 1000);
+    this.ambushes.delete(p.id);
+    const s = this.state(p);
+    if (!s.drink) return;
+    const before = this.stats(p).hp;
+    if (--s.drink.left <= 0) {
+      if (s.hp !== undefined) this.hp(p);
+      delete s.drink;
+      this.maxHpChanged(p, before);
+    }
+    this.save(p);
   }
 
   // ---------------------------------------------------------------- 🛒 the merchant, gear, potions
@@ -217,11 +296,11 @@ export class LabSystem {
 
   /** Beat the group here: Syiling (carried) and the room stays quiet for a while. Beat the boss:
    *  the stairs down open for good. */
-  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false) {
+  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false) {
     const s = this.state(p);
     if (boss) {
       if (!s.bosses.includes(floor)) s.bosses.push(floor);
-    } else s.cleared[`${floor}:${room}`] = this.clock();
+    } else if (!ambush) s.cleared[`${floor}:${room}`] = this.clock(); // (the room's own group stays)
     s.carried += coins;
     this.save(p);
   }
@@ -267,6 +346,9 @@ export class LabSystem {
   /** Forget a player who has left the server (after saving). */
   forget(id: number) {
     this.cache.delete(id);
+    this.brushAt.delete(id);
+    this.ambushes.delete(id);
+    this.calmUntil.delete(id);
   }
 
   self(p: OnlinePlayer): LabSelf {
@@ -277,6 +359,7 @@ export class LabSystem {
       coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab,
       hp: this.hp(p), maxHp: st.hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)),
       gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st, bosses: [...s.bosses],
+      drink: s.drink ? { ...s.drink } : null,
     };
   }
 
@@ -339,6 +422,7 @@ export class LabSystem {
     pos.y = y;
     pos.dir = dir;
     pos.moving = moving;
+    this.brushStep(p, L);
     return true;
   }
 

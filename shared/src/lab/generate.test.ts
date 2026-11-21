@@ -90,7 +90,7 @@ describe('Labirin Purba floors', () => {
         const L = roomLayout(cfg, f, r);
         rooms++;
         rockTiles += L.solid.size;
-        for (const s of Object.values(L.spot)) expect(L.solid.has(s[1] * L.w + s[0])).toBe(false);
+        for (const [k, s] of Object.entries(L.spot)) if (L.hall ? k !== 'chest' : k !== 'tavern') expect(L.solid.has(s[1] * L.w + s[0])).toBe(false);
         expect(L.roofs.length).toBeGreaterThanOrEqual(Object.keys(L.doorAt).length);
         // Every open inner tile is reachable from the middle.
         const open = new Set<number>();

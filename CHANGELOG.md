@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.20.0 (2026-11-22): 🗝️ Labirin: bushes and cobwebs, things to find, a livelier entrance, a tavern
+- **🌿 Bushes and cobwebs** in the chambers.
+  - Walk through them, but every step into one might wake something up: an ambush. It can happen again
+    and again, with a short calm after each fight.
+- **Things to find:** wall lamps with flickering firelight, signs with tips and warnings from earlier
+  adventurers (press E to read), skeletons, cold campfires.
+- **Rest chambers:** adventurers resting by the working campfire.
+- **The entrance hall is full of life:**
+  - 🛒 Tok Peraih has a stall table, and holds a staff with a bright glowing orb.
+  - A campfire with people sitting round it, benches with more, and chatter.
+- **🍵 The tavern** (Kedai Kopi Purba, Mak Jah) sells drinks that buff your next fights:
+  - Teh Tarik (ATK), Kopi O (DEF), Air Kelapa (HP), Sirap Bandung (SPD), Jamu Pahlawan (all).
+  - One at a time. Its icon and the fights left show on the HUD.
+
 ## 1.19.0 (2026-11-22): 🗝️ Labirin: richer 3D models, 2D portraits, cave music, battle intro
 - **3D models look more real, for almost no extra cost.**
   - Detail is painted in 2D and wrapped on: hair strands with a shine band and hair locks, painted faces

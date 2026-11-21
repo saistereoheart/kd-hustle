@@ -49,6 +49,8 @@ export interface LabSelf {
   stats: { hp: number; atk: number; def: number; spd: number; crit: number; block: number };
   /** 👹 Floors whose boss you've beaten (0-based). */
   bosses: number[];
+  /** 🍵 The tavern drink working on you (and how many more fights it lasts), or null. */
+  drink: { id: string; left: number } | null;
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -101,6 +103,8 @@ export interface LabBattleView {
   chosen: string[];
   /** 👹 A boss fight: no running away. */
   boss: boolean;
+  /** 🌿 It jumped out of a bush or a cobweb you walked through. */
+  ambush?: boolean;
 }
 
 /** How a battle ended for one player. */
@@ -125,6 +129,8 @@ export const LAB_C2S = {
   labEquip: z.object({ slot: z.enum(['weapon', 'shield', 'armour', 'charm']), id: z.string().max(32).nullable() }),
   /** 🧪 A potion out of a fight (a heal, or 🧵 Tali Pulang home). */
   labItem: z.object({ id: z.string().max(32) }),
+  /** 🍵 A drink at the tavern (entrance hall). */
+  labDrink: z.object({ id: z.string().max(32) }),
   /** 👥 Parties: invite a player, answer an invite, the leader removes someone. */
   labInvite: z.object({ id: z.number().int().positive() }),
   labPartyId: z.object({ party: z.number().int().positive() }),

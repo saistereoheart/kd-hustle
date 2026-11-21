@@ -16,6 +16,7 @@ import { AVATAR_DEPTH, Avatar } from './avatar';
 import { buildRoomArt, LABEL_DEPTH, type RoomArt } from './labRoomArt';
 import { memoryBudget } from '../perf/memory';
 import { openLabBag } from '../ui/lab/labBag';
+import { openLabTavern } from '../ui/lab/labTavern';
 
 interface Sample {
   t: number;
@@ -31,9 +32,11 @@ interface Remote {
 }
 
 interface Feature {
-  /** A server action, or 'shop': the merchant's wares (a panel). */
-  use: LabUse | 'shop';
+  /** A server action, 'shop' (the merchant's wares), 'tavern' (drinks), or 'read' (a sign, a
+   *  skeleton, an old campfire: its `text` shows). */
+  use: LabUse | 'shop' | 'tavern' | 'read';
   label: string;
+  text?: string;
   /** Tile it stands on. */
   at: [number, number];
 }
@@ -75,6 +78,11 @@ export class LabScene extends Phaser.Scene {
   private art: RoomArt | null = null;
   /** The room you came from (its door says "back"). */
   private prevRoom = -1;
+  /** People sitting about (the entrance hall, rest chambers) and the tavern keeper. */
+  private npcs: Avatar[] = [];
+  private chatter = 0;
+  /** The bush / cobweb tile you're in (to rustle once on stepping in). */
+  private brushTile = -1;
   /** Waiting for the server (going through a door, using something). */
   private busy = false;
   /** In a fight (the battle screen is up): no walking. */
@@ -174,6 +182,22 @@ export class LabScene extends Phaser.Scene {
     this.features = [];
     this.merchant?.destroy();
     this.merchant = null;
+    for (const n of this.npcs) n.destroy();
+    this.npcs = [];
+    this.brushTile = -1;
+  }
+
+  /** Someone sitting (or standing, for the keeper) about the place. Same few looks, so pictures are shared. */
+  private npc(t: [number, number], look: number, sit: boolean, dx = 0, dy = 0) {
+    let seed = 101 + look * 7919;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const a = new Avatar(this, this.app.cfg.character, this.app.items, {
+      name: '', level: 1, appearance: randomAppearance(this.app.cfg.character, rnd), x: (t[0] + 0.5) * this.T + dx, y: (t[1] + 0.6) * this.T + dy, isSelf: false, npc: true, particles: false,
+    });
+    a.setState('down', false);
+    if (sit) a.playEmote('sit', { emoji: '', loop: true, durationMs: 0 }, false);
+    this.npcs.push(a);
+    return a;
   }
 
   /** 🛒 Tok Peraih, in the entrance hall and every rest chamber. */
@@ -198,6 +222,8 @@ export class LabScene extends Phaser.Scene {
       T, seed: fc.seed * 31 + room.id * 977 + 13, wall: fc.wall, floor: fc.floor, locked,
       res: Math.min(budget.maxChunkRes + 0.25, Math.max(1, this.zoomFor())),
       torches: loadPrefs().memory === 'normal' ? 4 : 3,
+      fire: room.kind === 'rest' ? L.spot.feature : undefined,
+      merchant: (this.view.floor === 0 && room.kind === 'start') || room.kind === 'rest' ? L.spot.merchant : undefined,
     });
     // Doors: a sign of where each one leads.
     const arrow: Record<LabDir, string> = { n: '▲', s: '▼', w: '◀', e: '▶' };
@@ -326,6 +352,32 @@ export class LabScene extends Phaser.Scene {
       label(L.spot.chest, view.chestDone ? '📭 Opened' : '📦 Loot box', view.chestDone ? 'refills tomorrow' : 'Syiling · refills daily');
       if (!view.chestDone) this.features.push({ use: 'chest', label: '📦 Open the loot box: Syiling (it refills every day)', at: L.spot.chest });
     }
+    // 🍵 The tavern, people round the campfire and on the benches (the entrance hall).
+    if (L.hall) {
+      const h = L.hall;
+      const tv = lc.tavern;
+      this.npc(h.keeper, 0, false).say(tv.line, 4000);
+      this.sign([h.keeper[0], h.keeper[1] - 1.25], `🍵 TAVERN: ${tv.name}`, 'drinks = buffs for your next fights', '#ffd8a8');
+      this.features.push({ use: 'tavern', label: `🍵 ${tv.name}: drinks that buff your next fights`, at: L.spot.tavern });
+      h.sitters.forEach((s, i) => this.npc(s, 1 + i, true));
+      this.npc(h.benches[0], 4, true, T * 0.2, T * 0.32);
+      this.npc(h.benches[1], 5, true, T * 0.1, T * 0.32);
+      this.features.push({ use: 'read', label: '🔥 Campfire: adventurers swap stories here', text: '🔥 The fire crackles. "Rest at the campfires deeper down: they save your progress."', at: h.fire });
+    }
+    // 🔥 A rest chamber: one or two adventurers resting by the fire.
+    if (room.kind === 'rest') {
+      this.npc([f[0] - 1, f[1]], 6 + view.floor, true, -T * 0.1, T * 0.35);
+      if (room.id % 2) this.npc([f[0] + 1, f[1]], 9 + view.floor, true, T * 0.1, T * 0.35);
+    }
+    // Things lying about: signs to read, bones, cold campfires.
+    const BONES = ['💀 An adventurer who never made it out. Their bag is long empty.', '💀 Old bones, picked clean. Something lives down here.', "💀 A skeleton still clutching a broken keris. Don't end up like this."];
+    for (const pr of L.props) {
+      if (pr.kind === 'sign' && pr.text !== undefined) {
+        this.sign([pr.at[0], pr.at[1] - 1.1], '📜 Sign', 'read it', '#e9ecef', 11);
+        this.features.push({ use: 'read', label: '📜 Read the sign (left by an adventurer)', text: `📜 Scratched on the sign: "${lc.signs[pr.text]}"`, at: pr.at });
+      } else if (pr.kind === 'skeleton') this.features.push({ use: 'read', label: '💀 Look at the bones', text: BONES[(pr.at[0] + pr.at[1]) % BONES.length], at: pr.at });
+      else if (pr.kind === 'oldfire') this.features.push({ use: 'read', label: '🔥 A cold campfire', text: '🔥 Cold ashes, a few embers. Someone camped here not long ago… and left in a hurry.', at: pr.at });
+    }
     // The floor's name, carved faint into the back wall.
     this.roomObjs.push(
       this.add.text((L.w * T) / 2 + T * 2.6, T * 0.1, `${floorName} · B${view.floor + 1}`, { fontFamily: 'Georgia, serif', fontSize: '13px', color: 'rgba(220,230,255,0.55)', stroke: '#000000', strokeThickness: 3, resolution: 3 }).setOrigin(0, 0.5).setDepth(AVATAR_DEPTH + T + 1),
@@ -422,6 +474,15 @@ export class LabScene extends Phaser.Scene {
     this.me.tick(now);
     this.art?.update(this.pos.x, this.pos.y, delta);
     this.merchant?.tick(now);
+    for (const n of this.npcs) n.tick(now);
+    this.rustle();
+    // Now and then someone by the fire says something.
+    if (this.npcs.length > 1 && now > this.chatter) {
+      this.chatter = now + 7000 + Math.random() * 6000;
+      const lines = ['Hati-hati kat bawah tu…', 'I heard the bushes bite.', 'Bang, ada Jamu lebih?', 'Floor 3 nearly got me.', 'Teh tarik Mak Jah best!', 'Jangan lupa rest kat campfire.', 'Something rustled. Just the wind… right?'];
+      const who = this.npcs[1 + Math.floor(Math.random() * (this.npcs.length - 1))];
+      who.say(lines[Math.floor(Math.random() * lines.length)], 3200);
+    }
     const renderT = now - this.clock.delay;
     for (const r of this.remotes.values()) {
       const p = interpolate(r.samples, renderT);
@@ -431,6 +492,23 @@ export class LabScene extends Phaser.Scene {
       }
       r.av.tick(now);
     }
+  }
+
+  /** Walking into a bush or a cobweb: leaves (or threads) fly and it shakes (the server decides if
+   *  something was hiding in it). */
+  private rustle() {
+    const { T, L } = this;
+    const i = Math.floor(this.pos.y / T) * L.w + Math.floor(this.pos.x / T);
+    const kind = L.brush.get(i);
+    if (!kind) return void (this.brushTile = -1);
+    if (i === this.brushTile) return;
+    this.brushTile = i;
+    const color = kind === 'bush' ? 0x51cf66 : 0xe9ecef;
+    for (let k = 0; k < 6; k++) {
+      const bit = this.add.rectangle(this.pos.x + (Math.random() - 0.5) * T * 0.6, this.pos.y - T * 0.3, kind === 'bush' ? 5 : 2, kind === 'bush' ? 3 : 6, color).setDepth(LABEL_DEPTH - 1);
+      this.tweens.add({ targets: bit, x: bit.x + (Math.random() - 0.5) * T, y: bit.y - T * (0.4 + Math.random() * 0.5), angle: Math.random() * 360, alpha: 0, duration: 500 + Math.random() * 300, onComplete: () => bit.destroy() });
+    }
+    sfx.tick();
   }
 
   private sendMove(delta: number) {
@@ -496,6 +574,14 @@ export class LabScene extends Phaser.Scene {
     if (f.use === 'shop') {
       this.merchant?.say(this.app.cfg.lab.merchant.line || 'Selamat datang!', 2600);
       return void openLabBag(this.app, 'shop');
+    }
+    if (f.use === 'tavern') {
+      this.npcs[0]?.say(this.app.cfg.lab.tavern.line, 2600);
+      return void openLabTavern(this.app);
+    }
+    if (f.use === 'read') {
+      sfx.click();
+      return void toast(f.text ?? '', 'info', 6500);
     }
     this.busy = true;
     this.app.socket?.timeout(5000).emit('lab:use', { what: f.use }, (err, res) => {

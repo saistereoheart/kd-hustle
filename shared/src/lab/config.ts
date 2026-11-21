@@ -68,6 +68,27 @@ export const labConfigSchema = z.object({
   }),
   /** 🛒 The merchant in the entrance hall and every rest chamber. */
   merchant: z.object({ name: z.string(), line: z.string() }).default({ name: 'Tok Peraih', line: '' }),
+  /** 🌿 Bushes and cobwebs: walking into one (each time) may wake something up. A short calm after
+   *  every fight (`graceSec`) so you're not jumped again at once. */
+  brush: z.object({ chance: z.number().min(0).max(1), graceSec: z.number().min(0) }).default({ chance: 0.12, graceSec: 8 }),
+  /** 🪧 What previous adventurers scrawled on signs down here (tips and warnings). */
+  signs: z.array(z.string()).default([]),
+  /** 🍵 The tavern in the entrance hall: a drink buffs you for your next few fights (one at a time). */
+  tavern: z.object({
+    name: z.string(),
+    keeper: z.string(),
+    line: z.string(),
+    drinks: z.array(z.object({
+      id: z.string(), name: z.string(), icon: z.string(), price: z.number().int().positive(), desc: z.string(),
+      /** Fights it lasts. */
+      battles: z.number().int().positive(),
+      /** +share of each stat while it lasts. */
+      atk: z.number().min(0).max(1).optional(),
+      def: z.number().min(0).max(1).optional(),
+      hp: z.number().min(0).max(1).optional(),
+      spd: z.number().min(0).max(1).optional(),
+    })).min(1),
+  }).default({ name: 'Kedai Kopi Purba', keeper: 'Mak Jah', line: '', drinks: [{ id: 'teh_tarik', name: 'Teh Tarik', icon: '🍵', price: 20, desc: '+15% ATK', battles: 3, atk: 0.15 }] }),
   /** ⚔️ Gear (kept forever, bought with Syiling): each slot comes in every tier. A tier is sold once
    *  you've reached `minFloor` (0-based). Stats per tier are added to the weakened state. */
   gear: z.object({

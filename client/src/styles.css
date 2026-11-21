@@ -1680,3 +1680,15 @@ body.lb-entering #game canvas { animation: lbi-swirl calc(var(--lbi-beat, 0.4s) 
 }
 @media (prefers-reduced-motion: reduce) { body.lb-entering #game canvas { animation: none; } }
 
+
+/* 🍵 The Labirin tavern */
+.lab-tavern { display: flex; flex-direction: column; gap: 10px; }
+.lab-tavern-line { margin: 0; font-style: italic; }
+.lab-tavern-active { padding: 8px 10px; border-radius: 10px; background: rgba(105, 219, 124, 0.12); border: 1px solid rgba(105, 219, 124, 0.35); }
+.lab-tavern-active.none { background: rgba(255, 255, 255, 0.04); border-color: var(--line); color: var(--muted); }
+.lab-tavern-list { display: flex; flex-direction: column; gap: 8px; }
+.lab-tavern-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+.lab-tavern-icon { font-size: 30px; width: 44px; text-align: center; }
+.lab-tavern-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lab-tavern-text small { color: var(--muted); }
+.lab-tavern-item .btn { width: auto; flex: 0 0 auto; min-width: 72px; }

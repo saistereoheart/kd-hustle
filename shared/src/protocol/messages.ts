@@ -775,6 +775,8 @@ export interface ClientToServerEvents {
   'lab:act': (msg: { kind: 'attack' | 'skill' | 'guard' | 'run' | 'item'; target?: string; item?: string }, ack: Ack<SimpleResult>) => void;
   /** 🛒 Buy from the merchant (gear: n = 1). Spends carried Syiling first, then banked. */
   'lab:buy': (msg: { id: string; n?: number }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 🍵 A drink at the tavern (entrance hall): a buff for your next few fights. */
+  'lab:drink': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** ⚔️ Wear a piece of gear you own (id null: take the slot off). */
   'lab:equip': (msg: { slot: 'weapon' | 'shield' | 'armour' | 'charm'; id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
   /** 👥 Your party, and who's online to invite. */

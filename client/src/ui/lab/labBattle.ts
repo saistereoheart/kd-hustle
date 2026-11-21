@@ -65,7 +65,7 @@ export class LabBattleUi {
     const names = foes.length > 1 ? `${foes.slice(0, -1).map((f) => f.name).join(', ')} and ${foes[foes.length - 1].name}` : foes[0]?.name;
     const boss = view.boss ? app.cfg.lab.bosses[view.floor] : undefined;
     if (boss) this.root.classList.add('boss-fight');
-    this.say(boss ? `👹 ${boss.name}: "${boss.line}"` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
+    this.say(boss ? `👹 ${boss.name}: "${boss.line}"` : view.ambush ? `🌿 Ambush! ${names} ${foes.length > 1 ? 'leap' : 'leaps'} out of hiding!` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     this.introDone = this.intro(boss ? 'boss' : 'fight', boss ? `👹 ${boss.name}` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     this.render();
     this.tick = window.setInterval(() => this.drawTimer(), 200);

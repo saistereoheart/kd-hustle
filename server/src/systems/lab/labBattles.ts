@@ -21,6 +21,8 @@ interface Battle {
   timer: ReturnType<typeof setTimeout> | null;
   /** 👹 The floor's boss (no running away; beating it opens the stairs). */
   boss: boolean;
+  /** 🌿 Jumped out of the brush (beating it doesn't clear the room's own group). */
+  ambush: boolean;
 }
 
 export interface LabBattleHooks {
@@ -61,15 +63,15 @@ export class LabBattles {
   }
 
   /** Just walked into a room: a waiting monster group jumps out (for you and your party here). */
-  encounter(players: OnlinePlayer[]): boolean {
+  encounter(players: OnlinePlayer[], ambush = false): boolean {
     const lead = players[0];
     if (!lead?.lab || players.some((p) => this.byPlayer.has(p.id))) return false;
-    if (!this.lab.monstersHere(lead)) return false;
+    if (!ambush && !this.lab.monstersHere(lead)) return false;
     const { floor, room } = lead.lab;
-    const boss = this.lab.bossHere(lead);
+    const boss = !ambush && this.lab.bossHere(lead);
     const fighters: LabFighter[] = players.map((p) => this.fighterOf(p));
     fighters.push(...(boss ? rollBoss(this.cfg, floor, players.length, this.rand) : rollGroup(this.cfg, floor, players.length, this.rand)));
-    const b: Battle = { id: this.nextId++, floor, room, fighters, members: new Map(players.map((p) => [p.id, p])), choices: new Map(), round: 1, deadline: 0, timer: null, boss };
+    const b: Battle = { id: this.nextId++, floor, room, fighters, members: new Map(players.map((p) => [p.id, p])), choices: new Map(), round: 1, deadline: 0, timer: null, boss, ambush };
     this.battles.set(b.id, b);
     for (const p of players) this.byPlayer.set(p.id, b);
     this.arm(b);
@@ -179,7 +181,7 @@ export class LabBattles {
       } else if (outcome === 'win') {
         const coins = groupCoins(this.cfg, b.floor, b.fighters.filter((x) => x.side === 'foe'));
         this.lab.setHp(p, f.out ? 1 : f.hp);
-        this.lab.won(p, b.floor, b.room, coins, b.boss);
+        this.lab.won(p, b.floor, b.room, coins, b.boss, b.ambush);
         end = { outcome: 'win', coins, lost: 0 };
       } else {
         end = { outcome: 'wipe', coins: 0, lost: 0 };
@@ -193,6 +195,7 @@ export class LabBattles {
     }
     for (const p of players) {
       const end = ends.get(p.id);
+      if (end) this.lab.battleDone(p);
       if (end?.outcome === 'wipe') end.lost = this.lab.fell(p);
       else if (end?.outcome === 'fled') this.lab.fled(p);
     }
@@ -215,6 +218,6 @@ export class LabBattles {
   }
 
   private viewOf(b: Battle): LabBattleView {
-    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()], boss: b.boss };
+    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()], boss: b.boss, ambush: b.ambush };
   }
 }

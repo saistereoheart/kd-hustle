@@ -38,6 +38,28 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   - Raised rock that hides whoever stands behind it, with frost and cracks.
   - Torches with warm glow, and a dark vignette.
   - It's drawn once per room into a few pictures, so a frame costs the same as a plain room.
+- **🌿 Bushes and cobwebs** (ordinary chambers, a few clumps; part of the room's fixed layout).
+  - You can walk through them.
+  - Every time you step into one, there's a `brush.chance` (12%) chance that a monster group jumps out:
+    an ambush.
+  - After any fight there's a short calm (`brush.graceSec`, 8 s).
+  - Beating an ambush doesn't clear the room's own group.
+  - The server rolls it on the step (`LabSystem.brushStep`).
+- **Things lying about:**
+  - Wall lamps, with a pool of light on the floor, a halo and a flickering flame.
+  - Signs with tips or warnings from earlier adventurers (`signs` in the config; press E to read).
+  - Skeletons and cold campfires (with a little story when you look).
+  - Rest chambers have a working campfire with one or two adventurers resting by it.
+- **The entrance hall:**
+  - 🛒 Tok Peraih's stall: a table with potions. He holds a staff topped with a glowing orb.
+  - 🍵 the tavern (Mak Jah behind her counter, shelves of bottles).
+  - A campfire with three adventurers sitting round it, and benches with two more. They chat now and then.
+  - The counter, fire and benches are solid.
+- **🍵 Tavern drinks** (`tavern` in the config):
+  - A buff for your next few fights: +ATK, DEF, max HP and/or SPD.
+  - One drink at a time; a new one replaces the old.
+  - Paid in Syiling, carried coins first. Server-checked (`lab:drink`, at the counter).
+  - The HUD shows the drink's icon and how many fights it has left.
 - **Signs say what each thing does**, e.g. "🚪 EXIT: back to town / banks your carried Syiling",
   "🛒 SHOP / gear & potions", "🔥 Campfire: rest & save", "🗝️ Key / opens this floor's 🔒 treasure door".
   Doors say where they lead: ↩ Back, ❔ Unexplored, 🔒 Locked door, or the kind of room once you've seen it.

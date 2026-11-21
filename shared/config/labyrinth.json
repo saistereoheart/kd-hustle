@@ -666,5 +666,82 @@
       "coins": 1200,
       "line": "Akhirnya... lawan yang layak."
     }
-  ]
+  ],
+  "brush": {
+    "chance": 0.12,
+    "graceSec": 8
+  },
+  "signs": [
+    "Turned back here. Not enough Jamu. Don't be like me. — R.",
+    "Bushes rustle for a reason. Walk round them if you're hurt.",
+    "Cobwebs = spiders nearby. Bring a Sambal Semangat.",
+    "The rest chamber is always at a dead end. Keep looking!",
+    "Kunci ada di bilik lain. The key is never in the treasure room's neighbour… usually.",
+    "Guard when you're low. The monsters hit less.",
+    "Carried Syiling are lost if you fall. Bank them at a campfire.",
+    "I heard the boss down here hates fire. Or loves it. Can't remember.",
+    "Day 3. Still lost. The walls all look the same. Someone help.",
+    "Skill hits twice as hard. Save your focus for big monsters.",
+    "WARNING: the rat king bites. Bring a shield.",
+    "Mak Jah's Kopi O saved my life. Drink before you go deep.",
+    "If you can read this, you're not dead yet. Good job.",
+    "Pocongs hop. You can't outrun them, but Asap Lari works.",
+    "The deeper floors want a party. Don't go alone.",
+    "Left, left, right… or was it right, right, left?"
+  ],
+  "tavern": {
+    "name": "Kedai Kopi Purba",
+    "keeper": "Mak Jah",
+    "line": "Minum dulu, baru berani! A hot drink before the dark.",
+    "drinks": [
+      {
+        "id": "teh_tarik",
+        "name": "Teh Tarik Semangat",
+        "icon": "🍵",
+        "price": 20,
+        "desc": "+15% ATK for 3 fights",
+        "battles": 3,
+        "atk": 0.15
+      },
+      {
+        "id": "kopi_o",
+        "name": "Kopi O Kebal",
+        "icon": "☕",
+        "price": 20,
+        "desc": "+15% DEF for 3 fights",
+        "battles": 3,
+        "def": 0.15
+      },
+      {
+        "id": "air_kelapa",
+        "name": "Air Kelapa Segar",
+        "icon": "🥥",
+        "price": 25,
+        "desc": "+15% max HP for 3 fights",
+        "battles": 3,
+        "hp": 0.15
+      },
+      {
+        "id": "sirap_bandung",
+        "name": "Sirap Bandung Laju",
+        "icon": "🥤",
+        "price": 25,
+        "desc": "+15% SPD for 3 fights (you act sooner)",
+        "battles": 3,
+        "spd": 0.15
+      },
+      {
+        "id": "jamu_pahlawan",
+        "name": "Jamu Pahlawan",
+        "icon": "🧉",
+        "price": 70,
+        "desc": "+10% ATK, DEF, HP and SPD for 5 fights",
+        "battles": 5,
+        "atk": 0.1,
+        "def": 0.1,
+        "hp": 0.1,
+        "spd": 0.1
+      }
+    ]
+  }
 }

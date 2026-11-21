@@ -201,6 +201,23 @@ export function labFloor(cfg: LabConfig, n: number): LabFloor {
 }
 
 // ------------------------------------------------------------------ inside a room
+/** Things lying about a room (looks only; signs can be read). `text`: which of the config's signs. */
+export interface LabProp {
+  kind: 'sign' | 'skeleton' | 'lamp' | 'oldfire';
+  at: [number, number];
+  text?: number;
+}
+
+/** The entrance hall's furniture (tiles): the tavern counter, a campfire with people round it,
+ *  benches. The counter, fire and benches are solid. */
+export interface LabHall {
+  counter: Array<[number, number]>;
+  keeper: [number, number];
+  fire: [number, number];
+  sitters: Array<[number, number]>;
+  benches: Array<[number, number]>;
+}
+
 /** A room's inside: its size in tiles, where its doors are, its rock and its roofs. */
 export interface RoomLayout {
   w: number;
@@ -211,9 +228,15 @@ export interface RoomLayout {
   solid: Set<number>;
   /** Where things stand (tiles): the middle, a loot box, the room's feature (stairs, fire, key) and the
    *  🛒 merchant (entrance hall and rest chambers). */
-  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number] };
+  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number]; tavern: [number, number] };
   /** Overhanging rock / ceiling over walkable floor (tile rects): drawn on top, see-through when you're under. */
   roofs: Array<{ x: number; y: number; w: number; h: number }>;
+  /** 🌿 Bushes and cobwebs you can walk through (tile → which): each step into one may start a fight. */
+  brush: Map<number, 'bush' | 'web'>;
+  /** Signs, skeletons, lamps, old campfires. */
+  props: LabProp[];
+  /** The entrance hall's furniture (floor 1's start room only). */
+  hall: LabHall | null;
 }
 
 /**
@@ -230,7 +253,8 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
   if (room.doors.s) doorAt.s = [mx, h - 1];
   if (room.doors.w) doorAt.w = [0, my];
   if (room.doors.e) doorAt.e = [w - 1, my];
-  const spot: RoomLayout['spot'] = { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2] };
+  const spot: RoomLayout['spot'] = { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2], tavern: [w - 4, 3] };
+  const isHall = floor.n === 0 && room.kind === 'start';
   const rnd = labRng(cfg.floors[floor.n].seed * 7919 + room.id * 104729);
   const idx = (x: number, y: number) => y * w + x;
   // Never rock: the cross of paths, each spot and its neighbours, the way from the cross to the loot box.
@@ -242,6 +266,21 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
   keepRect(0, my - 1, w - 1, my + 1);
   for (const [x, y] of [spot.feature, spot.merchant, [spot.feature[0] + 3, spot.feature[1]] as [number, number], [spot.feature[0], spot.feature[1] + 2] as [number, number]]) keepRect(x - 1, y - 1, x + 1, y + 1);
   keepRect(spot.chest[0] - 1, spot.chest[1] - 1, spot.chest[0] + 1, my);
+  // The entrance hall: room for the tavern, the campfire circle and the benches.
+  let hall: LabHall | null = null;
+  if (isHall) {
+    const tx = spot.tavern[0];
+    hall = {
+      counter: [[tx - 1, 2], [tx, 2], [tx + 1, 2]],
+      keeper: [tx, 1],
+      fire: [4, h - 4],
+      sitters: [[3, h - 4], [5, h - 4], [4, h - 3]],
+      benches: [[w - 5, h - 4], [w - 4, h - 4]],
+    };
+    keepRect(tx - 2, 1, tx + 2, 3);
+    keepRect(2, h - 5, 6, h - 3);
+    keepRect(w - 6, h - 5, w - 3, h - 3);
+  }
   const solid = new Set<number>();
   const rock = (x: number, y: number) => {
     if (x >= 1 && y >= 1 && x <= w - 2 && y <= h - 2 && !keep.has(idx(x, y))) solid.add(idx(x, y));
@@ -291,6 +330,7 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
       // kind 3: an open corner.
     }
   }
+  if (hall) for (const [x, y] of [...hall.counter, hall.fire, ...hall.benches]) solid.add(idx(x, y));
   // 3. Floor you can't reach from the middle becomes rock (no sealed-off pockets).
   const seen = new Set<number>([idx(mx, my)]);
   const q = [idx(mx, my)];
@@ -304,7 +344,7 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
       if (!seen.has(j) && !solid.has(j)) (seen.add(j), q.push(j));
     }
   }
-  for (let y = 1; y <= h - 2; y++) for (let x = 1; x <= w - 2; x++) if (!seen.has(idx(x, y))) solid.add(idx(x, y));
+  for (let y = 1; y <= h - 2; y++) for (let x = 1; x <= w - 2; x++) if (!seen.has(idx(x, y)) && !(hall && solid.has(idx(x, y)))) solid.add(idx(x, y));
   // 4. Roofs: a rock tunnel over each doorway's passage, and in chambers sometimes an overhang.
   const roofs: RoomLayout['roofs'] = [];
   if (doorAt.n) roofs.push({ x: mx - 1, y: 0, w: 3, h: 2 });
@@ -316,5 +356,57 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
     const left = rnd() < 0.5;
     roofs.push(left ? { x: 3, y: my - 1, w: 3, h: 3 } : { x: w - 6, y: my - 1, w: 3, h: 3 });
   }
-  return { w, h, doorAt, solid, spot, roofs };
+  // 5. Bushes and cobwebs (ordinary chambers): a few clumps, never on a spot or right in a doorway.
+  const open = (x: number, y: number) => x >= 1 && y >= 1 && x <= w - 2 && y <= h - 2 && !solid.has(idx(x, y));
+  const spotTiles = new Set<number>([spot.centre, spot.chest, spot.feature, spot.merchant].map(([x, y]) => idx(x, y)));
+  const doorStep = new Set<number>();
+  for (const [x, y] of Object.values(doorAt) as Array<[number, number]>)
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (Math.abs(dx) + Math.abs(dy) <= 2) doorStep.add(idx(x + dx, y + dy));
+  const nearRock = (x: number, y: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => x + dx < 1 || y + dy < 1 || x + dx > w - 2 || y + dy > h - 2 || solid.has(idx(x + dx, y + dy)));
+  const brush: RoomLayout['brush'] = new Map();
+  if (room.kind === 'chamber') {
+    const clumps = 1 + Math.floor(rnd() * 3);
+    for (let c = 0; c < clumps; c++) {
+      let x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2));
+      if (!open(x, y)) continue;
+      const kind = nearRock(x, y) ? 'web' : 'bush';
+      const n = 3 + Math.floor(rnd() * 4);
+      for (let k = 0; k < n * 3 && n > 0; k++) {
+        const i = idx(x, y);
+        if (open(x, y) && !spotTiles.has(i) && !doorStep.has(i)) brush.set(i, kind);
+        const d = Math.floor(rnd() * 4);
+        const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
+        if (open(nx, ny)) (x = nx), (y = ny);
+        if ([...brush.values()].length >= 14) break;
+      }
+    }
+  }
+  // 6. Things lying about: lamps on the walls everywhere; in chambers sometimes a sign left by an
+  //    adventurer, a skeleton, a cold campfire.
+  const props: LabProp[] = [];
+  const used = new Set<number>([...spotTiles, ...brush.keys()]);
+  const spotFor = (byWall: boolean): [number, number] | null => {
+    for (let k = 0; k < 40; k++) {
+      const x = 1 + Math.floor(rnd() * (w - 2)), y = 1 + Math.floor(rnd() * (h - 2));
+      const i = idx(x, y);
+      if (!open(x, y) || used.has(i) || doorStep.has(i) || keep.has(i) && Math.abs(x - mx) <= 1 && Math.abs(y - my) <= 1) continue;
+      if (hall && Math.abs(x - spot.tavern[0]) <= 2 && y <= 3) continue;
+      if (byWall && !nearRock(x, y)) continue;
+      used.add(i);
+      return [x, y];
+    }
+    return null;
+  };
+  const put = (kind: LabProp['kind'], byWall: boolean, extra: Partial<LabProp> = {}) => {
+    const at = spotFor(byWall);
+    if (at) props.push({ kind, at, ...extra });
+  };
+  const lamps = room.kind === 'chamber' ? 1 + Math.floor(rnd() * 2) : 2;
+  for (let i = 0; i < lamps; i++) put('lamp', true);
+  if (room.kind === 'chamber') {
+    if (rnd() < 0.45 && cfg.signs.length) put('sign', true, { text: Math.floor(rnd() * cfg.signs.length) });
+    if (rnd() < 0.35) put('skeleton', true);
+    if (rnd() < 0.15) put('oldfire', false);
+  }
+  return { w, h, doorAt, solid, spot, roofs, brush, props, hall };
 }

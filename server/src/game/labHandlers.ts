@@ -131,7 +131,7 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
   const battleRoom = new Map<number, string>();
   /** Walked into a room: your party is fighting here (join in), or a waiting group jumps out at
    *  you and the party members who are here too. */
-  const encounter = (p: OnlinePlayer) => {
+  const encounter = (p: OnlinePlayer, ambush = false) => {
     const key = keyOf(p);
     if (!key || battles.inFight(p)) return;
     const mates = parties.members(p.id).filter((id) => id !== p.id).map((id) => world.get(id)).filter((o): o is OnlinePlayer => !!o && keyOf(o) === key);
@@ -141,7 +141,7 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       return;
     }
     const group = [p, ...mates.filter((o) => !battles.inFight(o))];
-    if (battles.encounter(group)) {
+    if (battles.encounter(group, ambush)) {
       for (const o of group) battleRoom.set(o.id, key);
       partyChanged(parties.of(p.id));
     }
@@ -188,6 +188,10 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
     // 🛒 The merchant, ⚔️ gear and 🧪 potions out of a fight.
     handle(socket, 'lab:buy', LAB_C2S.labBuy, ({ id, n }) => {
       const text = lab.buy(me, id, n);
+      return { self: lab.self(me), text };
+    });
+    handle(socket, 'lab:drink', LAB_C2S.labDrink, ({ id }) => {
+      const text = lab.drink(me, id);
       return { self: lab.self(me), text };
     });
     handle(socket, 'lab:equip', LAB_C2S.labEquip, ({ slot, id }) => {
@@ -246,6 +250,7 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       if (!parsed.success || !me.lab) return;
       const m = parsed.data;
       if (!lab.move(me, m.x, m.y, m.dir, m.moving)) socket.emit('lab:correct', { x: me.lab.x, y: me.lab.y });
+      else if (lab.takeAmbush(me)) encounter(me, true); // 🌿 something in the bushes
     });
   }
 

@@ -229,3 +229,67 @@ describe('Labirin Purba merchant, gear and potions', () => {
     expect(st.potions.tali_pulang).toBeUndefined();
   });
 });
+
+describe('Labirin: the tavern and the brush', () => {
+  it('a tavern drink buffs your next fights, then wears off', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    st.coins = 500;
+    expect(() => s.lab.drink(s.p, 'kopi_o')).toThrow(/entrance hall/); // not at the counter yet
+    const f = s.lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.tavern);
+    const def0 = s.lab.stats(s.p).def;
+    expect(s.lab.drink(s.p, 'kopi_o')).toMatch(/Kopi O/);
+    expect(st.coins).toBe(500 - lc.tavern.drinks.find((d) => d.id === 'kopi_o')!.price);
+    expect(s.lab.stats(s.p).def).toBeGreaterThan(def0);
+    expect(s.lab.self(s.p).drink).toEqual({ id: 'kopi_o', left: 3 });
+    for (let i = 0; i < 3; i++) s.lab.battleDone(s.p);
+    expect(s.lab.self(s.p).drink).toBeNull();
+    expect(s.lab.stats(s.p).def).toBe(def0);
+  });
+
+  it('stepping into a bush can start a fight, each time, but not right after one', () => {
+    const db = openDatabase(':memory:');
+    const repos = createRepos(db);
+    const id = repos.accounts.create('bushy', 'h', false, { x: 0, y: 0 }, 2, 0);
+    const p = { id, name: 'bushy', hasCharacter: true, lab: null } as unknown as OnlinePlayer;
+    let now = 1_700_000_000_000;
+    const lab = new LabSystem(lc, repos, () => 0, () => now); // every roll hits
+    const f = lab.floor(0);
+    // A chamber with brush next to open floor.
+    let found: { room: number; from: [number, number]; to: [number, number] } | null = null;
+    for (const r of f.rooms) {
+      const L = roomLayout(lc, f, r);
+      for (const i of L.brush.keys()) {
+        const x = i % L.w, y = Math.floor(i / L.w);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const j = (y + dy) * L.w + x + dx;
+          if (!L.brush.has(j) && !L.solid.has(j) && x + dx >= 1 && y + dy >= 1 && x + dx <= L.w - 2 && y + dy <= L.h - 2) found ??= { room: r.id, from: [x + dx, y + dy], to: [x, y] };
+        }
+      }
+      if (found) break;
+    }
+    expect(found).not.toBeNull();
+    const { room, from, to } = found!;
+    const at = (t: [number, number]) => ({ x: (t[0] + 0.5) * T, y: (t[1] + 0.5) * T });
+    p.lab = { floor: 0, room, ...at(from), dir: 'up', moving: false, at: now };
+    now += 200;
+    expect(lab.move(p, at(to).x, at(to).y, 'up', true)).toBe(true);
+    expect(lab.takeAmbush(p)).toBe(true);
+    expect(lab.takeAmbush(p)).toBe(false); // taken
+    // After a fight: calm for a few seconds, even stepping out and back in.
+    lab.battleDone(p);
+    for (const t of [from, to]) {
+      now += 200;
+      lab.move(p, at(t).x, at(t).y, 'up', true);
+    }
+    expect(lab.takeAmbush(p)).toBe(false);
+    now += lc.brush.graceSec * 1000;
+    for (const t of [from, to]) {
+      now += 200;
+      lab.move(p, at(t).x, at(t).y, 'up', true);
+    }
+    expect(lab.takeAmbush(p)).toBe(true);
+  });
+});

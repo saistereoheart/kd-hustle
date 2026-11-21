@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.19.0)_
+_Last updated: 2026-11-22 (v1.20.0)_
 
-**Now at v1.19.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.20.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,40 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🌿 Labirin: bushes, cobwebs, props, entrance hall, tavern (2026-11-22, your request, v1.20.0)
+**FPS check:** low risk.
+- Bushes, cobwebs and props are drawn into the room's existing pictures.
+- Lights cost 3 tweens each, capped at 3 (Low) or 4 (Normal) per room, plus campfires.
+- NPCs only in the entrance hall (6) and rest chambers (1–2), with shared looks.
+- Ambush rolls and drinks run on the server.
+
+**What changed:**
+- **Shared `roomLayout`:**
+  - New `brush` (bush/web tiles), `props` (lamp, sign, skeleton, oldfire), `hall` (counter, keeper, fire,
+    sitters, benches) and `spot.tavern`.
+  - The hall's counter, fire and benches are solid.
+  - Tests: every spot stays clear and all floor stays reachable.
+- **Server:**
+  - `LabSystem.brushStep` rolls on each new brush tile; `takeAmbush`; `battleDone` (calm, and the drink
+    loses a fight).
+  - `drink`, plus drink buffs in `stats()`.
+  - `encounter(group, ambush)`: an ambush doesn't clear the room.
+  - Socket `lab:drink`; `LabSelf.drink`; `LabBattleView.ambush`.
+  - New tests: the drink buffs, then wears off; brush ambush, calm, then again.
+- **Client:**
+  - Art in `labRoomArt.ts`: bushes (depth-sorted, you wade through them), cobwebs, lamps, signs, bones,
+    fire pits, counter and shelf, benches, the stall, the staff and orb.
+  - NPCs, the read/look prompts, the leaf rustle on stepping in, and NPC chatter in `labScene.ts`.
+  - The tavern window in `labTavern.ts`; the drink on the HUD.
+- **Config** (`labyrinth.json`): `brush`, `signs` (16), `tavern` (5 drinks).
+
+**Test:**
+1. Enter the Labirin. The hall should have the stall, the merchant's staff and orb, the tavern, the fire
+   circle and the benches.
+2. Press E at the counter and buy a drink: the HUD shows its icon ×3.
+3. Go into chambers and walk through bushes or cobwebs: leaves fly, and sometimes "🌿 Ambush!".
+4. Read a 📜 sign.
 
 ## 🎨 Labirin: richer models, 2D portraits, cave music, battle intro (2026-11-22, your requests, v1.19.0)
 **FPS check:** low risk.
