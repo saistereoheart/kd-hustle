@@ -6,7 +6,7 @@ import { log } from '../log';
 import { GameError } from '../systems/economy/economy';
 import { labRoomKey, type LabSystem } from '../systems/lab/lab';
 import { LabBattles } from '../systems/lab/labBattles';
-import type { OnlinePlayer, World } from './world';
+import { LAB_VOID, type OnlinePlayer, type World } from './world';
 
 // The game's typed sockets are loose here on purpose (this module only adds events).
 type AnyIO = Server;
@@ -42,6 +42,18 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
     const id = inside ? 'lab' : null;
     if (p.interior === id) return;
     p.interior = id;
+    // Out of town while you're down there: off the map, so no stall, NPC, door, crate or job is in
+    // reach. Your spot is kept (others see you "inside" there, and it's what's saved) for coming back.
+    if (inside) {
+      p.labReturn = { x: p.x, y: p.y };
+      p.x = LAB_VOID.x;
+      p.y = LAB_VOID.y;
+      p.moving = false;
+    } else if (p.labReturn) {
+      p.x = p.labReturn.x;
+      p.y = p.labReturn.y;
+      p.labReturn = null;
+    }
     io.to(p.scene).emit('player:updated', { id: p.id, interior: id });
   };
   const withOthers = (p: OnlinePlayer, v: LabRoomView): LabRoomView => ({ ...v, others: othersIn(keyOf(p)!, p.id) });

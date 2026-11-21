@@ -1,6 +1,6 @@
 // Client-side copy of the player's economy state. The server is the source of truth: this is
 // filled from `init` and updated from acks/events, and panels re-render when it changes.
-import type { ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView, GarageView, ParkedPublic, SeatInfo, ShoplotPublic } from '@kh/shared';
+import type { ItemBest, ActiveBuff, ErrandState, PropPublic, PropSelf, SkipVoteState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, ProgressState, SelfState, StallPublic, StallSelf, Ventures, BankView, BoutiqueSelf, Listing, MusicView, TradeView, ActiveEvent, EventDef, MarketListing, RebirthView, GarageView, ParkedPublic, SeatInfo, ShoplotPublic } from '@kh/shared';
 
 type Listener = () => void;
 
@@ -10,6 +10,10 @@ export class Store {
   inventory: InventoryItem[] = [];
   equipped: Partial<Record<EquipSlot, number>> = {};
   index = new Set<string>();
+  /** 📖 Best tier / variant ever had per item (from the server at login)… */
+  best = new Map<string, ItemBest>();
+  /** …and every copy that's come in since (the Item Index folds them in, so it's current). */
+  seen: Array<{ itemId: string; grade?: string; variant: string }> = [];
   pages = new Set<string>();
   pity: Record<string, PityState> = {};
   jobs: Record<string, JobProgress> = {};
@@ -91,6 +95,8 @@ export class Store {
     this.inventory = [...you.inventory];
     this.equipped = { ...you.equipped };
     this.index = new Set(you.index);
+    this.best = new Map(Object.entries(you.best ?? {}));
+    this.seen = [];
     this.pages = new Set(you.pagesClaimed);
     this.pity = { ...you.pity };
     this.jobs = { ...you.jobs };
@@ -159,6 +165,7 @@ export class Store {
   addItems(items: InventoryItem[], index?: string[]) {
     const have = new Set(this.inventory.map((i) => i.iid));
     for (const i of items) if (!have.has(i.iid)) this.inventory.push(i);
+    this.seen.push(...items);
     if (index) this.index = new Set(index);
     else for (const i of items) this.index.add(i.itemId);
     this.emit();

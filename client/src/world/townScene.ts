@@ -386,6 +386,11 @@ export class TownScene extends Phaser.Scene {
     this.remotes.set(p.id, { id: p.id, name: p.name, avatar, pub: { ...p }, samples: [{ t: performance.now(), x: p.x, y: p.y, dir: p.dir, moving: p.moving }] });
   }
 
+  /** Inside a building, a home or the 🗝️ Labirin: the town carries on without us (no walking, no prompts). */
+  private get away(): boolean {
+    return !!(this.app.interior || this.app.home || this.app.lab);
+  }
+
   /** Maps snapshots onto the server's timeline and sizes the interpolation delay to the link. */
   private snapClock!: SnapClock;
   /** For the F3 overlay: when snapshots arrived (WiFi trouble shows as gaps) and snap-backs. */
@@ -564,7 +569,7 @@ export class TownScene extends Phaser.Scene {
       this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
-      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;
+      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && this.away) } : null;
     });
       this.mapView.update(this.cameras.main.worldView);
       this.culler.update(this.cameras.main.worldView, delta);
@@ -574,7 +579,7 @@ export class TownScene extends Phaser.Scene {
     }
 
     // --- local movement (client prediction); none while we're inside a building ---
-    let { x: vx, y: vy } = this.app.interior || this.app.home ? { x: 0, y: 0 } : this.app.inputVector();
+    let { x: vx, y: vy } = this.away ? { x: 0, y: 0 } : this.app.inputVector();
     const len = Math.hypot(vx, vy);
     if (len > 1) {
       vx /= len;
@@ -585,7 +590,7 @@ export class TownScene extends Phaser.Scene {
     // 🏍️ Showroom cars and bikes run a gearbox (shared/garage/drive): speed comes from torque and
     // the gear. Let go and they roll on and slow gently; push the other way to brake. In neutral
     // (manual) the throttle just revs the engine.
-    const model = this.me.vehicle && !(this.app.interior || this.app.home) ? cfg.garage.models[this.me.vehicle] : undefined;
+    const model = this.me.vehicle && !this.away ? cfg.garage.models[this.me.vehicle] : undefined;
     let coasting = false;
     if (model) {
       const v = cfg.vehicles.vehicles[this.me.vehicle!];
@@ -695,7 +700,7 @@ export class TownScene extends Phaser.Scene {
     this.npcs.update(delta, this.peopleNear());
     this.collectors.update(delta, (id) => {
       const av = id === this.selfId ? this.me : this.remotes.get(id)?.avatar;
-      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && (this.app.interior || this.app.home)) } : null;
+      return av ? { x: av.x, y: av.y, visible: av.container.visible && !(id === this.selfId && this.away) } : null;
     });
     this.followBeacon();
     this.mapView.update(this.cameras.main.worldView);
@@ -751,7 +756,7 @@ export class TownScene extends Phaser.Scene {
    * goes in (or bumps a locked one, with a knock). No button needed.
    */
   private walkIntoDoors(vx: number, vy: number) {
-    if (this.app.interior || this.app.home) return;
+    if (this.away) return;
     const { map } = this.app;
     const T = map.tileSize;
     const cands = vx || vy ? this.doorFronts.get(gridIndexAt(map, this.pos.x, this.pos.y - 4)) : undefined;
@@ -827,7 +832,7 @@ export class TownScene extends Phaser.Scene {
     const { map, cfg } = this.app;
     // --- slower checks: doors, district, minimap ---
     this.slowAcc += delta;
-    if (this.slowAcc >= 150 && !this.app.interior && !this.app.home) {
+    if (this.slowAcc >= 150 && !this.away) {
       this.slowAcc = 0;
       const tx = Math.floor(this.pos.x / map.tileSize);
       const ty = Math.floor((this.pos.y - 4) / map.tileSize);
@@ -966,7 +971,7 @@ export class TownScene extends Phaser.Scene {
     const d = this.drive;
     const id = this.me?.vehicle;
     const m = d && id ? this.app.cfg.garage.models[id] : undefined;
-    if (!d || !m || this.app.interior || this.app.home) return dashboard.hide();
+    if (!d || !m || this.away) return dashboard.hide();
     dashboard.show(
       { kmh: (d.st.speed / 16) * 3.6, rpm: d.st.rpm, redline: d.spec.redline, idle: d.spec.idle, gear: d.st.gear, gears: d.spec.gearTop.length, auto: d.st.auto, limiter: d.st.limiter, shiftAt: d.spec.upAt, name: `${m.maker} ${m.model}` },
       { up: () => this.shift(1), down: () => this.shift(-1), toggle: () => this.toggleGearbox() },
@@ -1047,7 +1052,7 @@ export class TownScene extends Phaser.Scene {
   /** 🚗 Engine sounds: ours (from our gearbox) and the nearest riders' (their speed → gear → revs). Louder exhausts carry further. */
   private updateEngines(throttleOn: boolean) {
     const g = this.app.cfg.garage;
-    const inside = !!(this.app.interior || this.app.home);
+    const inside = this.away;
     const dt = Math.min(0.1, this.game.loop.delta / 1000);
     // Ours
     const id = this.me?.vehicle;
@@ -1297,7 +1302,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     this.shopWalkers ??= new Walkers(this, this.app.cfg.character, this.app.items, 8);
     this.shopWalkers.update(performance.now());
     this.shopWalkAcc += delta;
-    if (this.shopWalkAcc < 2500 || this.app.interior || this.app.home) return;
+    if (this.shopWalkAcc < 2500 || this.away) return;
     this.shopWalkAcc = 0;
     const T = this.app.map.tileSize;
     const cv = this.cameras.main.worldView;

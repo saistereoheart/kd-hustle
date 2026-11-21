@@ -290,11 +290,14 @@ describe('offline income (spec §8.7)', () => {
     // 8 h of in-game days (20) at 50%: far less than 30 h at 100%.
     const fullDay = me().rentSen;
     expect(sum.earnedSen).toBeLessThan(fullDay * 21);
-    expect(() => s.props.luckySpin(s.p)).toThrow(/spinning/);
-    s.setNow(s.now() + 10_000);
+    // The wheel lands on a multiplier of the offline income; you get the extra on top, once.
     const before = s.p.walletSen;
-    expect(s.props.luckySpin(s.p).bonusSen).toBe(sum.earnedSen);
-    expect(s.p.walletSen - before).toBe(sum.earnedSen);
+    const spin = s.props.luckySpin(s.p);
+    const seg = cfg.economy.offline.spin[spin.index];
+    expect(spin.mult).toBe(seg.mult);
+    expect(spin.bonusSen).toBe(Math.round(sum.earnedSen * (seg.mult - 1)));
+    expect(spin.totalSen).toBe(sum.earnedSen + spin.bonusSen);
+    expect(s.p.walletSen - before).toBe(spin.bonusSen);
     expect(() => s.props.luckySpin(s.p)).toThrow();
   });
 });

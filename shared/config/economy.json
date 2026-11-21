@@ -17,7 +17,33 @@
   "potionMaxStackMin": 60,
   "offline": {
     "capHours": 8,
-    "efficiency": 0.5
+    "efficiency": 0.5,
+    "spin": [
+      {
+        "mult": 1.25,
+        "weight": 31
+      },
+      {
+        "mult": 1.5,
+        "weight": 28
+      },
+      {
+        "mult": 2,
+        "weight": 22
+      },
+      {
+        "mult": 3,
+        "weight": 12
+      },
+      {
+        "mult": 5,
+        "weight": 6
+      },
+      {
+        "mult": 10,
+        "weight": 1
+      }
+    ]
   },
   "furnitureMaxQty": 10,
   "phoneRollFee": 0.1

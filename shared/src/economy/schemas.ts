@@ -98,7 +98,14 @@ export const economyConfigSchema = z.object({
   indexPageRewardMultiplier: z.number().nonnegative(),
   interactRadiusTiles: z.number().positive(),
   /** Spec §8.7: passive income keeps going while you're logged out, capped and at a discount. */
-  offline: z.object({ capHours: z.number().positive(), efficiency: z.number().min(0).max(1) }).default({ capHours: 8, efficiency: 0.5 }),
+  offline: z
+    .object({
+      capHours: z.number().positive(),
+      efficiency: z.number().min(0).max(1),
+      /** 🎡 The welcome-back wheel: what your offline income is multiplied by (the total you get), and how likely. */
+      spin: z.array(z.object({ mult: z.number().min(1), weight: z.number().positive() })).min(2).default([{ mult: 1.5, weight: 1 }, { mult: 2, weight: 1 }]),
+    })
+    .default({ capHours: 8, efficiency: 0.5, spin: [{ mult: 1.5, weight: 1 }, { mult: 2, weight: 1 }] }),
   /** Most pieces of furniture you can buy in one go. */
   furnitureMaxQty: z.number().int().positive().default(10),
   rollRateLimit: rateLimit,

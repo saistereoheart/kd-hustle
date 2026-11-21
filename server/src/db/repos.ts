@@ -122,6 +122,8 @@ export function createRepos(db: DB) {
     invDelete: db.prepare('DELETE FROM inventory_items WHERE iid = ? AND account_id = ?'),
     indexList: db.prepare('SELECT item_id FROM collection_index WHERE account_id = ?'),
     indexAdd: db.prepare('INSERT OR IGNORE INTO collection_index (account_id, item_id, first_found_at) VALUES (?, ?, ?)'),
+    indexBest: db.prepare('SELECT item_id, best_grade, best_variant FROM collection_index WHERE account_id = ? AND best_grade IS NOT NULL'),
+    indexSetBest: db.prepare('UPDATE collection_index SET best_grade = ?, best_variant = ? WHERE account_id = ? AND item_id = ?'),
     rollInsert: db.prepare('INSERT INTO roll_log (account_id, crate_id, item_id, tier, variant, serial, rolled_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     rollCountItem: db.prepare('SELECT COUNT(*) AS n FROM roll_log WHERE item_id = ?'),
     txSums: db.prepare('SELECT reason, SUM(CASE WHEN delta_sen > 0 THEN delta_sen ELSE 0 END) AS inSen, SUM(CASE WHEN delta_sen < 0 THEN -delta_sen ELSE 0 END) AS outSen, COUNT(*) AS n FROM transactions WHERE account_id = ? AND at >= ? AND delta_sen != 0 GROUP BY reason'),
@@ -311,6 +313,10 @@ export function createRepos(db: DB) {
       list: (accountId: number) => (s.indexList.all(accountId) as Array<{ item_id: string }>).map((r) => r.item_id),
       /** Returns true if this is the first time the player found the item. */
       add: (accountId: number, itemId: string) => s.indexAdd.run(accountId, itemId, Date.now()).changes === 1,
+      /** The best tier / variant ever had, per item (the Item Index). */
+      best: (accountId: number) =>
+        new Map((s.indexBest.all(accountId) as Array<{ item_id: string; best_grade: string; best_variant: string | null }>).map((r) => [r.item_id, { grade: r.best_grade, variant: r.best_variant || 'normal' }])),
+      setBest: (accountId: number, itemId: string, grade: string, variant: string) => s.indexSetBest.run(grade, variant, accountId, itemId),
     },
     rolls: {
       log: (accountId: number, crateId: string, itemId: string, tier: string, variant: string, serial: number | null) =>

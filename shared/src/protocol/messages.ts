@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { DIRECTIONS, type Appearance, type Direction } from '../character/appearance';
 import { EQUIP_SLOTS, type EquipSlot } from '../economy/schemas';
 import type { PityState } from '../luck';
+import type { ItemBest } from '../items/bulk';
 import type { ActiveBuff, QuestState } from '../progression/progression';
 import { STALL_UPGRADES, type StallState } from '../cooking/stall';
 import type { StepParams } from '../cooking/cooking';
@@ -144,6 +145,10 @@ export const C2S = {
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
   /** Merge N copies of an item at one tier into one at the next tier. */
   invMerge: z.object({ iids: z.array(z.number().int().positive()).min(2).max(10) }),
+  /** ⚒️ Merge all: every full set of the chosen items, tier by tier, up to tier `upTo`. */
+  invMergeAll: z.object({ items: z.array(z.string().max(40)).min(1).max(1000), upTo: z.string().max(2) }),
+  /** ♻️ Scrap all: the chosen items at or below tier `maxGrade` (optionally not ones with variants). */
+  scrapAll: z.object({ items: z.array(z.string().max(40)).min(1).max(1000), maxGrade: z.string().max(2), keepVariants: z.boolean() }),
   /** Spend shards on a chance at a better tier or variant for one item. */
   invReroll: z.object({ iid: z.number().int().positive(), what: z.enum(['grade', 'variant']) }),
   shardBuy: z.object({ itemId: z.string().max(40) }),
@@ -533,6 +538,8 @@ export interface SelfState extends PlayerPublic {
   equipped: Partial<Record<EquipSlot, number>>;
   /** Item ids ever found (the Item Index). */
   index: string[];
+  /** The best tier / variant ever had of each found item (the Item Index highlights it). */
+  best: Record<string, ItemBest>;
   /** Crate ids whose Index page reward has been claimed. */
   pagesClaimed: string[];
   pity: Record<string, PityState>;
@@ -655,17 +662,20 @@ export interface ClientToServerEvents {
   'prop:fix': (msg: { unit: string; req: number; how: 'contractor' | 'diy-start' | 'diy-finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'prop:clean': (msg: { unit: string; phase: 'start' | 'finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'furniture:buy': (msg: { item: string; qty: number }, ack: Ack<Result<{ items: InventoryItem[] }>>) => void;
-  'welcome:spin': (ack: Ack<Result<{ bonusSen: number }>>) => void;
+  /** 🎡 The welcome-back wheel: which segment (economy.offline.spin) it landed on, the extra paid and the new total. */
+  'welcome:spin': (ack: Ack<Result<{ bonusSen: number; index: number; mult: number; totalSen: number }>>) => void;
   /** `announce`: your big rolls' banners, for you to show the moment each one is revealed. */
   'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number }; announce?: Announcement[] }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
   'inv:merge': (msg: { iids: number[] }, ack: Ack<Result<{ removed: number[]; item: InventoryItem; bonus: string | null }>>) => void;
+  'inv:mergeAll': (msg: { items: string[]; upTo: string }, ack: Ack<Result<{ removed: number[]; items: InventoryItem[]; merges: number; bonuses: number }>>) => void;
   'inv:reroll': (msg: { iid: number; what: 'grade' | 'variant' }, ack: Ack<Result<{ item: InventoryItem; improved: boolean; shards: number; rolled: string; forced: boolean; pity: RerollPity }>>) => void;
   /** Reroll pity: misses in a row for tier and variant rerolls. */
   'inv:pity': (ack: Ack<Result<{ pity: RerollPity }>>) => void;
   'inv:unequip': (msg: { slot: EquipSlot }, ack: Ack<SimpleResult>) => void;
   'pawn:sell': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedSen: number }>>) => void;
-  'pawn:scrap': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number }>>) => void;
+  'pawn:scrap': (msg: { itemId: string; variant: string; grade?: string; count: number }, ack: Ack<Result<{ removed: number[]; gainedShards: number; keptLast: string | null }>>) => void;
+  'pawn:scrapAll': (msg: { items: string[]; maxGrade: string; keepVariants: boolean }, ack: Ack<Result<{ removed: number[]; gainedShards: number; count: number; kept: string[] }>>) => void;
   'shard:buy': (msg: { itemId: string }, ack: Ack<Result<{ item: InventoryItem; isNew: boolean }>>) => void;
   'job:start': (msg: { kind: JobKind; remote?: boolean }, ack: Ack<Result<{ job: JobState }>>) => void;
   /** Mamak Helper: hand over the drink just made (graded like stall cooking). */

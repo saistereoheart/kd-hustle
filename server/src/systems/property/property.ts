@@ -748,14 +748,26 @@ export class PropertySystem {
     return { awayMs, earnedSen: total, lines };
   }
 
-  /** The welcome-back Lucky Spin: after the 10-second spin, the offline income is paid again. */
+  /** The welcome-back Lucky Spin: the wheel (economy.offline.spin) lands on a multiplier of what
+   *  you earned while away; you get the extra on top (×2 pays it once more). */
   luckySpin(p: OnlinePlayer) {
     const w = this.welcome.get(p.id);
     if (!w || w.spun) throw new GameError('No spin waiting.');
-    if (this.clock() - w.at < 9_000) throw new GameError('The wheel is still spinning!');
+    const wheel = this.cfg.economy.offline.spin;
+    const total = wheel.reduce((a, x) => a + x.weight, 0);
+    let r = (this.rand(1_000_000) / 1_000_000) * total;
+    let index = wheel.length - 1;
+    for (let i = 0; i < wheel.length; i++) if ((r -= wheel[i].weight) < 0) {
+      index = i;
+      break;
+    }
+    const mult = wheel[index].mult;
+    const bonusSen = Math.round(w.sen * (mult - 1));
     w.spun = true;
-    this.econ.run(p, () => this.econ.change(p, w.sen, 0, 'welcome-spin', null));
-    this.hooks.wallet(p, w.sen, 'spin');
-    return { bonusSen: w.sen };
+    if (bonusSen > 0) {
+      this.econ.run(p, () => this.econ.change(p, bonusSen, 0, 'welcome-spin', `x${mult}`));
+      this.hooks.wallet(p, bonusSen, 'spin');
+    }
+    return { bonusSen, index, mult, totalSen: w.sen + bonusSen };
   }
 }

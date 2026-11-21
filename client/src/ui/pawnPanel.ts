@@ -1,11 +1,12 @@
 // Kedai Pajak Untung: sell items for RM, scrap them into shards, or buy specific items with shards.
-import { formatMoney, isCollectible, pawnPriceSen, scrapShards, gradeDef, gradeMult } from '@kh/shared';
+import { formatMoney, isCollectible, pawnPriceSen, scrapAllowed, scrapShards, gradeDef, gradeMult } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel, tabs, tierOf } from './panel';
 import { byRarity } from './itemSort';
 import { groupedItems } from './itemGroups';
 import { sfx } from './sound';
+import { openBulkWindow } from './bulkWindow';
 
 export function openPawnPanel(app: App) {
   const panel = openPanel('🏪 Kedai Pajak Untung', { wide: true, testId: 'pawn-panel' });
@@ -36,9 +37,15 @@ export function openPawnPanel(app: App) {
         if (err || !res.ok) return fail(err, res);
         sfx.coin();
         app.store.removeItems(res.removed);
-        toast(`+${res.gainedShards} 💎 shards`, 'good');
+        toast(`+${res.gainedShards} 💎 shards${res.keptLast ? ` · you keep your last ${res.keptLast}` : ''}`, 'good');
       });
     }
+  };
+
+  const scrapAllBtn = () => {
+    const b = el('button', { class: 'btn primary', type: 'button', 'data-action': 'scrap-all' }, '♻️ Scrap all…', el('small', {}, 'pick with filters · keeps 1 of each'));
+    b.addEventListener('click', () => openBulkWindow(app, 'scrap'));
+    return el('div', { class: 'bulk-entry' }, b);
   };
 
   const renderStacks = (mode: 'sell' | 'scrap') => {
@@ -57,19 +64,29 @@ export function openPawnPanel(app: App) {
       const gm = gradeMult(app.cfg.grades, s.grade);
       const each = mode === 'sell' ? pawnPriceSen(rar, def, crate, s.variant, app.cfg.economy.pawnRate, gm) : Math.round(scrapShards(rar, def, s.variant) * gm);
       const label = (n: number) => (mode === 'sell' ? formatMoney(each * n) : `${each * n} 💎`);
-      const one = el('button', { class: 'btn', type: 'button', 'data-action': `${mode}-one` }, `${mode === 'sell' ? 'Sell' : 'Scrap'} 1`, el('small', {}, label(1)));
-      one.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, 1, s.grade));
+      // Scrapping never takes your last copy of an item (any tier or variant of it counts).
+      const owned = app.store.inventory.filter((i) => i.itemId === s.itemId).length;
+      const most = mode === 'scrap' ? scrapAllowed(owned, s.items.length) : s.items.length;
+      const one = el('button', { class: `btn${most < 1 ? ' soft-off' : ''}`, type: 'button', 'data-action': `${mode}-one` }, `${mode === 'sell' ? 'Sell' : 'Scrap'} 1`, el('small', {}, most < 1 ? 'last copy' : label(1)));
+      one.addEventListener('click', () => {
+        if (most < 1) {
+          sfx.error();
+          return void toast(`You can't scrap your last copy of ${def.name}.`, 'bad');
+        }
+        doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, 1, s.grade);
+      });
       const row = el('div', { class: 'stack-row' }, itemCard(rar, def, s.variant, { count: s.items.length, size: 48, grade: s.grade, gradeColor: gradeDef(app.cfg.grades, s.grade).color }), el('div', { class: 'stack-btns' }, one));
-      if (s.items.length > 1) {
-        const all = el('button', { class: 'btn', type: 'button' }, `All ×${s.items.length}`, el('small', {}, label(s.items.length)));
-        all.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, s.items.length, s.grade));
+      if (most > 1) {
+        const all = el('button', { class: 'btn', type: 'button' }, most < s.items.length ? `All but 1 ×${most}` : `All ×${most}`, el('small', {}, label(most)));
+        all.addEventListener('click', () => doStack(mode === 'sell' ? 'pawn:sell' : 'pawn:scrap', s.itemId, s.variant, most, s.grade));
         row.lastElementChild!.append(all);
       }
       rows.set(s, row);
     }
     const list = groupedItems(stacks, (s) => app.items.get(s.itemId)!.type, (s) => rows.get(s)!, { list: true });
     content.replaceChildren(
-      el('p', { class: 'muted' }, mode === 'sell' ? `The pawn shop pays ${Math.round(app.cfg.economy.pawnRate * 100)}% of an item's value. Worn items are sold last.` : 'Scrap items into 💎 shards, then buy exactly what you want in the Shard Shop.'),
+      ...(mode === 'scrap' ? [scrapAllBtn()] : []),
+      el('p', { class: 'muted' }, mode === 'sell' ? `The pawn shop pays ${Math.round(app.cfg.economy.pawnRate * 100)}% of an item's value. Worn items are sold last.` : 'Scrap items into 💎 shards, then buy exactly what you want in the Shard Shop. You always keep your last copy of each item.'),
       list,
     );
   };

@@ -16,10 +16,12 @@ import { buildPolyIndex, type CollisionGrid } from './collision';
 export const Tile = {
   Grass: 0, Road: 1, Sidewalk: 2, Crossing: 3, Plaza: 4, Water: 5, Highway: 6, Forest: 7, Field: 8, Building: 9,
   Parking: 10, Golf: 11, Bridge: 12, Path: 13, Park: 14, Construction: 15, Roof: 16,
+  /** A footbridge over a highway: walk across it, and vehicles drive on underneath. */
+  Overpass: 17,
 } as const;
 export const TERRAIN_NAMES = [
   'grass', 'road', 'sidewalk', 'crossing', 'plaza', 'water', 'highway', 'forest', 'field', 'building',
-  'parking', 'golf', 'bridge', 'path', 'park', 'construction', 'roof',
+  'parking', 'golf', 'bridge', 'path', 'park', 'construction', 'roof', 'overpass',
 ] as const;
 
 /** Decor ids (0 = none). Visual only, never solid. Trees are drawn above characters. */
@@ -267,7 +269,10 @@ export function buildMap(source: MapSource, terrainCfg: TerrainConfig): BuiltMap
   for (const p of paths) {
     stampLine(p.pts, p.width / 2, (i) => {
       const c = terrain[i];
-      if (c === Tile.Highway || c === Tile.Water) terrain[i] = p.bridge ? Tile.Bridge : c;
+      // A footbridge over a highway is overhead: traffic still drives under it (Overpass), while over a
+      // river it's the only way across (Bridge, on foot).
+      if (c === Tile.Highway) terrain[i] = p.bridge ? Tile.Overpass : c;
+      else if (c === Tile.Water) terrain[i] = p.bridge ? Tile.Bridge : c;
       else if (c !== Tile.Road && c !== Tile.Sidewalk && c !== Tile.Crossing) terrain[i] = Tile.Path;
     });
   }

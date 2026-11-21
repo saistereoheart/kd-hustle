@@ -12,6 +12,7 @@ import type { App } from '../app';
 import { el, toast } from './dom';
 import { iconUrl, openPanel } from './panel';
 import { sfx } from './sound';
+import { openBulkWindow } from './bulkWindow';
 
 const VARIANT_COLOR: Record<string, string> = { normal: '#868e96', shiny: '#74c0fc', golden: '#fcc419', rainbow: 'linear-gradient(90deg,#ff6b6b,#ffd43b,#51cf66,#4dabf7,#cc5de8)' };
 
@@ -20,13 +21,13 @@ function itemLine(app: App, it: InventoryItem): string {
   return `${gradeDef(app.cfg.grades, it.grade).name}${v ? ` · ${v}` : ''}`;
 }
 
-/** Items that can go in the forge (from a crate, not limited, not worn). */
 /** Furniture placed in your homes (can't be merged or rerolled until it's taken out). */
 export function placedIids(app: App): Set<number> {
   return new Set([...app.store.myProps, ...app.store.myShops].flatMap((p) => p.layout.map((l) => l.iid)));
 }
 
-function forgeable(app: App): InventoryItem[] {
+/** Items that can go in the forge (from a crate, not limited, not worn, not placed in a home). */
+export function forgeable(app: App): InventoryItem[] {
   const worn = new Set(Object.values(app.store.equipped));
   const placed = placedIids(app);
   return app.store.inventory.filter((i) => i.serial === null && !worn.has(i.iid) && !placed.has(i.iid) && app.cratesOfItem.has(i.itemId));
@@ -127,7 +128,10 @@ export function openMergeWindow(app: App, firstIid?: number) {
     // Copies placed in your homes don't show up here: say so (and where to take them out).
     const placed = placedIids(app);
     const inHomes = first ? app.store.inventory.filter((i) => i.itemId === first.itemId && placed.has(i.iid)).length : 0;
+    const all = el('button', { class: 'btn small', type: 'button', 'data-action': 'merge-all' }, '⚒️ Merge all… (every full set, with filters)');
+    all.addEventListener('click', () => openBulkWindow(app, 'merge'));
     panel.body.replaceChildren(
+      el('div', { class: 'bulk-entry' }, all),
       row, preview, go,
       el('h4', {}, first ? `Your other ${gradeDef(g, first.grade).name} ${def?.name ?? ''}s` : `Items you have ${n}+ of at one tier`),
       list.childElementCount ? list : el('p', { class: 'empty' }, first ? 'No more copies of this item at this tier (worn ones don\'t count).' : `You don't have ${n} copies of anything at the same tier yet.`),
@@ -259,6 +263,7 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
       spin(res.rolled, res.improved, () => {
         spinning = false;
         app.store.inventory = app.store.inventory.map((i) => (i.iid === res.item.iid ? res.item : i));
+        app.store.seen.push(res.item);
         if (res.improved) sfx.reveal(res.forced ? 5 : 4);
         else sfx.click();
         toast(res.improved ? `✨ ${res.forced ? 'Pity! ' : ''}${itemLine(app, res.item)}` : 'No luck this time (it stays the same).', res.improved ? 'good' : 'info');

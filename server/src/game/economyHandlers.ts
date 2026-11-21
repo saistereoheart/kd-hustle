@@ -529,6 +529,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       prog.check(me);
       return { removed: r.removed, item: r.item, bonus: r.bonus };
     });
+    handle(socket, 'inv:mergeAll', C2S.invMergeAll, ({ items, upTo }) => {
+      const r = inv.mergeAll(me, items, upTo, (max) => crypto.randomInt(Math.max(1, max)));
+      prog.check(me);
+      return r;
+    });
     // Reroll pity (misses in a row) lives in player_data, per player.
     const pityOf = (): RerollPity => ({ grade: 0, variant: 0, ...(repos.playerData.load<Partial<RerollPity>>(me.id, 'reroll') ?? {}) });
     handle(socket, 'inv:pity', null, () => ({ pity: pityOf() }));
@@ -747,7 +752,14 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (r.cosmeticsChanged) broadcastCosmetics(me);
       pushWallet(me, 0, 'scrap');
       prog.onScrap(me, r.removed.length);
-      return { removed: r.removed, gainedShards: r.gainedShards };
+      return { removed: r.removed, gainedShards: r.gainedShards, keptLast: r.keptLast };
+    });
+    handle(socket, 'pawn:scrapAll', C2S.scrapAll, ({ items, maxGrade, keepVariants }) => {
+      atPawn();
+      const r = inv.scrapAll(me, items, { maxGrade, keepVariants });
+      pushWallet(me, 0, 'scrap');
+      prog.onScrap(me, r.count);
+      return r;
     });
     handle(socket, 'shard:buy', C2S.shardBuy, ({ itemId }) => {
       atPawn();
@@ -988,6 +1000,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     p.pages = new Set(e.pages);
     p.inventory = repos.inventory.list(p.id);
     p.index = new Set(repos.collection.list(p.id));
+    // 📖 Best tier / variant ever (kept up from now on; what you hold now fills in the past).
+    p.best = repos.collection.best(p.id);
+    repos.tx(() => {
+      for (const i of p.inventory) econ.noteBest(p, i);
+    });
     p.cosmetics = {};
     p.skills = e.skills;
     p.manifestBank = 0;

@@ -22,7 +22,7 @@ import { EmoteSystem } from '../systems/emotes/emotes';
 import { SkipNightVote } from '../systems/timeskip/timeskip';
 import { attachEconomy } from './economyHandlers';
 import { emptyProgress } from '../systems/progression/progression';
-import type { OnlinePlayer, World } from './world';
+import { townPos, type OnlinePlayer, type World } from './world';
 
 interface SocketData {
   account: AuthedAccount;
@@ -474,7 +474,8 @@ export function attachGame(io: GameIO, deps: GameDeps) {
       const rows: SnapshotRow[] = world
         .inScene(scene)
         .map((p): SnapshotRow => {
-          const row: SnapshotRow = [p.id, Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10, DIR_INDEX[p.dir], p.moving ? 1 : 0];
+          const at = townPos(p); // in the labyrinth: their town spot (hidden), not the void
+          const row: SnapshotRow = [p.id, Math.round(at.x * 10) / 10, Math.round(at.y * 10) / 10, DIR_INDEX[p.dir], p.moving ? 1 : 0];
           if (p.vehicle && p.engine) row.push(p.engine[0], p.engine[1]);
           return row;
         });

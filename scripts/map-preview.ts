@@ -17,7 +17,7 @@ const C: Record<number, number[]> = {
   [Tile.Plaza]: [233, 217, 182], [Tile.Water]: [74, 163, 223], [Tile.Highway]: [40, 42, 50], [Tile.Forest]: [63, 138, 51],
   [Tile.Field]: [155, 211, 106], [Tile.Building]: [200, 90, 70], [Tile.Parking]: [139, 144, 154], [Tile.Golf]: [143, 220, 106],
   [Tile.Bridge]: [255, 200, 0], [Tile.Path]: [201, 167, 116], [Tile.Park]: [134, 207, 93], [Tile.Construction]: [180, 150, 100],
-  [Tile.Roof]: [230, 170, 160],
+  [Tile.Roof]: [230, 170, 160], [Tile.Overpass]: [255, 150, 0],
 };
 const S = 2, W = map.width * S, H = map.height * S;
 const raw = Buffer.alloc((W * 3 + 1) * H);

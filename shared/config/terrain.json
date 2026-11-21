@@ -70,6 +70,10 @@
     "roof": {
       "walk": 1,
       "vehicle": 0.8
+    },
+    "overpass": {
+      "walk": 1,
+      "vehicle": 1
     }
   },
   "minRoadWidthMeters": {

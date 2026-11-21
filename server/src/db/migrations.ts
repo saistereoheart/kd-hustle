@@ -311,6 +311,16 @@ export const MIGRATIONS: Migration[] = [
       CREATE UNIQUE INDEX shoplots_owner ON shoplots(account_id, kind, ref);
     `,
   },
+  {
+    id: 16,
+    name: 'item index best',
+    // 📖 The Item Index shows the best tier and the best variant you've ever had of each item
+    // (filled in from your inventory at your next login, then kept up as you roll / merge / reroll).
+    sql: `
+      ALTER TABLE collection_index ADD COLUMN best_grade TEXT;
+      ALTER TABLE collection_index ADD COLUMN best_variant TEXT;
+    `,
+  },
 ];
 
 /** Migration 7's backfill (exported for tests). */

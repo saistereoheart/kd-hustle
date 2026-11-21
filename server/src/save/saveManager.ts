@@ -6,7 +6,7 @@
 //   5. right after high-value events (character save now; rolls/purchases in later phases) → saveNow()
 import type { PlayerRecord, Repos } from '../db/repos';
 import { log } from '../log';
-import type { OnlinePlayer, World } from '../game/world';
+import { townPos, type OnlinePlayer, type World } from '../game/world';
 
 export class SaveManager {
   private timer: NodeJS.Timeout | undefined;
@@ -25,8 +25,8 @@ export class SaveManager {
       appearance: p.appearance,
       hasCharacter: p.hasCharacter,
       scene: p.scene,
-      x: Math.round(p.x * 10) / 10,
-      y: Math.round(p.y * 10) / 10,
+      x: Math.round(townPos(p).x * 10) / 10,
+      y: Math.round(townPos(p).y * 10) / 10,
       dir: p.dir,
       lastSavedAt: p.lastSavedAt,
       mapVersion: p.mapVersion,

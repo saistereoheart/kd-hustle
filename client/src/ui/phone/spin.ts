@@ -27,8 +27,8 @@ export function renderSpin({ app }: PhoneCtx): HTMLElement[] {
   disc.style.transform = `rotate(${angle}deg)`;
   // Prize labels around the wheel.
   d.prizes.forEach((p, i) => {
-    const lab = el('span', { class: 'spin-label' }, p.sen ? formatMoney(p.sen * mult) : p.label);
-    lab.style.transform = `rotate(${((i + 0.5) / n) * 360}deg) translateY(-38%)`;
+    const lab = el('span', { class: 'spin-label' }, el('b', {}, p.sen ? formatMoney(p.sen * mult) : p.label));
+    lab.style.transform = `rotate(${((i + 0.5) / n) * 360}deg)`;
     disc.append(lab);
   });
   const can = app.store.canSpin !== false;
@@ -42,6 +42,9 @@ export function renderSpin({ app }: PhoneCtx): HTMLElement[] {
         return;
       }
       sfx.click();
+      // Today's spin is used: the badge goes at once (not after the wheel stops).
+      app.store.canSpin = false;
+      app.store.emit();
       const target = 360 - ((res.index + 0.5) / n) * 360;
       angle = angle - (angle % 360) + 360 * 6 + target;
       disc.style.transition = 'transform 4s cubic-bezier(0.15, 0.8, 0.2, 1)';
@@ -50,8 +53,7 @@ export function renderSpin({ app }: PhoneCtx): HTMLElement[] {
         sfx.fanfare();
         const p = d.prizes[res.index];
         toast(`🎡 You won ${res.sen ? formatMoney(res.sen) : p.label}!`, 'good', 4000);
-        app.store.canSpin = false;
-        app.store.emit();
+        btn.textContent = 'Come back tomorrow';
       }, 4100);
     });
   });

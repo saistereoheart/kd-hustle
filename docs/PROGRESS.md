@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.11.0)_
+_Last updated: 2026-11-21 (v1.12.0)_
 
-**Now at v1.11.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.12.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 389 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 399 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.11.0 reaches the game only then.
+   from v1.8.2 to v1.12.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -49,7 +49,42 @@ rounds below. The §19 content list is met, including 74 achievements.
   3003). Changes reach it when you run `npm run build`, stop the server (Ctrl+C saves everyone) and `npm start`.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
-- **No database changes** this round. Customers' add-ons and new stock items are stored in the existing stall JSON.
+- **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## ⚒️ Merge all, ♻️ scrap all, 📖 best ever, 🎡 wheels, fixes (2026-11-21, your requests, v1.12.0)
+- `shared/src/items/bulk.ts` (+ tests) holds the pure planning for both sides:
+  - `mergeSets`: variants are dealt across the sets;
+  - `mergePreview`: the cascade up the tiers;
+  - `planScrap` / `scrapAllowed`: never your last copy; the best one stays;
+  - `improveBest`: best tier and best variant, each on its own.
+- Server (`InventorySystem`):
+  - `mergeAll(items, upTo)` and `scrapAll(items, {maxGrade, keepVariants})`, one transaction each;
+  - `scrap` now stops at the last copy;
+  - messages `inv:mergeAll` and `pawn:scrapAll` (the latter at the pawn shop only).
+- Best ever:
+  - `Economy.noteBest` runs on every grant and reroll, stored in `collection_index` (migration 16);
+  - at login it's backfilled from the inventory;
+  - `SelfState.best` sends it; the client folds in new copies (`store.seen`).
+- Client:
+  - `ui/bulkWindow.ts`: filters, a per-item checklist (exclusions remembered in localStorage), preview, confirm;
+  - the Item Index cards show the best variant's art, a tier badge and a glow.
+- Welcome wheel:
+  - `economy.offline.spin` (mult / weight, about ×2 on average);
+  - `luckySpin` rolls the slice and pays `earned × (mult − 1)`;
+  - the client lands the wheel under a pointer, and the middle shows the claimable total.
+- Lucky Spin: the labels go inside the slices, and the badge clears on the server's reply.
+- Labirin:
+  - the server parks your town position off the map (`LAB_VOID`) and keeps `labReturn`;
+  - snapshots, the public view and saves use `townPos`, the real spot;
+  - the town scene ignores input and prompts while `app.lab` (`away`).
+- Map: footbridges over a highway become `Tile.Overpass` (walk 1, vehicle 1; `terrain.json`). Over water
+  they stay `Bridge` (foot only). That covers 160 tiles, four crossings on the eastern highway.
+- **Decisions:**
+  - you keep your last copy of *any* item, potions included;
+  - Scrap all starts careful: Common–Rare, Tier D only, no variants, no potions / chefs / Teman;
+  - Merge all goes to the top tier by default.
 
 ---
 

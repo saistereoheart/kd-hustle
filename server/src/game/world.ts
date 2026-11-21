@@ -2,7 +2,7 @@
 // position/appearance are persisted by the SaveManager, while money, items and other economy
 // state are written to the DB immediately inside transactions (see systems/economy).
 import type {
-  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, JobProgress, JobState, PityState, PetPublic, PlayerPublic, ProgressState, SeatInfo, SelfState, StallSelf, VehicleLook,
+  Appearance, Cosmetics, Direction, ErrandState, EquipSlot, HotbarRef, InventoryItem, ItemBest, JobProgress, JobState, PityState, PetPublic, PlayerPublic, ProgressState, SeatInfo, SelfState, StallSelf, VehicleLook,
 } from '@kh/shared';
 import type { ServerProgress } from '../systems/progression/progression';
 import type { MoveState } from '../systems/movement/moveValidator';
@@ -10,6 +10,14 @@ import type { ActiveRide, PendingQuote } from '../systems/rides/rides';
 
 /** Server-side job state: what the client sees plus private grading data. */
 export type ServerJob = JobState & { budgetMs?: number };
+
+/** Where a player in the 🗝️ labyrinth "is" in town: nowhere near anything. */
+export const LAB_VOID = { x: -5_000_000, y: -5_000_000 };
+
+/** A player's town spot as others see it and as it's saved (their return point while in the labyrinth). */
+export function townPos(p: { x: number; y: number; labReturn?: { x: number; y: number } | null }): { x: number; y: number } {
+  return p.labReturn ?? p;
+}
 
 export interface OnlinePlayer {
   id: number;
@@ -34,6 +42,9 @@ export interface OnlinePlayer {
   interior: string | null;
   /** 🗝️ In Labirin Purba: which room, and where in it (px, room-local). Their town spot is kept. */
   lab?: { floor: number; room: number; x: number; y: number; dir: Direction; moving: boolean; at: number; from?: { room: number; by: 'n' | 'e' | 's' | 'w' } } | null;
+  /** 🗝️ Their town spot while they're in the labyrinth (where they come back to). Meanwhile x / y is
+   *  off the map (LAB_VOID), so nothing in town is in reach: stalls, NPCs, doors, crates, jobs. */
+  labReturn?: { x: number; y: number } | null;
   /** Late paying the Ah Long (set by the loan system; shown to everyone). */
   owesAhLong?: boolean;
   /** Times reborn (stars by the name). */
@@ -47,6 +58,8 @@ export interface OnlinePlayer {
   /** What other players see equipped (derived from `equipped` + inventory). */
   cosmetics: Cosmetics;
   index: Set<string>;
+  /** 📖 The best tier / variant ever had of each item (the Item Index). */
+  best?: Map<string, ItemBest>;
   pages: Set<string>;
   pity: Record<string, PityState>;
   jobs: Record<string, JobProgress>;
@@ -130,8 +143,8 @@ export class World {
       id: p.id,
       name: p.name,
       appearance: p.appearance!,
-      x: p.x,
-      y: p.y,
+      x: townPos(p).x,
+      y: townPos(p).y,
       dir: p.dir,
       moving: p.moving,
       level: p.prog.level,
@@ -163,6 +176,7 @@ export class World {
       inventory: p.inventory,
       equipped: p.equipped,
       index: [...p.index],
+      best: Object.fromEntries(p.best ?? []),
       pagesClaimed: [...p.pages],
       pity: p.pity,
       jobs: p.jobs,

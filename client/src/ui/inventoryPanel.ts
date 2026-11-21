@@ -1,5 +1,5 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
-import { variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
+import { improveBest, variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
 
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
@@ -8,6 +8,7 @@ import { closePanel, iconUrl, itemCard, openPanel, tabs, tierOf } from './panel'
 import { groupedItems } from './itemGroups';
 import { byRarity as rarityOrder } from './itemSort';
 import { openMergeWindow, openRerollWindow } from './forge';
+import { openBulkWindow } from './bulkWindow';
 import { openGearPicker, openPetsPanel } from './pets/petsPanel';
 import { sfx } from './sound';
 
@@ -291,16 +292,28 @@ export function openInventoryPanel(app: App, startTab = 0) {
     }
     // Grouped by what it's for: outfit (head, face, back...), potions, collectibles, furniture.
     const grouped = groupedItems(stacks, (s) => app.items.get(s.itemId)!.type, (s) => cards.get(s)!);
-    content.replaceChildren(...(detail ? [detail] : []), grouped);
+    const mergeAll = el('button', { class: 'btn small', type: 'button', 'data-action': 'merge-all' }, '⚒️ Merge all…');
+    mergeAll.addEventListener('click', () => openBulkWindow(app, 'merge'));
+    content.replaceChildren(...(detail ? [detail] : []), el('div', { class: 'bulk-entry' }, mergeAll), grouped);
   };
 
   const renderIndex = () => {
     renderWorn();
     const st = app.store;
+    const gcfgIdx = app.cfg.grades;
     const collectibles = app.cfg.items.items.filter(isCollectible);
     const total = collectibles.length;
     const found = collectibles.filter((i) => st.index.has(i.id)).length;
-    const parts: HTMLElement[] = [el('div', { class: 'index-total' }, `Collection: ${found}/${total} (${Math.round((found / total) * 100)}%)`)];
+    // 📖 The best you've ever had of each: the server's record, plus anything that came in since.
+    const best = new Map(st.best);
+    for (const c of [...st.seen, ...st.inventory]) {
+      const next = improveBest(gcfgIdx, rar.variants, best.get(c.itemId), c);
+      if (next) best.set(c.itemId, next);
+    }
+    const parts: HTMLElement[] = [
+      el('div', { class: 'index-total' }, `Collection: ${found}/${total} (${Math.round((found / total) * 100)}%)`),
+      el('div', { class: 'muted small index-hint' }, 'Each item shows the best you\'ve ever had of it: its highest tier (the badge and glow) and its best variant (the art).'),
+    ];
     for (const c of app.cfg.crates.crates) {
       const have = c.pool.filter((id) => st.index.has(id)).length;
       const reward = Math.round(c.priceSen * app.cfg.economy.indexPageRewardMultiplier);
@@ -308,7 +321,16 @@ export function openInventoryPanel(app: App, startTab = 0) {
       const g = el('div', { class: 'item-grid small' });
       for (const id of c.pool) {
         const def = app.items.get(id)!;
-        g.append(itemCard(rar, def, 'normal', { silhouette: !st.index.has(id), size: 56 }));
+        const b = st.index.has(id) ? best.get(id) : undefined;
+        const gd = b ? gradeDef(gcfgIdx, b.grade) : undefined;
+        const card = itemCard(rar, def, b?.variant ?? 'normal', { silhouette: !st.index.has(id), size: 56, grade: b?.grade, gradeColor: gd?.color });
+        card.classList.add('index-card');
+        if (b && gd) {
+          card.style.setProperty('--best', gd.color);
+          card.classList.add('has-best', `best-g${gradeIndex(gcfgIdx, b.grade)}`);
+          card.title = `${def.name} · best: ${gd.name}${b.variant !== 'normal' ? ` · ${variantLabel(rar.variants, b.variant)}` : ''}`;
+        }
+        g.append(card);
       }
       const bar = el('div', { class: 'progress' }, el('i', {}));
       (bar.firstChild as HTMLElement).style.width = `${(have / c.pool.length) * 100}%`;

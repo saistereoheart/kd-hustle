@@ -24,6 +24,7 @@ export * from './property/listings';
 export * from './property/floorPlan';
 export * from './items/grades';
 export * from './items/variants';
+export * from './items/bulk';
 export * from './business/business';
 export * from './business/loans';
 export * from './casino/casino';

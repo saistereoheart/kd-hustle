@@ -1,7 +1,7 @@
 // The only place money, shards and items change. Every change runs inside a SQLite
 // transaction (all-or-nothing) and is logged to the `transactions` table. If anything throws
 // mid-way, the DB rolls back AND the in-memory player is restored, so they can never drift.
-import { EQUIP_SLOTS, isCollectible, type Cosmetics, type InventoryItem } from '@kh/shared';
+import { EQUIP_SLOTS, improveBest, isCollectible, type Cosmetics, type InventoryItem } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -24,6 +24,7 @@ export class Economy {
       equipped: { ...p.equipped },
       cosmetics: { ...p.cosmetics },
       index: new Set(p.index),
+      best: p.best ? new Map(p.best) : p.best,
       pages: new Set(p.pages),
       pity: JSON.parse(JSON.stringify(p.pity)),
       jobs: JSON.parse(JSON.stringify(p.jobs)),
@@ -60,12 +61,26 @@ export class Economy {
     if (def && !isCollectible(def)) return { item, isNew: false };
     const isNew = this.repos.collection.add(p.id, itemId);
     p.index.add(itemId);
+    this.noteBest(p, item);
     return { item, isNew };
   }
 
   /** Changes an item's tier/variant (call inside run()). */
   setLook(p: OnlinePlayer, iid: number, grade: string, variant: string) {
     if (!this.repos.inventory.setLook(p.id, iid, grade, variant)) throw new GameError('You no longer have that item.');
+    const it = p.inventory.find((i) => i.iid === iid);
+    if (it) this.noteBest(p, { itemId: it.itemId, grade, variant });
+  }
+
+  /** 📖 A copy you now have: is it your best tier / variant of that item yet? (Collectibles only.) */
+  noteBest(p: OnlinePlayer, it: { itemId: string; grade?: string; variant: string }) {
+    const def = this.cfg.itemById.get(it.itemId);
+    if (!def || !isCollectible(def)) return;
+    const best = (p.best ??= new Map());
+    const next = improveBest(this.cfg.prog.grades, this.cfg.rarities.variants, best.get(it.itemId), it);
+    if (!next) return;
+    best.set(it.itemId, next);
+    this.repos.collection.setBest(p.id, it.itemId, next.grade, next.variant);
   }
 
   /** Removes an item instance (call inside run()). Unequips it if needed. */

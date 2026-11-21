@@ -131,10 +131,13 @@ describe('inventory, pawn shop and shards', () => {
     econ.run(p, () => {
       for (let i = 0; i < 12; i++) econ.grant(p, 'rubber_duck', 'normal', null);
     });
+    // Asking for all 12 scraps 11: you always keep your last copy.
     const r = inv.scrap(p, 'rubber_duck', 'normal', 12);
-    expect(r.gainedShards).toBe(12 * cfg.rarities.tiers.find((t) => t.id === 'common')!.shards);
+    expect(r.gainedShards).toBe(11 * cfg.rarities.tiers.find((t) => t.id === 'common')!.shards);
+    expect(r.keptLast).toBe(cfg.itemById.get('rubber_duck')!.name);
+    expect(p.inventory).toHaveLength(1);
     expect(() => inv.shardBuy(p, 'bucket_hat')).toThrow(/Discover/); // not found yet
-    expect(() => inv.scrap(p, 'rubber_duck', 'normal', 1)).toThrow(GameError);
+    expect(() => inv.scrap(p, 'rubber_duck', 'normal', 1)).toThrow(/last copy of/);
     const shardsBefore = p.shards;
     inv.shardBuy(p, 'rubber_duck'); // common = 10 shards
     expect(p.shards).toBe(shardsBefore - 10);
@@ -202,6 +205,61 @@ describe('inventory, pawn shop and shards', () => {
     const r = inv.reroll(p, low.iid, 'grade', () => 0, 1, hard - 1);
     expect(r).toMatchObject({ improved: true, forced: true });
     expect(r.item.grade).toBe('C');
+  });
+
+  it('merge all merges every full set, tier by tier, up to the chosen tier', () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => {
+      for (let i = 0; i < 9; i++) econ.grant(p, 'rubber_duck', i === 0 ? 'shiny' : 'normal', null, 'D');
+      for (let i = 0; i < 2; i++) econ.grant(p, 'party_hat', 'normal', null, 'D'); // not a full set
+    });
+    const worn = econ.run(p, () => econ.grant(p, 'rubber_duck', 'normal', null, 'D')).item;
+    p.equipped = { hat: worn.iid }; // worn copies stay out of it
+    // 9 D → 3 C → 1 B (mergeCount 3)
+    const r = inv.mergeAll(p, ['rubber_duck', 'party_hat'], 'S', () => 999_999);
+    expect(r.merges).toBe(4);
+    const ducks = p.inventory.filter((i) => i.itemId === 'rubber_duck');
+    expect(ducks.map((d) => d.grade).sort()).toEqual(['B', 'D']); // the merged B + the worn D
+    expect(ducks.find((d) => d.grade === 'B')!.variant).toBe('shiny'); // the variant made it up
+    expect(p.inventory.filter((i) => i.itemId === 'party_hat')).toHaveLength(2);
+    expect(r.items.map((i) => i.grade)).toEqual(['B']); // only what's left at the end
+    // Stopping at C:
+    econ.run(p, () => {
+      for (let i = 0; i < 9; i++) econ.grant(p, 'bucket_hat', 'normal', null, 'D');
+    });
+    expect(inv.mergeAll(p, ['bucket_hat'], 'C', () => 999_999).merges).toBe(3);
+    expect(p.inventory.filter((i) => i.itemId === 'bucket_hat').map((i) => i.grade)).toEqual(['C', 'C', 'C']);
+    expect(() => inv.mergeAll(p, ['party_hat'], 'S', () => 0)).toThrow(/Nothing to merge/);
+  });
+
+  it('scrap all follows the filters and always keeps one copy of each item', () => {
+    const { p, econ, inv } = setup(0);
+    econ.run(p, () => {
+      for (let i = 0; i < 3; i++) econ.grant(p, 'rubber_duck', 'normal', null, 'D');
+      econ.grant(p, 'rubber_duck', 'golden', null, 'D');
+      econ.grant(p, 'rubber_duck', 'normal', null, 'B');
+      econ.grant(p, 'party_hat', 'normal', null, 'D'); // the only one
+    });
+    const r = inv.scrapAll(p, ['rubber_duck', 'party_hat'], { maxGrade: 'D', keepVariants: true });
+    expect(r.count).toBe(3); // the plain D ducks; not the golden one, not the B
+    expect(r.kept).toEqual([cfg.itemById.get('party_hat')!.name]);
+    expect(p.inventory.map((i) => `${i.itemId}:${i.grade}:${i.variant}`).sort()).toEqual(['party_hat:D:normal', 'rubber_duck:B:normal', 'rubber_duck:D:golden']);
+    expect(() => inv.scrapAll(p, ['party_hat'], { maxGrade: 'S', keepVariants: false })).toThrow(/last copy/);
+    // Everything goes but the best duck.
+    inv.scrapAll(p, ['rubber_duck'], { maxGrade: 'S', keepVariants: false });
+    expect(p.inventory.filter((i) => i.itemId === 'rubber_duck').map((i) => i.grade)).toEqual(['B']);
+  });
+
+  it('remembers the best tier and variant ever had (the Item Index), even after scrapping', () => {
+    const { p, econ, inv, repos } = setup(0);
+    econ.run(p, () => {
+      econ.grant(p, 'rubber_duck', 'golden', null, 'D');
+      econ.grant(p, 'rubber_duck', 'normal', null, 'B');
+      econ.grant(p, 'rubber_duck', 'normal', null, 'D');
+    });
+    expect(p.best?.get('rubber_duck')).toEqual({ grade: 'B', variant: 'golden' });
+    inv.scrapAll(p, ['rubber_duck'], { maxGrade: 'S', keepVariants: false });
+    expect(repos.collection.best(p.id).get('rubber_duck')).toEqual({ grade: 'B', variant: 'golden' });
   });
 
   it("can't sell more than you have", () => {

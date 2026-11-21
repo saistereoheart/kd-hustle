@@ -1121,6 +1121,7 @@ export class App {
     if (this.lab) return this.lab.showRoom(view);
     if (this.interior || this.home) this.exitBuilding();
     this.town?.cameras.main.setVisible(false);
+    this.town?.refreshPrompt(); // the town's door / stall / NPC prompt goes (the town ignores us while we're down there)
     document.body.dataset.lab = '1';
     this.labHud = new LabHud(this);
     this.game.scene.run('lab', { app: this, view });

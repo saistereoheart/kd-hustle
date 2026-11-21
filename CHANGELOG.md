@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.12.0 (2026-11-21): merge all, scrap all, the Item Index's best, wheels and fixes
+- **⚒️ Merge all** (🎒 Bag → Items, or the forge). Merges every full set of copies, tier by tier, up to
+  the tier you pick. Filter by rarity and kind, and tick items in or out one by one; unticked items
+  stay excluded next time. The variants are spread over the results so they're kept.
+- **♻️ Scrap all** (Kedai Pajak Untung → Scrap). The same filters, plus a tier cap and "keep Shiny /
+  Golden / Rainbow". It starts careful: Common to Rare, Tier D only, no potions, chefs or Teman. Tap
+  twice to confirm.
+- **You always keep your last copy.** Scrapping stops at one copy of each item: "You can't scrap your
+  last copy of …". "All" becomes "All but 1".
+- **📖 Item Index: your best ever.** Each item you've found shows the highest tier you've had of it (badge
+  and glow, stronger for higher tiers) and its best variant (the art). This counts even if you've since
+  sold, merged or scrapped it. Earlier history is filled in from what you hold at your next login.
+- **🎡 Welcome-back wheel.** It's a real wheel now: a pointer and slices from ×1.25 to ×10, about ×2 on
+  average (`economy.json` → `offline.spin`). The server picks the slice and the wheel lands on it. The
+  middle shows what you can claim, then the new total.
+- **🎡 Lucky Spin:** the prize labels sit inside their slices, and the red dot goes the moment you spin.
+- **🗝️ Labirin:** while you're down there, the town no longer reacts to you. You were still walking around
+  town unseen, so stalls, NPCs, doors and crates opened. Your town spot is kept and you come back to it.
+- **Footbridges over highways** no longer block traffic. You drive under them, and you still walk
+  across them on foot.
+
 ## 1.11.0 (2026-11-21): 🗝️ Labirin Purba, part 2 (fights)
 - **Monsters jump out** when you walk into some rooms. It's a Pokémon-style battle: monsters at the top,
   you at the bottom, a message box, and ⚔️ Attack / 💥 Skill (uses focus) / 🛡️ Guard / 🏃 Run. Tap a
