@@ -44,7 +44,9 @@ export class LabBattleUi {
     document.body.append(this.root);
     const foes = view.fighters.filter((f) => f.side === 'foe');
     const names = foes.length > 1 ? `${foes.slice(0, -1).map((f) => f.name).join(', ')} and ${foes[foes.length - 1].name}` : foes[0]?.name;
-    this.say(`${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
+    const boss = view.boss ? app.cfg.lab.bosses[view.floor] : undefined;
+    if (boss) this.root.classList.add('boss-fight');
+    this.say(boss ? `👹 ${boss.name}: "${boss.line}"` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     sfx.locked();
     this.render();
     this.tick = window.setInterval(() => this.drawTimer(), 200);
@@ -98,7 +100,8 @@ export class LabBattleUi {
   private finish(end: LabBattleEnd, room?: LabRoomView) {
     this.renderActions(true);
     const text =
-      end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried).`
+      end.outcome === 'win' && this.view.boss ? `🏆 ${this.app.cfg.lab.bosses[this.view.floor]?.name ?? 'The boss'} is beaten! The stairs down are open. +${end.coins} Syiling Purba (carried).`
+      : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried).`
       : end.outcome === 'fled' ? '🏃 You got away, back to the last room.'
       : `💫 You fell… ${end.lost ? `Lost ${end.lost} carried Syiling. ` : ''}You wake at your rest chamber.`;
     this.say(text);
@@ -121,7 +124,7 @@ export class LabBattleUi {
     const art = el('div', { class: 'lb-art' }, f.icon ?? (f.id === this.meId ? '🧑' : '🧑‍🤝‍🧑'));
     const c = el(
       'div',
-      { class: `lb-card ${f.side}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
+      { class: `lb-card ${f.side}${f.boss ? ' boss' : ''}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
       art,
       el('div', { class: 'lb-info' }, el('b', {}, f.name, ready), bar, el('small', {}, `${Math.max(0, Math.round(f.hp))} / ${f.maxHp}`), pips),
     );
@@ -174,7 +177,7 @@ export class LabBattleUi {
       btn(`💥 Skill`, 'skill', (me?.focus ?? 0) >= cost, `Hits much harder. Uses ${cost} focus (you gain 1 a round).`),
       btn('🛡️ Guard', 'guard', true, 'Take much less damage this round'),
       items,
-      btn('🏃 Run', 'run', true, `${Math.round(this.app.cfg.lab.battle.runChance * 100)}% chance to get away`),
+      btn('🏃 Run', 'run', !this.view.boss, this.view.boss ? 'No running from a boss!' : `${Math.round(this.app.cfg.lab.battle.runChance * 100)}% chance to get away`),
     );
   }
 
@@ -187,7 +190,7 @@ export class LabBattleUi {
     const me = this.me()!;
     const fallen = this.view.fighters.find((f) => f.side === 'party' && f.out && !f.fled);
     const list = this.usablePotions().map((p) => {
-      const why = p.revive && !fallen ? 'Nobody has fallen' : p.heal && me.hp >= me.maxHp ? "You're at full HP" : '';
+      const why = p.revive && !fallen ? 'Nobody has fallen' : p.heal && me.hp >= me.maxHp ? "You're at full HP" : p.escape && this.view.boss ? 'No escaping a boss' : '';
       const b = el('button', { class: 'btn lb-item', type: 'button', 'data-item': p.id, title: why || p.desc }, `${p.icon} ${p.name}`, el('small', {}, `×${this.potions[p.id]}${why ? ` · ${why}` : ''}`)) as HTMLButtonElement;
       b.disabled = !!why;
       b.addEventListener('click', () => this.pickItem(p.id, p.revive ? fallen?.id : me.id));

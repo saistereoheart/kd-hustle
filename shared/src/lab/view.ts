@@ -47,6 +47,8 @@ export interface LabSelf {
   potions: Record<string, number>;
   /** Your fighting stats with all of that. */
   stats: { hp: number; atk: number; def: number; spd: number; crit: number; block: number };
+  /** 👹 Floors whose boss you've beaten (0-based). */
+  bosses: number[];
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -97,6 +99,8 @@ export interface LabBattleView {
   fighters: LabFighter[];
   /** Fighters (ids) who have picked this round. */
   chosen: string[];
+  /** 👹 A boss fight: no running away. */
+  boss: boolean;
 }
 
 /** How a battle ended for one player. */

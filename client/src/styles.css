@@ -1524,3 +1524,17 @@ body:has(.panel-backdrop) .lab-hud, body:has(.panel-backdrop) .lab-minimap { vis
 .lab-party-row > span { flex: 1; min-width: 0; }
 .lab-party-row .btn { width: auto; flex: none; }
 .lab-party > .btn { margin-top: 6px; }
+
+/* ---- 👹 Labirin bosses ---- */
+.lb-card.boss { border-color: #e03131; box-shadow: 0 0 18px rgba(224, 49, 49, 0.45); transform: scale(1.12); transform-origin: center top; margin: 0 10px 10px; }
+.lb-card.boss .lb-art { font-size: 52px; }
+.lab-battle.boss-fight { background: radial-gradient(ellipse at 70% 25%, #5c2430 0, #1f1420 55%, #0b0c14 100%); }
+.lab-hud { width: max-content; }
+@media (max-width: 600px) {
+  /* Phones: the bar spans the screen (wrapping), the minimap sits under it, the boss card stays in the screen. */
+  .lab-hud { width: auto; left: 8px; right: 8px; transform: none; }
+  .lab-minimap { top: calc(150px + var(--safe-t)); }
+  .lb-card.boss { transform: none; margin: 0 0 6px; }
+}
+/* Phones in the labyrinth: the town's goal card and chips would sit under its bar (they're in the 📱 phone). */
+@media (max-width: 600px) { body[data-lab] .progress-hud { display: none; } }

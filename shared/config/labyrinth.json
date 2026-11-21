@@ -572,5 +572,99 @@
       "move": "Nafas Emas",
       "line": "A small dragon. Still a dragon."
     }
+  ],
+  "boss": {
+    "partyHp": 0.7,
+    "minionsFrom": 2
+  },
+  "bosses": [
+    {
+      "name": "Raja Tikus Lumut",
+      "icon": "🐀",
+      "move": "Gigitan Raja",
+      "hp": 215,
+      "atk": 9.7,
+      "def": 2,
+      "spd": 11,
+      "coins": 120,
+      "line": "Siapa berani masuk istana aku?"
+    },
+    {
+      "name": "Ratu Labah Akar",
+      "icon": "🕷️",
+      "move": "Jaring Akar",
+      "hp": 294,
+      "atk": 13,
+      "def": 2.7,
+      "spd": 12,
+      "coins": 160,
+      "line": "Kau dah terperangkap..."
+    },
+    {
+      "name": "Golem Kristal",
+      "icon": "🗿",
+      "move": "Hentakan Kristal",
+      "hp": 260,
+      "atk": 14,
+      "def": 3.7,
+      "spd": 13,
+      "coins": 220,
+      "line": "KRRRAK."
+    },
+    {
+      "name": "Raksasa Bara",
+      "icon": "👹",
+      "move": "Hembusan Bara",
+      "hp": 340,
+      "atk": 17.4,
+      "def": 4.8,
+      "spd": 14,
+      "coins": 300,
+      "line": "Panas? Belum lagi!"
+    },
+    {
+      "name": "Hantu Raya",
+      "icon": "👻",
+      "move": "Jeritan Malam",
+      "hp": 400,
+      "atk": 22,
+      "def": 6.1,
+      "spd": 15,
+      "coins": 420,
+      "line": "Hihihi... jangan toleh belakang."
+    },
+    {
+      "name": "Penjaga Pustaka",
+      "icon": "📚",
+      "move": "Kutukan Halaman",
+      "hp": 470,
+      "atk": 27,
+      "def": 7.5,
+      "spd": 16,
+      "coins": 580,
+      "line": "Senyap. Ini perpustakaan."
+    },
+    {
+      "name": "Raja Jerangkung",
+      "icon": "💀",
+      "move": "Pedang Purba",
+      "hp": 540,
+      "atk": 26,
+      "def": 8,
+      "spd": 16,
+      "coins": 800,
+      "line": "Takhta ini milik beta."
+    },
+    {
+      "name": "Naga Purba",
+      "icon": "🐉",
+      "move": "Nafas Purba",
+      "hp": 640,
+      "atk": 27,
+      "def": 9,
+      "spd": 17,
+      "coins": 1200,
+      "line": "Akhirnya... lawan yang layak."
+    }
   ]
 }

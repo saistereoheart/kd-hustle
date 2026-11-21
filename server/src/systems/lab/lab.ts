@@ -36,10 +36,12 @@ export interface LabSave {
   owned: string[];
   /** 🧪 Potions carried: id → count. */
   potions: Record<string, number>;
+  /** 👹 Floors whose boss you've beaten (their stairs down are open for you). */
+  bosses: number[];
 }
 
 export function emptyLab(): LabSave {
-  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {} };
+  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {}, bosses: [] };
 }
 
 /** How near (tiles) you must be to a door / chest / fire to use it. */
@@ -195,20 +197,31 @@ export class LabSystem {
     s.hpAt = this.clock();
   }
 
-  /** Does this room have a monster group waiting for this player? */
+  /** 👹 Is this floor's boss waiting here for this player (its stairs room, not beaten yet)? */
+  bossHere(p: OnlinePlayer): boolean {
+    const pos = p.lab;
+    if (!pos) return false;
+    return this.floor(pos.floor).rooms[pos.room].kind === 'boss' && !this.state(p).bosses.includes(pos.floor);
+  }
+
+  /** Does this room have a monster group (or the boss) waiting for this player? */
   monstersHere(p: OnlinePlayer): boolean {
     const pos = p.lab;
     if (!pos) return false;
+    if (this.bossHere(p)) return true;
     const room = this.floor(pos.floor).rooms[pos.room];
     if (!room.monsters) return false;
     const at = this.state(p).cleared[`${pos.floor}:${pos.room}`];
     return at === undefined || this.clock() - at > this.cfg.battle.respawnMin * 60_000;
   }
 
-  /** Beat the group here: Syiling (carried) and the room stays quiet for a while. */
-  won(p: OnlinePlayer, floor: number, room: number, coins: number) {
+  /** Beat the group here: Syiling (carried) and the room stays quiet for a while. Beat the boss:
+   *  the stairs down open for good. */
+  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false) {
     const s = this.state(p);
-    s.cleared[`${floor}:${room}`] = this.clock();
+    if (boss) {
+      if (!s.bosses.includes(floor)) s.bosses.push(floor);
+    } else s.cleared[`${floor}:${room}`] = this.clock();
     s.carried += coins;
     this.save(p);
   }
@@ -263,7 +276,7 @@ export class LabSystem {
     return {
       coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab,
       hp: this.hp(p), maxHp: st.hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)),
-      gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st,
+      gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st, bosses: [...s.bosses],
     };
   }
 
@@ -420,6 +433,7 @@ export class LabSystem {
       if (room.kind !== 'boss') throw new GameError('No stairs down here.');
       if (!this.near(pos, L.spot.feature)) throw new GameError('Walk up to the stairs.');
       if (pos.floor + 1 >= this.cfg.floors.length) throw new GameError("This is the bottom. There's nowhere deeper.");
+      if (!s.bosses.includes(pos.floor)) throw new GameError(`👹 ${this.cfg.bosses[pos.floor]?.name ?? 'The boss'} guards the stairs. Beat it first.`);
       const next = pos.floor + 1;
       this.place(p, next, this.floor(next).start, null);
       s.deepest = Math.max(s.deepest, next);

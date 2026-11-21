@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  groupCoins, labPotion, resolveLabRound, rollGroup,
+  groupCoins, labPotion, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -19,6 +19,8 @@ interface Battle {
   round: number;
   deadline: number;
   timer: ReturnType<typeof setTimeout> | null;
+  /** 👹 The floor's boss (no running away; beating it opens the stairs). */
+  boss: boolean;
 }
 
 export interface LabBattleHooks {
@@ -64,9 +66,10 @@ export class LabBattles {
     if (!lead?.lab || players.some((p) => this.byPlayer.has(p.id))) return false;
     if (!this.lab.monstersHere(lead)) return false;
     const { floor, room } = lead.lab;
+    const boss = this.lab.bossHere(lead);
     const fighters: LabFighter[] = players.map((p) => this.fighterOf(p));
-    fighters.push(...rollGroup(this.cfg, floor, players.length, this.rand));
-    const b: Battle = { id: this.nextId++, floor, room, fighters, members: new Map(players.map((p) => [p.id, p])), choices: new Map(), round: 1, deadline: 0, timer: null };
+    fighters.push(...(boss ? rollBoss(this.cfg, floor, players.length, this.rand) : rollGroup(this.cfg, floor, players.length, this.rand)));
+    const b: Battle = { id: this.nextId++, floor, room, fighters, members: new Map(players.map((p) => [p.id, p])), choices: new Map(), round: 1, deadline: 0, timer: null, boss };
     this.battles.set(b.id, b);
     for (const p of players) this.byPlayer.set(p.id, b);
     this.arm(b);
@@ -99,6 +102,7 @@ export class LabBattles {
     const me = b.fighters.find((f) => f.id === pid(p));
     if (!me || me.out) throw new GameError("You're out of this fight.");
     if (action.kind === 'skill' && me.focus < this.cfg.player.skillCost) throw new GameError('Not enough focus yet.');
+    if (b.boss && action.kind === 'run') throw new GameError("There's no running from a boss!");
     if (action.kind === 'item') {
       const pot = labPotion(this.cfg, action.item);
       if (!pot) throw new GameError('Unknown potion.');
@@ -106,6 +110,7 @@ export class LabBattles {
       if (pot.home) throw new GameError(`${pot.name} doesn't work in a fight. Try 🏃 Run or 💨 Asap Lari.`);
       if (pot.revive && !b.fighters.some((f) => f.side === 'party' && f.out && !f.fled)) throw new GameError('Nobody has fallen.');
       if (pot.heal && me.hp >= me.maxHp) throw new GameError("You're at full HP.");
+      if (pot.escape && b.boss) throw new GameError("There's no escaping a boss!");
     }
     b.choices.set(me.id, action);
     if (this.everyoneReady(b)) this.play(b);
@@ -154,7 +159,7 @@ export class LabBattles {
     b.timer = null;
     const actions = Object.fromEntries(b.choices);
     b.choices.clear();
-    const { events, outcome, used } = resolveLabRound(this.cfg, b.fighters, actions, this.rand);
+    const { events, outcome, used } = resolveLabRound(this.cfg, b.fighters, actions, this.rand, { noEscape: b.boss });
     const players = [...b.members.values()];
     // 🧪 Potions used this round come out of their bags.
     for (const u of used) {
@@ -174,7 +179,7 @@ export class LabBattles {
       } else if (outcome === 'win') {
         const coins = groupCoins(this.cfg, b.floor, b.fighters.filter((x) => x.side === 'foe'));
         this.lab.setHp(p, f.out ? 1 : f.hp);
-        this.lab.won(p, b.floor, b.room, coins);
+        this.lab.won(p, b.floor, b.room, coins, b.boss);
         end = { outcome: 'win', coins, lost: 0 };
       } else {
         end = { outcome: 'wipe', coins: 0, lost: 0 };
@@ -210,6 +215,6 @@ export class LabBattles {
   }
 
   private viewOf(b: Battle): LabBattleView {
-    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()] };
+    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()], boss: b.boss };
   }
 }

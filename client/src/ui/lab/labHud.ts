@@ -121,7 +121,7 @@ export class LabHud {
         if (d === 'w') g.fillRect(x, y + m - dw / 2, pad, dw);
         if (d === 'e') g.fillRect(x + cell - pad, y + m - dw / 2, pad, dw);
       }
-      const icon = r.kind === 'rest' ? '🔥' : r.kind === 'boss' ? '🕳️' : r.kind === 'treasure' ? '💰' : r.kind === 'start' ? (v.floor === 0 ? '🏙️' : '🪜') : r.key !== undefined ? '🗝️' : '';
+      const icon = r.kind === 'rest' ? '🔥' : r.kind === 'boss' ? (v.self.bosses.includes(v.floor) ? '🕳️' : '👹') : r.kind === 'treasure' ? '💰' : r.kind === 'start' ? (v.floor === 0 ? '🏙️' : '🪜') : r.key !== undefined ? '🗝️' : '';
       if (icon && cell >= 16) {
         g.font = `${Math.round(cell * 0.5)}px system-ui, sans-serif`;
         g.textAlign = 'center';

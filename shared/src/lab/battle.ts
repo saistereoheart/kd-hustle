@@ -31,6 +31,8 @@ export interface LabFighter {
   block?: number;
   /** 🌶️ ATK multiplier for the rest of the fight (Sambal Semangat). */
   buff?: number;
+  /** 👹 A floor boss. */
+  boss?: boolean;
 }
 
 export type LabAction =
@@ -111,11 +113,33 @@ export function rollGroup(cfg: LabConfig, floor: number, partySize: number, rand
   return out;
 }
 
-/** Syiling for beating these monsters on this floor. */
+/** 👹 A floor's boss (and, deeper down, its minions): more HP with more players. */
+export function rollBoss(cfg: LabConfig, floor: number, partySize: number, rand: Rand01): LabFighter[] {
+  // Each boss has its own stats (tuned per floor: see labyrinth.json); only HP grows with the party.
+  const b = cfg.bosses[Math.min(floor, cfg.bosses.length - 1)];
+  const hp = Math.round(b.hp * (1 + cfg.boss.partyHp * Math.max(0, partySize - 1)));
+  const boss: LabFighter = {
+    id: 'b0', side: 'foe', name: b.name, icon: b.icon, kind: `boss:${floor}`, move: b.move, boss: true,
+    hp, maxHp: hp, atk: b.atk, def: b.def, spd: b.spd, focus: 0, out: false,
+  };
+  const out = [boss];
+  if (floor >= cfg.boss.minionsFrom) {
+    const minions = rollGroup(cfg, floor, 1, rand).slice(0, Math.min(3, partySize));
+    minions.forEach((m, i) => (m.id = `m${i}`));
+    out.push(...minions);
+  }
+  return out;
+}
+
+/** Syiling for beating these monsters on this floor (a boss pays its own, once). */
 export function groupCoins(cfg: LabConfig, floor: number, foes: LabFighter[]): number {
   let sum = 0;
-  for (const f of foes) sum += cfg.monsters.find((m) => m.id === f.kind)?.coins ?? 0;
-  return Math.round(sum * (1 + cfg.coins.perFloor * floor));
+  let boss = 0;
+  for (const f of foes) {
+    if (f.boss) boss += cfg.bosses[Math.min(floor, cfg.bosses.length - 1)].coins;
+    else sum += cfg.monsters.find((m) => m.id === f.kind)?.coins ?? 0;
+  }
+  return Math.round(sum * (1 + cfg.coins.perFloor * floor)) + boss;
 }
 
 function damage(cfg: LabConfig, atk: number, def: number, power: number, rand: Rand01, critChance: number): { dmg: number; crit: boolean } {
@@ -211,6 +235,10 @@ export function resolveLabRound(
     if (f.out) continue;
     const a = picks.get(f.id)!;
     if (a.kind === 'run') {
+      if (opts.noEscape) {
+        events.push({ kind: 'runfail', actor: f.id, text: `${f.name} tries to run, but there's no running from this one!` });
+        continue;
+      }
       if (rand() < cfg.battle.runChance) {
         f.out = true;
         f.fled = true;

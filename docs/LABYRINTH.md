@@ -25,7 +25,7 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   - 🔥 **Rest chamber**, one per floor: the **save point**. It heals you, banks your coins, sets where you
     come back, and has a merchant. Deliberately hard to find: it's at the dead end furthest from both the
     start and the stairs.
-  - 👹 **Boss room**: guards the stairs down. Beat the boss once to open the stairs for good.
+  - 👹 **Boss room**: guards the stairs down. Beat the boss once to open the stairs for good (see §4b).
 - **Pillars and rubble** inside rooms come from the room's own seed (always the same), for looks and cover.
 
 ## 2. Weakened state and gear
@@ -89,6 +89,34 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 - The server resolves everything; the client plays it back (enemy art at the top, the party at the bottom,
   a text box).
 
+## 4b. Floor bosses
+- Each floor's stairs room has its boss:
+  1. Raja Tikus Lumut 🐀
+  2. Ratu Labah Akar 🕷️
+  3. Golem Kristal 🗿
+  4. Raksasa Bara 👹
+  5. Hantu Raya 👻
+  6. Penjaga Pustaka 📚
+  7. Raja Jerangkung 💀
+  8. Naga Purba 🐉
+
+  It stands in front of the stairs and jumps out when you walk in. The stairs down stay shut until you've
+  beaten it. After that the room is quiet, and the stairs are open for good for everyone who won the fight.
+- No running and no Asap Lari against a boss. A boss has its own stats per floor (`labyrinth.json →
+  bosses`); its HP grows by 70% for each extra player, and from floor 3 it brings minions (one per
+  player, up to 3).
+- It pays its Syiling once (120 on floor 1 up to 1,200 on floor 8).
+- **Balance** (no potions, full HP; win rate against the boss):
+
+  | | Solo, with the tier sold on that floor | A full Mistik party |
+  |---|---|---|
+  | Floors 1–6 | about 50–70% | (easy) |
+  | Floor 7 (Raja Jerangkung) | 0% (needs friends) | 2 players 43%, 3: 71%, 4: 100% |
+  | Floor 8 (Naga Purba) | 0% | 2 players 16%, 3: 32%, 4: 64% |
+
+  Potions (Jamu, Sambal, Air Penawar) push these up a good deal. Tests in `labBattles.test.ts` cover
+  the rules.
+
 ## 5. Party / lobby
 - From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a
   Join / No thanks prompt, wherever they are, and the invite runs out after a minute. Inviting someone
@@ -121,4 +149,8 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
 3. ✅ **Gear** (1.13.0): the merchant (Tok Peraih), 24 pieces of gear, 7 potions, equipping, 🧪 Items in battle.
    Treasure rooms and keys came with part 1.
 4. ✅ **Party** (1.14.0): invites, a party panel, party members on the map, shared battles and joining a fight.
-5. **Bosses and polish:** floor bosses gating the stairs, balance sim, phone layout pass.
+5. ✅ **Bosses and polish** (1.15.0): floor bosses gating the stairs, the boss balance pass, and a phone
+   layout pass (the top bar wraps across the screen, the minimap sits under it, town chips hidden).
+
+All five parts are done. Ideas for later: monster art beyond emoji, labyrinth levels / XP, weekly
+leaderboards for the deepest floor, more floors (new seeds only: never change an existing one).

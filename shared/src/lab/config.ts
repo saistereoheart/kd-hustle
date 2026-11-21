@@ -103,6 +103,16 @@ export const labConfigSchema = z.object({
       home: z.boolean().optional(),
     })),
   }),
+  /** 👹 Floor bosses (one per floor, in its stairs room). They grow with the floor like monsters do
+   *  (× scale^floor); more players make them tougher (HP × (1 + partyHp × extra players)) and from
+   *  floor `minionsFrom` (0-based) they bring a minion (one more per extra player). */
+  boss: z.object({ partyHp: z.number().min(0), minionsFrom: z.number().int().min(0) }).default({ partyHp: 0.7, minionsFrom: 2 }),
+  bosses: z.array(z.object({
+    name: z.string(), icon: z.string(), move: z.string(), line: z.string().default(''),
+    hp: z.number().positive(), atk: z.number().positive(), def: z.number().min(0), spd: z.number().positive(),
+    /** Syiling for beating it (once: the stairs stay open after). */
+    coins: z.number().int().min(0),
+  })).min(1),
   /** Monsters' stats grow per floor (× growth^(floor)). */
   scale: z.object({ hp: z.number().min(1), atk: z.number().min(1), def: z.number().min(1), spd: z.number().min(1) }),
   monsters: z.array(z.object({

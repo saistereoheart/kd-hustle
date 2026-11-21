@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { roomLayout } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -62,5 +63,34 @@ describe('Labirin party battles', () => {
     expect(() => s.battles.act(a, { kind: 'item', item: 'tali_pulang' })).toThrow(/doesn't work in a fight/);
     s.battles.act(a, { kind: 'item', item: 'sambal_semangat' }); // a party of one: the round plays at once
     expect(s.lab.state(a).potions.sambal_semangat).toBeUndefined();
+  });
+});
+
+describe('Labirin floor bosses', () => {
+  it('the boss guards the stairs: no running, and beating it opens them for good', () => {
+    const s = setup();
+    const a = s.player('a');
+    const f = s.lab.floor(0);
+    const L = roomLayout(lc, f, f.rooms[f.boss]);
+    const stairs = { floor: 0, room: f.boss, x: (L.spot.feature[0] + 0.5) * lc.tile, y: (L.spot.feature[1] + 0.5) * lc.tile, dir: 'up' as const, moving: false, at: 0 };
+    a.lab = { ...stairs };
+    expect(() => s.lab.use(a, 'down')).toThrow(/guards the stairs/);
+    expect(s.lab.bossHere(a)).toBe(true);
+    expect(s.battles.encounter([a])).toBe(true);
+    const v = s.battles.view(a)!;
+    expect(v.boss).toBe(true);
+    expect(v.fighters.find((x) => x.side === 'foe')!.name).toBe(lc.bosses[0].name);
+    expect(() => s.battles.act(a, { kind: 'run' })).toThrow(/no running/);
+    // Knock it down to 1 HP and finish it.
+    const fighters = (s.battles as unknown as { byPlayer: Map<number, { fighters: Array<{ side: string; hp: number }> }> }).byPlayer.get(a.id)!.fighters;
+    for (const x of fighters) if (x.side === 'foe') x.hp = 1;
+    s.battles.act(a, { kind: 'attack' });
+    expect(s.battles.inFight(a)).toBe(false);
+    expect(s.lab.state(a).bosses).toEqual([0]);
+    expect(s.lab.state(a).carried).toBeGreaterThanOrEqual(lc.bosses[0].coins);
+    expect(s.lab.bossHere(a)).toBe(false);
+    expect(s.lab.monstersHere(a)).toBe(false);
+    a.lab = { ...stairs };
+    expect(s.lab.use(a, 'down').view!.floor).toBe(1);
   });
 });

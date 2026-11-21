@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.14.0)_
+_Last updated: 2026-11-21 (v1.15.0)_
 
-**Now at v1.14.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.15.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 410 unit tests (2026-11-21) |
+| `npm test` (Vitest) | ✅ 411 unit tests (2026-11-21) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.14.0 reaches the game only then.
+   from v1.8.2 to v1.15.0 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -50,6 +50,32 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🗝️ Labirin Purba, phase 5 of 5: floor bosses + polish (2026-11-21, v1.15.0)
+- Config: `boss` (`partyHp`, `minionsFrom`) and `bosses` (8, with their own stats tuned per floor).
+- `shared/src/lab/battle.ts`:
+  - `rollBoss`;
+  - `groupCoins` pays the boss's own coins;
+  - `resolveLabRound({ noEscape })` makes Run fail.
+- Server:
+  - `LabSave.bosses`; `LabSystem.bossHere`; `monstersHere` includes the boss;
+  - `won(..., boss)` opens the stairs; `use('down')` is refused until the boss is beaten;
+  - `LabBattles`: boss battles (`boss` on the view; Run and Asap Lari refused).
+- Client:
+  - the boss is drawn by the stairs; 👹 on the map;
+  - a boss card and red backdrop; Run disabled; win text says the stairs are open.
+- Phone layout pass: the lab bar spans the screen and wraps, the minimap goes under it, `progress-hud` is
+  hidden in the lab on phones, and the bar is `max-content` on desktop (it wrapped at 1280).
+- Balance: bosses were first scaled like monsters (×scale^floor). That made floors 6–8 unwinnable even for a
+  Mistik party, so they now have fixed stats per floor, found by a search sim. The table is in
+  docs/LABYRINTH.md §4b.
+- Browser-checked: the boss room, the fight (Run disabled), the win, the open stairs; at 1280 and 390 wide.
+- **Decisions:**
+  - everyone in the winning party gets the stairs, even if they'd beaten the boss before (it doesn't
+    reappear for them anyway);
+  - boss coins are paid once per player.
 
 ---
 

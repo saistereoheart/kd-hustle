@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.15.0 (2026-11-21): 🗝️ Labirin Purba, part 5 (floor bosses)
+- **👹 A boss guards each floor's stairs down:** Raja Tikus Lumut, Ratu Labah Akar, Golem Kristal, Raksasa
+  Bara, Hantu Raya, Penjaga Pustaka, Raja Jerangkung, and at the very bottom, Naga Purba.
+  - Beat it once and the stairs are open for good, with a big Syiling reward (120 up to 1,200).
+  - No running and no Asap Lari against a boss.
+  - Bosses get more HP with more players; from floor 3 they bring minions.
+  - The last two are made for parties.
+- The boss stands in front of the stairs, the map shows 👹 until it's beaten, and boss fights have a red
+  backdrop.
+- **Phones:** the labyrinth's top bar wraps across the screen, the minimap sits under it, and the town's
+  goal card and chips step aside while you're down there.
+- That completes Labirin Purba (all five parts).
+
 ## 1.14.0 (2026-11-21): 🗝️ Labirin Purba, part 4 (parties)
 - **👥 Parties of up to 4.** Invite anyone online from 👥 in the labyrinth's top bar or from the 📱 Labirin
   app. They get a Join / No thanks prompt wherever they are.

@@ -263,8 +263,16 @@ export class LabScene extends Phaser.Scene {
     } else if (room.kind === 'boss') {
       emoji(f, '🕳️', 40);
       const last = view.floor + 1 >= this.app.cfg.lab.floors.length;
-      label(f, last ? 'The bottom' : 'Stairs down');
-      if (!last) this.features.push({ use: 'down', label: `⬇️ Down to ${this.app.cfg.lab.floors[view.floor + 1].name}`, at: f });
+      const boss = this.app.cfg.lab.bosses[view.floor];
+      const beaten = view.self.bosses.includes(view.floor);
+      if (!beaten && boss) {
+        // 👹 The floor's boss stands in front of the stairs.
+        const b = emoji([f[0], f[1] + 2], boss.icon, 64);
+        this.tweens.add({ targets: b, scale: { from: 0.96, to: 1.06 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        label([f[0], f[1] + 1.4], `👹 ${boss.name}`);
+      }
+      label(f, last ? (beaten ? 'The bottom · you made it!' : 'The bottom') : beaten ? 'Stairs down' : 'Stairs down (beat the boss)');
+      if (!last) this.features.push({ use: 'down', label: beaten ? `⬇️ Down to ${this.app.cfg.lab.floors[view.floor + 1].name}` : `👹 ${boss?.name ?? 'The boss'} guards the stairs`, at: f });
     } else if (room.kind === 'treasure') {
       emoji(L.spot.centre, view.chestDone ? '🗃️' : '💰', 44);
       if (!view.chestDone) this.features.push({ use: 'chest', label: '💰 Open the treasure', at: L.spot.centre });
