@@ -5,6 +5,7 @@
 import type { BuiltMap, Poi } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { paintMap } from './mapPaint';
+import { blank } from './graphicsGuard';
 
 const POI_COLOR: Record<string, string> = { mine: '#f59f00', work: '#2f9e44', crate: '#7048e8', shop: '#1c7ed6', stall: '#e8590c', soon: '#868e96' };
 const POI_TEXT: Record<string, string> = { mine: '#ffe066', work: '#8ce99a', crate: '#d0bfff', shop: '#a5d8ff', stall: '#ffc078', soon: '#ced4da' };
@@ -47,13 +48,27 @@ export class Minimap {
     this.base = document.createElement('canvas');
     this.base.width = map.width * BASE_SCALE;
     this.base.height = map.height * BASE_SCALE;
-    paintMap(this.base.getContext('2d')!, map, { scale: BASE_SCALE, ox: 0, oy: 0, w: this.base.width, h: this.base.height });
+    this.paintBase();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.canvas = el('canvas', { class: 'minimap', 'data-testid': 'minimap', title: 'Tap for the full map', width: String(this.size.w * dpr), height: String(this.size.h * dpr) });
     this.canvas.style.width = `${this.size.w}px`;
     this.canvas.style.height = `${this.size.h}px`;
     this.canvas.addEventListener('click', () => this.openFull());
     uiRoot().append(this.canvas);
+  }
+
+  private paintBase() {
+    const ctx = this.base.getContext('2d');
+    if (ctx) paintMap(ctx, this.map, { scale: BASE_SCALE, ox: 0, oy: 0, w: this.base.width, h: this.base.height });
+  }
+
+  /** The browser wiped the painted map (a graphics reset): paint it again. Checked when the full
+   *  map opens (cheap: two pixels). */
+  private ensureBase() {
+    if (!blank(this.base)) return;
+    this.paintBase();
+    this.layer = null;
+    this.layerKey = '';
   }
 
   /** The painted map (the graphics watchdog checks it hasn't been wiped). */
@@ -153,6 +168,7 @@ export class Minimap {
    * just panning, e.g. to choose a ride's destination.
    */
   openFull(opts: FullMapOptions = {}) {
+    this.ensureBase();
     if (this.full) {
       if (!opts.pick) return;
       this.closeFull();

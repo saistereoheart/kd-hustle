@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.15.1 (2026-11-21): blank map after a refresh
+- A refresh sometimes left the map, characters and minimap blank, with only names and labels showing. The
+  browser had thrown the page's graphics away (a graphics reset while the old page was still letting go
+  of its memory). The graphics watchdog now notices this at startup, not only later, and reloads by
+  itself (twice at most in 5 minutes; after that it says what to try).
+- The full map repaints itself if its picture was wiped, instead of showing an empty dark box.
+
 ## 1.15.0 (2026-11-21): 🗝️ Labirin Purba, part 5 (floor bosses)
 - **👹 A boss guards each floor's stairs down:** Raja Tikus Lumut, Ratu Labah Akar, Golem Kristal, Raksasa
   Bara, Hantu Raya, Penjaga Pustaka, Raja Jerangkung, and at the very bottom, Naga Purba.

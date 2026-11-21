@@ -821,7 +821,7 @@ export class App {
       // Blank map + characters = the browser threw the graphics away: notice and reload.
       if (!this.gfxWatched) {
         this.gfxWatched = true;
-        watchGraphics(this.game.canvas, () => this.minimap?.baseCanvas ?? null);
+        watchGraphics(this.game as unknown as Parameters<typeof watchGraphics>[0], () => this.minimap?.baseCanvas ?? null);
       }
       this.emotes = new EmoteWheel(this.cfg.chat.emotes, (id) => this.triggerEmote(id));
     }

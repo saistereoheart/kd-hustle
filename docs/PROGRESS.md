@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-21 (v1.15.0)_
+_Last updated: 2026-11-21 (v1.15.1)_
 
-**Now at v1.15.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.15.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -18,7 +18,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 ### Pending (2026-11-20)
 **Needs you:**
 1. **Rebuild and restart the copy on port 3003** (`npm run build`, Ctrl+C the server, `npm start`). Everything
-   from v1.8.2 to v1.15.0 reaches the game only then.
+   from v1.8.2 to v1.15.1 reaches the game only then.
 2. **Real phones on the LAN:**
    - the joystick;
    - tap-to-use prompts (shop counter, parked vehicles' Put away);
@@ -50,6 +50,21 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🎨 Blank map after a refresh (2026-11-21, your report, v1.15.1)
+- Symptom: after F5 / Shift+F5, the world, characters and minimap were blank, while the text (labels, names)
+  still showed. On the full map, the labels and pins were drawn over a dark, empty box. `paintMap` always
+  fills green first, so the map's pre-painted picture had been wiped: a graphics reset during load.
+- `ui/graphicsGuard.ts` used to catch a wiped map only after it had seen it painted once, and only a WebGL
+  loss that happened after it started watching. Now:
+  - a blank map at the first check counts (it's painted before the watch starts);
+  - a WebGL context that was already lost counts;
+  - with no WebGL at all (Phaser on Canvas) it only logs.
+- `Minimap.ensureBase()` repaints a wiped base when the full map opens.
+- Checked: no false alarm in 17 s of normal play; a forced `WEBGL_lose_context` brings up the reload
+  screen.
 
 ---
 
