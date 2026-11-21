@@ -208,14 +208,23 @@ export interface LabProp {
   text?: number;
 }
 
-/** The entrance hall's furniture (tiles): the tavern counter, a campfire with people round it,
- *  benches. The counter, fire and benches are solid. */
+/** The entrance hall (tiles): the purple portal (in and out of the labyrinth), the tavern (a building
+ *  with its counter, stools and keeper), tables, a long table with a bench, a campfire with people
+ *  round it. The tavern, counter, tables, bench and fire are solid. */
 export interface LabHall {
+  /** The portal's middle (it stands against the back wall). */
+  portal: [number, number];
+  /** The tavern building (x0, y0, x1, y1 tiles, inclusive) and its counter in front. */
+  tavern: [number, number, number, number];
   counter: Array<[number, number]>;
   keeper: [number, number];
+  stools: Array<[number, number]>;
+  tables: Array<[number, number]>;
+  longTable: Array<[number, number]>;
+  benches: Array<[number, number]>;
+  benchSitters: Array<[number, number]>;
   fire: [number, number];
   sitters: Array<[number, number]>;
-  benches: Array<[number, number]>;
 }
 
 /** A room's inside: its size in tiles, where its doors are, its rock and its roofs. */
@@ -228,7 +237,7 @@ export interface RoomLayout {
   solid: Set<number>;
   /** Where things stand (tiles): the middle, a loot box, the room's feature (stairs, fire, key) and the
    *  🛒 merchant (entrance hall and rest chambers). */
-  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number]; tavern: [number, number] };
+  spot: { centre: [number, number]; chest: [number, number]; feature: [number, number]; merchant: [number, number]; tavern: [number, number]; portal: [number, number] };
   /** Overhanging rock / ceiling over walkable floor (tile rects): drawn on top, see-through when you're under. */
   roofs: Array<{ x: number; y: number; w: number; h: number }>;
   /** 🌿 Bushes and cobwebs you can walk through (tile → which): each step into one may start a fight. */
@@ -253,8 +262,14 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
   if (room.doors.s) doorAt.s = [mx, h - 1];
   if (room.doors.w) doorAt.w = [0, my];
   if (room.doors.e) doorAt.e = [w - 1, my];
-  const spot: RoomLayout['spot'] = { centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2], merchant: [3, 2], tavern: [w - 4, 3] };
   const isHall = floor.n === 0 && room.kind === 'start';
+  const spot: RoomLayout['spot'] = {
+    centre: [mx, my], chest: [w - 3, 2], feature: [mx, 2],
+    merchant: isHall ? [5, 2] : [3, 2],
+    tavern: [w - 5, 4],
+    // 🌀 The way in and out: the entrance hall's purple portal (top left), a rest chamber's portal.
+    portal: isHall ? [2, 2] : [mx + 3, 2],
+  };
   const rnd = labRng(cfg.floors[floor.n].seed * 7919 + room.id * 104729);
   const idx = (x: number, y: number) => y * w + x;
   // Never rock: the cross of paths, each spot and its neighbours, the way from the cross to the loot box.
@@ -265,21 +280,30 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
   keepRect(mx - 1, 0, mx + 1, h - 1);
   keepRect(0, my - 1, w - 1, my + 1);
   for (const [x, y] of [spot.feature, spot.merchant, [spot.feature[0] + 3, spot.feature[1]] as [number, number], [spot.feature[0], spot.feature[1] + 2] as [number, number]]) keepRect(x - 1, y - 1, x + 1, y + 1);
+  if (room.kind === 'rest') keepRect(spot.portal[0] - 1, spot.portal[1] - 1, spot.portal[0] + 1, spot.portal[1] + 2);
   keepRect(spot.chest[0] - 1, spot.chest[1] - 1, spot.chest[0] + 1, my);
   // The entrance hall: room for the tavern, the campfire circle and the benches.
   let hall: LabHall | null = null;
   if (isHall) {
-    const tx = spot.tavern[0];
+    const tx = w - 6; // the tavern's left edge
     hall = {
-      counter: [[tx - 1, 2], [tx, 2], [tx + 1, 2]],
-      keeper: [tx, 1],
+      portal: [2, 1],
+      tavern: [tx, 1, w - 2, 2],
+      counter: [[tx, 3], [tx + 1, 3], [tx + 2, 3], [tx + 3, 3]],
+      keeper: [tx + 1, 2],
+      stools: [[tx, 4], [tx + 2, 4]],
+      tables: [[tx, h - 4], [w - 3, h - 4]],
+      longTable: [[tx, h - 2], [tx + 1, h - 2], [tx + 2, h - 2]],
+      benches: [[tx, h - 3], [tx + 1, h - 3], [tx + 2, h - 3]],
+      benchSitters: [[tx, h - 3], [tx + 2, h - 3]],
       fire: [4, h - 4],
-      sitters: [[3, h - 4], [5, h - 4], [4, h - 3]],
-      benches: [[w - 5, h - 4], [w - 4, h - 4]],
+      sitters: [[3, h - 4], [5, h - 4]],
     };
-    keepRect(tx - 2, 1, tx + 2, 3);
-    keepRect(2, h - 5, 6, h - 3);
-    keepRect(w - 6, h - 5, w - 3, h - 3);
+    keepRect(1, 1, 4, 4); // the portal and in front of it
+    keepRect(3, 1, 7, 3); // the merchant's carpet and stall
+    keepRect(tx - 1, 1, w - 2, 5);
+    keepRect(tx - 1, h - 5, w - 2, h - 2);
+    keepRect(2, h - 5, 6, h - 2);
   }
   const solid = new Set<number>();
   const rock = (x: number, y: number) => {
@@ -330,7 +354,13 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
       // kind 3: an open corner.
     }
   }
-  if (hall) for (const [x, y] of [...hall.counter, hall.fire, ...hall.benches]) solid.add(idx(x, y));
+  if (hall) {
+    const [x0, y0, x1, y1] = hall.tavern;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) solid.add(idx(x, y));
+    for (const [x, y] of [...hall.counter, hall.fire, ...hall.tables, ...hall.longTable, ...hall.benches]) solid.add(idx(x, y));
+    // The portal's stones (you step up to it, not behind it).
+    for (let dx = -1; dx <= 1; dx++) solid.add(idx(hall.portal[0] + dx, hall.portal[1]));
+  }
   // 3. Floor you can't reach from the middle becomes rock (no sealed-off pockets).
   const seen = new Set<number>([idx(mx, my)]);
   const q = [idx(mx, my)];
@@ -401,8 +431,11 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
     const at = spotFor(byWall);
     if (at) props.push({ kind, at, ...extra });
   };
-  const lamps = room.kind === 'chamber' ? 1 + Math.floor(rnd() * 2) : 2;
-  for (let i = 0; i < lamps; i++) put('lamp', true);
+  if (hall) for (const at of [[6, h - 3], [w - 2, h - 4], [1, h - 4]] as Array<[number, number]>) props.push({ kind: 'lamp', at });
+  else {
+    const lamps = room.kind === 'chamber' ? 1 + Math.floor(rnd() * 2) : 2;
+    for (let i = 0; i < lamps; i++) put('lamp', true);
+  }
   if (room.kind === 'chamber') {
     if (rnd() < 0.45 && cfg.signs.length) put('sign', true, { text: Math.floor(rnd() * cfg.signs.length) });
     if (rnd() < 0.35) put('skeleton', true);

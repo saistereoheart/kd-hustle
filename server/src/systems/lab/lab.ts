@@ -372,7 +372,8 @@ export class LabSystem {
     const f = this.floor(target.floor);
     const L = roomLayout(this.cfg, f, f.rooms[target.room]);
     const T = this.cfg.tile;
-    p.lab = { floor: target.floor, room: target.room, x: (L.spot.centre[0] + 0.5) * T, y: (L.h - 2.5) * T, dir: 'up', moving: false, at: this.clock() };
+    // 🌀 You come through the portal: you appear just in front of it.
+    p.lab = { floor: target.floor, room: target.room, x: (L.spot.portal[0] + 0.5) * T, y: (L.spot.portal[1] + 1.6) * T, dir: 'down', moving: false, at: this.clock() };
     this.see(p);
     return this.view(p);
   }
@@ -384,6 +385,8 @@ export class LabSystem {
     const room = this.floor(pos.floor).rooms[pos.room];
     const exit = (pos.floor === 0 && room.kind === 'start') || room.kind === 'rest';
     if (!exit && !anywhere) throw new GameError('You can only leave from the entrance hall or a rest chamber.');
+    // 🌀 Out through the portal: walk up to it.
+    if (!anywhere && !this.near(pos, roomLayout(this.cfg, this.floor(pos.floor), room).spot.portal, 2.4)) throw new GameError('Walk into the 🌀 portal to leave.');
     const s = this.state(p);
     s.coins += s.carried;
     s.carried = 0;

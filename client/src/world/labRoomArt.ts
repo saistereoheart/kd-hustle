@@ -39,6 +39,9 @@ export interface RoomArt {
   destroy(): void;
 }
 
+/** The room pictures' sharpness (texels per world px): low, shown with hard edges, for the pixel-art look. */
+const PIXEL_RES = 0.8;
+
 /** Above every avatar (and the rock), below labels. */
 export const ROOF_DEPTH = AVATAR_DEPTH + 420_000;
 export const LABEL_DEPTH = AVATAR_DEPTH + 440_000;
@@ -83,6 +86,32 @@ function ensureTextures(scene: Phaser.Scene) {
     x.fill();
     c.refresh();
   }
+  if (!tm.exists('lab_vortex')) {
+    // A purple swirl (spiral arms round a bright middle): the portal, turned by a tween.
+    const c = tm.createCanvas('lab_vortex', 128, 128)!;
+    const x = c.context;
+    const g = x.createRadialGradient(64, 64, 2, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,240,255,1)');
+    g.addColorStop(0.25, 'rgba(200,110,255,0.9)');
+    g.addColorStop(0.7, 'rgba(110,30,190,0.6)');
+    g.addColorStop(1, 'rgba(40,0,80,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 128, 128);
+    x.strokeStyle = 'rgba(255,220,255,0.55)';
+    for (let arm = 0; arm < 4; arm++) {
+      x.lineWidth = 3;
+      x.beginPath();
+      for (let t = 0; t < 1; t += 0.02) {
+        const a = arm * (Math.PI / 2) + t * Math.PI * 2.2;
+        const r = 6 + t * 54;
+        const px = 64 + Math.cos(a) * r, py = 64 + Math.sin(a) * r;
+        if (t === 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+    c.refresh();
+  }
   if (!tm.exists('lab_vignette')) {
     const c = tm.createCanvas('lab_vignette', 256, 256)!;
     const x = c.context;
@@ -104,15 +133,18 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   let seed = (o.seed % 2147483646) + 1;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   const objs: Phaser.GameObjects.GameObject[] = [];
-  const res = Math.max(1, Math.min(3, o.res));
+  // 🎮 Pixel-art look: the pictures are drawn at a fixed, low sharpness and shown with hard pixel
+  // edges (cheaper than smooth, too). Labels, people and lights stay smooth on top.
+  const res = PIXEL_RES;
 
   // Moody palette: the floor's own colour, pulled towards cold night blue.
-  const night = 0x2b3452;
-  const floorC = shade(mix(hex(o.floor), night, 0.55), 0.62);
-  const rockTop = mix(hex(o.wall), 0x8c99bd, 0.55);
-  const rockFace = shade(mix(hex(o.wall), 0x161b2c, 0.6), 0.75);
-  const frost = 0xc5d6f2;
-  const pathC = mix(floorC, 0xb9c3d9, 0.3);
+  // Dark, warm stone: the floor's own colour pulled towards a deep purple-brown; firelight does the rest.
+  const night = 0x2a2232;
+  const floorC = shade(mix(hex(o.floor), night, 0.6), 0.62);
+  const rockTop = shade(mix(hex(o.wall), 0x6a6478, 0.5), 0.85);
+  const rockFace = shade(mix(hex(o.wall), 0x16121e, 0.65), 0.7);
+  const frost = 0x9d93b3; // dust and lichen on the rock now, not frost
+  const pathC = mix(floorC, 0x9c8f8a, 0.3);
 
   // ---- which tiles are rock: the room's own rock + the outer walls (minus the doorways)
   const isDoorGap = (x: number, y: number) =>
@@ -121,7 +153,14 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     (!!L.doorAt.w && x === 0 && Math.abs(y - my) <= 1) ||
     (!!L.doorAt.e && x === L.w - 1 && Math.abs(y - my) <= 1);
   // The entrance hall's furniture is solid too, but it isn't rock.
-  const furniture = new Set<number>(L.hall ? [...L.hall.counter, L.hall.fire, ...L.hall.benches].map(([x, y]) => y * L.w + x) : []);
+  const hallSolid: Array<[number, number]> = [];
+  if (L.hall) {
+    const [x0, y0, x1, y1] = L.hall.tavern;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) hallSolid.push([x, y]);
+    hallSolid.push(...L.hall.counter, L.hall.fire, ...L.hall.tables, ...L.hall.longTable, ...L.hall.benches);
+    for (let dx = -1; dx <= 1; dx++) hallSolid.push([L.hall.portal[0] + dx, L.hall.portal[1]]);
+  }
+  const furniture = new Set<number>(hallSolid.map(([x, y]) => y * L.w + x));
   const rock = (x: number, y: number): boolean => {
     if (x < 0 || y < 0 || x >= L.w || y >= L.h) return true;
     if (furniture.has(y * L.w + x)) return false;
@@ -260,6 +299,152 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillStyle(0xf1e3c6, 1).fillRoundedRect(x0 + w - 18, y0 - T * 0.27, 14, 6, 3);
   };
 
+  // ------------------------------------------------------------------ the entrance hall
+  /** The hall's floor extras: the merchant's red rug, the tavern's plank floor and porch. */
+  function drawHallFloor(g: Phaser.GameObjects.Graphics) {
+    const h = L.hall!;
+    // A red rug in front of the merchant, with a gold border and fringe.
+    const rx = 3.6 * T, ry = 2.55 * T, rw = 3.6 * T, rh = 1.1 * T;
+    g.fillStyle(0x000000, 0.35).fillRect(rx + 3, ry + 4, rw, rh);
+    g.fillStyle(0x7a1c24, 1).fillRect(rx, ry, rw, rh);
+    g.lineStyle(3, 0xc9a227, 0.9).strokeRect(rx + 5, ry + 5, rw - 10, rh - 10);
+    g.fillStyle(0x9c2a33, 1).fillRect(rx + 12, ry + 12, rw - 24, rh - 24);
+    for (let x = rx + 4; x < rx + rw; x += 6) g.fillStyle(0xc9a227, 0.8).fillRect(x, ry + rh, 2, 5).fillRect(x, ry - 5, 2, 5);
+    // The tavern's plank floor and the porch in front of the counter.
+    const [x0, y0, x1] = h.tavern;
+    const px = x0 * T - T * 0.3, pw = (x1 - x0 + 1) * T + T * 0.3;
+    for (let y = y0 * T; y < (h.counter[0][1] + 1.6) * T; y += 9) {
+      g.fillStyle(rnd() < 0.5 ? 0x4a3220 : 0x553a25, 1).fillRect(px, y, pw, 8);
+      g.fillStyle(0x2e1f14, 1).fillRect(px, y + 8, pw, 1);
+      for (let k = 0; k < 2; k++) g.fillStyle(0x2e1f14, 1).fillRect(px + rnd() * pw, y, 1, 8);
+    }
+    g.fillStyle(0x000000, 0.35).fillRect(px, (h.counter[0][1] + 1.6) * T, pw, 5);
+  }
+  /** The tavern: a timber back wall with lit windows and bottle shelves, posts, a shingled roof
+   *  with a chimney, a hanging cup sign. Open at the front (the counter stands in front of it). */
+  function drawTavern(g: Phaser.GameObjects.Graphics, x0: number, y0: number, w: number) {
+    const top = y0 - T * 0.95, wallH = T * 1.9;
+    // Back wall: vertical planks.
+    for (let x = x0; x < x0 + w; x += 10) {
+      g.fillStyle(rnd() < 0.5 ? 0x5c3d26 : 0x67462c, 1).fillRect(x, top + T * 0.55, 10, wallH);
+      g.fillStyle(0x2e1f14, 1).fillRect(x + 9, top + T * 0.55, 1, wallH);
+    }
+    // Windows with warm light and a cross frame.
+    for (const wx of [x0 + T * 0.55, x0 + w - T * 1.25]) {
+      g.fillStyle(0x2e1f14, 1).fillRect(wx - 3, top + T * 0.9, T * 0.75, T * 0.75);
+      g.fillStyle(0xffb347, 1).fillRect(wx, top + T * 0.93, T * 0.69, T * 0.69);
+      g.fillStyle(0xffe08a, 1).fillRect(wx + 4, top + T * 0.97, T * 0.3, T * 0.25);
+      g.fillStyle(0x2e1f14, 1).fillRect(wx + T * 0.33, top + T * 0.93, 3, T * 0.69).fillRect(wx, top + T * 1.25, T * 0.69, 3);
+    }
+    // Shelves of bottles between the windows.
+    const sx = x0 + T * 1.5, sw = w - T * 3;
+    const cols = [0x2b8a3e, 0xc92a2a, 0xf59f00, 0x1971c2, 0x862e9c, 0xe8590c];
+    for (const sy of [top + T * 1.05, top + T * 1.55]) {
+      g.fillStyle(0x2e1f14, 1).fillRect(sx, sy + T * 0.28, sw, 5);
+      for (let k = 0; k < 7; k++) {
+        const bx = sx + 6 + (k * (sw - 12)) / 6;
+        g.fillStyle(cols[(k + Math.round(sy)) % cols.length], 1).fillRect(bx - 3, sy + T * 0.08, 6, T * 0.2);
+        g.fillStyle(0xffffff, 0.45).fillRect(bx - 2, sy + T * 0.1, 1.5, T * 0.12);
+      }
+    }
+    // Corner posts and a beam.
+    g.fillStyle(0x3d2a17, 1).fillRect(x0 - 4, top + T * 0.4, 9, wallH + T * 0.2).fillRect(x0 + w - 5, top + T * 0.4, 9, wallH + T * 0.2);
+    g.fillStyle(0x4a3220, 1).fillRect(x0 - 6, top + T * 0.45, w + 12, 8);
+    // The roof: dark shingles in rows, an overhang, a chimney.
+    g.fillStyle(0x3a2a3a, 1).fillRect(x0 + w - T * 1.1, top - T * 0.55, T * 0.42, T * 0.7);
+    g.fillStyle(0x221a24, 1).fillRect(x0 + w - T * 1.15, top - T * 0.6, T * 0.52, 6);
+    for (let r = 0; r < 4; r++) {
+      const ry = top - T * 0.2 + r * T * 0.17, inset = (3 - r) * T * 0.12;
+      for (let x = x0 - T * 0.25 + inset; x < x0 + w + T * 0.25 - inset; x += 12) {
+        g.fillStyle(r % 2 ? 0x2c2333 : 0x352a3e, 1).fillRect(x, ry, 11, T * 0.17);
+        g.fillStyle(0x16111a, 1).fillRect(x, ry + T * 0.17 - 2, 11, 2);
+      }
+    }
+    // A hanging sign with a cup.
+    const hx = x0 + w + T * 0.05, hy = top + T * 0.85;
+    g.fillStyle(0x2e1f14, 1).fillRect(hx - 2, hy - T * 0.25, 4, T * 0.25);
+    g.fillStyle(0x4a3220, 1).fillRoundedRect(hx - T * 0.32, hy, T * 0.64, T * 0.6, 4);
+    g.lineStyle(2, 0xc9a227, 1).strokeRoundedRect(hx - T * 0.28, hy + 4, T * 0.56, T * 0.52, 3);
+    g.fillStyle(0xf1e3c6, 1).fillRoundedRect(hx - T * 0.13, hy + T * 0.22, T * 0.22, T * 0.2, 3);
+    g.lineStyle(2, 0xf1e3c6, 1).strokeCircle(hx + T * 0.12, hy + T * 0.3, 4);
+  }
+  function drawBarrel(g: Phaser.GameObjects.Graphics, cx: number, by: number) {
+    const w = T * 0.62, h = T * 0.8;
+    g.fillStyle(0x000000, 0.35).fillEllipse(cx, by, w * 1.1, T * 0.2);
+    g.fillStyle(0x6b4423, 1).fillRoundedRect(cx - w / 2, by - h, w, h, 8);
+    for (let k = 1; k < 4; k++) g.fillStyle(0x4a2f17, 1).fillRect(cx - w / 2 + (k * w) / 4, by - h + 3, 1.5, h - 6);
+    g.fillStyle(0x3a3a3a, 1).fillRect(cx - w / 2, by - h * 0.8, w, 4).fillRect(cx - w / 2, by - h * 0.3, w, 4);
+    g.fillStyle(0x8a5a2e, 1).fillEllipse(cx, by - h, w * 0.92, T * 0.2);
+    g.fillStyle(0xffffff, 0.12).fillRect(cx - w / 2 + 4, by - h + 6, 3, h - 14);
+  }
+  function drawCrate(g: Phaser.GameObjects.Graphics, cx: number, by: number) {
+    const w = T * 0.62;
+    g.fillStyle(0x000000, 0.35).fillEllipse(cx, by, w * 1.1, T * 0.18);
+    g.fillStyle(0x7a5530, 1).fillRect(cx - w / 2, by - w, w, w);
+    g.lineStyle(3, 0x4a3220, 1).strokeRect(cx - w / 2 + 2, by - w + 2, w - 4, w - 4);
+    g.lineBetween(cx - w / 2 + 3, by - 3, cx + w / 2 - 3, by - w + 3);
+    g.fillStyle(0x9a7048, 1).fillRect(cx - w / 2, by - w, w, 3);
+  }
+  function drawStool(g: Phaser.GameObjects.Graphics, cx: number, by: number) {
+    g.fillStyle(0x000000, 0.3).fillEllipse(cx, by, T * 0.5, T * 0.14);
+    g.fillStyle(0x3d2a17, 1).fillRect(cx - T * 0.16, by - T * 0.4, 4, T * 0.4).fillRect(cx + T * 0.12, by - T * 0.4, 4, T * 0.4);
+    g.fillStyle(0x7a5530, 1).fillEllipse(cx, by - T * 0.42, T * 0.42, T * 0.16);
+    g.fillStyle(0x9a7048, 1).fillEllipse(cx, by - T * 0.45, T * 0.36, T * 0.1);
+  }
+  /** A wooden table with mugs on it. */
+  function drawTable(g: Phaser.GameObjects.Graphics, x0: number, y0: number, w: number, mugs: number) {
+    g.fillStyle(0x000000, 0.3).fillEllipse(x0 + w / 2, y0 + T * 0.92, w * 1.05, T * 0.2);
+    g.fillStyle(0x3d2a17, 1).fillRect(x0 + 5, y0 + T * 0.45, 5, T * 0.45).fillRect(x0 + w - 10, y0 + T * 0.45, 5, T * 0.45);
+    g.fillStyle(0x6b4a2b, 1).fillRect(x0, y0 + T * 0.18, w, T * 0.32);
+    g.fillStyle(0x8a6239, 1).fillRect(x0, y0 + T * 0.18, w, 4);
+    for (let x = x0 + 12; x < x0 + w; x += 14) g.fillStyle(0x4a3220, 1).fillRect(x, y0 + T * 0.18, 1, T * 0.32);
+    for (let k = 0; k < mugs; k++) {
+      const mx2 = x0 + ((k + 0.5) * w) / mugs + (rnd() - 0.5) * 6;
+      g.fillStyle(k % 2 ? 0x8a6239 : 0x4a4a55, 1).fillRect(mx2 - 4, y0 + T * 0.05, 8, 11);
+      g.fillStyle(0xf1e3c6, 0.9).fillRect(mx2 - 3, y0 + T * 0.05, 6, 3);
+      g.lineStyle(1.5, 0x2e1f14, 1).strokeRect(mx2 + 4, y0 + T * 0.1, 3, 5);
+    }
+  }
+  /** A red banner with a gold emblem. */
+  function drawBanner(g: Phaser.GameObjects.Graphics, cx: number, y0: number) {
+    const w = T * 0.55, h = T * 1.05;
+    g.fillStyle(0x2e1f14, 1).fillRect(cx - w / 2 - 4, y0 - 3, w + 8, 4);
+    g.fillStyle(0x6e1a22, 1).fillRect(cx - w / 2, y0, w, h);
+    g.fillTriangle(cx - w / 2, y0 + h, cx + w / 2, y0 + h, cx, y0 + h + T * 0.2);
+    g.fillStyle(0x8e2430, 1).fillRect(cx - w / 2 + 3, y0, 3, h);
+    g.lineStyle(2, 0xc9a227, 1);
+    g.lineBetween(cx, y0 + h * 0.25, cx, y0 + h * 0.75);
+    g.lineBetween(cx - w * 0.25, y0 + h * 0.45, cx + w * 0.25, y0 + h * 0.45);
+    g.strokeCircle(cx, y0 + h * 0.45, w * 0.18);
+  }
+  /** A stone arch over the north doorway. */
+  function drawArch(g: Phaser.GameObjects.Graphics, cx: number, baseY: number) {
+    const r = T * 1.35;
+    for (let k = 0; k <= 10; k++) {
+      const a = Math.PI + (k / 10) * Math.PI;
+      const bx = cx + Math.cos(a) * r, by = baseY - T * 0.35 + Math.sin(a) * r * 0.75;
+      g.fillStyle(shade(rockTop, 0.75 + (k % 2) * 0.15), 1).fillRoundedRect(bx - T * 0.2, by - T * 0.18, T * 0.4, T * 0.36, 4);
+      g.lineStyle(1, 0x0c0a14, 0.8).strokeRoundedRect(bx - T * 0.2, by - T * 0.18, T * 0.4, T * 0.36, 4);
+    }
+  }
+  /** The portal's frame: a ring of dark, cracked stones, some floating loose. */
+  function drawPortalRim(g: Phaser.GameObjects.Graphics, cx: number, cy: number) {
+    const rx = T * 1.05, ry = T * 1.3;
+    g.fillStyle(0x0b0710, 1).fillEllipse(cx, cy, rx * 1.75, ry * 1.75);
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      const bx = cx + Math.cos(a) * rx, by = cy + Math.sin(a) * ry;
+      g.fillStyle(shade(0x3a2f48, 0.8 + rnd() * 0.5), 1);
+      blob(g, bx, by, T * 0.2, T * 0.17, 6, 0.3);
+      g.lineStyle(1.5, 0xd0a2ff, 0.5).lineBetween(bx - 3, by - 2, bx + 3, by + 3);
+    }
+    for (let k = 0; k < 5; k++) {
+      const a = rnd() * Math.PI * 2;
+      g.fillStyle(0x2a2236, 1);
+      blob(g, cx + Math.cos(a) * rx * 1.4, cy + Math.sin(a) * ry * 1.25, T * 0.09, T * 0.07, 5, 0.3);
+    }
+  }
+
   /** Draw with `paint` (world px) into a picture covering [x0, y0, w, h], at `depth`. */
   const bake = (x0: number, y0: number, w: number, h: number, depth: number, paint: (g: Phaser.GameObjects.Graphics) => void) => {
     const g = scene.make.graphics({}, false);
@@ -269,6 +454,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     rt.draw(g, -x0 * res, -y0 * res);
     g.destroy();
     rt.setScale(1 / res).setDepth(depth);
+    rt.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     objs.push(rt);
     return rt;
   };
@@ -278,11 +464,11 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillStyle(0x05060b, 1).fillRect(0, 0, W, H);
     // Mortar, then irregular flagstones in staggered rows (no grid: sizes and shapes vary).
     g.fillStyle(shade(floorC, 0.5), 1).fillRect(T * 0.5, T * 0.5, W - T, H - T);
-    const rowH = T * 0.58;
+    const rowH = T * 0.4;
     for (let ry = T * 0.5, row = 0; ry < H - T * 0.4; ry += rowH, row++) {
-      let rx = T * 0.5 - (row % 2 ? rnd() * T * 0.5 : 0);
+      let rx = T * 0.5 - (row % 2 ? rnd() * T * 0.3 : 0);
       while (rx < W - T * 0.4) {
-        const sw = T * (0.45 + rnd() * 0.6);
+        const sw = T * (0.3 + rnd() * 0.32);
         const cxs = rx + sw / 2, cys = ry + rowH / 2 + (rnd() - 0.5) * 4;
         const tx = Math.floor(cxs / T), ty = Math.floor(cys / T);
         if (!rock(tx, ty)) {
@@ -343,6 +529,16 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
         g.fillStyle(frost, 0.35).fillCircle(sx - 1.5, sy - 1.5, T * 0.035);
       }
     }
+    // Puddles: dark water that catches the light.
+    for (let i = 0; i < 3; i++) {
+      const px = T * 1.5 + rnd() * (W - 3 * T), py = T * 1.5 + rnd() * (H - 3 * T);
+      if (rock(Math.floor(px / T), Math.floor(py / T)) || furniture.has(Math.floor(py / T) * L.w + Math.floor(px / T))) continue;
+      const rw = T * (0.5 + rnd() * 0.6), rh = rw * 0.35;
+      g.fillStyle(0x0c0a14, 0.55).fillEllipse(px, py, rw * 2, rh * 2);
+      g.fillStyle(L.hall && px < W / 3 ? 0x9c36b5 : 0xd9822b, 0.22).fillEllipse(px - rw * 0.2, py - rh * 0.2, rw * 1.1, rh * 0.7);
+      g.fillStyle(0xffffff, 0.12).fillEllipse(px - rw * 0.4, py - rh * 0.3, rw * 0.4, rh * 0.25);
+    }
+    if (L.hall) drawHallFloor(g);
     // 🕸️ Cobwebs: spokes and sagging rings of thread (you walk through them).
     for (const [i, kind] of L.brush) {
       if (kind !== 'web') continue;
@@ -445,10 +641,38 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   }
   if (L.hall) {
     const h = L.hall;
-    stand(h.counter[0][1], (g) => drawCounter(g, h.counter[0][0] * T, h.counter[0][1] * T, h.counter.length * T));
-    stand(h.keeper[1] - 1, (g) => drawShelf(g, (h.counter[0][0] + 0.1) * T, h.keeper[1] * T - T * 0.55, (h.counter.length - 0.2) * T));
+    const [tx0, ty0, tx1] = h.tavern;
+    const tw = (tx1 - tx0 + 1) * T;
+    // The tavern: back wall with shelves and windows, roof above (row 1), counter and barrels in
+    // front (row 3), stools on the porch (row 4).
+    stand(ty0, (g) => drawTavern(g, tx0 * T, ty0 * T, tw));
+    stand(h.counter[0][1], (g) => {
+      drawCounter(g, h.counter[0][0] * T, h.counter[0][1] * T, h.counter.length * T);
+      drawBarrel(g, (tx1 + 0.5) * T, (h.counter[0][1] + 0.9) * T);
+      drawBarrel(g, (tx0 - 0.45) * T, (h.counter[0][1] + 0.95) * T);
+    });
+    for (const s of h.stools) stand(s[1], (g) => drawStool(g, (s[0] + 0.5) * T, (s[1] + 0.75) * T));
+    for (const t of h.tables) stand(t[1], (g) => drawTable(g, t[0] * T, t[1] * T, T, 2));
     stand(h.benches[0][1], (g) => drawBench(g, h.benches[0][0] * T, h.benches[0][1] * T, h.benches.length * T));
+    stand(h.longTable[0][1], (g) => drawTable(g, h.longTable[0][0] * T, h.longTable[0][1] * T, h.longTable.length * T, 4));
+    // The portal's rocky rim (the swirl inside is live, below).
+    stand(h.portal[1], (g) => drawPortalRim(g, (h.portal[0] + 0.5) * T, (h.portal[1] + 0.35) * T));
+    // Clutter by the walls: barrels and crates, the merchant's crates.
+    stand(h.fire[1] - 1, (g) => (drawBarrel(g, T * 1.4, (h.fire[1] - 0.2) * T), drawCrate(g, T * 2.2, (h.fire[1] + 0.2) * T)));
+    stand(2, (g) => (drawCrate(g, (h.portal[0] + 2.4) * T, 2.85 * T), drawCrate(g, (h.portal[0] + 2.7) * T, 2.35 * T)));
+  } else if (L.brush.size || L.props.length) {
+    // Elsewhere: a barrel or a crate or two against the rock.
+    for (let k = 0; k < 2; k++) {
+      const x = 1 + Math.floor(rnd() * (L.w - 2)), y = 1 + Math.floor(rnd() * (L.h - 2));
+      if (!rock(x, y) || rock(x, y + 1) || L.brush.has((y + 1) * L.w + x)) continue;
+      stand(y + 1, (g) => (rnd() < 0.5 ? drawBarrel(g, (x + 0.5) * T, (y + 1.3) * T) : drawCrate(g, (x + 0.5) * T, (y + 1.3) * T)));
+    }
   }
+  // Banners hanging on the back wall (the entrance hall always; elsewhere sometimes).
+  const banners: number[] = L.hall ? [10] : rnd() < 0.4 ? [2 + Math.floor(rnd() * (L.w - 4))] : [];
+  for (const bx of banners) if (Math.abs(bx - mx) > 1) stand(0, (g) => drawBanner(g, (bx + 0.5) * T, T * 0.15));
+  // The doorway north: a stone arch.
+  if (L.doorAt.n) stand(0, (g) => drawArch(g, (mx + 0.5) * T, T * 0.95));
   if (o.merchant) stand(o.merchant[1], (g) => drawStall(g, (o.merchant![0] + 1.05) * T, (o.merchant![1] + 0.3) * T));
   for (let y = 0; y < L.h; y++) {
     let any = false;
@@ -521,6 +745,28 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   if (L.doorAt.n) lights.push(() => light((mx - 0.7) * T, T * 0.55, T * 1.15, 4, 0xff8c32, 1));
   if (L.doorAt.n) lights.push(() => light((mx + 1.7) * T, T * 0.55, T * 1.15, 4, 0xff8c32, 1));
   for (const mk of lights.slice(0, o.torches + fires.length)) mk();
+  if (L.hall) {
+    const h = L.hall;
+    // The tavern's windows glow warm.
+    const [tx0, ty0, tx1] = h.tavern;
+    for (const wx of [tx0 + 0.9, tx1 - 0.4]) {
+      const win = scene.add.image(wx * T, (ty0 + 0.15) * T, 'lab_glow').setTint(0xffa94d).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55).setScale((T * 1.6) / 128).setDepth(AVATAR_DEPTH + (ty0 + 1) * T);
+      objs.push(win);
+      scene.tweens.add({ targets: win, alpha: { from: 0.45, to: 0.62 }, duration: 900 + rnd() * 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+    const porch = scene.add.image((tx0 + tx1 + 1) * T / 2, (h.counter[0][1] + 0.8) * T, 'lab_glow').setTint(0xff9a3c).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35).setScale((T * 7) / 128, (T * 3.5) / 128).setDepth(-5);
+    objs.push(porch);
+    // 🌀 The portal: a swirl that turns, a purple glow round it and on the floor.
+    const pcx = (h.portal[0] + 0.5) * T, pcy = (h.portal[1] + 0.35) * T;
+    const swirl = scene.add.image(pcx, pcy, 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setScale((T * 2.3) / 128, (T * 2.8) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 3);
+    const swirl2 = scene.add.image(pcx, pcy, 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7).setScale((T * 1.6) / 128, (T * 2.0) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 2);
+    const glowP = scene.add.image(pcx, pcy, 'lab_glow').setTint(0xb44cff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7).setScale((T * 5.5) / 128, (T * 6) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 4);
+    const poolP = scene.add.image(pcx + T * 0.3, pcy + T * 1.6, 'lab_glow').setTint(0x9c36b5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55).setScale((T * 7) / 128, (T * 3.4) / 128).setDepth(-5);
+    objs.push(swirl, swirl2, glowP, poolP);
+    scene.tweens.add({ targets: swirl, angle: 360, duration: 6000, repeat: -1 });
+    scene.tweens.add({ targets: swirl2, angle: -360, duration: 3800, repeat: -1 });
+    scene.tweens.add({ targets: [glowP, poolP], alpha: { from: 0.45, to: 0.75 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
   // A cold campfire: a few embers still glow.
   for (const pr of L.props) {
     if (pr.kind !== 'oldfire') continue;

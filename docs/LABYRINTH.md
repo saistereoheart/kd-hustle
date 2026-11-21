@@ -50,7 +50,22 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   - Signs with tips or warnings from earlier adventurers (`signs` in the config; press E to read).
   - Skeletons and cold campfires (with a little story when you look).
   - Rest chambers have a working campfire with one or two adventurers resting by it.
-- **The entrance hall:**
+- **🌀 In and out by portal.**
+  - You enter from the 📱 Labirin app and appear in front of the purple portal: the entrance hall's,
+    top left, or your rest chamber's.
+  - To leave, walk up to a portal and press E. There's no Leave button.
+  - The server checks you're at the portal (`spot.portal`). 🧵 Tali Pulang still takes you home from
+    anywhere.
+- **Look:** a pixel-art style, with the room pictures drawn at low sharpness and shown with hard edges.
+  - Dark, warm stone, cobbles, puddles that catch the light, banners, barrels and crates, a stone arch
+    over the north door.
+- **The entrance hall** (laid out like the reference picture):
+  - the portal (top left);
+  - the merchant, an old sage with a staff and a glowing orb, on a red rug by his stall;
+  - the tavern, a timber building with lit windows, bottle shelves, a roof, a cup sign, the counter,
+    stools and barrels;
+  - tables with mugs, a long table and bench with people, the campfire circle, and lamps.
+- **The entrance hall (before v1.21):**
   - 🛒 Tok Peraih's stall: a table with potions. He holds a staff topped with a glowing orb.
   - 🍵 the tavern (Mak Jah behind her counter, shelves of bottles).
   - A campfire with three adventurers sitting round it, and benches with two more. They chat now and then.

@@ -280,11 +280,10 @@ export class LabScene extends Phaser.Scene {
       this.tweens.add({ targets: g, alpha: { from: 0.32, to: 0.55 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     };
     if (view.floor === 0 && room.kind === 'start') {
-      // The way out: a big gate on the back wall.
-      glowAt(f, 0x74c0fc);
-      emoji(f, '🚪', 46);
-      label(f, '🚪 EXIT: back to town', 'banks your carried Syiling');
-      this.features.push({ use: 'exit', label: '🚪 Exit the labyrinth: back to town (banks your carried Syiling)', at: f });
+      // 🌀 The way in and out: the purple portal (top left). Walk up to it and press E.
+      const pt = L.spot.portal;
+      this.sign([pt[0] + 0.1, pt[1] - 2.25], '🌀 PORTAL: back to town', 'banks your carried Syiling', '#e5b8ff');
+      this.features.push({ use: 'exit', label: '🌀 Step into the portal: back to town (banks your carried Syiling)', at: pt });
     } else if (room.kind === 'start') {
       glowAt(f, 0xa5d8ff);
       emoji(f, '🪜', 40);
@@ -296,7 +295,7 @@ export class LabScene extends Phaser.Scene {
       this.tweens.add({ targets: fire, scale: { from: 0.94, to: 1.08 }, duration: 520, yoyo: true, repeat: -1 });
       label(f, '🔥 Campfire: rest & save', 'heals you · banks Syiling · you come back here');
       this.features.push({ use: 'rest', label: '🔥 Rest at the campfire: heals you, banks your Syiling, and you come back here if you fall', at: f });
-      const portal: [number, number] = [f[0] + 3, f[1]];
+      const portal = L.spot.portal;
       glowAt(portal, 0x9775fa);
       const pe = emoji(portal, '🌀', 36);
       this.tweens.add({ targets: pe, angle: 360, duration: 4000, repeat: -1 });
@@ -329,7 +328,9 @@ export class LabScene extends Phaser.Scene {
       let seed = 7;
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
       this.merchant = new Avatar(this, this.app.cfg.character, this.app.items, {
-        name: lc.merchant.name, level: 1, appearance: randomAppearance(this.app.cfg.character, rnd), x: (m[0] + 0.5) * T, y: (m[1] + 0.7) * T, isSelf: false, npc: true, particles: false,
+        // An old sage: a long white beard and hair, a deep purple robe (he holds the staff and orb).
+        name: lc.merchant.name, level: 1, appearance: { ...randomAppearance(this.app.cfg.character, rnd), hair: 'long', hairColor: '#dee2e6', highlight: null, facialHair: 'beard', headwear: 'none', glasses: 'none', top: 'melayu', topColor: '#3b2352', bottom: 'jeans', bottomColor: '#2a1d36', shoes: 'boots', shoesColor: '#2e1f14', browColor: '#ced4da' },
+        x: (m[0] + 0.5) * T, y: (m[1] + 0.7) * T, isSelf: false, npc: true, particles: false,
       });
       this.merchant.setState('down', false);
       emoji([m[0] + 1, m[1]], '🎒', 26, 6);
@@ -357,11 +358,11 @@ export class LabScene extends Phaser.Scene {
       const h = L.hall;
       const tv = lc.tavern;
       this.npc(h.keeper, 0, false).say(tv.line, 4000);
-      this.sign([h.keeper[0], h.keeper[1] - 1.25], `🍵 TAVERN: ${tv.name}`, 'drinks = buffs for your next fights', '#ffd8a8');
+      this.sign([(h.tavern[0] + h.tavern[2]) / 2, h.tavern[1] - 1.5], `🍵 TAVERN: ${tv.name}`, 'drinks = buffs for your next fights', '#ffd8a8');
       this.features.push({ use: 'tavern', label: `🍵 ${tv.name}: drinks that buff your next fights`, at: L.spot.tavern });
       h.sitters.forEach((s, i) => this.npc(s, 1 + i, true));
-      this.npc(h.benches[0], 4, true, T * 0.2, T * 0.32);
-      this.npc(h.benches[1], 5, true, T * 0.1, T * 0.32);
+      h.benchSitters.forEach((s, i) => this.npc(s, 4 + i, true, 0, T * 0.05));
+      this.npc(h.stools[1], 3, true, 0, -T * 0.05); // someone having a drink at the counter
       this.features.push({ use: 'read', label: '🔥 Campfire: adventurers swap stories here', text: '🔥 The fire crackles. "Rest at the campfires deeper down: they save your progress."', at: h.fire });
     }
     // 🔥 A rest chamber: one or two adventurers resting by the fire.

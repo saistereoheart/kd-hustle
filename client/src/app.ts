@@ -1199,15 +1199,6 @@ export class App {
     this.town?.refreshPrompt();
   }
 
-  /** The HUD's Leave button (the entrance hall or a rest chamber). */
-  leaveLab() {
-    this.socket?.timeout(5000).emit('lab:leave', (err, res) => {
-      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
-      this.exitLab(res.self);
-      toast(`🚪 Back in town. ${res.self.coins} Syiling Purba banked.`, 'good');
-    });
-  }
-
   /** Open the UI for a crate machine / Jobs Board / pawn shop / car wash the player is standing at. */
   openInteractable(it: { type: import('@kh/shared').InteractType; crate?: string; game?: string }) {
     if (it.type === 'market') openMarketPanel(this);

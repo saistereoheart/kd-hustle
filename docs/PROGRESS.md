@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.20.0)_
+_Last updated: 2026-11-22 (v1.21.0)_
 
-**Now at v1.20.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.21.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,36 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🌀 Labirin: entrance hall from your picture, portal in/out (2026-11-22, your request, v1.21.0)
+**FPS check:** low risk.
+- Still drawn once per room. The pixel look (`PIXEL_RES` 0.8, NEAREST) makes the pictures smaller than
+  before.
+- The portal is 2 spinning images, a glow and a floor pool.
+- 7 NPCs in the hall.
+
+**What changed:**
+- **Shared `LabHall`:**
+  - Now holds the portal, the tavern block, counter, keeper, stools, tables, long table, benches, bench
+    sitters, fire and sitters.
+  - Solid: the tavern, counter, tables, bench, fire and the portal's stones.
+  - `spot.portal` is (2, 2) in the hall and fire + 3 in rest chambers. The hall merchant stands at (5, 2).
+- **Server:**
+  - `enter()` puts you in front of the portal.
+  - `leave()` (not `anywhere`) needs you within 2.4 tiles of `spot.portal`.
+- **Client:**
+  - HUD Leave button and `App.leaveLab` removed.
+  - The portal is an E feature ("Step into the portal").
+  - New hall art: tavern, barrels, crates, stools, tables, banners, arch, portal rim and vortex, rug,
+    porch; puddles everywhere.
+  - Warmer, darker palette.
+- **Decision:** your picture is used as a guide, not shipped. The art stays drawn in code.
+
+**Test:**
+1. 📱 Labirin → Enter: you appear by the portal.
+2. Walk round the hall.
+3. Press E at the portal: back in town.
+4. Rest chambers: leave through their 🌀 portal.
 
 ## 🌿 Labirin: bushes, cobwebs, props, entrance hall, tavern (2026-11-22, your request, v1.20.0)
 **FPS check:** low risk.

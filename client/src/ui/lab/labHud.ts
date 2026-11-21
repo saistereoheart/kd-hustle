@@ -19,7 +19,6 @@ export class LabHud {
   private title: HTMLElement;
   private coins: HTMLElement;
   private hp: HTMLElement;
-  private leaveBtn: HTMLButtonElement;
   private mini: HTMLCanvasElement;
   private full: HTMLElement | null = null;
   private view: LabRoomView | null = null;
@@ -34,9 +33,7 @@ export class LabHud {
     bagBtn.addEventListener('click', () => openLabBag(this.app, 'gear'));
     const partyBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-party', title: 'Your party: fight together' }, '👥');
     partyBtn.addEventListener('click', () => openLabParty(this.app));
-    this.leaveBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-leave' }, '🚪 Leave') as HTMLButtonElement;
-    this.leaveBtn.addEventListener('click', () => this.app.leaveLab());
-    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, partyBtn, mapBtn, this.leaveBtn);
+    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, partyBtn, mapBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
@@ -60,9 +57,6 @@ export class LabHud {
     this.title.textContent = `🗝️ ${lc.floors[v.floor].name} · B${v.floor + 1}`;
     this.updateSelf(v.self);
     this.coins.title = 'Banked coins are safe. Carried coins are banked when you rest or leave; half is lost if your party falls.';
-    const canLeave = (v.floor === 0 && room.kind === 'start') || room.kind === 'rest';
-    this.leaveBtn.disabled = !canLeave;
-    this.leaveBtn.title = canLeave ? 'Back to town (your carried coins are banked)' : 'Leave from the entrance hall or a rest chamber';
     this.drawMini(f, v);
     if (this.full) this.openFull(true);
   }

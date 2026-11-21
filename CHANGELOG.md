@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.21.0 (2026-11-22): 🗝️ Labirin: a new entrance hall, in and out by portal
+- **The entrance hall is rebuilt:**
+  - a swirling purple portal (top left);
+  - the merchant, an old sage in a purple robe with a staff and a glowing orb, on a red rug by his stall;
+  - a timber tavern with lit windows, bottle shelves, a roof and a cup sign, a counter, stools and
+    barrels, and Mak Jah behind it;
+  - tables with mugs, a long table and bench with people, the campfire circle, lamps, banners, a stone
+    arch over the north door.
+- **In and out by portal.**
+  - Enter from the 📱 Labirin app: you appear in front of the portal.
+  - To leave, walk into a portal (the hall's, or a rest chamber's) and press E.
+  - The 🚪 Leave button is gone.
+- **The whole dungeon has a darker, warmer pixel-art look:** cobbles, puddles that catch the light,
+  barrels, crates, banners.
+
 ## 1.20.0 (2026-11-22): 🗝️ Labirin: bushes and cobwebs, things to find, a livelier entrance, a tavern
 - **🌿 Bushes and cobwebs** in the chambers.
   - Walk through them, but every step into one might wake something up: an ambush. It can happen again
