@@ -27,7 +27,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     tabs(names.map((n) => titles[n]), (i) => {
       tab = names[i];
       render();
-    }),
+    }, Math.max(0, names.indexOf(tab))),
     head,
     content,
   );

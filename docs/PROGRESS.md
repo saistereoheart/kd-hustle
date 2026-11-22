@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.32.1)_
+_Last updated: 2026-11-22 (v1.33.0)_
 
-**Now at v1.32.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.33.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,13 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🪨 Code-drawn Labirin floor (2026-11-22, option 2 of the texture question, v1.33.0)
+- `client/src/world/labFloor.ts` (`paintCaveFloor`: jittered-cell cobbles at 16 art px per tile, upper-left shading,
+  mortar, moss, purple and puddle tints). One canvas texture per room, removed when the room's art is destroyed.
+- **Decision:** walls and rocks stay as sheet pieces (no seams there); only the tiled floor was the problem.
+- Checked on screen: hall + chamber floor, sitting side-on facing right or left, the Skills and Books tabs, an ultimate
+  cast in a pixel fight (probes: test-results/sitview.cjs, ultprobe.cjs, hallprobe SKILLS=1).
 
 ## 🎲 Limited-item rerolls (2026-11-22, your earlier question, v1.32.1)
 - `InventorySystem.reroll` no longer refuses serial or non-crate items; the bag shows the reroll buttons for any item.

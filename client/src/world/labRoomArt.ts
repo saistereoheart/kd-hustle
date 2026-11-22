@@ -14,6 +14,7 @@ import Phaser from 'phaser';
 import type { LabDir, RoomLayout } from '@kh/shared';
 import { AVATAR_DEPTH } from './avatar';
 import { LAB_FRAMES, LAB_SHEET, type LabFrame } from './labSheet';
+import { paintCaveFloor } from './labFloor';
 
 export interface RoomArtOpts {
   T: number;
@@ -627,30 +628,17 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   };
 
   // ------------------------------------------------------------------ the floor
+  // The floor: pixel cobblestones drawn in code (labFloor.ts), seamless and evenly lit (the sheet's
+  // floor tiles had seams and their own painted-in light). One picture per room, freed on leaving.
+  let floorKey: string | null = null;
   if (sheet) {
-    // Cobblestone tiles from the sheet (2×2 room tiles each): warm-lit near the lights, a puddle here
-    // and there, moss in the dark.
-    const B = T * 2;
-    const rt = scene.add.renderTexture(0, 0, Math.ceil(W * res), Math.ceil(H * res)).setOrigin(0, 0).setScale(1 / res).setDepth(-11);
-    const tile = scene.make.image({ key: LAB_SHEET, frame: 'floor_dark_a' }, false).setOrigin(0, 0);
-    const puddleAt = L.hall ? -1 : Math.floor(rnd() * Math.ceil(L.w / 2) * Math.ceil(L.h / 2));
-    let k = 0;
-    for (let by = 0; by < H; by += B)
-      for (let bx = 0; bx < W; bx += B, k++) {
-        const cx = bx + T, cy = by + T;
-        const near = Math.min(...lightSpots.map(([lx, ly]) => Math.hypot(lx - cx, ly - cy)), 1e9);
-        // Mostly the plain dark cobbles (the lamps' own light warms them), warm-lit right by a fire.
-        void near;
-        let f: LabFrame = rnd() < 0.1 ? 'floor_moss' : 'floor_dark_a';
-        if (k === puddleAt) f = rnd() < 0.5 ? 'floor_puddle_orange' : 'floor_puddle_purple';
-        if (L.hall && bx < T * 5 && by >= T * 2 && by < T * 5) f = 'floor_puddle_purple'; // by the portal
-        tile.setFrame(f);
-        tile.setDisplaySize(B * res + 1, B * res + 1);
-        rt.draw(tile, bx * res, by * res);
-      }
-    tile.destroy();
-    rt.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
-    objs.push(rt);
+    floorKey = `labfloor:${o.seed}:${L.w}x${L.h}`;
+    if (!scene.textures.exists(floorKey)) {
+      const puddle = !L.hall && rnd() < 0.5 ? { x: 2 + rnd() * (L.w - 4), y: 2 + rnd() * (L.h - 4), r: 0.9 + rnd() * 0.6, color: (rnd() < 0.5 ? 'orange' : 'purple') as 'orange' | 'purple' } : undefined;
+      const canvas = paintCaveFloor(L.w, L.h, o.seed, { purple: L.hall ? { x0: 0.5, y0: 2, x1: 4.5, y1: 5 } : undefined, puddle, moss: 0.07 });
+      scene.textures.addCanvas(floorKey, canvas)?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
+    objs.push(scene.add.image(0, 0, floorKey).setOrigin(0, 0).setDisplaySize(W, H).setDepth(-11));
   }
   bake(0, 0, W, H, -10, (g) => {
     if (!sheet) g.fillStyle(0x05060b, 1).fillRect(0, 0, W, H);
@@ -1087,6 +1075,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
         ob.destroy();
       }
       objs.length = 0;
+      if (floorKey && scene.textures.exists(floorKey)) scene.textures.remove(floorKey);
     },
   };
 }

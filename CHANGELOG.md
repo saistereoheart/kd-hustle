@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.33.0 (2026-11-22): 🪨 a seamless Labirin floor, drawn in code
+- **The cave floor is drawn in code now**, not tiled from the picture sheet: pixel cobblestones in the same
+  colours and pixel size, with no seams between tiles. It has no light painted in, so the lamps and fires light
+  it evenly. It still has moss specks, a purple sheen by the portal and the odd puddle. Walls, rocks and every
+  prop still come from the sheet (they're separate pieces, so they don't show seams).
+- The fight buttons fit on one row with the new Ultimate button (three per row on a phone).
+- The Labirin bag highlights the tab it opened on (Skills, Spell books).
+
 ## 1.32.1 (2026-11-22): 🎲 limited items can be rerolled
 - **Tier and variant rerolls now work on limited and event items** (the Durian King Crown and the like). They
   keep their serial number. Merging still needs crate copies, so limited items still can't be merged.
