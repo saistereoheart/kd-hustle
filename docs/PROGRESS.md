@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.22.1)_
+_Last updated: 2026-11-22 (v1.23.0)_
 
-**Now at v1.22.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.23.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,31 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🧱 Labirin built from the tileset (option B) (2026-11-22, your sheet, v1.23.0)
+**FPS check:** low risk.
+- One 1254² texture (about 6 MB of graphics memory), loaded once by `LabScene.preload`.
+- The floor is baked once per room; rock and props are about 100–150 images from that one texture.
+- Frame cost is the same as before.
+
+**What changed:**
+- **Slicing** (`test-results/tiles/slice.cjs`, a Playwright canvas, not committed):
+  - Keys out the bright magenta. The portal's purple is kept.
+  - Cleans 2 px of edge fringe.
+  - Finds the 73 pieces (connected blobs). Names are in `client/src/world/labSheet.ts`.
+  - Floor tiles are trimmed 6 px so they join.
+- **`labRoomArt.ts`, when the sheet is loaded:**
+  - Floor from `floor_dark_a` / `floor_moss` 2×2 tiles (puddles by the portal and one random).
+  - A rock piece per rock tile, wider than the tile, sometimes a two-tile clump.
+  - `buildFromSheet()` places the arch and fence, lamps and signs, the rest-room campfire, the stall,
+    the hall (portal, tavern, bar counter at `BAR_W`, tables, bench, campfire, clutter, banner, wall
+    lantern) and chamber clutter.
+  - Chamber overhang roofs are rock pieces in a container. The doorway tunnels are gone (the arch
+    replaces them).
+- **Code art kept** for bushes, cobwebs, bones and cold fires, and as the full fallback.
+- Mak Jah is moved down by `KEEPER_DY`, so she stands behind the bar.
+- **Missing from the sheet** (another sheet later, if you like): bushes, cobwebs, skeleton, a cold
+  campfire, stairs up and down, side-door arches.
 
 ## 🔤 Labirin font and bubbles; waiting on the tileset (2026-11-22, v1.22.1)
 - **Font:** Pixelify Sans (OFL, `@fontsource/pixelify-sans`, latin 500 and 700, preloaded in `main.ts`).

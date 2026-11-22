@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.23.0 (2026-11-22): 🧱 the Labirin is built from the painted tileset
+- **Every room is now built from the pixel-art tileset:** cobblestone floors, craggy rock walls, a lit
+  stone arch for the north door (with a gate when locked), lamp posts, signposts, banners, wall lanterns,
+  barrels, crates, pots and rubble.
+- **The entrance hall:** the stone-ringed portal, the merchant's striped stall, the tavern building with
+  its bar counter and stools (Mak Jah behind it), round tables, a long table and bench, the campfire.
+- **Still drawn in code** (not on the sheet): bushes, cobwebs, skeletons, cold campfires, plus the
+  lights, the portal swirl and the merchant's orb.
+- If the tileset can't load, the rooms fall back to the drawn-in-code look.
+
 ## 1.22.1 (2026-11-22): 🗝️ Labirin type like the reference
 - **Labels:** signs and labels in the Labirin use a pixel font (Pixelify Sans, bundled, OFL). The name is
   in warm gold, what it does in white.

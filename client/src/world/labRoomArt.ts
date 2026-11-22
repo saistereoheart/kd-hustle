@@ -13,6 +13,7 @@
 import Phaser from 'phaser';
 import type { LabDir, RoomLayout } from '@kh/shared';
 import { AVATAR_DEPTH } from './avatar';
+import { LAB_FRAMES, LAB_SHEET, type LabFrame } from './labSheet';
 
 export interface RoomArtOpts {
   T: number;
@@ -41,6 +42,11 @@ export interface RoomArt {
 
 /** The room pictures' sharpness (texels per world px): low, shown with hard edges, for the pixel-art look. */
 const PIXEL_RES = 0.8;
+
+/** The tavern's bar counter, in tiles wide (from the tileset); Mak Jah stands at its top edge. */
+export const BAR_W = 3.4;
+/** How far down from her tile Mak Jah stands so her feet are on the far side of the bar (tiles). */
+export const KEEPER_DY = 0.4;
 
 /** Above every avatar (and the rock), below labels. */
 export const ROOF_DEPTH = AVATAR_DEPTH + 420_000;
@@ -180,6 +186,28 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillPoints(pts, true);
   };
 
+  // ------------------------------------------------------------------ 🧱 the tileset (when it's loaded)
+  // Rooms are built from the pieces of the painted tileset; whatever it doesn't have (bushes,
+  // cobwebs, bones, cold fires) is still drawn in code, and without it everything is.
+  const sheet = scene.textures.exists(LAB_SHEET) && scene.textures.get(LAB_SHEET).has('floor_dark_a');
+  /** Sheet pixels → world pixels (one floor tile of the sheet covers 2×2 room tiles). */
+  const SC = 0.72;
+  /** A piece standing on the floor: bottom-middle at (x, by), `w` wide (else its own size × SC). */
+  const piece = (frame: LabFrame, x: number, by: number, opt: { w?: number; depth?: number; flip?: boolean; alpha?: number } = {}) => {
+    const fw = LAB_FRAMES[frame][2];
+    const s = opt.w ? opt.w / fw : SC;
+    const img = scene.add.image(x, by, LAB_SHEET, frame).setOrigin(0.5, 1).setScale(opt.flip ? -s : s, s).setDepth(opt.depth ?? AVATAR_DEPTH + by - 1);
+    if (opt.alpha !== undefined) img.setAlpha(opt.alpha);
+    objs.push(img);
+    return img;
+  };
+  /** Where the lights are (for picking warm-lit floor near them). */
+  const lightSpots: Array<[number, number]> = [];
+  for (const pr of L.props) if (pr.kind === 'lamp') lightSpots.push([(pr.at[0] + 0.5) * T, (pr.at[1] + 0.5) * T]);
+  if (o.fire) lightSpots.push([(o.fire[0] + 0.5) * T, (o.fire[1] + 0.5) * T]);
+  if (L.hall) lightSpots.push([(L.hall.fire[0] + 0.5) * T, (L.hall.fire[1] + 0.5) * T], [(L.hall.tavern[0] + 2.5) * T, 3.5 * T]);
+  if (L.doorAt.n) lightSpots.push([(mx + 0.5) * T, T]);
+
   // ------------------------------------------------------------------ props (drawn in code)
   const wood = 0x6b4a2b, woodDark = 0x3d2a17, woodLight = 0x9a7048;
   /** 🌿 A bush: overlapping leaf clumps, dark underneath, a few lit leaves and berries on top. */
@@ -299,9 +327,74 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillStyle(0xf1e3c6, 1).fillRoundedRect(x0 + w - 18, y0 - T * 0.27, 14, 6, 3);
   };
 
+  /** Everything that stands up, from the tileset: door arch, lamps, signs, the hall's furniture, clutter. */
+  function buildFromSheet() {
+    // The north doorway: a lit stone arch (a gate across it if it's locked).
+    if (L.doorAt.n) {
+      piece('arch_door_blue', (mx + 0.5) * T, T * 1.05, { w: T * 3.3, depth: AVATAR_DEPTH + T - 1 });
+      if (o.locked.n) piece('fence', (mx + 0.5) * T, T * 1.05, { w: T * 2.4, depth: AVATAR_DEPTH + T });
+    }
+    for (const d of ['w', 'e', 's'] as const) {
+      if (!L.doorAt[d] || !o.locked[d]) continue;
+      const at = L.doorAt[d]!;
+      piece('fence', (at[0] + 0.5) * T, (at[1] + 1) * T, { w: T * 2.2, depth: AVATAR_DEPTH + (at[1] + 1) * T });
+    }
+    // Lamps and signs.
+    for (const pr of L.props) {
+      const px = (pr.at[0] + 0.5) * T, by = (pr.at[1] + 0.85) * T;
+      if (pr.kind === 'lamp') piece('lamp_post', px, by);
+      if (pr.kind === 'sign') piece('signpost', px, by);
+    }
+    // A working campfire (rest chambers).
+    if (o.fire) piece('campfire', (o.fire[0] + 0.5) * T, (o.fire[1] + 1.05) * T, { w: T * 1.7 });
+    // The merchant's stall beside him.
+    if (o.merchant) piece('stall_striped', (o.merchant[0] + 1.75) * T, (o.merchant[1] + 1) * T, { w: T * 2.2 });
+    if (L.hall) {
+      const h = L.hall;
+      const [tx0, ty0, tx1, ty1] = h.tavern;
+      // 🌀 The portal in its ring of stones.
+      piece('portal', (h.portal[0] + 0.5) * T, (h.portal[1] + 1.35) * T, { w: T * 3.4, depth: AVATAR_DEPTH + (h.portal[1] + 1) * T - 5 });
+      // 🍵 The tavern behind, its counter (with stools) in front; Mak Jah stands between them.
+      piece('tavern', ((tx0 + tx1 + 1) / 2) * T, (ty1 + 1.05) * T, { w: (tx1 - tx0 + 1.6) * T, depth: AVATAR_DEPTH + (ty0 + 1.1) * T });
+      const c0 = h.counter[0], cn = h.counter.length;
+      // (Its depth is just under Mak Jah's, who stands at its top edge, so she's behind the counter.)
+      piece('bar_counter', (c0[0] + cn / 2) * T, (c0[1] + 1.55) * T, { w: BAR_W * T, depth: AVATAR_DEPTH + (c0[1] - 0.5) * T });
+      // Tables, the long table and its bench.
+      for (const t of h.tables) piece('table_round', (t[0] + 0.5) * T, (t[1] + 0.95) * T, { w: T * 1.3 });
+      piece('bench_long', (h.benches[0][0] + h.benches.length / 2) * T, (h.benches[0][1] + 0.95) * T, { w: h.benches.length * T });
+      piece('table_long', (h.longTable[0][0] + h.longTable.length / 2) * T, (h.longTable[0][1] + 0.95) * T, { w: h.longTable.length * T });
+      // The campfire with people round it.
+      piece('campfire', (h.fire[0] + 0.5) * T, (h.fire[1] + 1.05) * T, { w: T * 1.7 });
+      // Clutter: barrels and crates by the walls, a banner and a wall lantern on the back wall.
+      piece('barrel', (tx1 + 0.75) * T, (h.counter[0][1] + 1) * T);
+      piece('crate_barrel', T * 1.6, (h.fire[1] + 0.1) * T);
+      piece('crate_big', (h.portal[0] + 1.95) * T, 2.45 * T, { w: T * 0.95 });
+      piece('barrel', T * 1.4, (h.fire[1] + 2.4) * T);
+      piece('banner', (tx0 - 1 + 0.5) * T, T * 1.1, { w: T * 1.1, depth: AVATAR_DEPTH + T });
+      piece('wall_lantern', 6.5 * T, T * 1.15, { w: T * 1.2, depth: AVATAR_DEPTH + T });
+      return;
+    }
+    // Elsewhere: clutter against the rock, and now and then a banner or a lantern on the back wall.
+    const clutter: LabFrame[] = ['barrel', 'crate_b', 'crate_small_a', 'rubble_a', 'rubble_b', 'pot', 'boulders', 'crate_barrel', 'rubble_wall_a'];
+    const taken = new Set<number>([...L.brush.keys(), ...L.props.map((pr) => pr.at[1] * L.w + pr.at[0])]);
+    for (let n = 0, tries = 0; n < 3 && tries < 30; tries++) {
+      const x = 1 + Math.floor(rnd() * (L.w - 2)), y = 1 + Math.floor(rnd() * (L.h - 2));
+      const i = y * L.w + x;
+      if (rock(x, y) || taken.has(i) || Math.abs(x - mx) <= 1 || Math.abs(y - my) <= 1) continue;
+      if (![[1, 0], [-1, 0], [0, -1]].some(([dx, dy]) => rock(x + dx, y + dy))) continue;
+      taken.add(i);
+      piece(clutter[Math.floor(rnd() * clutter.length)], (x + 0.5) * T, (y + 0.9) * T, { w: T * (0.9 + rnd() * 0.3) });
+      n++;
+    }
+    if (rnd() < 0.45) {
+      const bx = 2 + Math.floor(rnd() * (L.w - 4));
+      if (Math.abs(bx - mx) > 2) piece(rnd() < 0.5 ? 'banner' : 'wall_lantern', (bx + 0.5) * T, T * 1.1, { w: T * 1.1, depth: AVATAR_DEPTH + T });
+    }
+  }
+
   // ------------------------------------------------------------------ the entrance hall
   /** The hall's floor extras: the merchant's red rug, the tavern's plank floor and porch. */
-  function drawHallFloor(g: Phaser.GameObjects.Graphics) {
+  function drawHallFloor(g: Phaser.GameObjects.Graphics, planks = true) {
     const h = L.hall!;
     // A red rug in front of the merchant, with a gold border and fringe.
     const rx = 3.6 * T, ry = 2.55 * T, rw = 3.6 * T, rh = 1.1 * T;
@@ -311,6 +404,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillStyle(0x9c2a33, 1).fillRect(rx + 12, ry + 12, rw - 24, rh - 24);
     for (let x = rx + 4; x < rx + rw; x += 6) g.fillStyle(0xc9a227, 0.8).fillRect(x, ry + rh, 2, 5).fillRect(x, ry - 5, 2, 5);
     // The tavern's plank floor and the porch in front of the counter.
+    if (!planks) return;
     const [x0, y0, x1] = h.tavern;
     const px = x0 * T - T * 0.3, pw = (x1 - x0 + 1) * T + T * 0.3;
     for (let y = y0 * T; y < (h.counter[0][1] + 1.6) * T; y += 9) {
@@ -460,8 +554,38 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   };
 
   // ------------------------------------------------------------------ the floor
+  if (sheet) {
+    // Cobblestone tiles from the sheet (2×2 room tiles each): warm-lit near the lights, a puddle here
+    // and there, moss in the dark.
+    const B = T * 2;
+    const rt = scene.add.renderTexture(0, 0, Math.ceil(W * res), Math.ceil(H * res)).setOrigin(0, 0).setScale(1 / res).setDepth(-11);
+    const tile = scene.make.image({ key: LAB_SHEET, frame: 'floor_dark_a' }, false).setOrigin(0, 0);
+    const puddleAt = L.hall ? -1 : Math.floor(rnd() * Math.ceil(L.w / 2) * Math.ceil(L.h / 2));
+    let k = 0;
+    for (let by = 0; by < H; by += B)
+      for (let bx = 0; bx < W; bx += B, k++) {
+        const cx = bx + T, cy = by + T;
+        const near = Math.min(...lightSpots.map(([lx, ly]) => Math.hypot(lx - cx, ly - cy)), 1e9);
+        // Mostly the plain dark cobbles (the lamps' own light warms them), warm-lit right by a fire.
+        void near;
+        let f: LabFrame = rnd() < 0.1 ? 'floor_moss' : 'floor_dark_a';
+        if (k === puddleAt) f = rnd() < 0.5 ? 'floor_puddle_orange' : 'floor_puddle_purple';
+        if (L.hall && bx < T * 5 && by >= T * 2 && by < T * 5) f = 'floor_puddle_purple'; // by the portal
+        tile.setFrame(f);
+        tile.setDisplaySize(B * res + 1, B * res + 1);
+        rt.draw(tile, bx * res, by * res);
+      }
+    tile.destroy();
+    rt.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+    objs.push(rt);
+  }
   bake(0, 0, W, H, -10, (g) => {
-    g.fillStyle(0x05060b, 1).fillRect(0, 0, W, H);
+    if (!sheet) g.fillStyle(0x05060b, 1).fillRect(0, 0, W, H);
+    else {
+      // Only the dark beyond the walls (the tiles are underneath).
+      g.fillStyle(0x05060b, 1).fillRect(0, 0, W, T * 0.25).fillRect(0, H - T * 0.2, W, T * 0.2).fillRect(0, 0, T * 0.2, H).fillRect(W - T * 0.2, 0, T * 0.2, H);
+    }
+    if (!sheet) {
     // Mortar, then irregular flagstones in staggered rows (no grid: sizes and shapes vary).
     g.fillStyle(shade(floorC, 0.5), 1).fillRect(T * 0.5, T * 0.5, W - T, H - T);
     const rowH = T * 0.4;
@@ -529,8 +653,9 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
         g.fillStyle(frost, 0.35).fillCircle(sx - 1.5, sy - 1.5, T * 0.035);
       }
     }
+    }
     // Puddles: dark water that catches the light.
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < (sheet ? 0 : 3); i++) {
       const px = T * 1.5 + rnd() * (W - 3 * T), py = T * 1.5 + rnd() * (H - 3 * T);
       if (rock(Math.floor(px / T), Math.floor(py / T)) || furniture.has(Math.floor(py / T) * L.w + Math.floor(px / T))) continue;
       const rw = T * (0.5 + rnd() * 0.6), rh = rw * 0.35;
@@ -538,7 +663,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
       g.fillStyle(L.hall && px < W / 3 ? 0x9c36b5 : 0xd9822b, 0.22).fillEllipse(px - rw * 0.2, py - rh * 0.2, rw * 1.1, rh * 0.7);
       g.fillStyle(0xffffff, 0.12).fillEllipse(px - rw * 0.4, py - rh * 0.3, rw * 0.4, rh * 0.25);
     }
-    if (L.hall) drawHallFloor(g);
+    if (L.hall) drawHallFloor(g, !sheet);
     // 🕸️ Cobwebs: spokes and sagging rings of thread (you walk through them).
     for (const [i, kind] of L.brush) {
       if (kind !== 'web') continue;
@@ -569,10 +694,10 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
       if (pr.kind === 'skeleton') drawSkeleton(g, px, py);
       if (pr.kind === 'oldfire') drawFirePit(g, px, py, false);
     }
-    if (o.fire) drawFirePit(g, (o.fire[0] + 0.5) * T, (o.fire[1] + 0.6) * T, true);
-    if (L.hall) drawFirePit(g, (L.hall.fire[0] + 0.5) * T, (L.hall.fire[1] + 0.5) * T, true);
+    if (o.fire && !sheet) drawFirePit(g, (o.fire[0] + 0.5) * T, (o.fire[1] + 0.6) * T, true);
+    if (L.hall && !sheet) drawFirePit(g, (L.hall.fire[0] + 0.5) * T, (L.hall.fire[1] + 0.5) * T, true);
     // Pebbles.
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < (sheet ? 0 : 26); i++) {
       const px = T + rnd() * (W - 2 * T), py = T + rnd() * (H - 2 * T);
       if (rock(Math.floor(px / T), Math.floor(py / T))) continue;
       g.fillStyle(shade(floorC, 0.6 + rnd() * 0.5), 1).fillCircle(px, py, 1.5 + rnd() * 2.5);
@@ -587,6 +712,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
       }
     // Doorways: a dark way through, with stone steps going out of the room.
     for (const d of Object.keys(L.doorAt) as LabDir[]) {
+      if (sheet && d === 'n') continue; // the arch from the sheet has its own dark way through
       const horiz = d === 'n' || d === 's';
       const x0 = horiz ? (mx - 0.7) * T : d === 'w' ? 0 : W - T;
       const y0 = horiz ? (d === 'n' ? 0 : H - T) : (my - 0.7) * T;
@@ -634,12 +760,13 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   const standing = new Map<number, Array<(g: Phaser.GameObjects.Graphics) => void>>();
   const stand = (row: number, fn: (g: Phaser.GameObjects.Graphics) => void) => (standing.get(row) ?? standing.set(row, []).get(row)!).push(fn);
   for (const [i, kind] of L.brush) if (kind === 'bush') stand(Math.floor(i / L.w), (g) => drawBush(g, (i % L.w + 0.5) * T, (Math.floor(i / L.w) + 0.85) * T));
-  for (const pr of L.props) {
+  for (const pr of sheet ? [] : L.props) {
     const px = (pr.at[0] + 0.5) * T, py = (pr.at[1] + 0.5) * T;
     if (pr.kind === 'lamp') stand(pr.at[1], (g) => drawLampPost(g, px, py));
     if (pr.kind === 'sign') stand(pr.at[1], (g) => drawSign(g, px, py));
   }
-  if (L.hall) {
+  if (sheet) buildFromSheet();
+  else if (L.hall) {
     const h = L.hall;
     const [tx0, ty0, tx1] = h.tavern;
     const tw = (tx1 - tx0 + 1) * T;
@@ -669,20 +796,33 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     }
   }
   // Banners hanging on the back wall (the entrance hall always; elsewhere sometimes).
-  const banners: number[] = L.hall ? [10] : rnd() < 0.4 ? [2 + Math.floor(rnd() * (L.w - 4))] : [];
+  const banners: number[] = sheet ? [] : L.hall ? [10] : rnd() < 0.4 ? [2 + Math.floor(rnd() * (L.w - 4))] : [];
   for (const bx of banners) if (Math.abs(bx - mx) > 1) stand(0, (g) => drawBanner(g, (bx + 0.5) * T, T * 0.15));
   // The doorway north: a stone arch.
-  if (L.doorAt.n) stand(0, (g) => drawArch(g, (mx + 0.5) * T, T * 0.95));
-  if (o.merchant) stand(o.merchant[1], (g) => drawStall(g, (o.merchant![0] + 1.05) * T, (o.merchant![1] + 0.3) * T));
+  if (L.doorAt.n && !sheet) stand(0, (g) => drawArch(g, (mx + 0.5) * T, T * 0.95));
+  if (o.merchant && !sheet) stand(o.merchant[1], (g) => drawStall(g, (o.merchant![0] + 1.05) * T, (o.merchant![1] + 0.3) * T));
   for (let y = 0; y < L.h; y++) {
     let any = false;
     for (let x = 0; x < L.w; x++) if (rock(x, y)) any = true;
     const doorPosts = (y === 0 && L.doorAt.n) || (y === L.h - 1 && L.doorAt.s) || (y === my && (L.doorAt.w || L.doorAt.e));
-    if (!any && !doorPosts && !standing.has(y)) continue;
+    if (sheet) {
+      // Rock from the sheet: a craggy piece per rock tile (two-tile clumps now and then), each a
+      // bit wider than its tile so they run together into one wall.
+      for (let x = 0; x < L.w; x++) {
+        if (!rock(x, y)) continue;
+        const by = (y + 1) * T + 3;
+        if (rock(x + 1, y) && rnd() < 0.4) {
+          piece((['rock_cluster_a', 'rock_cluster_b', 'rock_wide'] as const)[Math.floor(rnd() * 3)], (x + 1) * T, by, { w: T * 2.25, depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
+          x++;
+        } else piece((['rock_cluster_c', 'rock_cluster_d', 'rock_cluster_a', 'rock_small', 'rock_pillar_a'] as const)[Math.floor(rnd() * 5)], (x + 0.5) * T, by, { w: T * 1.3, depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
+      }
+      if (!standing.has(y)) continue;
+    } else if (!any && !doorPosts && !standing.has(y)) continue;
     // Its bottom edge sets the depth: whoever stands north of it is hidden behind it.
     bake(0, y * T - lift - 4 - T * 0.6, W, T + lift + 4 + T * 0.6, AVATAR_DEPTH + (y + 1) * T - 2, (g) => {
-      for (let x = 0; x < L.w; x++) if (rock(x, y)) drawRockTile(g, x, y);
+      if (!sheet) for (let x = 0; x < L.w; x++) if (rock(x, y)) drawRockTile(g, x, y);
       for (const fn of standing.get(y) ?? []) fn(g);
+      if (sheet) return; // (doors: the arch from the sheet)
       // Door frames: two stone posts and a lintel shadow; bars if it's locked.
       const post = (px: number, py: number, w: number, h: number) => {
         g.fillStyle(shade(rockFace, 1.25), 1).fillRect(px, py, w, h);
@@ -741,7 +881,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     light((f[0] + 0.5) * T, (f[1] + 0.55) * T, (f[1] + 0.6) * T, 6, 0xff7a1a, 1.8);
     light((f[0] + 0.3) * T, (f[1] + 0.6) * T, (f[1] + 0.6) * T, 0.1, 0xff7a1a, 1.2);
   });
-  for (const pr of L.props) if (pr.kind === 'lamp') lights.push(() => light((pr.at[0] + 0.5) * T, (pr.at[1] + 0.5) * T - T * 0.95, (pr.at[1] + 0.5) * T, 4.6, 0xff9a3c, 0.9));
+  for (const pr of L.props) if (pr.kind === 'lamp') lights.push(() => light((pr.at[0] + 0.5) * T, (pr.at[1] + 0.85) * T - (sheet ? LAB_FRAMES.lamp_post[3] * SC * 0.83 : T * 1.3), (pr.at[1] + 0.85) * T, 4.6, 0xff9a3c, sheet ? 0.5 : 0.9));
   if (L.doorAt.n) lights.push(() => light((mx - 0.7) * T, T * 0.55, T * 1.15, 4, 0xff8c32, 1));
   if (L.doorAt.n) lights.push(() => light((mx + 1.7) * T, T * 0.55, T * 1.15, 4, 0xff8c32, 1));
   for (const mk of lights.slice(0, o.torches + fires.length)) mk();
@@ -749,8 +889,8 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     const h = L.hall;
     // The tavern's windows glow warm.
     const [tx0, ty0, tx1] = h.tavern;
-    for (const wx of [tx0 + 0.9, tx1 - 0.4]) {
-      const win = scene.add.image(wx * T, (ty0 + 0.15) * T, 'lab_glow').setTint(0xffa94d).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55).setScale((T * 1.6) / 128).setDepth(AVATAR_DEPTH + (ty0 + 1) * T);
+    for (const wx of sheet ? [tx0 + 0.6, tx0 + 3.2, tx1 + 0.1] : [tx0 + 0.9, tx1 - 0.4]) {
+      const win = scene.add.image(wx * T, (ty0 + (sheet ? 0.75 : 0.15)) * T, 'lab_glow').setTint(0xffa94d).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55).setScale((T * 1.6) / 128).setDepth(AVATAR_DEPTH + (ty0 + 1) * T);
       objs.push(win);
       scene.tweens.add({ targets: win, alpha: { from: 0.45, to: 0.62 }, duration: 900 + rnd() * 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
@@ -758,9 +898,10 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     objs.push(porch);
     // 🌀 The portal: a swirl that turns, a purple glow round it and on the floor.
     const pcx = (h.portal[0] + 0.5) * T, pcy = (h.portal[1] + 0.35) * T;
-    const swirl = scene.add.image(pcx, pcy, 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setScale((T * 2.3) / 128, (T * 2.8) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 3);
-    const swirl2 = scene.add.image(pcx, pcy, 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7).setScale((T * 1.6) / 128, (T * 2.0) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 2);
-    const glowP = scene.add.image(pcx, pcy, 'lab_glow').setTint(0xb44cff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7).setScale((T * 5.5) / 128, (T * 6) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 4);
+    // (With the tileset's portal, a smaller, fainter swirl just keeps its middle turning.)
+    const swirl = scene.add.image(pcx, pcy + (sheet ? T * 0.25 : 0), 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setAlpha(sheet ? 0.45 : 1).setScale((T * (sheet ? 1.3 : 2.3)) / 128, (T * (sheet ? 1.6 : 2.8)) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 3);
+    const swirl2 = scene.add.image(pcx, pcy + (sheet ? T * 0.25 : 0), 'lab_vortex').setBlendMode(Phaser.BlendModes.ADD).setAlpha(sheet ? 0.3 : 0.7).setScale((T * 1.6) / 128, (T * 2.0) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 2);
+    const glowP = scene.add.image(pcx, pcy, 'lab_glow').setTint(0xb44cff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(sheet ? 0.4 : 0.7).setScale((T * 5.5) / 128, (T * 6) / 128).setDepth(AVATAR_DEPTH + (h.portal[1] + 1) * T - 4);
     const poolP = scene.add.image(pcx + T * 0.3, pcy + T * 1.6, 'lab_glow').setTint(0x9c36b5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55).setScale((T * 7) / 128, (T * 3.4) / 128).setDepth(-5);
     objs.push(swirl, swirl2, glowP, poolP);
     scene.tweens.add({ targets: swirl, angle: 360, duration: 6000, repeat: -1 });
@@ -794,8 +935,22 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   }
 
   // ------------------------------------------------------------------ roofs (see-through when you're under)
-  const roofs: Array<{ x0: number; y0: number; x1: number; y1: number; img: Phaser.GameObjects.RenderTexture; a: number }> = [];
+  const roofs: Array<{ x0: number; y0: number; x1: number; y1: number; img: { setAlpha(a: number): unknown }; a: number }> = [];
   for (const r of L.roofs) {
+    if (sheet) {
+      const edge = r.y === 0 || r.x === 0 || r.x + r.w >= L.w || r.y + r.h >= L.h;
+      if (edge) continue; // doorways: the arch is the way through
+      const box = scene.add.container(0, 0).setDepth(ROOF_DEPTH);
+      for (let yy = r.y; yy < r.y + r.h; yy++)
+        for (let xx = r.x; xx < r.x + r.w; xx += 2) {
+          const f = (['rock_wide', 'boulders', 'rock_cluster_a'] as const)[Math.floor(rnd() * 3)];
+          const fw = LAB_FRAMES[f][2];
+          box.add(scene.add.image((xx + 1) * T, (yy + 0.6) * T, LAB_SHEET, f).setOrigin(0.5, 1).setScale((T * 2.3) / fw).setFlipX(rnd() < 0.5));
+        }
+      objs.push(box);
+      roofs.push({ x0: r.x * T - T * 0.25, y0: r.y * T - T * 0.6, x1: (r.x + r.w) * T + T * 0.25, y1: (r.y + r.h) * T + T * 0.2, img: box, a: 1 });
+      continue;
+    }
     const pad = T * 0.35;
     const x0 = r.x * T - pad, y0 = r.y * T - pad - lift;
     const w = r.w * T + 2 * pad, h = r.h * T + 2 * pad;

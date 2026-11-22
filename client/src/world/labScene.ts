@@ -13,7 +13,8 @@ import { labSay, setLabSpeaker } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
-import { buildRoomArt, LABEL_DEPTH, type RoomArt } from './labRoomArt';
+import { buildRoomArt, KEEPER_DY, LABEL_DEPTH, type RoomArt } from './labRoomArt';
+import { addLabFrames, LAB_SHEET, LAB_SHEET_URL } from './labSheet';
 import { memoryBudget } from '../perf/memory';
 import { openLabBag } from '../ui/lab/labBag';
 import { openLabTavern } from '../ui/lab/labTavern';
@@ -117,7 +118,13 @@ export class LabScene extends Phaser.Scene {
     this.roomObjs = [];
   }
 
+  /** 🧱 The tileset (once per game; if it fails to load, rooms are drawn in code instead). */
+  preload() {
+    if (!this.textures.exists(LAB_SHEET)) this.load.image(LAB_SHEET, LAB_SHEET_URL);
+  }
+
   create() {
+    addLabFrames(this);
     const n = this.app.cfg.net;
     this.clock = new SnapClock({ periodMs: 1000 / n.snapshotRateHz, startMs: n.interpolationDelayMs, minMs: n.interpolationMinMs, maxMs: n.interpolationMaxMs, marginMs: n.interpolationMarginMs });
     this.cameras.main.setBackgroundColor('#0b0d14');
@@ -366,7 +373,8 @@ export class LabScene extends Phaser.Scene {
     if (L.hall) {
       const h = L.hall;
       const tv = lc.tavern;
-      this.npc(h.keeper, 0, false).say(tv.line, 4000);
+      const sheet = this.textures.exists(LAB_SHEET);
+      this.npc(h.keeper, 0, false, 0, sheet ? T * KEEPER_DY : 0).say(tv.line, 4000);
       this.sign([(h.tavern[0] + h.tavern[2]) / 2, h.tavern[1] - 1.5], `🍵 TAVERN: ${tv.name}`, 'drinks = buffs for your next fights', '#ffd8a8');
       this.features.push({ use: 'tavern', label: `🍵 ${tv.name}: drinks that buff your next fights`, at: L.spot.tavern });
       h.sitters.forEach((s, i) => this.npc(s, 1 + i, true));
