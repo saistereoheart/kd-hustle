@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.29.0)_
+_Last updated: 2026-11-22 (v1.30.0)_
 
-**Now at v1.29.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.30.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,10 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 📱 Feedback #16: IKEJA Online (2026-11-22, v1.30.0)
+- `furniture:buy` takes `online` (skips the store check, adds `furnitureOnlineFee`: `furniture.json` `online`).
+  Phone app `ikeja` opens the store panel in online mode. Unit test for the fee.
 
 ## 🪧 Feedback #14 and #19 (2026-11-22, v1.29.0)
 - Generator: own RNG (`rnd2`) adds signs (`text: -1`), crates and one `secret` per floor without moving anything

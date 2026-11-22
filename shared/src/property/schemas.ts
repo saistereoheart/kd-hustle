@@ -6,6 +6,8 @@ const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 export const furnitureConfigSchema = z.object({
   storeName: z.string(),
+  /** 📱 Buying from the phone (IKEJA Online): delivered to your bag for a fee = max(minSen, price × pct). */
+  online: z.object({ feePct: z.number().min(0).max(1), minFeeSen: z.number().int().min(0) }).default({ feePct: 0.1, minFeeSen: 5000 }),
   themes: z.record(z.string(), z.object({ name: z.string(), color: hex })),
   /** Each missing one caps the star rating. */
   essentials: z.array(z.string()).min(1),
@@ -170,3 +172,8 @@ export interface Placed {
 }
 
 export type PropertyMode = 'none' | 'rent' | 'airbnb' | 'home' | 'shop';
+
+/** 📱 IKEJA Online's delivery fee for an order (sen). */
+export function furnitureOnlineFee(cfg: { online: { feePct: number; minFeeSen: number } }, costSen: number): number {
+  return Math.max(cfg.online.minFeeSen, Math.round(costSen * cfg.online.feePct));
+}

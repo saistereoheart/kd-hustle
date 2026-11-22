@@ -1,14 +1,16 @@
 // IKEJA, the furniture store: buy Airbnb furniture in person. Pieces are grouped by category;
 // each shows its stats (comfort, style, theme, essential/amenity) so you can plan a room.
-import { formatMoney } from '@kh/shared';
+import { formatMoney, furnitureOnlineFee } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast, keepUiState } from '../dom';
 import { itemCard, openPanel, tabs } from '../panel';
 import { sfx } from '../sound';
 
-export function openFurnitureStore(app: App) {
+/** `online`: from the phone (📱 IKEJA Online): the same pieces, delivered to your bag for a fee. */
+export function openFurnitureStore(app: App, opts: { online?: boolean } = {}) {
   const f = app.cfg.furniture;
-  const panel = openPanel(`🛋️ ${f.storeName}`, { wide: true, testId: 'furniture-store' });
+  const online = !!opts.online;
+  const panel = openPanel(online ? `📱 ${f.storeName} Online` : `🛋️ ${f.storeName}`, { wide: true, testId: 'furniture-store' });
   const forSale = Object.entries(f.pieces).filter(([, p]) => p.storeSen);
   const cats = [...new Set(forSale.map(([, p]) => p.category))];
   let cat = 0;
@@ -28,17 +30,18 @@ export function openFurnitureStore(app: App) {
             p.theme ? `🎨 ${f.themes[p.theme]?.name ?? p.theme}` : '',
             `🛏️ comfort ${p.comfort} · 💅 style ${p.style} · ${p.w}×${p.h} m${p.wall ? ' · wall' : ''}`,
           ].filter(Boolean);
-          const buy = el('button', { class: 'btn small primary', type: 'button', 'data-buy': id }, `Buy ${formatMoney(p.storeSen!)}`);
+          const fee = online ? furnitureOnlineFee(f, p.storeSen!) : 0;
+          const buy = el('button', { class: 'btn small primary', type: 'button', 'data-buy': id, title: online ? `${formatMoney(p.storeSen!)} + ${formatMoney(fee)} delivery` : '' }, online ? `Buy ${formatMoney(p.storeSen! + fee)}` : `Buy ${formatMoney(p.storeSen!)}`);
           buy.addEventListener('click', () => {
             buy.disabled = true;
-            app.socket?.timeout(5000).emit('furniture:buy', { item: id, qty: 1 }, (err, res) => {
+            app.socket?.timeout(5000).emit('furniture:buy', { item: id, qty: 1, online }, (err, res) => {
               buy.disabled = false;
               if (err || !res.ok) {
                 sfx.error();
                 return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
               }
               sfx.coin();
-              toast(`🛋️ Bought ${def.name}. Place it from your home's Decorate mode.`, 'good');
+              toast(`🛋️ Bought ${def.name}${res.feeSen ? ` (delivered: +${formatMoney(res.feeSen)})` : ''}. Place it from your home's Decorate mode.`, 'good');
             });
           });
           return el('div', { class: 'furniture-card' }, card, el('div', { class: 'muted small' }, ...tags.map((t) => el('div', {}, t))), buy);
@@ -51,6 +54,7 @@ export function openFurnitureStore(app: App) {
   });
   panel.body.replaceChildren(
     el('p', { class: 'muted' }, 'Essentials (bed, toilet, shower, kitchen, aircond, wifi) unlock good ratings. Matching themes and rare pieces from the Mall Mystery Box push you towards 5★.'),
+    online ? el('p', { class: 'hint' }, `📱 Ordering online: delivered straight to your 🎒 Bag, anywhere. Delivery is ${Math.round(f.online.feePct * 100)}% of the price (at least ${formatMoney(f.online.minFeeSen)}). Free if you walk into the store.`) : '',
     el('p', { class: 'hint' }, '🛋️ How to use: what you buy goes to your 🎒 Bag. Go into your home (📱 Properties → 📍 Take me there, then E at the door), tap 🛠️ Decorate, pick the piece and tap the floor to place it.'),
     t,
     grid,

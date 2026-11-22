@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.30.0 (2026-11-22): 📱 IKEJA Online (buy furniture from your phone)
+- **New phone app, IKEJA Online** (Shop & bank) (feedback #16): every piece the furniture store sells, ordered
+  from anywhere and delivered straight to your bag. Delivery costs 10% of the price (at least RM 50). Walking
+  into the store is still free.
+
 ## 1.29.0 (2026-11-22): 🪧 signs that really help, 📦 breakable crates, 🪨 a secret per floor; cooking buttons stay put
 - **Labirin signs give real, fixed directions (feedback #14).** Each one says the same thing every time, about
   this floor:

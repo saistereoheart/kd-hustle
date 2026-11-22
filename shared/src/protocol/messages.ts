@@ -131,7 +131,8 @@ export const C2S = {
   propFix: z.object({ unit: z.string().min(3).max(40), req: z.number().int().positive(), how: z.enum(['contractor', 'diy-start', 'diy-finish']) }),
   propClean: z.object({ unit: z.string().min(3).max(40), phase: z.enum(['start', 'finish']) }),
   shopView: z.object({ building: z.string().min(1).max(40) }),
-  furnitureBuy: z.object({ item: z.string().max(40), qty: z.number().int().min(1).max(50) }),
+  /** `online`: from the phone (anywhere), with a delivery fee. */
+  furnitureBuy: z.object({ item: z.string().max(40), qty: z.number().int().min(1).max(50), online: z.boolean().default(false) }),
   /** Talk to / take an errand from a wandering NPC (by id). */
   npc: z.object({ npc: z.number().int().nonnegative().max(1000) }),
   /** Vote to skip the night (a yes starts a vote if none is running). */
@@ -661,7 +662,7 @@ export interface ClientToServerEvents {
   'shop:view': (msg: { building: string }, ack: Ack<Result<{ view: ShopView | null }>>) => void;
   'prop:fix': (msg: { unit: string; req: number; how: 'contractor' | 'diy-start' | 'diy-finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'prop:clean': (msg: { unit: string; phase: 'start' | 'finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
-  'furniture:buy': (msg: { item: string; qty: number }, ack: Ack<Result<{ items: InventoryItem[] }>>) => void;
+  'furniture:buy': (msg: { item: string; qty: number; online?: boolean }, ack: Ack<Result<{ items: InventoryItem[]; feeSen: number }>>) => void;
   /** 🎡 The welcome-back wheel: which segment (economy.offline.spin) it landed on, the extra paid and the new total. */
   'welcome:spin': (ack: Ack<Result<{ bonusSen: number; index: number; mult: number; totalSen: number }>>) => void;
   /** `announce`: your big rolls' banners, for you to show the moment each one is revealed. */

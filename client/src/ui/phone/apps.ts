@@ -8,6 +8,7 @@ import { openDungeon } from '../dungeon/dungeon';
 import { openLabPanel } from '../lab/labPanel';
 import { openPetsPanel } from '../pets/petsPanel';
 import { openGarage } from '../garage/garage';
+import { openFurnitureStore } from '../property/furnitureStore';
 import { renderBusiness } from './business';
 import { renderVentures } from './ventures';
 import { renderBank } from './bank';
@@ -153,6 +154,11 @@ export const APPS: PhoneApp[] = [
     id: 'boutique', name: 'Butik', icon: '👜', color: '#c2255c', cat: 'shop', render: renderBoutique,
     does: 'Players’ own shops.',
     about: 'Buy what other players put on display, or open your own butik and set your prices. You still get paid when you are offline.',
+  },
+  {
+    id: 'ikeja', name: 'IKEJA Online', icon: '🛋️', color: '#1971c2', cat: 'shop', open: (app) => openFurnitureStore(app, { online: true }), stacks: true,
+    does: 'Order furniture to your bag.',
+    about: 'Every piece the furniture store sells, ordered from anywhere and delivered straight to your bag, for a delivery fee (10%, at least RM 50). Walk into the store to skip the fee.',
   },
   {
     id: 'garage', name: 'Garage', icon: '🚗', color: '#c92a2a', cat: 'shop', open: (app) => openGarage(app), stacks: true,

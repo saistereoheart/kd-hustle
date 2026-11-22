@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 // Phase 2 socket handlers: crates, inventory, pawn shop, jobs, vehicles and admin /give.
 // Every handler validates input with zod, checks the player is standing at the right place,
 // and lets the systems do the (transactional) work.
-import { variantLabel, petLook, temanBoost,
+import { variantLabel, petLook, temanBoost, furnitureOnlineFee,
   C2S, collides, setBoxes, stallFootprint, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
   type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid, type RerollPity
 } from '@kh/shared';
@@ -660,13 +660,16 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     handle(socket, 'dungeon:rest', C2S.dungeonRest, ({ choice }) => ({ view: dungeon.rest(me, choice) }));
     handle(socket, 'dungeon:leave', null, () => dungeon.leave(me));
     handle(socket, 'event:view', null, () => ({ event: events.view() }));
-    handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty }) => {
-      if (!nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName}.`);
+    handle(socket, 'furniture:buy', C2S.furnitureBuy, ({ item, qty, online }) => {
+      // 📱 IKEJA Online (feedback #16): from anywhere, delivered to your bag, for a delivery fee.
+      if (!online && !nearInteractable(me, 'furniture')) throw new GameError(`Buy furniture inside ${cfg.furniture.storeName} (or online from your phone).`);
       const piece = cfg.furniture.pieces[item];
       if (!piece?.storeSen) throw new GameError("That isn't sold in the store.");
       if (qty > cfg.economy.furnitureMaxQty) throw new GameError(`Up to ${cfg.economy.furnitureMaxQty} at a time.`);
-      const cost = piece.storeSen * qty;
-      if (me.walletSen < cost) throw new GameError('Not enough money.');
+      const price = piece.storeSen * qty;
+      const feeSen = online ? furnitureOnlineFee(cfg.furniture, price) : 0;
+      const cost = price + feeSen;
+      if (me.walletSen < cost) throw new GameError(online ? `Not enough money (with the RM ${(feeSen / 100).toLocaleString()} delivery fee).` : 'Not enough money.');
       const items = econ.run(me, () => {
         econ.change(me, -cost, 0, 'furniture', `${item}x${qty}`);
         return Array.from({ length: qty }, () => econ.grant(me, item, 'normal', null).item);
@@ -675,7 +678,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       socketOf(me)?.emit('inv:added', { items, index: [] });
       me.prog.stats.furnitureBought = (me.prog.stats.furnitureBought ?? 0) + qty;
       prog.check(me);
-      return { items };
+      return { items, feeSen };
     });
 
     // --- wandering NPCs: chat and errands ---------------------------------------------------
