@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.29.0 (2026-11-22): 🪧 signs that really help, 📦 breakable crates, 🪨 a secret per floor; cooking buttons stay put
+- **Labirin signs give real, fixed directions (feedback #14).** Each one says the same thing every time, about
+  this floor:
+  - how many rooms to the rest chamber, the stairs down (and its boss's move) or the key, and which door to take first;
+  - what lives on this floor;
+  - what's behind each door here (monsters, a loot box, a campfire, locked treasure, the boss, quiet).
+  More chambers have one now.
+- **📦 Crates** in chambers and rest chambers: smash them (E) for a chance of Syiling or a potion. Each one
+  comes back 30 minutes later (for you).
+- **🪨 A secret on every floor:** one chamber has a cracked rock with a glint. Shove it for a hidden stash (5×
+  a loot box, once per floor).
+- **Cooking (feedback #19):** the Give up, Start over and action buttons stay at the bottom of the cooking window.
+  The order list above them no longer pushes them about.
+
 ## 1.28.0 (2026-11-22): 🧙 Labirin people in pixel art
 - **The NPCs down there are pixel art now**, like the dungeon's tileset, not the town's chibi look:
   - Mak Jah in her tudung and apron, holding a mug;

@@ -316,6 +316,54 @@ describe('Labirin: the tavern and the brush', () => {
     expect(() => lab.roll(p)).not.toThrow();
   });
 
+  it('crates: smash one in reach (maybe loot), it stays broken a while, then comes back', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const f = s.lab.floor(0);
+    // A chamber with a crate we can walk to straight from the room's centre.
+    let found: { room: number; at: [number, number] } | null = null;
+    for (const r of f.rooms) {
+      if (r.kind !== 'chamber' && r.kind !== 'rest') continue;
+      const L = roomLayout(lc, f, r);
+      const c = L.props.find((x) => x.kind === 'crate');
+      if (c) {
+        found = { room: r.id, at: c.at };
+        break;
+      }
+    }
+    expect(found).not.toBeNull();
+    const pos = s.p.lab!;
+    pos.room = found!.room;
+    pos.x = (found!.at[0] + 0.5) * T;
+    pos.y = (found!.at[1] + 0.5) * T;
+    const before = s.lab.state(s.p).carried;
+    expect(s.lab.use(s.p, 'crate').text).toMatch(/Smash/);
+    expect(s.lab.view(s.p).broken).toEqual([0]);
+    expect(() => s.lab.use(s.p, 'crate')).toThrow(/splinters/);
+    s.tick(lc.crates.respawnMin * 60_000 + 1);
+    expect(s.lab.view(s.p).broken).toEqual([]);
+    expect(() => s.lab.use(s.p, 'crate')).not.toThrow();
+    expect(s.lab.state(s.p).carried).toBeGreaterThanOrEqual(before);
+  });
+
+  it('every floor has one cracked rock: its stash pays once', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const f = s.lab.floor(0);
+    const rooms = f.rooms.filter((r) => roomLayout(lc, f, r).props.some((x) => x.kind === 'secret'));
+    expect(rooms.length).toBe(1);
+    const sec = roomLayout(lc, f, rooms[0]).props.find((x) => x.kind === 'secret')!;
+    const pos = s.p.lab!;
+    pos.room = rooms[0].id;
+    pos.x = (sec.at[0] + 0.5) * T;
+    pos.y = (sec.at[1] + 1.5) * T;
+    const before = s.lab.state(s.p).carried;
+    expect(s.lab.use(s.p, 'secret').text).toMatch(/hidden stash/);
+    expect(s.lab.state(s.p).carried).toBeGreaterThan(before);
+    expect(s.lab.view(s.p).secretFound).toBe(true);
+    expect(() => s.lab.use(s.p, 'secret')).toThrow(/empty/);
+  });
+
   it('sitting by the hall campfire heals about 1 HP every few seconds, on top of the slow regen', () => {
     const s = setup();
     s.lab.enter(s.p, 'entrance');

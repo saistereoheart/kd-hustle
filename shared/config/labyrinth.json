@@ -676,6 +676,20 @@
     "chance": 0.12,
     "graceSec": 8
   },
+  "crates": {
+    "respawnMin": 30,
+    "coinChance": 0.45,
+    "coinMult": 0.35,
+    "potionChance": 0.15,
+    "potions": [
+      "jamu_kecil",
+      "jamu_kecil",
+      "jamu_sederhana",
+      "asap_lari",
+      "sambal_semangat"
+    ],
+    "secretMult": 5
+  },
   "signs": [
     "Turned back here. Not enough Jamu. Don't be like me. — R.",
     "Bushes rustle for a reason. Walk round them if you're hurt.",

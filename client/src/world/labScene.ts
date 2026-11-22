@@ -212,6 +212,64 @@ export class LabScene extends Phaser.Scene {
   /** 🛒 Tok Peraih, in the entrance hall and every rest chamber. */
   private merchant: LabNpc | null = null;
 
+  /**
+   * 🪧 What a sign says: real help for this floor (always the same for the same sign). The way to the
+   * rest chamber, to the stairs down, to the key, what's behind each door here, or what lives on this
+   * floor, plus an old adventurer's line.
+   */
+  private signText(at: [number, number], tip: number): string {
+    const lc = this.app.cfg.lab;
+    const f = this.floor, here = this.room;
+    const DIR: Record<LabDir, string> = { n: 'north', e: 'east', s: 'south', w: 'west' };
+    /** Rooms away, and the first door to take (a plain walk through the doors). */
+    const way = (to: number): { k: number; dir: LabDir } | null => {
+      if (to === here.id) return null;
+      const prev = new Map<number, { from: number; dir: LabDir }>();
+      const q = [here.id];
+      prev.set(here.id, { from: -1, dir: 'n' });
+      while (q.length) {
+        const r = q.shift()!;
+        if (r === to) break;
+        for (const [d, door] of Object.entries(f.rooms[r].doors) as Array<[LabDir, { to: number }]>)
+          if (!prev.has(door.to)) prev.set(door.to, { from: r, dir: d }), q.push(door.to);
+      }
+      if (!prev.has(to)) return null;
+      let k = 0, r = to, dir: LabDir = 'n';
+      while (r !== here.id) {
+        const p = prev.get(r)!;
+        dir = p.dir;
+        r = p.from;
+        k++;
+      }
+      return { k, dir };
+    };
+    const lines: string[] = [];
+    const kinds = ['rest', 'boss', 'doors', 'monsters', 'key'] as const;
+    const pick = kinds[(at[0] * 7 + at[1] * 13 + here.id) % kinds.length];
+    const boss = lc.bosses[Math.min(f.n, lc.bosses.length - 1)];
+    const restWay = way(f.rest), bossWay = way(f.boss);
+    const keyRoom = f.rooms.find((r) => r.key !== undefined && !this.view.self.keys.includes(`${f.n}:${r.key}`) && !this.view.self.unlocked.includes(`${f.n}:${r.key}`));
+    const keyWay = keyRoom ? way(keyRoom.id) : null;
+    if ((pick === 'rest' || pick === 'key') && restWay && !(pick === 'key' && keyWay)) lines.push(`🔥 The rest chamber is ${restWay.k} room${restWay.k === 1 ? '' : 's'} away: take the ${DIR[restWay.dir]} door first.`);
+    else if (pick === 'key' && keyWay) lines.push(`🗝️ The key to this floor's locked treasure is ${keyWay.k} room${keyWay.k === 1 ? '' : 's'} away: ${DIR[keyWay.dir]} door first.`);
+    else if (pick === 'boss' && bossWay) lines.push(`👹 ${boss.name} guards the stairs down, ${bossWay.k} room${bossWay.k === 1 ? '' : 's'} from here (${DIR[bossWay.dir]} door first). Its move: ${boss.move}.`);
+    else if (pick === 'monsters') {
+      const names = lc.monsters.filter((m) => f.n >= m.floors[0] && f.n <= m.floors[1]).map((m) => `${m.icon} ${m.name}`);
+      lines.push(`${lc.floors[f.n].name} (B${f.n + 1}): ${names.join(', ')} live here.${f.n >= lc.boss.minionsFrom ? ' The boss brings friends this deep.' : ''}`);
+    }
+    // What's behind each door of this room.
+    const beyond = (Object.entries(here.doors) as Array<[LabDir, { to: number; lock?: number }]>).map(([d, door]) => {
+      const r = f.rooms[door.to];
+      const what = door.lock !== undefined ? '🔒 locked treasure' : r.kind === 'rest' ? '🔥 a campfire' : r.kind === 'boss' ? '👹 the boss' : r.kind === 'start' ? (f.n === 0 ? 'the entrance hall' : 'the stairs up') : r.monsters ? '⚔️ monsters' : r.chest ? '📦 a loot box' : 'quiet';
+      return `${DIR[d][0].toUpperCase()}${DIR[d].slice(1)}: ${what}`;
+    });
+    if (!lines.length || pick === 'doors') lines.push(`Beyond these doors: ${beyond.join(' · ')}.`);
+    const flavour = tip >= 0 ? lc.signs[tip] : lc.signs[(at[0] + at[1] * 3 + here.id) % Math.max(1, lc.signs.length)];
+    const main = `📜 ${lines.join(' ')}`;
+    // (A speech bubble holds about 200 letters: the old line only if it fits.)
+    return flavour && main.length + flavour.length < 175 ? `${main} (Below: "${flavour}")` : main;
+  }
+
   /** How far the camera zooms in to frame the room. */
   private zoomFor() {
     const W = this.L.w * this.T, H = this.L.h * this.T;
@@ -383,9 +441,46 @@ export class LabScene extends Phaser.Scene {
     for (const pr of L.props) {
       if (pr.kind === 'sign' && pr.text !== undefined) {
         this.sign([pr.at[0], pr.at[1] - 1.1], '📜 Sign', 'read it', '#e9ecef', 11);
-        this.features.push({ use: 'read', label: '📜 Read the sign (left by an adventurer)', text: `📜 Scratched on the sign: "${lc.signs[pr.text]}"`, at: pr.at });
+        this.features.push({ use: 'read', label: '📜 Read the sign (left by an adventurer)', text: this.signText(pr.at, pr.text), at: pr.at });
       } else if (pr.kind === 'skeleton') this.features.push({ use: 'read', label: '💀 Look at the bones', text: BONES[(pr.at[0] + pr.at[1]) % BONES.length], at: pr.at });
       else if (pr.kind === 'oldfire') this.features.push({ use: 'read', label: '🔥 A cold campfire', text: '🔥 Cold ashes, a few embers. Someone camped here not long ago… and left in a hurry.', at: pr.at });
+    }
+    // 📦 Crates: smash them (they come back later). 🪨 This floor's cracked rock hides a stash.
+    const sheetOk = this.textures.exists(LAB_SHEET);
+    L.props.filter((x) => x.kind === 'crate').forEach((c, i) => {
+      const x = (c.at[0] + 0.5) * T, by = (c.at[1] + 0.9) * T;
+      if (view.broken?.includes(i)) {
+        if (sheetOk) this.roomObjs.push(this.add.image(x, by, LAB_SHEET, 'rubble_b').setOrigin(0.5, 1).setDisplaySize(T * 0.7, T * 0.35).setTint(0x8a6a50).setDepth(-3));
+        return;
+      }
+      const img = sheetOk
+        ? this.add.image(x, by, LAB_SHEET, i % 2 ? 'crate_small_b' : 'crate_small_a').setOrigin(0.5, 1)
+        : this.add.text(x, by, '📦', { fontSize: '30px', resolution: 3 }).setOrigin(0.5, 1);
+      if (img instanceof Phaser.GameObjects.Image) img.setScale((T * 0.78) / img.width);
+      img.setDepth(AVATAR_DEPTH + by);
+      this.roomObjs.push(img);
+      this.features.push({ use: 'crate', label: '📦 Smash the crate: maybe something inside (it comes back later)', at: c.at });
+    });
+    const sec = L.props.find((x) => x.kind === 'secret');
+    if (sec) {
+      const x = (sec.at[0] + 0.5) * T, y = (sec.at[1] + 0.75) * T;
+      const g = this.add.graphics().setDepth(AVATAR_DEPTH + (sec.at[1] + 1) * T + 2);
+      if (!view.secretFound) {
+        // Cracks across the rock face, and now and then a glint.
+        g.lineStyle(2, 0x0d0712, 0.9);
+        g.beginPath().moveTo(x - T * 0.25, y - T * 0.35).lineTo(x - T * 0.05, y - T * 0.1).lineTo(x - T * 0.15, y + T * 0.05).lineTo(x + T * 0.05, y + T * 0.2).strokePath();
+        g.beginPath().moveTo(x - T * 0.05, y - T * 0.1).lineTo(x + T * 0.2, y - T * 0.2).lineTo(x + T * 0.28, y - T * 0.05).strokePath();
+        g.lineStyle(1, 0xb197fc, 0.35).beginPath().moveTo(x - T * 0.23, y - T * 0.36).lineTo(x - T * 0.03, y - T * 0.11).strokePath();
+        const glint = this.add.text(x + T * 0.12, y - T * 0.25, '✦', { fontSize: '12px', color: '#e5dbff', resolution: 3 }).setOrigin(0.5).setDepth(g.depth + 1).setAlpha(0);
+        this.tweens.add({ targets: glint, alpha: { from: 0, to: 0.9 }, duration: 600, yoyo: true, repeat: -1, repeatDelay: 2600 });
+        this.roomObjs.push(glint);
+        this.features.push({ use: 'secret', label: '🪨 A cracked rock… something glints behind it. Give it a shove?', at: [sec.at[0], sec.at[1] + 1] });
+      } else {
+        // Broken open: a dark hollow.
+        g.fillStyle(0x07040a, 0.9).fillEllipse(x, y - T * 0.05, T * 0.55, T * 0.45);
+        g.fillStyle(0x3b2a4a, 1).fillRect(x - T * 0.3, y + T * 0.15, T * 0.15, T * 0.08).fillRect(x + T * 0.12, y + T * 0.18, T * 0.12, T * 0.07);
+      }
+      this.roomObjs.push(g);
     }
     // The floor's name, carved faint into the back wall.
     this.roomObjs.push(

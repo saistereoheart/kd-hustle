@@ -76,6 +76,10 @@ export interface LabRoomView {
   seen: string;
   /** This room's chest is already opened today (or the treasure taken). */
   chestDone: boolean;
+  /** 📦 Crates here (index among the room's crate props) you've broken that aren't back yet; 🪨 this
+   *  floor's secret stash already found. */
+  broken?: number[];
+  secretFound?: boolean;
   others: LabOther[];
   self: LabSelf;
 }
@@ -135,7 +139,7 @@ export const LAB_C2S = {
   labEnter: z.object({ at: z.enum(['save', 'entrance']).default('save') }),
   labMove: z.object({ x: z.number().finite(), y: z.number().finite(), dir: z.enum(['up', 'down', 'left', 'right']), moving: z.boolean() }),
   labDoor: z.object({ dir: z.enum(['n', 'e', 's', 'w']) }),
-  labUse: z.object({ what: z.enum(['chest', 'key', 'rest', 'down', 'up', 'exit']) }),
+  labUse: z.object({ what: z.enum(['chest', 'key', 'rest', 'down', 'up', 'exit', 'crate', 'secret']) }),
   labAct: z.object({ kind: z.enum(['attack', 'skill', 'ultimate', 'guard', 'run', 'item']), target: z.string().max(8).optional(), item: z.string().max(32).optional() }),
   /** 📖 Learn one more rank of a skill (a skill point). */
   labSkill: z.object({ id: z.string().max(32) }),

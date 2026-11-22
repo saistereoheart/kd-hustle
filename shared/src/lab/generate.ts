@@ -203,7 +203,8 @@ export function labFloor(cfg: LabConfig, n: number): LabFloor {
 // ------------------------------------------------------------------ inside a room
 /** Things lying about a room (looks only; signs can be read). `text`: which of the config's signs. */
 export interface LabProp {
-  kind: 'sign' | 'skeleton' | 'lamp' | 'oldfire';
+  /** `crate`: breakable (it comes back after a while); `secret`: a cracked rock (a hidden stash, once). */
+  kind: 'sign' | 'skeleton' | 'lamp' | 'oldfire' | 'crate' | 'secret';
   at: [number, number];
   text?: number;
 }
@@ -440,6 +441,41 @@ export function roomLayout(cfg: LabConfig, floor: LabFloor, room: LabRoom): Room
     if (rnd() < 0.45 && cfg.signs.length) put('sign', true, { text: Math.floor(rnd() * cfg.signs.length) });
     if (rnd() < 0.35) put('skeleton', true);
     if (rnd() < 0.15) put('oldfire', false);
+  }
+  // 7. (Their own RNG, so nothing above moves.) More signs, breakable crates, and on one chamber per
+  //    floor a cracked rock hiding a stash.
+  const rnd2 = labRng(cfg.floors[floor.n].seed * 31337 + room.id * 7177 + 5);
+  const spot2 = (byWall: boolean): [number, number] | null => {
+    for (let k = 0; k < 40; k++) {
+      const x = 1 + Math.floor(rnd2() * (w - 2)), y = 1 + Math.floor(rnd2() * (h - 2));
+      const i = idx(x, y);
+      if (!open(x, y) || used.has(i) || doorStep.has(i) || (keep.has(i) && Math.abs(x - mx) <= 1 && Math.abs(y - my) <= 1)) continue;
+      if (byWall && !nearRock(x, y)) continue;
+      used.add(i);
+      return [x, y];
+    }
+    return null;
+  };
+  if (room.kind === 'chamber' || room.kind === 'rest') {
+    if (room.kind === 'chamber' && !props.some((p) => p.kind === 'sign') && rnd2() < 0.4) {
+      const at = spot2(true);
+      if (at) props.push({ kind: 'sign', at, text: -1 });
+    }
+    const crates = room.kind === 'rest' ? 1 : Math.floor(rnd2() * 3);
+    for (let c = 0; c < crates; c++) {
+      const at = spot2(true);
+      if (at) props.push({ kind: 'crate', at });
+    }
+  }
+  const chambers = floor.rooms.filter((r) => r.kind === 'chamber');
+  const secretRoom = chambers.length ? chambers[Math.floor(labRng(cfg.floors[floor.n].seed * 101 + 9)() * chambers.length)].id : -1;
+  if (room.id === secretRoom) {
+    // A rock with open floor below it (you stand there to break it), not by a door.
+    const cand: Array<[number, number]> = [];
+    for (let y = 1; y < h - 2; y++)
+      for (let x = 2; x < w - 2; x++)
+        if (solid.has(idx(x, y)) && open(x, y + 1) && !doorStep.has(idx(x, y + 1)) && !used.has(idx(x, y + 1))) cand.push([x, y]);
+    if (cand.length) props.push({ kind: 'secret', at: cand[Math.floor(rnd2() * cand.length)] });
   }
   return { w, h, doorAt, solid, spot, roofs, brush, props, hall };
 }

@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.28.0)_
+_Last updated: 2026-11-22 (v1.29.0)_
 
-**Now at v1.28.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.29.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,12 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🪧 Feedback #14 and #19 (2026-11-22, v1.29.0)
+- Generator: own RNG (`rnd2`) adds signs (`text: -1`), crates and one `secret` per floor without moving anything
+  else. Server: `use('crate' | 'secret')` (nearest crate in reach; `crates` and `secrets` in the save; `crates` in
+  labyrinth.json). The view sends `broken` and `secretFound`. Client: `LabScene.signText` (BFS through the doors).
+- Cooking: `.cw-foot` is sticky at the bottom of the scrolling cooking box.
 
 ## 🧙 Pixel-art Labirin NPCs (2026-11-22, your request, v1.28.0)
 - `client/src/world/labNpc.ts`: looks (`NPC_LOOKS`, `MERCHANT_LOOK`) painted pixel by pixel in 4 poses (stand, sit,

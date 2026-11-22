@@ -1754,3 +1754,7 @@ body[data-lab] .lab-hud .lab-title { color: #ffb533; }
 .lb-actions .btn[data-act="ultimate"]:not(:disabled) { background: linear-gradient(180deg, #862e9c, #5f3dc4); color: #fff3bf; }
 .lab-slot-icon.emoji.empty { opacity: 0.35; filter: grayscale(1); }
 .lab-slot-lv.on { box-shadow: 0 0 0 2px #cc5de8, 0 0 12px rgba(204, 93, 232, 0.6); }
+
+/* 🍳 Cooking (feedback #19): the buttons stay put at the bottom of the window, whatever the order list
+   above them does (they sit at the bottom when there's room, and stick there when it scrolls). */
+.cook-frame > .cook-box .cw-foot { position: sticky; bottom: 0; margin-top: auto; padding: 8px 0 2px; background: var(--panel-solid); z-index: 3; box-shadow: 0 -8px 10px -6px var(--panel-solid); flex: none; }

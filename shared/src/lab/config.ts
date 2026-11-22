@@ -73,6 +73,13 @@ export const labConfigSchema = z.object({
   /** 🌿 Bushes and cobwebs: walking into one (each time) may wake something up. A short calm after
    *  every fight (`graceSec`) so you're not jumped again at once. */
   brush: z.object({ chance: z.number().min(0).max(1), graceSec: z.number().min(0) }).default({ chance: 0.12, graceSec: 8 }),
+  /** 📦 Breakable crates (each comes back `respawnMin` later, per player) and the 🪨 secret stash in a
+   *  cracked rock (one per floor, once): chances and how much (× a loot box's Syiling). */
+  crates: z.object({
+    respawnMin: z.number().positive(), coinChance: z.number().min(0).max(1), coinMult: z.number().min(0),
+    potionChance: z.number().min(0).max(1), potions: z.array(z.string()),
+    secretMult: z.number().min(0),
+  }).default({ respawnMin: 30, coinChance: 0.45, coinMult: 0.35, potionChance: 0.15, potions: ['jamu_kecil'], secretMult: 5 }),
   /** 🪧 What previous adventurers scrawled on signs down here (tips and warnings). */
   signs: z.array(z.string()).default([]),
   /** 🍵 The tavern in the entrance hall: a drink buffs you for your next few fights (one at a time). */

@@ -47,6 +47,10 @@ export interface LabSave {
   books: string[];
   book?: string;
   rollDay?: string;
+  /** 📦 Crates broken: `${floor}:${room}:${i}` → when (they're back `crates.respawnMin` later). */
+  crates?: Record<string, number>;
+  /** 🪨 Floors whose secret stash you've found. */
+  secrets?: number[];
 }
 
 export function emptyLab(): LabSave {
@@ -676,6 +680,56 @@ export class LabSystem {
       this.save(p);
       return { text: `⬆️ ${this.cfg.floors[prev].name} (floor ${prev + 1})`, view: this.view(p) };
     }
+    if (what === 'crate') {
+      // The nearest crate in reach.
+      const crates = L.props.filter((x) => x.kind === 'crate');
+      let best = -1, bd = Infinity;
+      crates.forEach((c, i) => {
+        const d = Math.hypot(pos.x - (c.at[0] + 0.5) * this.cfg.tile, pos.y - (c.at[1] + 0.5) * this.cfg.tile);
+        if (d < bd) (bd = d), (best = i);
+      });
+      if (best < 0 || !this.near(pos, crates[best].at)) throw new GameError('Walk up to a crate.');
+      const k = `${pos.floor}:${room.id}:${best}`;
+      const cr = this.cfg.crates;
+      s.crates ??= {};
+      if (this.clock() - (s.crates[k] ?? -Infinity) < cr.respawnMin * 60_000) throw new GameError('Just splinters now.');
+      s.crates[k] = this.clock();
+      // Old ones that are back don't need remembering.
+      for (const [key, at] of Object.entries(s.crates)) if (this.clock() - at >= cr.respawnMin * 60_000) delete s.crates[key];
+      s.crates[k] = this.clock();
+      const r = this.rand();
+      let text = '📦 Smash! Nothing inside but dust.';
+      if (r < cr.potionChance && cr.potions.length) {
+        const id = cr.potions[Math.floor(this.rand() * cr.potions.length)];
+        const pot = labPotion(this.cfg, id);
+        if (pot && (s.potions[id] ?? 0) < this.cfg.potions.max) {
+          s.potions[id] = (s.potions[id] ?? 0) + 1;
+          text = `📦 Smash! A ${pot.icon} ${pot.name} was inside.`;
+        } else {
+          const coins = Math.max(1, Math.round(this.coins(pos.floor, cr.coinMult)));
+          s.carried += coins;
+          text = `📦 Smash! +${coins} Syiling Purba`;
+        }
+      } else if (r < cr.potionChance + cr.coinChance) {
+        const coins = Math.max(1, Math.round(this.coins(pos.floor, cr.coinMult)));
+        s.carried += coins;
+        text = `📦 Smash! +${coins} Syiling Purba`;
+      }
+      this.save(p);
+      return { text, view: this.view(p) };
+    }
+    if (what === 'secret') {
+      const sec = L.props.find((x) => x.kind === 'secret');
+      if (!sec) throw new GameError('Nothing hidden here… or is there?');
+      if (!this.near(pos, sec.at, 2.2)) throw new GameError('Walk up to the cracked rock.');
+      s.secrets ??= [];
+      if (s.secrets.includes(pos.floor)) throw new GameError('The hollow behind the rock is empty now.');
+      s.secrets.push(pos.floor);
+      const coins = this.coins(pos.floor, this.cfg.crates.secretMult);
+      s.carried += coins;
+      this.save(p);
+      return { text: `🪨 The cracked rock gives way: a hidden stash! +${coins} Syiling Purba`, view: this.view(p) };
+    }
     // exit: out to town (entrance hall or a rest chamber)
     this.leave(p);
     return { text: '🚪 Back to town.', left: true };
@@ -717,7 +771,12 @@ export class LabSystem {
     const f = this.floor(pos.floor);
     const room: LabRoom = f.rooms[pos.room];
     const chestDone = room.kind === 'treasure' ? s.looted.includes(`${pos.floor}:${f.treasure.indexOf(room.id)}`) : s.chests[`${pos.floor}:${room.id}`] === dayKey(this.clock());
-    return { floor: pos.floor, room: pos.room, x: pos.x, y: pos.y, dir: pos.dir, seen: s.seen[pos.floor] ?? '', chestDone, others, self: this.self(p) };
+    const now = this.clock();
+    const ms = this.cfg.crates.respawnMin * 60_000;
+    const broken = Object.entries(s.crates ?? {})
+      .filter(([k, at]) => k.startsWith(`${pos.floor}:${room.id}:`) && now - at < ms)
+      .map(([k]) => Number(k.split(':')[2]));
+    return { floor: pos.floor, room: pos.room, x: pos.x, y: pos.y, dir: pos.dir, seen: s.seen[pos.floor] ?? '', chestDone, broken, secretFound: (s.secrets ?? []).includes(pos.floor), others, self: this.self(p) };
   }
 }
 
