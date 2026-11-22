@@ -36,7 +36,7 @@ import { loadPrefs } from './ui/settings';
 import { governor } from './perf/governor';
 import { Chat } from './ui/chat';
 import { showCreator } from './ui/creator';
-import { el, isTouchDevice, messageOverlay, toast, uiRoot } from './ui/dom';
+import { el, isTouchDevice, messageOverlay, toast, uiRoot, inLab, labSay } from './ui/dom';
 
 /** Device pixel ratio to render at: up to 3× (phones), within a pixel budget (about 1440p on
  *  Auto, 4K on Sharpest), times the frame-rate governor's scale (below 1 on weak GPUs: the
@@ -395,7 +395,7 @@ export class App {
   // ------------------------------------------------------------------ hotbar + vehicles
   /** Use hotbar slot i: hop on/off a vehicle, or wear/take off an item. */
   useHotbar(i: number) {
-    if (this.lab) return void toast("Your town things stay outside the labyrinth.", 'info');
+    if (this.lab) return void labSay("My town things stay outside the labyrinth.", 'info');
     const ref = this.store.hotbar[i];
     if (!ref) {
       toast(`Slot ${(i + 1) % 10} is empty. Open the 🎒 Bag (B) and use "Add to hotbar".`);
@@ -546,11 +546,11 @@ export class App {
       this.store.walletSen = w.walletSen;
       this.store.shards = w.shards;
       this.store.emit();
-      if (gained > 0) this.hud?.floatMoney(gained);
+      if (gained > 0 && !inLab()) this.hud?.floatMoney(gained); // (muted down in the labyrinth)
     });
     socket.on('inv:added', ({ items, index }) => {
       this.store.addItems(items, index);
-      sfx.coin();
+      if (!inLab()) sfx.coin();
     });
     socket.on('job:update', ({ job, jobs }) => {
       this.store.job = job;
@@ -597,8 +597,9 @@ export class App {
       this.store.emit();
     });
     socket.on('inv:removed', ({ iids }) => this.store.removeItems(iids));
-    socket.on('trade:request', ({ from, name }) => showTradeRequest(this, from, name));
-    socket.on('coinflip:challenge', ({ from, name, sen }) => showCoinflipChallenge(this, from, name, sen));
+    // Down in the labyrinth the outside world is muted: requests from town go unanswered.
+    socket.on('trade:request', ({ from, name }) => !inLab() && showTradeRequest(this, from, name));
+    socket.on('coinflip:challenge', ({ from, name, sen }) => !inLab() && showCoinflipChallenge(this, from, name, sen));
     socket.on('coinflip:result', (r) => showCoinflipResult(this, r));
     socket.on('trade', ({ trade, done, reason }) => {
       this.store.trade = trade;
@@ -629,7 +630,7 @@ export class App {
       const started = v.active && !this.store.vote?.active;
       this.store.vote = v;
       this.store.emit();
-      if (started) sfx.chime();
+      if (started && !inLab()) sfx.chime();
     });
     socket.on('time:offset', ({ offsetGameMinutes }) => {
       this.cfg.time.offsetGameMinutes = offsetGameMinutes;
@@ -651,7 +652,7 @@ export class App {
     });
     socket.on('progress', ({ progress, events }) => {
       this.store.setProgress(progress);
-      if (events.length) celebrate(this, events);
+      if (events.length && !inLab()) celebrate(this, events);
     });
     socket.on('ride:ended', ({ arrived }) => {
       this.rideHud?.destroy();

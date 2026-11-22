@@ -22,7 +22,31 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 export const uiRoot = () => document.getElementById('ui')!;
 
 let toastBox: HTMLElement | null = null;
-export function toast(text: string, kind: 'info' | 'good' | 'bad' = 'info', ms = 2600) {
+
+/** 🗝️ In Labirin Purba (the outside world is muted down there). */
+export const inLab = () => !!document.body.dataset.lab;
+
+/** Says things over your own head down in the labyrinth (set by the Labirin scene). */
+let speaker: ((text: string, ms: number) => void) | null = null;
+export function setLabSpeaker(fn: ((text: string, ms: number) => void) | null) {
+  speaker = fn;
+}
+
+/**
+ * 🗝️ A message from the labyrinth itself (you read a sign, bought a drink, a door is locked): you
+ * say it to yourself, in a bubble over your head. With a window or the fight screen over the room
+ * (you couldn't see the bubble) it shows as a toast instead.
+ */
+export function labSay(text: string, kind: 'info' | 'good' | 'bad' = 'info', ms = 3600) {
+  const covered = !!document.querySelector('.panel-backdrop, .lab-battle');
+  if (speaker && inLab() && !covered) return speaker(text, Math.max(ms, 2200 + text.length * 45));
+  toast(text, kind, ms, true);
+}
+
+/** A short message. Down in the labyrinth, messages from the outside world are muted (`fromLab`:
+ *  it's the labyrinth's own). */
+export function toast(text: string, kind: 'info' | 'good' | 'bad' = 'info', ms = 2600, fromLab = false) {
+  if (inLab() && !fromLab) return;
   if (!toastBox || !toastBox.isConnected) {
     toastBox = el('div', { class: 'toasts' });
     uiRoot().append(toastBox);

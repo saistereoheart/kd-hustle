@@ -2,7 +2,7 @@
 // (one at a time: a new one replaces the old). Paid in Syiling, carried first. The server checks it.
 import type { LabSelf } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast } from '../dom';
+import { el, labSay } from '../dom';
 import { openPanel } from '../panel';
 import { sfx } from '../sound';
 import { coinIcon } from './labHud';
@@ -46,13 +46,13 @@ export function openLabTavern(app: App) {
       busy = false;
       if (err || !res.ok) {
         sfx.error();
-        toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
         return render();
       }
       sfx.coin();
       self = res.self;
       app.labHud?.updateSelf(res.self);
-      toast(res.text, 'good');
+      labSay(res.text, 'good');
       render();
     });
   };

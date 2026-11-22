@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.22.0 (2026-11-22): 🗝️ Labirin: quiet down there, your loadout, a bigger minimap
+- **The outside world is muted in the Labirin.**
+  - No town toasts, money pop-ups, level-up splashes or coin sounds.
+  - Trade and coin-flip requests from town go unanswered while you're down there.
+- **What happens down there, you say to yourself** in a speech bubble over your head: reading a sign,
+  a locked door, loot, buying.
+  - With a window or the fight screen open it shows as a message instead.
+- **⚔️ Loadout on the left:** your weapon, shield, armour and charm in their tier colours with their
+  stats, plus your tavern drink. Empty slots show a dashed outline of the item's shape. Tap a slot to
+  open your bag.
+- **Bigger minimap:** 9×9 rooms around you, larger cells.
+
 ## 1.21.0 (2026-11-22): 🗝️ Labirin: a new entrance hall, in and out by portal
 - **The entrance hall is rebuilt:**
   - a swirling purple portal (top left);

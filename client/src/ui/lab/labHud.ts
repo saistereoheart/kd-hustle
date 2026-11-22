@@ -5,14 +5,16 @@ import type { App } from '../../app';
 import { el } from '../dom';
 import { openLabBag } from './labBag';
 import { openLabParty } from './labParty';
+import { LabLoadout } from './labLoadout';
 
 /** A Syiling Purba coin, drawn in CSS (the 🪙 emoji is missing from older emoji fonts). */
 export function coinIcon(): HTMLElement {
   return el('i', { class: 'lab-coin', 'aria-label': 'Syiling Purba' });
 }
 
-/** The minimap shows this many rooms each way around you. */
-const RANGE = 3;
+/** The minimap shows this many rooms each way around you, each this big (px). */
+const RANGE = 4;
+const CELL = 26;
 
 export class LabHud {
   private root: HTMLElement;
@@ -22,6 +24,8 @@ export class LabHud {
   private mini: HTMLCanvasElement;
   private full: HTMLElement | null = null;
   private view: LabRoomView | null = null;
+  /** ⚔️ Your gear down the left. */
+  private loadout: LabLoadout;
 
   constructor(private app: App) {
     this.title = el('b', { class: 'lab-title' });
@@ -37,11 +41,13 @@ export class LabHud {
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
+    this.loadout = new LabLoadout(app);
   }
 
   destroy() {
     this.root.remove();
     this.mini.remove();
+    this.loadout.destroy();
     this.closeFull();
   }
 
@@ -77,6 +83,7 @@ export class LabHud {
   /** Coins and HP (after a fight, a chest...). */
   updateSelf(self: LabRoomView['self']) {
     if (this.view) this.view = { ...this.view, self };
+    this.loadout.update(self);
     this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`);
     const pct = self.maxHp ? self.hp / self.maxHp : 1;
     // 🍵 A tavern drink working on you: its icon and the fights it has left.
@@ -155,9 +162,9 @@ export class LabHud {
   }
 
   private drawMini(f: LabFloor, v: LabRoomView) {
-    this.paint(this.mini, f, v, 20, true);
-    this.mini.style.width = `${(RANGE * 2 + 1) * 20}px`;
-    this.mini.style.height = `${(RANGE * 2 + 1) * 20}px`;
+    this.paint(this.mini, f, v, CELL, true);
+    this.mini.style.width = `${(RANGE * 2 + 1) * CELL}px`;
+    this.mini.style.height = `${(RANGE * 2 + 1) * CELL}px`;
   }
 
   /** The whole floor (only what you've explored), as big as fits. */

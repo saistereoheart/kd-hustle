@@ -7,7 +7,7 @@
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast } from '../dom';
+import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
 import type { Battle3D, StageFighter } from './battle3d/stage';
@@ -137,7 +137,7 @@ export class LabBattleUi {
           const prefs = loadPrefs();
           prefs.fight3d = false;
           savePrefs(prefs);
-          toast('⚔️ 3D fights were too slow on this device, so they are now 2D (fastest). Change it in Settings → Labirin fights.', 'info', 6000);
+          labSay('⚔️ 3D fights were too slow on this device, so they are now 2D (fastest). Change it in Settings → Labirin fights.', 'info', 6000);
         },
       });
       this.root.classList.add('is3d');
@@ -361,7 +361,7 @@ export class LabBattleUi {
       if (err || !res.ok) {
         this.picked = false;
         this.renderActions();
-        return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       }
       if (!this.playing) this.say('Waiting for the others…');
     });
@@ -383,7 +383,7 @@ export class LabBattleUi {
       if (err || !res.ok) {
         this.picked = false;
         this.renderActions();
-        return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       }
       if (!this.playing) this.say('Waiting for the others…');
     });

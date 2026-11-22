@@ -9,7 +9,7 @@ import {
 } from '@kh/shared';
 import type { App } from '../app';
 import { SnapClock } from '../net/snapClock';
-import { toast } from '../ui/dom';
+import { labSay, setLabSpeaker } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
@@ -126,6 +126,8 @@ export class LabScene extends Phaser.Scene {
     });
     this.showRoom(this.view);
     this.scale.on('resize', this.fit, this);
+    // 🗝️ What happens down here, you say to yourself (a bubble over your head).
+    setLabSpeaker((text, ms) => this.me.say(text, ms, true));
     const s = this.app.socket;
     if (s) {
       const onOthers = (p: { room: string; others: LabOther[] }) => {
@@ -144,6 +146,7 @@ export class LabScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const off of this.bound) off();
       this.bound = [];
+      setLabSpeaker(null);
       this.scale.off('resize', this.fit, this);
       this.clearRoom();
       for (const r of this.remotes.values()) r.av.destroy();
@@ -540,7 +543,7 @@ export class LabScene extends Phaser.Scene {
       this.busy = false;
       if (err || !res.ok) {
         sfx.locked();
-        toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
         // Step back into the room.
         this.pos = { x: ix, y: iy };
         this.me.setPosition(ix, iy);
@@ -582,14 +585,14 @@ export class LabScene extends Phaser.Scene {
     }
     if (f.use === 'read') {
       sfx.click();
-      return void toast(f.text ?? '', 'info', 6500);
+      return void labSay(f.text ?? '', 'info', 6500);
     }
     this.busy = true;
     this.app.socket?.timeout(5000).emit('lab:use', { what: f.use }, (err, res) => {
       this.busy = false;
-      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      if (err || !res.ok) return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       sfx.coin();
-      toast(res.text, 'good', 3200);
+      labSay(res.text, 'good', 3200);
       if (res.left) return void this.app.exitLab(res.self);
       if (res.view) {
         const moved = res.view.floor !== this.view.floor || res.view.room !== this.view.room;

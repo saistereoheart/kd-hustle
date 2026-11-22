@@ -1423,7 +1423,7 @@ body[data-lab] .minimap, body[data-lab] .fullmap-sheet { display: none !importan
 }
 .lab-hud .lab-coins { color: #ffe066; font-weight: 700; }
 .lab-minimap { position: fixed; top: calc(60px + var(--safe-t)); right: calc(8px + var(--safe-r)); z-index: 40; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.18); cursor: pointer; }
-body.touch .lab-minimap { transform: scale(0.8); transform-origin: top right; }
+body.touch .lab-minimap { transform: scale(0.62); transform-origin: top right; }
 .lab-fullmap { background: #10131f; color: #fff; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: 96vw; }
 .lab-fullmap-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; }
 .lab-fullmap-canvas { border-radius: 8px; max-width: 92vw; height: auto !important; }
@@ -1692,3 +1692,26 @@ body.lb-entering #game canvas { animation: lbi-swirl calc(var(--lbi-beat, 0.4s) 
 .lab-tavern-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lab-tavern-text small { color: var(--muted); }
 .lab-tavern-item .btn { width: auto; flex: 0 0 auto; min-width: 72px; }
+
+/* ⚔️ Labirin loadout (left of the screen) */
+.lab-loadout { position: fixed; left: calc(10px + var(--safe-l, 0px)); top: 50%; transform: translateY(-50%); z-index: 40; display: flex; flex-direction: column; gap: 6px; width: 190px; padding: 8px; border-radius: 14px; background: rgba(13, 15, 26, 0.82); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; }
+.lab-loadout-head { font-weight: 900; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #ced4da; padding: 0 2px 2px; }
+.lab-slot { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 10px; border: 1px dashed rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.03); color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.lab-slot.on { border-style: solid; border-color: var(--tier, rgba(255, 255, 255, 0.3)); background: color-mix(in srgb, var(--tier, #888) 16%, rgba(0, 0, 0, 0.3)); }
+.lab-slot.drink.on { border-color: #69db7c; background: rgba(105, 219, 124, 0.12); cursor: default; }
+.lab-slot-icon { flex: 0 0 38px; height: 38px; display: grid; place-items: center; border-radius: 8px; background: rgba(0, 0, 0, 0.35); }
+.lab-slot-icon.emoji { font-size: 24px; }
+.lab-slot-shape { width: 28px; height: 28px; }
+.lab-slot.on .lab-slot-shape { filter: drop-shadow(0 0 4px var(--tier, transparent)); }
+.lab-slot-text { display: flex; flex-direction: column; min-width: 0; }
+.lab-slot-text b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lab-slot-text small { font-size: 10.5px; color: #adb5bd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lab-slot:not(.on) .lab-slot-text b { color: #868e96; }
+body:has(.panel-backdrop) .lab-loadout, body:has(.lab-battle) .lab-loadout { visibility: hidden; }
+/* Phones: just the slot pictures, a narrow column. */
+@media (max-width: 760px) {
+  .lab-loadout { width: auto; padding: 5px; gap: 4px; top: auto; bottom: 120px; transform: none; }
+  .lab-loadout-head, .lab-slot-text { display: none; }
+  .lab-slot { padding: 3px; }
+  .lab-slot-icon { flex-basis: 32px; height: 32px; }
+}

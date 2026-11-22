@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.21.0)_
+_Last updated: 2026-11-22 (v1.22.0)_
 
-**Now at v1.21.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.22.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🔇 Labirin: muted outside, self-talk, loadout, bigger minimap (2026-11-22, your request, v1.22.0)
+**FPS check:** no risk (plain UI).
+- **Muting:**
+  - `dom.ts`: `inLab()`; `toast()` drops anything not from the Labirin while you're inside.
+  - `labSay()` shows a bubble over your head (`setLabSpeaker`, registered by `LabScene`), or a toast
+    when a window or the fight screen covers the room.
+  - Lab files use `labSay`.
+  - `app.ts` mutes money pop-ups, item coin sounds, the chime, `celebrate`, and trade/coin-flip requests
+    while you're inside.
+- **Bubbles:** `Avatar.say(text, ms, long)` fits up to 200 characters.
+- **Loadout:** `ui/lab/labLoadout.ts`, SVG slot shapes (dashed when empty), updated from
+  `LabHud.updateSelf`. On phones it's a narrow icon column.
+- **Minimap:** RANGE 4, cell 26 px (scaled to 0.62 on touch screens).
 
 ## 🌀 Labirin: entrance hall from your picture, portal in/out (2026-11-22, your request, v1.21.0)
 **FPS check:** low risk.

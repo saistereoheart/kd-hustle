@@ -3,7 +3,7 @@
 // party's fight joins it. The invite prompt pops up anywhere (town or labyrinth).
 import type { LabPartyView } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast, uiRoot } from '../dom';
+import { el, labSay, uiRoot } from '../dom';
 import { openPanel } from '../panel';
 import { sfx } from '../sound';
 
@@ -11,7 +11,7 @@ type Online = Array<{ id: number; name: string; level: number; inParty: boolean 
 
 const fail = (err: unknown, res: { ok: false; error: string } | { ok: true }) => {
   sfx.error();
-  toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+  labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
 };
 
 /** Where a member is, in words. */
@@ -70,7 +70,7 @@ export function openLabParty(app: App) {
       b.addEventListener('click', () => app.socket?.timeout(5000).emit('lab:invite', { id: o.id }, (err, res) => {
         if (err || !res.ok) return fail(err, res);
         sfx.click();
-        toast(`📨 Invited ${o.name}.`, 'good');
+        labSay(`📨 Invited ${o.name}.`, 'good');
       }));
       parts.push(el('div', { class: 'lab-party-row' }, el('b', {}, o.name), el('span', { class: 'muted small' }, ` Lv ${o.level}${o.inParty ? ' · in a party' : ''}`), b));
     }
@@ -108,7 +108,7 @@ export function showLabInvite(app: App, party: number, from: string) {
       if (err || !res.ok) return fail(err, res);
       sfx.coin();
       app.setLabParty(res.party);
-      toast(`👥 You're in ${from}'s party.`, 'good');
+      labSay(`👥 You're in ${from}'s party.`, 'good');
     });
   });
   no.addEventListener('click', () => {

@@ -3,7 +3,7 @@
 // home). Prices are in Syiling Purba: carried coins go first, then banked. The server checks all of it.
 import { LAB_SLOTS, gearLine, labGearList, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
-import { el, toast } from '../dom';
+import { el, labSay } from '../dom';
 import { closePanel, openPanel, tabs } from '../panel';
 import { sfx } from '../sound';
 import { coinIcon } from './labHud';
@@ -36,13 +36,13 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     self = s;
     busy = false;
     app.labHud?.updateSelf(s);
-    if (text) toast(text, 'good');
+    if (text) labSay(text, 'good');
     render();
   };
   const fail = (err: unknown, res: { ok: false; error: string } | { ok: true }) => {
     busy = false;
     sfx.error();
-    toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+    labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
     render();
   };
   const buy = (id: string, n = 1) => {
@@ -72,7 +72,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       if (res.left) {
         closePanel();
         app.exitLab(res.self);
-        toast(res.text, 'good', 4000);
+        labSay(res.text, 'good', 4000);
         return;
       }
       done(res.self, res.text);

@@ -717,15 +717,17 @@ export class Avatar {
     }
   }
 
-  say(text: string, ms: number) {
+  /** A speech bubble over the head. `long`: room for a longer line (talking to yourself in the labyrinth). */
+  say(text: string, ms: number, long = false) {
     this.bubble?.destroy();
     this.bubbleTimer?.remove();
+    const max = long ? 200 : 90;
     const label = this.scene.add
-      .text(0, 0, text.length > 90 ? `${text.slice(0, 88)}…` : text, {
+      .text(0, 0, text.length > max ? `${text.slice(0, max - 2)}…` : text, {
         ...TEXT_BASE,
         fontSize: '12px',
         color: '#1d2133',
-        wordWrap: { width: 150, useAdvancedWrap: true },
+        wordWrap: { width: long ? 210 : 150, useAdvancedWrap: true },
         align: 'center',
       })
       .setOrigin(0.5, 1);
