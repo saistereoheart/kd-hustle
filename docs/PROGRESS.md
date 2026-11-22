@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.23.1)_
+_Last updated: 2026-11-22 (v1.23.2)_
 
-**Now at v1.23.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.23.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 👁️ See-through circle (2026-11-22, your report, v1.23.2)
+- **`labRoomArt.ts`:**
+  - `occlude()` registers everything drawn above avatars: rock pieces, row pictures, roofs, the tavern.
+  - Each frame, the ones in front of you (depth > yours) and touching a circle of 1.15 tiles around you
+    get an inverted GeometryMask, a hole. Usually 2–6 objects.
+  - Without WebGL they fade to 35% instead.
+  - The old whole-roof fade is gone.
+- **Rock pieces** are squashed to 1.3 tiles tall (1.7 for the back wall) and 1.2 tiles wide.
 
 ## 🍀 Reroll luck favours the rarer pick (2026-11-22, your report, v1.23.1)
 - **New maths:** `bestOfOdds(ps, L)` in `shared/src/items/grades.ts`. With outcomes ordered common →

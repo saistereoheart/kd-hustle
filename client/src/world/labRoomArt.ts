@@ -186,6 +186,24 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     g.fillPoints(pts, true);
   };
 
+  // ------------------------------------------------------------------ 👁️ things that can hide you
+  type Occ = { obj: Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Mask & Phaser.GameObjects.Components.AlphaSingle; depth: number; x0: number; y0: number; x1: number; y1: number; masked: boolean };
+  const occluders: Occ[] = [];
+  /** Remember something that stands in front of avatars (rock, roofs, buildings): it gets the see-through circle. */
+  function occlude(obj: Occ['obj'] & { depth: number }, box?: { x0: number; y0: number; x1: number; y1: number }) {
+    let b = box;
+    if (!b) {
+      const r = (obj as unknown as Phaser.GameObjects.Image).getBounds();
+      b = { x0: r.x, y0: r.y, x1: r.right, y1: r.bottom };
+    }
+    occluders.push({ obj, depth: obj.depth, ...b, masked: false });
+  }
+  /** The circle (a hole: the mask is inverted). WebGL only; without it, covering pieces just fade. */
+  const webgl = scene.sys.renderer.type === Phaser.WEBGL;
+  const xray = webgl ? scene.make.graphics({}, false).fillStyle(0xffffff, 1).fillCircle(0, 0, T * 1.15) : null;
+  const mask = xray ? xray.createGeometryMask() : null;
+  mask?.setInvertAlpha(true);
+
   // ------------------------------------------------------------------ 🧱 the tileset (when it's loaded)
   // Rooms are built from the pieces of the painted tileset; whatever it doesn't have (bushes,
   // cobwebs, bones, cold fires) is still drawn in code, and without it everything is.
@@ -193,12 +211,15 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   /** Sheet pixels → world pixels (one floor tile of the sheet covers 2×2 room tiles). */
   const SC = 0.72;
   /** A piece standing on the floor: bottom-middle at (x, by), `w` wide (else its own size × SC). */
-  const piece = (frame: LabFrame, x: number, by: number, opt: { w?: number; depth?: number; flip?: boolean; alpha?: number } = {}) => {
-    const fw = LAB_FRAMES[frame][2];
+  const piece = (frame: LabFrame, x: number, by: number, opt: { w?: number; h?: number; depth?: number; flip?: boolean; alpha?: number } = {}) => {
+    const [, , fw, fh] = LAB_FRAMES[frame];
     const s = opt.w ? opt.w / fw : SC;
-    const img = scene.add.image(x, by, LAB_SHEET, frame).setOrigin(0.5, 1).setScale(opt.flip ? -s : s, s).setDepth(opt.depth ?? AVATAR_DEPTH + by - 1);
+    // `h`: squash it to this height (rock: about a tile, so it doesn't stand over the floor you walk on).
+    const sy = opt.h ? opt.h / fh : s;
+    const img = scene.add.image(x, by, LAB_SHEET, frame).setOrigin(0.5, 1).setScale(opt.flip ? -s : s, sy).setDepth(opt.depth ?? AVATAR_DEPTH + by - 1);
     if (opt.alpha !== undefined) img.setAlpha(opt.alpha);
     objs.push(img);
+    occlude(img);
     return img;
   };
   /** Where the lights are (for picking warm-lit floor near them). */
@@ -550,6 +571,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     rt.setScale(1 / res).setDepth(depth);
     rt.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     objs.push(rt);
+    if (depth > AVATAR_DEPTH) occlude(rt, { x0, y0, x1: x0 + w, y1: y0 + h });
     return rt;
   };
 
@@ -807,14 +829,16 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     const doorPosts = (y === 0 && L.doorAt.n) || (y === L.h - 1 && L.doorAt.s) || (y === my && (L.doorAt.w || L.doorAt.e));
     if (sheet) {
       // Rock from the sheet: a craggy piece per rock tile (two-tile clumps now and then), each a
-      // bit wider than its tile so they run together into one wall.
+      // bit wider than its tile so they run together into one wall, and only a little taller than
+      // a tile (the back wall: taller, nothing walks behind it).
+      const rockH = (row: number) => (row === 0 ? T * 1.7 : T * 1.3);
       for (let x = 0; x < L.w; x++) {
         if (!rock(x, y)) continue;
         const by = (y + 1) * T + 3;
         if (rock(x + 1, y) && rnd() < 0.4) {
-          piece((['rock_cluster_a', 'rock_cluster_b', 'rock_wide'] as const)[Math.floor(rnd() * 3)], (x + 1) * T, by, { w: T * 2.25, depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
+          piece((['rock_cluster_a', 'rock_cluster_b', 'rock_wide'] as const)[Math.floor(rnd() * 3)], (x + 1) * T, by, { w: T * 2.2, h: rockH(y), depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
           x++;
-        } else piece((['rock_cluster_c', 'rock_cluster_d', 'rock_cluster_a', 'rock_small', 'rock_pillar_a'] as const)[Math.floor(rnd() * 5)], (x + 0.5) * T, by, { w: T * 1.3, depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
+        } else piece((['rock_cluster_c', 'rock_cluster_d', 'rock_cluster_a', 'rock_small', 'rock_pillar_a'] as const)[Math.floor(rnd() * 5)], (x + 0.5) * T, by, { w: T * 1.2, h: rockH(y), depth: AVATAR_DEPTH + (y + 1) * T - 2, flip: rnd() < 0.5 });
       }
       if (!standing.has(y)) continue;
     } else if (!any && !doorPosts && !standing.has(y)) continue;
@@ -948,6 +972,7 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
           box.add(scene.add.image((xx + 1) * T, (yy + 0.6) * T, LAB_SHEET, f).setOrigin(0.5, 1).setScale((T * 2.3) / fw).setFlipX(rnd() < 0.5));
         }
       objs.push(box);
+      occlude(box, { x0: r.x * T - T * 0.4, y0: r.y * T - T * 1.2, x1: (r.x + r.w + 1) * T, y1: (r.y + r.h) * T });
       roofs.push({ x0: r.x * T - T * 0.25, y0: r.y * T - T * 0.6, x1: (r.x + r.w) * T + T * 0.25, y1: (r.y + r.h) * T + T * 0.2, img: box, a: 1 });
       continue;
     }
@@ -981,16 +1006,30 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
   return {
     objs,
     update(x, y, dtMs) {
-      const k = Math.min(1, dtMs / 120);
-      for (const r of roofs) {
-        const under = x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1;
-        const want = under ? 0.22 : 1;
-        if (Math.abs(r.a - want) < 0.01) continue;
-        r.a += (want - r.a) * k;
-        r.img.setAlpha(r.a);
+      void dtMs;
+      void roofs;
+      // 👁️ See-through circle: whatever stands in front of you (rock, a roof, the tavern) gets a round
+      // hole cut around you, so you never vanish behind it. Only the few pieces covering you right now
+      // are masked (each mask costs a draw), the rest are left alone.
+      const cx = x, cy = y - T * 0.55, R = T * 1.15;
+      xray?.setPosition(cx, cy);
+      const pd = AVATAR_DEPTH + y;
+      for (const o of occluders) {
+        const nx = Math.max(o.x0, Math.min(cx, o.x1)), ny = Math.max(o.y0, Math.min(cy, o.y1));
+        const hit = o.depth > pd && (nx - cx) ** 2 + (ny - cy) ** 2 < R * R;
+        if (hit === o.masked) continue;
+        o.masked = hit;
+        if (mask) {
+          if (hit) o.obj.setMask(mask);
+          else o.obj.clearMask();
+        } else o.obj.setAlpha(hit ? 0.35 : 1); // (no WebGL: just fade it)
       }
     },
     destroy() {
+      for (const o of occluders) if (o.masked && mask) o.obj.clearMask();
+      occluders.length = 0;
+      mask?.destroy();
+      xray?.destroy();
       for (const ob of objs) {
         scene.tweens.killTweensOf(ob);
         ob.destroy();

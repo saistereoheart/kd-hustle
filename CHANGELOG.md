@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.23.2 (2026-11-22): 👁️ Labirin: a see-through circle round you
+- **No more vanishing behind walls.** Rock, roofs and buildings in front of you get a round see-through
+  hole around you, instead of a whole roof fading or nothing fading at all.
+- **Squatter rock pieces:** about a tile tall (the back wall a bit taller), so they no longer stand over
+  floor you can walk on.
+
 ## 1.23.1 (2026-11-22): 🍀 luck on tier / variant rerolls favours the rarer pick
 - **Luck on rerolls now means more tries, keeping the rarest.**
   - Before, it multiplied every chance, so at high luck Shiny showed "100%" and crowded out Golden and
