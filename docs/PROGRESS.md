@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.24.0)_
+_Last updated: 2026-11-22 (v1.24.1)_
 
-**Now at v1.24.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.24.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,13 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🍳 Stuck "already cooking" after a drop (2026-11-22, your report, v1.24.1)
+- **The cause:** the server keeps the open dish until its deadline. After a reconnect the cooking screen
+  is gone, so Cook threw "already cooking".
+- **The fix:** `StallSystem.cook()` with a dish open now returns `redo()`: fresh steps, same customer,
+  ingredients reused, combo kept. Redo is already free, so this isn't a new exploit.
+- New test in `stalls.test.ts`.
 
 ## 🎮 Pixel-art fight stage (2026-11-22, your request, v1.24.0)
 **FPS check:** cheaper than 3D. One 2D canvas at 1/2–1/4 resolution with `image-rendering: pixelated`, a

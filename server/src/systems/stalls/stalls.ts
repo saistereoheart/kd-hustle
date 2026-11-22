@@ -513,7 +513,10 @@ export class StallSystem {
     const l = this.mine(p);
     if (!l.live) throw new GameError(this.closedReason(l));
     if (!this.atStall(p, l)) throw new GameError('Walk to your stall to cook.');
-    if (l.dish) throw new GameError("You're already cooking!");
+    // A dish still open (the connection dropped mid-cook and the cooking screen is gone): pick it up
+    // again, fresh steps for the same customer (like Redo: ingredients reused, combo kept), rather
+    // than locking you out with "already cooking" until it times out.
+    if (l.dish) return { dish: this.redo(p) };
     const waiting = l.queue.filter((c) => !c.serving);
     const customer = customerId !== undefined ? waiting.find((c) => c.id === customerId) : waiting[0];
     if (!customer) throw new GameError('No one is waiting. Customers come when the stall is open and has stock.');

@@ -184,6 +184,19 @@ describe('customers and cooking', () => {
     expect(() => s.stalls.serve(s.p, dish!.dishId, [])).toThrow(); // the old one is gone
   });
 
+  it('cooking again with a dish still open (dropped connection) picks it back up, not "already cooking"', () => {
+    const s = setup();
+    s.stalls.buy(s.p, 1);
+    s.run(40_000);
+    const { dish } = s.stalls.cook(s.p, undefined, false);
+    const stock = stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak');
+    const again = s.stalls.cook(s.p, undefined, false);
+    expect(again.dish).not.toBeNull();
+    expect(again.dish!.customerId).toBe(dish!.customerId);
+    expect(again.dish!.dishId).not.toBe(dish!.dishId);
+    expect(stockCount(s.stalls.selfOf(s.p)!, 'nasi_lemak')).toBe(stock); // no extra ingredients
+  });
+
   it('impossible inputs (faster than real time) get a Burnt dish', () => {
     const s = setup();
     s.stalls.buy(s.p, 1);

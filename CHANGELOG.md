@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.24.1 (2026-11-22): 🍳 no more "You're already cooking!" after a dropped connection
+- If the connection drops mid-cook, pressing Cook again picks that dish back up (fresh steps, same
+  customer, no extra ingredients, combo kept). Before, it said "already cooking" until the dish timed out.
+
 ## 1.24.0 (2026-11-22): 🎮 Labirin fights in pixel art
 - **Fights now match the dungeon** (the new default).
   - A pixel-art arena from the same tileset: a cobbled floor running off into the dark, rock walls,
