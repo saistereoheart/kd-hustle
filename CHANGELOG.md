@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.27.0 (2026-11-22): 📈 Labirin levels, 📖 skills and 📜 spell books (AoE ultimates)
+- **Labirin XP and levels:** every won fight gives XP (more on deeper floors, lots from bosses). Each level
+  gives a skill point. Your level shows on the loadout (left), glowing when you have points to spend.
+- **📖 Skills** (bag → Skills): 9 passive skills with ranks: ATK, DEF, max HP, SPD, healing, crit, Skill
+  damage, spell power and Syiling from fights. Some need a higher level. Tok Peraih unlearns them for 200 Syiling.
+- **📜 Spell books:** each gives an ultimate that hits every monster at once (or heals your whole party),
+  for a full focus bar. Fire, healing dew, lightning (ignores half their DEF), storm, and one rare book
+  that only comes from the tavern. Tok Peraih sells them (450 to 4,200 Syiling, by floor).
+- **🎲 Tavern daily roll** (40 Syiling, once a day): 30% chance of a spell book you don't have, else a free drink.
+- **Fight buttons:** 1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run. The ultimate has its own big
+  cast (a glow and a flash in the spell's colour), then every hit lands at once.
+
 ## 1.26.1 (2026-11-22): 🔥 campfire healing, ⌨️ fight keys
 - **Sit by the entrance hall's campfire to heal:** +1 HP every 3 seconds (on top of the slow regen),
   within about 2 tiles of the fire. Your HP shown ticks up while you sit there.

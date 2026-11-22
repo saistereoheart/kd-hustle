@@ -249,6 +249,73 @@ describe('Labirin: the tavern and the brush', () => {
     expect(s.lab.stats(s.p).def).toBe(def0);
   });
 
+  it('skills: points from levels, level gates, stats go up; respec at the merchant for Syiling', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    const atk0 = s.lab.stats(s.p).atk;
+    expect(s.lab.learn(s.p, 'tangan_besi')).toMatch(/rank 1/);
+    expect(s.lab.stats(s.p).atk).toBeGreaterThan(atk0);
+    expect(() => s.lab.learn(s.p, 'kulit_badak')).toThrow(/No skill points/);
+    st.xp = 10_000;
+    expect(() => s.lab.learn(s.p, 'untung_purba')).not.toThrow();
+    st.xp = 0;
+    expect(() => s.lab.learn(s.p, 'semangat_ilmu')).toThrow(/level 8/);
+    // Win XP: level up.
+    const r = s.lab.won(s.p, 0, 1, 10, false, true, 1_000);
+    expect(r.levelUp).toBeGreaterThan(1);
+    expect(r.coins).toBeGreaterThan(10); // (Untung Purba rank 1)
+    // Respec only at the merchant.
+    expect(() => s.lab.respec(s.p)).toThrow(/entrance hall or a rest chamber/);
+    const f = s.lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
+    st.coins = lc.progress.respec;
+    st.carried = 0;
+    s.lab.respec(s.p);
+    expect(st.skills).toEqual({});
+    expect(st.coins).toBe(0);
+  });
+
+  it('spell books: bought once at the merchant (worn at once), roll-only ones are not sold', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    const f = s.lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
+    st.coins = 10_000;
+    expect(s.lab.buy(s.p, 'kitab_api')).toMatch(/Kitab Api/);
+    expect(s.lab.self(s.p).book).toBe('kitab_api');
+    expect(() => s.lab.buy(s.p, 'kitab_api')).toThrow(/already/);
+    expect(() => s.lab.buy(s.p, 'kitab_gempa')).toThrow(/daily roll/);
+    expect(() => s.lab.buy(s.p, 'kitab_ribut')).toThrow(/floor 5/);
+    expect(() => s.lab.wearBook(s.p, 'kitab_petir')).toThrow(/don't have/);
+    s.lab.wearBook(s.p, null);
+    expect(s.lab.self(s.p).book).toBeNull();
+  });
+
+  it('the tavern roll: once a day, at the counter; a book or a free drink', () => {
+    const db = openDatabase(':memory:');
+    const repos = createRepos(db);
+    const id = repos.accounts.create('roller', 'h', false, { x: 0, y: 0 }, 2, 0);
+    const p = { id, name: 'roller', hasCharacter: true, lab: null } as unknown as OnlinePlayer;
+    let now = 1_700_000_000_000;
+    const lab = new LabSystem(lc, repos, () => 0, () => now); // the roll always hits
+    const s = { lab, p, repos, tick: (ms: number) => (now += ms) };
+    lab.enter(p, 'entrance');
+    const st = lab.state(p);
+    st.coins = 1000;
+    expect(() => lab.roll(p)).toThrow(/entrance hall/);
+    const f = lab.floor(0);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.tavern);
+    const r = lab.roll(p);
+    expect(r.book).toBe(lc.spells.list[0].id);
+    expect(st.coins).toBe(1000 - lc.spells.roll.price);
+    expect(lab.self(p).rolled).toBe(true);
+    expect(() => lab.roll(p)).toThrow(/One roll a day/);
+    s.tick(24 * 3600_000);
+    expect(() => lab.roll(p)).not.toThrow();
+  });
+
   it('sitting by the hall campfire heals about 1 HP every few seconds, on top of the slow regen', () => {
     const s = setup();
     s.lab.enter(s.p, 'entrance');

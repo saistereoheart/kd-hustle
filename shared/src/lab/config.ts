@@ -126,6 +126,50 @@ export const labConfigSchema = z.object({
       home: z.boolean().optional(),
     })),
   }),
+  /** 📈 Labirin XP (from fights) → levels → skill points (Mata Ilmu) for the skills below. Only counts down here. */
+  progress: z.object({
+    /** XP per monster (× (1 + perFloor × floor)); a boss gives `boss` × (1 + floor). */
+    xp: z.object({ perMonster: z.number().min(0), perFloor: z.number().min(0), boss: z.number().min(0) }),
+    /** XP to go from level L to L+1 = base × growth^(L-1). */
+    levels: z.object({ base: z.number().positive(), growth: z.number().min(1), max: z.number().int().min(1) }),
+    /** Skill points per level (level 1 has `pointsPerLevel` already). */
+    pointsPerLevel: z.number().int().min(1),
+    /** Syiling to unlearn every skill (at the merchant) and get the points back. */
+    respec: z.number().int().min(0),
+  }).default({ xp: { perMonster: 6, perFloor: 0.45, boss: 120 }, levels: { base: 40, growth: 1.25, max: 40 }, pointsPerLevel: 1, respec: 200 }),
+  /** 📖 Skills (passive, ranked): each rank adds its numbers. `minLevel`: the Labirin level to learn it. */
+  skills: z.array(z.object({
+    id: z.string(), name: z.string(), icon: z.string(), desc: z.string(),
+    max: z.number().int().min(1), minLevel: z.number().int().min(1),
+    /** Per rank: +share of ATK / DEF / max HP, +SPD, +crit chance, +share of 💥 Skill and 📜 spell power,
+     *  +share of out-of-fight healing, +share of Syiling from fights. */
+    atk: z.number().min(0).optional(), def: z.number().min(0).optional(), hp: z.number().min(0).optional(),
+    spd: z.number().min(0).optional(), crit: z.number().min(0).max(0.1).optional(),
+    skillPower: z.number().min(0).optional(), spellPower: z.number().min(0).optional(),
+    regen: z.number().min(0).optional(), coins: z.number().min(0).optional(),
+  })).default([]),
+  /** 📜 Spell books: each gives an ultimate (one book worn at a time) that hits every monster (or heals
+   *  the whole party). It costs `focus` focus (a full bar). Sold by the merchant, or won at the tavern's
+   *  once-a-day roll (`rollOnly` books only there). */
+  spells: z.object({
+    focus: z.number().int().min(1),
+    roll: z.object({
+      price: z.number().int().min(0),
+      /** Chance the roll gives a book you don't have yet (else a free drink). */
+      bookChance: z.number().min(0).max(1),
+    }),
+    list: z.array(z.object({
+      id: z.string(), name: z.string(), icon: z.string(), color: z.string(), desc: z.string(), move: z.string(),
+      /** Damage to every monster (× like a hit), and the share of their DEF it ignores. */
+      power: z.number().min(0).optional(), pierce: z.number().min(0).max(1).optional(),
+      /** Heals every standing friend this share of their max HP. */
+      heal: z.number().min(0).max(1).optional(),
+      price: z.number().int().min(0), minFloor: z.number().int().min(0),
+      /** Weight in the tavern roll. */
+      weight: z.number().min(0),
+      rollOnly: z.boolean().optional(),
+    })).min(1),
+  }).default({ focus: 3, roll: { price: 40, bookChance: 0.3 }, list: [{ id: 'kitab_api', name: 'Kitab Api Pelita', icon: '🔥', color: '#ff922b', desc: 'Fire on every monster.', move: 'Api Pelita', power: 1.2, price: 450, minFloor: 0, weight: 1 }] }),
   /** 👹 Floor bosses (one per floor, in its stairs room). They grow with the floor like monsters do
    *  (× scale^floor); more players make them tougher (HP × (1 + partyHp × extra players)) and from
    *  floor `minionsFrom` (0-based) they bring a minion (one more per extra player). */

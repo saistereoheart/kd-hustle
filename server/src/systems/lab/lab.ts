@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, gearBonus, labFloor, labGear, labPlayerStats, labPotion, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, gearBonus, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labSpell, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -40,10 +40,17 @@ export interface LabSave {
   bosses: number[];
   /** 🍵 The tavern drink working on you: fights left. */
   drink?: { id: string; left: number };
+  /** 📈 Labirin XP (levels and skill points come from it) and skill ranks learned. */
+  xp: number;
+  skills: Record<string, number>;
+  /** 📜 Spell books owned and the one worn; the day of the last tavern roll. */
+  books: string[];
+  book?: string;
+  rollDay?: string;
 }
 
 export function emptyLab(): LabSave {
-  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {}, bosses: [] };
+  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {}, bosses: [], xp: 0, skills: {}, books: [] };
 }
 
 /** How near (tiles) you must be to a door / chest / fire to use it. */
@@ -67,6 +74,13 @@ export class LabSystem {
   // ---------------------------------------------------------------- ⚔️ HP and stats
   stats(p: OnlinePlayer) {
     const st = labPlayerStats(this.cfg, this.temanBoost(p), gearBonus(this.cfg, this.state(p).gear));
+    // 📖 Skills: +shares of ATK / DEF / HP, +SPD and crit.
+    const sk = labSkillBonus(this.cfg, this.state(p).skills);
+    st.hp = Math.round(st.hp * (1 + sk.hp));
+    st.atk = Math.round(st.atk * (1 + sk.atk) * 10) / 10;
+    st.def = Math.round(st.def * (1 + sk.def) * 10) / 10;
+    st.spd = st.spd + sk.spd;
+    st.crit = Math.min(0.5, st.crit + sk.crit);
     // 🍵 A tavern drink: +a share of some stats while it lasts.
     const d = this.state(p).drink;
     const def = d ? this.cfg.tavern.drinks.find((x) => x.id === d.id) : undefined;
@@ -184,6 +198,17 @@ export class LabSystem {
       this.save(p);
       return `🛒 ${g.name}${wear ? ' · now wearing it' : ''}`;
     }
+    const book = labSpell(this.cfg, id);
+    if (book) {
+      if (book.rollOnly) throw new GameError(`${book.name} isn't sold: only the tavern's daily roll has it.`);
+      if (s.books.includes(book.id)) throw new GameError(`You already have ${book.name}.`);
+      if (s.deepest < book.minFloor) throw new GameError(`${book.name} is sold once you've reached floor ${book.minFloor + 1}.`);
+      this.pay(s, book.price);
+      s.books.push(book.id);
+      s.book ??= book.id;
+      this.save(p);
+      return `🛒 ${book.icon} ${book.name}${s.book === book.id ? ' · its ultimate is ready in fights' : ''}`;
+    }
     const pot = labPotion(this.cfg, id);
     if (!pot) throw new GameError("The merchant doesn't sell that.");
     const have = s.potions[pot.id] ?? 0;
@@ -290,7 +315,8 @@ export class LabSystem {
       const sec = (now - s.hpAt) / 1000;
       const fire = this.cfg.player.campfire;
       const warm = this.warm.has(p.id) && this.atFire(p) ? (fire.hp / fire.everySec) * sec : 0;
-      s.hp = Math.min(max, s.hp + max * this.cfg.player.regenPer10s * (sec / 10) + warm);
+      const k = 1 + labSkillBonus(this.cfg, s.skills).regen; // 🌿 Pulih Pantas
+      s.hp = Math.min(max, s.hp + (max * this.cfg.player.regenPer10s * (sec / 10) + warm) * k);
     }
     s.hp = Math.min(max, s.hp);
     s.hpAt = now;
@@ -323,13 +349,92 @@ export class LabSystem {
 
   /** Beat the group here: Syiling (carried) and the room stays quiet for a while. Beat the boss:
    *  the stairs down open for good. */
-  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false) {
+  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false, xp = 0): { coins: number; xp: number; levelUp?: number } {
     const s = this.state(p);
     if (boss) {
       if (!s.bosses.includes(floor)) s.bosses.push(floor);
     } else if (!ambush) s.cleared[`${floor}:${room}`] = this.clock(); // (the room's own group stays)
-    s.carried += coins;
+    const got = Math.round(coins * (1 + labSkillBonus(this.cfg, s.skills).coins)); // 🪙 Untung Purba
+    s.carried += got;
+    // 📈 XP: a new level brings a skill point (and tops up the HP the new level's skills might add later).
+    const before = labLevel(this.cfg, s.xp).level;
+    s.xp += xp;
+    const after = labLevel(this.cfg, s.xp).level;
     this.save(p);
+    return { coins: got, xp, levelUp: after > before ? after : undefined };
+  }
+
+  // ---------------------------------------------------------------- 📖 skills and 📜 spell books
+  /** Learn one more rank of a skill (a free skill point; not in a fight). */
+  learn(p: OnlinePlayer, id: string): string {
+    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    const def = this.cfg.skills.find((k) => k.id === id);
+    if (!def) throw new GameError('No such skill.');
+    const s = this.state(p);
+    const rank = s.skills[id] ?? 0;
+    if (rank >= def.max) throw new GameError(`${def.name} is already at its best (rank ${def.max}).`);
+    const lv = labLevel(this.cfg, s.xp).level;
+    if (lv < def.minLevel) throw new GameError(`${def.name} needs Labirin level ${def.minLevel} (you're ${lv}).`);
+    if (labPointsFree(this.cfg, s.xp, s.skills) < 1) throw new GameError('No skill points left. Win fights down here to level up.');
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p);
+    s.skills[id] = rank + 1;
+    this.maxHpChanged(p, before);
+    this.save(p);
+    return `${def.icon} ${def.name} rank ${rank + 1}`;
+  }
+
+  /** Unlearn every skill at the merchant (for Syiling): the points come back. */
+  respec(p: OnlinePlayer): string {
+    if (!this.atMerchant(p)) throw new GameError(`${this.cfg.merchant.name} can help you unlearn your skills: in the entrance hall or a rest chamber.`);
+    const s = this.state(p);
+    if (!Object.values(s.skills).some((n) => n > 0)) throw new GameError("You haven't learned any skills yet.");
+    this.pay(s, this.cfg.progress.respec);
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p);
+    s.skills = {};
+    this.maxHpChanged(p, before);
+    this.save(p);
+    return '📖 Skills unlearned: every point is free to spend again.';
+  }
+
+  /** Wear a spell book you own (null: none). Not in a fight. */
+  wearBook(p: OnlinePlayer, id: string | null) {
+    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    const s = this.state(p);
+    if (id === null) delete s.book;
+    else {
+      if (!labSpell(this.cfg, id)) throw new GameError('No such spell book.');
+      if (!s.books.includes(id)) throw new GameError("You don't have that book.");
+      s.book = id;
+    }
+    this.save(p);
+  }
+
+  /** 🎲 The tavern's once-a-day roll: a spell book you don't have yet, or a free drink. */
+  roll(p: OnlinePlayer): { text: string; book?: string } {
+    const t = this.cfg.tavern;
+    if (!this.atTavern(p)) throw new GameError(`The daily roll is at ${t.name}, in the entrance hall.`);
+    const s = this.state(p);
+    const today = dayKey(this.clock());
+    if (s.rollDay === today) throw new GameError(`${t.keeper}: "Esok datang lagi! One roll a day."`);
+    this.pay(s, this.cfg.spells.roll.price);
+    s.rollDay = today;
+    const book = rollSpellBook(this.cfg, s.books, this.rand);
+    if (book) {
+      s.books.push(book.id);
+      s.book ??= book.id;
+      this.save(p);
+      return { text: `🎲 ${book.icon} ${book.name}! ${book.desc}`, book: book.id };
+    }
+    // No book: a drink on the house.
+    const d = t.drinks[Math.floor(this.rand() * t.drinks.length)];
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p);
+    s.drink = { id: d.id, left: d.battles };
+    this.maxHpChanged(p, before);
+    this.save(p);
+    return { text: `🎲 No book today… ${t.keeper} pours you a free ${d.icon} ${d.name} (${d.desc}).` };
   }
 
   /** Fell in battle: lose part of the carried coins, wake at your save point, healed. */
@@ -388,6 +493,11 @@ export class LabSystem {
       hp: this.hp(p), maxHp: st.hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)),
       gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st, bosses: [...s.bosses],
       drink: s.drink ? { ...s.drink } : null,
+      ...(() => {
+        const lv = labLevel(this.cfg, s.xp);
+        return { xp: s.xp, level: lv.level, xpInto: lv.into, xpNeed: lv.need, points: labPointsFree(this.cfg, s.xp, s.skills) };
+      })(),
+      skills: { ...s.skills }, books: [...s.books], book: s.book ?? null, rolled: s.rollDay === dayKey(this.clock()),
     };
   }
 

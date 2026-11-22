@@ -24,6 +24,16 @@ export function openLabTavern(app: App) {
       active && s?.drink
         ? el('div', { class: 'lab-tavern-active' }, `${active.icon} ${active.name} is working: `, el('b', {}, `${s.drink.left} fight${s.drink.left === 1 ? '' : 's'} left`))
         : el('div', { class: 'lab-tavern-active none' }, 'No drink working right now.'),
+      (() => {
+        const r = app.cfg.lab.spells.roll;
+        const b = el('button', { class: 'btn primary small', type: 'button', 'data-action': 'lab-roll' }, s?.rolled ? '✓ Rolled today' : '🎲 Roll ', s?.rolled ? '' : coinIcon(), s?.rolled ? '' : ` ${r.price}`) as HTMLButtonElement;
+        b.disabled = busy || !!s?.rolled;
+        b.addEventListener('click', roll);
+        return el('div', { class: 'lab-tavern-roll' },
+          el('div', { class: 'lab-tavern-icon' }, '🎲'),
+          el('div', { class: 'lab-tavern-text' }, el('b', {}, 'Daily roll: Kitab Bertuah'), el('small', {}, `Once a day: ${Math.round(r.bookChance * 100)}% chance of a 📜 spell book you don't have (even one ${app.cfg.lab.merchant.name} never sells). Otherwise a drink on the house.`)),
+          b);
+      })(),
       el('div', { class: 'lab-tavern-list' },
         ...t.drinks.map((d) => {
           const buy = el('button', { class: 'btn primary small', type: 'button', 'data-drink': d.id }, coinIcon(), ` ${d.price}`) as HTMLButtonElement;
@@ -36,6 +46,25 @@ export function openLabTavern(app: App) {
         })),
       s ? el('div', { class: 'muted small' }, coinIcon(), ` ${s.coins + s.carried} Syiling (${s.coins} banked${s.carried ? ` + ${s.carried} carried` : ''})`) : '',
     );
+  };
+
+  const roll = () => {
+    if (busy) return;
+    busy = true;
+    render();
+    app.socket?.timeout(6000).emit('lab:roll', (err, res) => {
+      busy = false;
+      if (err || !res.ok) {
+        sfx.error();
+        labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        return render();
+      }
+      sfx.coin();
+      self = res.self;
+      app.labHud?.updateSelf(res.self);
+      labSay(res.text, 'good', 5000);
+      render();
+    });
   };
 
   const order = (id: string) => {

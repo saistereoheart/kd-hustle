@@ -1,7 +1,7 @@
 // 🗝️ Labirin Purba: your loadout, down the left of the screen. The four gear slots (weapon, shield,
 // armour, charm): what you wear, in its tier's colour, with its name and stats; an empty slot shows
 // the dashed outline of what goes there. Tap one to open your bag. (Plus the tavern drink, if any.)
-import { LAB_SLOTS, gearLine, labGear, type LabSelf, type LabSlot } from '@kh/shared';
+import { LAB_SLOTS, gearLine, labGear, labSpell, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
 import { openLabBag } from './labBag';
@@ -67,6 +67,16 @@ export class LabLoadout {
     const drink = d && s.drink
       ? el('div', { class: 'lab-slot drink on', title: `${d.name}: ${d.desc}` }, el('span', { class: 'lab-slot-icon emoji' }, d.icon), el('span', { class: 'lab-slot-text' }, el('b', {}, d.name), el('small', {}, `${s.drink.left} fight${s.drink.left === 1 ? '' : 's'} left`)))
       : null;
-    this.root.replaceChildren(el('div', { class: 'lab-loadout-head' }, '⚔️ Loadout'), ...slots, ...(drink ? [drink] : []));
+    // 📜 The spell book (its ultimate), and 📈 your Labirin level with free skill points.
+    const sp = labSpell(cfg, s.book ?? undefined);
+    const book = el('button', { class: `lab-slot${sp ? ' on' : ''}`, type: 'button', 'data-slot': 'book', title: sp ? `${sp.name}: ${sp.desc}` : `Spell book: none (an ultimate that hits every monster; ${cfg.merchant.name} sells them)`, style: sp ? `--tier:${sp.color}` : '' },
+      el('span', { class: `lab-slot-icon emoji${sp ? '' : ' empty'}` }, sp ? sp.icon : '📜'),
+      el('span', { class: 'lab-slot-text' }, el('b', {}, sp ? sp.move : 'Spell book'), el('small', {}, sp ? 'Ultimate' : 'empty')));
+    book.addEventListener('click', () => openLabBag(this.app, 'books'));
+    const lv = el('button', { class: `lab-slot lab-slot-lv${s.points ? ' on' : ''}`, type: 'button', 'data-slot': 'skills', title: `Labirin level ${s.level}${s.xpNeed ? ` (${s.xpInto}/${s.xpNeed} XP)` : ''}. ${s.points ? `${s.points} skill point${s.points === 1 ? '' : 's'} to spend!` : 'Win fights for XP.'}` },
+      el('span', { class: 'lab-slot-icon emoji' }, '📖'),
+      el('span', { class: 'lab-slot-text' }, el('b', {}, `Lv ${s.level}${s.points ? ` · ✨${s.points}` : ''}`), el('small', {}, s.points ? 'skill points!' : 'Skills')));
+    lv.addEventListener('click', () => openLabBag(this.app, 'skills'));
+    this.root.replaceChildren(el('div', { class: 'lab-loadout-head' }, '⚔️ Loadout'), ...slots, book, lv, ...(drink ? [drink] : []));
   }
 }

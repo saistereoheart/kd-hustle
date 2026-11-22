@@ -3,6 +3,7 @@
 // pick their own. Guards and items first, then everyone acts, fastest first. Pure: the server owns it.
 import type { LabConfig } from './config';
 import { labPotion, type LabGearBonus } from './gear';
+import { labSpell } from './progress';
 
 export type LabSide = 'party' | 'foe';
 
@@ -33,18 +34,24 @@ export interface LabFighter {
   buff?: number;
   /** 👹 A floor boss. */
   boss?: boolean;
+  /** Players: 📜 the spell book worn (its ultimate), and skill bonuses to 💥 Skill / 📜 spell power. */
+  spell?: string;
+  skillUp?: number;
+  spellUp?: number;
 }
 
 export type LabAction =
   | { kind: 'attack'; target?: string }
   | { kind: 'skill'; target?: string }
+  /** 📜 The worn spell book's ultimate: every monster (or every friend, for a heal). */
+  | { kind: 'ultimate' }
   | { kind: 'guard' }
   | { kind: 'run' }
   /** A potion (`target`: who it's for; yourself if left out). */
   | { kind: 'item'; item: string; target?: string };
 
 export interface LabEvent {
-  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe' | 'item';
+  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe' | 'item' | 'spell';
   actor: string;
   target?: string;
   dmg?: number;
@@ -58,6 +65,12 @@ export interface LabEvent {
   item?: string;
   /** A fallen fighter got back up (Air Penawar). */
   revived?: boolean;
+  /** 📜 The spell cast ('spell': the cast; 'hit' / 'item' that follow: its effect on each one). */
+  spell?: string;
+  /** One of several hits from one ultimate (no lunge: they all land together). */
+  aoe?: boolean;
+  /** The spell's colour (for the effects). */
+  color?: string;
   text: string;
 }
 
@@ -246,13 +259,40 @@ export function resolveLabRound(
       } else events.push({ kind: 'runfail', actor: f.id, text: `${f.name} tried to run, but couldn't get away!` });
       continue;
     }
+    if (a.kind === 'ultimate') {
+      const sp = labSpell(cfg, f.spell);
+      if (!sp || f.focus < cfg.spells.focus) continue;
+      f.focus -= cfg.spells.focus;
+      const mult = 1 + (f.spellUp ?? 0);
+      events.push({ kind: 'spell', actor: f.id, spell: sp.id, color: sp.color, text: `${f.name} casts ${sp.icon} ${sp.move}!` });
+      if (sp.heal) {
+        for (const t of alive(fighters, f.side)) {
+          const before = t.hp;
+          t.hp = Math.min(t.maxHp, Math.round(t.hp + t.maxHp * sp.heal * mult));
+          events.push({ kind: 'item', actor: f.id, target: t.id, spell: sp.id, color: sp.color, aoe: true, hp: t.hp, text: `${t.name} +${t.hp - before} HP` });
+        }
+      }
+      if (sp.power) {
+        for (const t of alive(fighters, f.side === 'party' ? 'foe' : 'party')) {
+          const r = damage(cfg, f.atk * (f.buff ?? 1), t.def * (1 - (sp.pierce ?? 0)), sp.power * mult, rand, f.crit ?? pc.crit);
+          const dmg = guarding.has(t.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
+          t.hp = Math.max(0, t.hp - dmg);
+          events.push({ kind: 'hit', actor: f.id, target: t.id, dmg, crit: r.crit, spell: sp.id, color: sp.color, aoe: true, hp: t.hp, text: `${sp.icon} ${t.name} −${dmg}${r.crit ? ' (critical!)' : ''}` });
+          if (t.hp <= 0) {
+            t.out = true;
+            events.push({ kind: 'faint', actor: t.id, text: t.side === 'foe' ? `${t.name} is defeated!` : `${t.name} fainted!` });
+          }
+        }
+      }
+      continue;
+    }
     if (a.kind !== 'attack' && a.kind !== 'skill') continue;
     const foes = alive(fighters, f.side === 'party' ? 'foe' : 'party');
     if (!foes.length) break;
     const target = foes.find((x) => x.id === a.target) ?? foes[0];
     const skill = a.kind === 'skill' && f.focus >= pc.skillCost;
     if (skill) f.focus -= pc.skillCost;
-    const r = damage(cfg, f.atk * (f.buff ?? 1), target.def, skill ? pc.skillPower : 1, rand, f.side === 'party' ? (f.crit ?? pc.crit) : pc.crit / 2);
+    const r = damage(cfg, f.atk * (f.buff ?? 1), target.def, skill ? pc.skillPower * (1 + (f.skillUp ?? 0)) : 1, rand, f.side === 'party' ? (f.crit ?? pc.crit) : pc.crit / 2);
     let dmg = guarding.has(target.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
     // 🛡️ A shield sometimes takes half of it.
     const blocked = !!target.block && rand() < target.block;

@@ -293,6 +293,8 @@ export class Battle2D {
   private shakeAmp = 0;
   private punch = 0;
   private flash = 0;
+  /** The flash's colour (white, or a spell's). */
+  private flashColor = '#ffffff';
   private last = performance.now();
   private raf = 0;
   private dead = false;
@@ -562,6 +564,18 @@ export class Battle2D {
   play(e: LabEvent): number {
     const A = this.actors.get(e.actor);
     const B = e.target ? this.actors.get(e.target) : undefined;
+    // 📜 An ultimate: the cast, then every hit lands together (no lunge).
+    if (e.kind === 'spell' && A) return this.cast(A, e);
+    if (e.kind === 'hit' && e.aoe && A && B) {
+      const dx = B.home.x - A.home.x, dy = B.home.y - A.home.y, len = Math.hypot(dx, dy) || 1;
+      const [cx, cy] = this.chest(B);
+      const color = e.color ?? '#ff922b';
+      // It comes down from above.
+      this.burst(cx, cy - B.h * 0.9, 24, color, 1.2, 9, 14, 0.45);
+      this.fx.push({ kind: 'ball', x: cx, y: cy, r: B.h * 0.7, ang: 0, t: 0, dur: 0.35, color });
+      this.impact(A, B, e, color, dx / len, dy / len);
+      return 260;
+    }
     if (e.kind === 'hit' && A && B) return this.attack(A, B, e);
     if (e.kind === 'guard' && A) {
       A.pose = 'guard';
@@ -602,7 +616,13 @@ export class Battle2D {
       const T = B ?? A;
       if (!T) return 600;
       const [cx, cy] = this.chest(T);
-      const color = e.revived ? '#ffd43b' : '#69db7c';
+      const color = e.revived ? '#ffd43b' : e.color ?? '#69db7c';
+      if (e.aoe) {
+        this.burst(cx, cy - T.h * 0.8, 26, color, 1, 5, 6, 0.8);
+        this.fx.push({ kind: 'ring', x: T.home.x, y: T.home.y, r: T.h * 0.7, ang: 0, t: 0, dur: 0.6, color });
+        this.popup(T, '+HP', 'heal');
+        return 300;
+      }
       this.burst(cx, cy, 30, color, 1.5, -2.5, -1, 1);
       this.fx.push({ kind: 'ring', x: T.home.x, y: T.home.y, r: T.h * 0.7, ang: 0, t: 0, dur: 0.6, color });
       if (e.revived) this.tween(0.5, (k) => (T.down = 1 - ease.out(k)));
@@ -663,6 +683,33 @@ export class Battle2D {
       ),
     );
     return (charge + 0.16 + 0.16 + 0.09 + 0.12 + 0.3) * 1000 + (e.crit || skill ? 220 : 120);
+  }
+
+  /** 📜 Casting an ultimate: the caster rises in a glow of the spell's colour, the screen flashes. */
+  private cast(A: Actor, e: LabEvent): number {
+    A.busy++;
+    const color = e.color ?? '#ff922b';
+    const [cx, cy] = this.chest(A);
+    A.pose = 'skill';
+    this.punch = 1;
+    this.fx.push({ kind: 'ball', x: cx, y: cy, r: A.h * 1.1, ang: 0, t: 0, dur: 0.7, color });
+    this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 1.2, ang: 0, t: 0, dur: 0.7, color });
+    this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 0.7, ang: 0, t: 0, dur: 0.5, color: '#ffffff' });
+    this.burst(cx, cy, 50, color, 2.5, -3, -1, 0.7);
+    this.burst(cx, cy, 16, '#ffffff', 3, -2, 0, 0.5);
+    this.popup(A, e.text.replace(/^.* casts /, '').replace(/!$/, ''), 'ult');
+    this.tween(0.7, (k) => ((A.off.y = -Math.sin(k * Math.PI) * A.h * 0.25), (A.squash = 1 + 0.1 * Math.sin(k * Math.PI * 2))), () => {
+      A.off.y = 0;
+      A.squash = 1;
+      A.pose = 'idle';
+      A.busy--;
+    });
+    this.after(0.45, () => {
+      this.flash = 0.6;
+      this.flashColor = color;
+      this.shake(6);
+    });
+    return 750;
   }
 
   private impact(A: Actor, B: Actor, e: LabEvent, color: string, ux: number, uy: number) {
@@ -734,7 +781,7 @@ export class Battle2D {
     const top = a.home.y + a.off.y - a.h * (a.hover ? 1.4 : 1.05);
     const el = document.createElement('div');
     el.className = `b3-num ${kind}`;
-    el.innerHTML = kind === 'crit' ? `<small>CRIT!</small>${text}` : kind === 'skill' ? `<small>SKILL!</small>${text}` : text;
+    el.innerHTML = kind === 'crit' ? `<small>CRIT!</small>${text}` : kind === 'skill' ? `<small>SKILL!</small>${text}` : kind === 'ult' ? `<small>ULTIMATE!</small>${text.replace(/[<>&]/g, '')}` : text;
     el.style.left = `${cx * this.PX}px`;
     el.style.top = `${top * this.PX}px`;
     this.overlay.append(el);
@@ -877,8 +924,11 @@ export class Battle2D {
     if (this.flash > 0) {
       this.flash = Math.max(0, this.flash - real * 1.8);
       x.setTransform(S, 0, 0, S, 0, 0);
-      x.fillStyle = `rgba(255,255,255,${this.flash})`;
+      x.globalAlpha = this.flash;
+      x.fillStyle = this.flashColor;
       x.fillRect(0, 0, W, H);
+      x.globalAlpha = 1;
+      if (this.flash === 0) this.flashColor = '#ffffff';
     }
   }
 

@@ -179,6 +179,24 @@ Source of truth for this feature (the game spec points here: GAME_SPEC §22). Ba
   Potions (Jamu, Sambal, Air Penawar) push these up a good deal. Tests in `labBattles.test.ts` cover
   the rules.
 
+## 4c. Labirin XP, skills and spell books (v1.27.0)
+All numbers are in `shared/config/labyrinth.json` (`progress`, `skills`, `spells`); the rules are in
+`shared/src/lab/progress.ts`.
+
+- **XP:** every player still in a won fight gets the group's XP: `perMonster × (1 + perFloor × floor)`
+  per monster, `boss × (1 + floor)` per boss. XP for level L→L+1 = `base × growth^(L-1)` (40, ×1.25),
+  up to level 40.
+- **Skill points (Mata Ilmu):** `pointsPerLevel` per level (level 1 already has one). Learning a rank
+  costs one point, out of a fight, anywhere. Each skill has a max rank and a minimum level. Tok Peraih
+  unlearns them all for `respec` Syiling.
+- **Skills** (per rank): ATK +5%, DEF +6%, max HP +6%, SPD +1, healing out of a fight +25%, crit +1.5%,
+  💥 Skill damage +8%, 📜 spell power +10%, Syiling from fights +5%. They only count down here.
+- **Spell books:** one worn at a time. Its ultimate (📜 Ultimate, the 4th fight button) costs a full focus
+  bar (3) and hits every monster at once (or heals every standing friend). Sold by Tok Peraih (450 to
+  4,200, by floor), or won at the tavern's once-a-day roll (40 Syiling, 30% chance of a book you don't
+  have, weighted; Kitab Gempa Purba only comes from the roll). No book: a free drink instead.
+- **Fight keys:** 1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run.
+
 ## 5. Party / lobby
 - From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a
   Join / No thanks prompt, wherever they are, and the invite runs out after a minute. Inviting someone

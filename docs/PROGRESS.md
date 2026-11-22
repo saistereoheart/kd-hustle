@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.26.1)_
+_Last updated: 2026-11-22 (v1.27.0)_
 
-**Now at v1.26.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.27.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 📈 Labirin XP, skills, spell books (2026-11-22, your request, v1.27.0)
+- Rules: `shared/src/lab/progress.ts` (levels, points, skill bonus, XP per group, tavern roll); the ultimate is
+  in `resolveLabRound` (`{ kind: 'ultimate' }`: a 'spell' event, then an aoe 'hit' / 'item' per target). Server:
+  `LabSystem.learn / respec / wearBook / roll`, `won()` adds XP and the coin skill. Client: bag tabs Skills and
+  Books, tavern roll, loadout book + level slots, Ultimate button, cast effects in both stages. Unit tests added.
+- **Decision:** Syiling Purba stays the Labirin coin. The "new currency" is Labirin XP, which turns into skill
+  points (Mata Ilmu). Ultimate = button 4, so Items and Run moved to 5 and 6.
+- Documented in docs/LABYRINTH.md §4c.
 
 ## 🔥 Campfire heal + fight keys (2026-11-22, your request, v1.26.1)
 - Server: `LabSystem.atFire` / `fireStep` (lab.ts). HP is settled when you sit down or walk off, and the

@@ -1598,6 +1598,7 @@ body:has(.panel-backdrop) .lab-hud, body:has(.panel-backdrop) .lab-minimap { vis
 .b3-num.hurt { color: #ffc9c9; }
 .b3-num.crit { font-size: 58px; color: #ffe066; text-shadow: 0 4px 0 #e8590c, 0 0 16px #000; }
 .b3-num.skill { font-size: 64px; color: #a5d8ff; text-shadow: 0 4px 0 #1864ab, 0 0 18px #000; }
+.b3-num.ult { font-size: 40px; color: #fff3bf; text-shadow: 0 3px 0 #862e9c, 0 0 18px #000; white-space: nowrap; }
 .b3-num.block { color: #a5d8ff; text-shadow: 0 3px 0 #1864ab, 0 0 12px #000; }
 .b3-num.heal { color: #b2f2bb; text-shadow: 0 3px 0 #2b8a3e, 0 0 12px #000; }
 .b3-num.miss { color: #e9ecef; text-shadow: 0 3px 0 #495057, 0 0 12px #000; }
@@ -1738,3 +1739,18 @@ body[data-lab] .lab-hud .lab-title { color: #ffb533; }
 }
 .lb-actions .lb-key.end { margin: 0 0 0 6px; }
 @media (hover: none) and (pointer: coarse) { .lb-actions .lb-key { display: none; } }
+
+/* 📖 Labirin skills and 📜 spell books */
+.lab-lv { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
+.lab-lv-bar { flex: 1; min-width: 120px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+.lab-lv-bar i { display: block; height: 100%; background: linear-gradient(90deg, #845ef7, #cc5de8); }
+.lab-pips { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: 1px; }
+.lab-pips b { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.15); }
+.lab-pips b.on { background: #cc5de8; }
+.lab-book { border-left: 4px solid var(--book, #ff922b); }
+.lab-tavern-roll { display: flex; align-items: center; gap: 10px; margin: 10px 0; padding: 8px 10px; border-radius: 10px; background: rgba(204, 93, 232, 0.12); border: 1px dashed rgba(204, 93, 232, 0.5); }
+.lab-tavern-roll .lab-tavern-text { flex: 1; display: flex; flex-direction: column; }
+.lab-tavern-roll .btn { width: auto; flex: none; }
+.lb-actions .btn[data-act="ultimate"]:not(:disabled) { background: linear-gradient(180deg, #862e9c, #5f3dc4); color: #fff3bf; }
+.lab-slot-icon.emoji.empty { opacity: 0.35; filter: grayscale(1); }
+.lab-slot-lv.on { box-shadow: 0 0 0 2px #cc5de8, 0 0 12px rgba(204, 93, 232, 0.6); }

@@ -51,6 +51,17 @@ export interface LabSelf {
   bosses: number[];
   /** 🍵 The tavern drink working on you (and how many more fights it lasts), or null. */
   drink: { id: string; left: number } | null;
+  /** 📈 Labirin XP, level (and XP into / needed for the next), free skill points and skill ranks. */
+  xp: number;
+  level: number;
+  xpInto: number;
+  xpNeed: number;
+  points: number;
+  skills: Record<string, number>;
+  /** 📜 Spell books owned, the one worn (its ultimate), and whether today's tavern roll is used. */
+  books: string[];
+  book: string | null;
+  rolled: boolean;
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -114,6 +125,9 @@ export interface LabBattleEnd {
   coins: number;
   /** Syiling lost by falling. */
   lost: number;
+  /** 📈 Labirin XP won, and the new level if you went up. */
+  xp?: number;
+  levelUp?: number;
 }
 
 
@@ -122,7 +136,11 @@ export const LAB_C2S = {
   labMove: z.object({ x: z.number().finite(), y: z.number().finite(), dir: z.enum(['up', 'down', 'left', 'right']), moving: z.boolean() }),
   labDoor: z.object({ dir: z.enum(['n', 'e', 's', 'w']) }),
   labUse: z.object({ what: z.enum(['chest', 'key', 'rest', 'down', 'up', 'exit']) }),
-  labAct: z.object({ kind: z.enum(['attack', 'skill', 'guard', 'run', 'item']), target: z.string().max(8).optional(), item: z.string().max(32).optional() }),
+  labAct: z.object({ kind: z.enum(['attack', 'skill', 'ultimate', 'guard', 'run', 'item']), target: z.string().max(8).optional(), item: z.string().max(32).optional() }),
+  /** 📖 Learn one more rank of a skill (a skill point). */
+  labSkill: z.object({ id: z.string().max(32) }),
+  /** 📜 Wear a spell book you own (null: none). */
+  labBook: z.object({ id: z.string().max(32).nullable() }),
   /** 🛒 At the merchant: buy gear (n = 1) or potions. */
   labBuy: z.object({ id: z.string().max(32), n: z.number().int().min(1).max(20).default(1) }),
   /** ⚔️ Wear a piece you own (or take a slot off: id null). Not in a fight. */

@@ -98,7 +98,11 @@
     "crit": 0.07,
     "critMult": 1.6,
     "regenPer10s": 0.03,
-    "campfire": { "hp": 1, "everySec": 3, "reach": 2.2 }
+    "campfire": {
+      "hp": 1,
+      "everySec": 3,
+      "reach": 2.2
+    }
   },
   "battle": {
     "roundSec": 20,
@@ -742,6 +746,175 @@
         "def": 0.1,
         "hp": 0.1,
         "spd": 0.1
+      }
+    ]
+  },
+  "progress": {
+    "xp": {
+      "perMonster": 6,
+      "perFloor": 0.45,
+      "boss": 120
+    },
+    "levels": {
+      "base": 40,
+      "growth": 1.25,
+      "max": 40
+    },
+    "pointsPerLevel": 1,
+    "respec": 200
+  },
+  "skills": [
+    {
+      "id": "tangan_besi",
+      "name": "Tangan Besi",
+      "icon": "👊",
+      "desc": "+5% ATK per rank",
+      "max": 5,
+      "minLevel": 1,
+      "atk": 0.05
+    },
+    {
+      "id": "kulit_badak",
+      "name": "Kulit Badak",
+      "icon": "🦏",
+      "desc": "+6% DEF per rank",
+      "max": 5,
+      "minLevel": 1,
+      "def": 0.06
+    },
+    {
+      "id": "nyawa_liat",
+      "name": "Nyawa Liat",
+      "icon": "❤️",
+      "desc": "+6% max HP per rank",
+      "max": 5,
+      "minLevel": 1,
+      "hp": 0.06
+    },
+    {
+      "id": "langkah_angin",
+      "name": "Langkah Angin",
+      "icon": "💨",
+      "desc": "+1 SPD per rank (you act sooner)",
+      "max": 5,
+      "minLevel": 3,
+      "spd": 1
+    },
+    {
+      "id": "pulih_pantas",
+      "name": "Pulih Pantas",
+      "icon": "🌿",
+      "desc": "+25% healing out of a fight per rank (campfire too)",
+      "max": 4,
+      "minLevel": 3,
+      "regen": 0.25
+    },
+    {
+      "id": "mata_helang",
+      "name": "Mata Helang",
+      "icon": "🦅",
+      "desc": "+1.5% critical-hit chance per rank",
+      "max": 5,
+      "minLevel": 5,
+      "crit": 0.015
+    },
+    {
+      "id": "jurus_pendekar",
+      "name": "Jurus Pendekar",
+      "icon": "💥",
+      "desc": "+8% 💥 Skill damage per rank",
+      "max": 5,
+      "minLevel": 5,
+      "skillPower": 0.08
+    },
+    {
+      "id": "semangat_ilmu",
+      "name": "Semangat Ilmu",
+      "icon": "📖",
+      "desc": "+10% 📜 spell power per rank (damage and heals)",
+      "max": 5,
+      "minLevel": 8,
+      "spellPower": 0.1
+    },
+    {
+      "id": "untung_purba",
+      "name": "Untung Purba",
+      "icon": "🪙",
+      "desc": "+5% Syiling from fights per rank",
+      "max": 5,
+      "minLevel": 10,
+      "coins": 0.05
+    }
+  ],
+  "spells": {
+    "focus": 3,
+    "roll": {
+      "price": 40,
+      "bookChance": 0.3
+    },
+    "list": [
+      {
+        "id": "kitab_api",
+        "name": "Kitab Api Pelita",
+        "icon": "🔥",
+        "color": "#ff922b",
+        "move": "Api Pelita",
+        "desc": "Fire rains on every monster (×1.2 damage each).",
+        "power": 1.2,
+        "price": 450,
+        "minFloor": 0,
+        "weight": 50
+      },
+      {
+        "id": "kitab_embun",
+        "name": "Kitab Embun Penawar",
+        "icon": "💧",
+        "color": "#69db7c",
+        "move": "Embun Penawar",
+        "desc": "Healing dew on your whole party (+35% of their HP).",
+        "heal": 0.35,
+        "price": 900,
+        "minFloor": 1,
+        "weight": 30
+      },
+      {
+        "id": "kitab_petir",
+        "name": "Kitab Petir Senja",
+        "icon": "⚡",
+        "color": "#ffd43b",
+        "move": "Petir Senja",
+        "desc": "Lightning on every monster (×1.1 damage each, ignores half their DEF).",
+        "power": 1.1,
+        "pierce": 0.5,
+        "price": 1600,
+        "minFloor": 2,
+        "weight": 25
+      },
+      {
+        "id": "kitab_ribut",
+        "name": "Kitab Ribut Taufan",
+        "icon": "🌪️",
+        "color": "#74c0fc",
+        "move": "Ribut Taufan",
+        "desc": "A storm through every monster (×1.5 damage each).",
+        "power": 1.5,
+        "price": 4200,
+        "minFloor": 4,
+        "weight": 12
+      },
+      {
+        "id": "kitab_gempa",
+        "name": "Kitab Gempa Purba",
+        "icon": "🌋",
+        "color": "#e8590c",
+        "move": "Gempa Purba",
+        "desc": "The ground splits under every monster (×1.8 damage each, ignores a quarter of their DEF). Only from the tavern's daily roll.",
+        "power": 1.8,
+        "pierce": 0.25,
+        "price": 0,
+        "minFloor": 0,
+        "weight": 5,
+        "rollOnly": true
       }
     ]
   }

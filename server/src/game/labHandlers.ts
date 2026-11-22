@@ -185,6 +185,23 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       } else battles.act(me, kind === 'attack' || kind === 'skill' ? { kind, target } : { kind });
       return {};
     });
+    // 📖 Skills and 📜 spell books.
+    handle(socket, 'lab:skill', LAB_C2S.labSkill, ({ id }) => {
+      const text = lab.learn(me, id);
+      return { self: lab.self(me), text };
+    });
+    handle(socket, 'lab:respec', null, () => {
+      const text = lab.respec(me);
+      return { self: lab.self(me), text };
+    });
+    handle(socket, 'lab:book', LAB_C2S.labBook, ({ id }) => {
+      lab.wearBook(me, id);
+      return { self: lab.self(me) };
+    });
+    handle(socket, 'lab:roll', null, () => {
+      const r = lab.roll(me);
+      return { self: lab.self(me), text: r.text, book: r.book };
+    });
     // 🛒 The merchant, ⚔️ gear and 🧪 potions out of a fight.
     handle(socket, 'lab:buy', LAB_C2S.labBuy, ({ id, n }) => {
       const text = lab.buy(me, id, n);

@@ -6,7 +6,7 @@
 // effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
-import { labGear } from '@kh/shared';
+import { labGear, labSpell } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
@@ -82,7 +82,7 @@ export class LabBattleUi {
   }
 
   /**
-   * ⌨️ Keys: 1–9 press the buttons in order (1 Attack, 2 Skill, 3 Guard, 4 Items, 5 Run; in the potion
+   * ⌨️ Keys: 1–9 press the buttons in order (1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run; in the potion
    * list, 1… each potion), Esc/Backspace goes back, Tab or ←/→ picks the next monster, Enter/Space
    * presses Continue. Caught first, so the hotbar and the room don't also get them.
    */
@@ -303,7 +303,7 @@ export class LabBattleUi {
       if (!e) return this.afterRound(p);
       this.apply(e);
       const ms = this.stage?.play(e) ?? 0;
-      window.setTimeout(next, Math.max(e.kind === 'guard' ? STEP_MS * 0.6 : STEP_MS, ms));
+      window.setTimeout(next, Math.max(e.kind === 'guard' ? STEP_MS * 0.6 : e.aoe ? 280 : STEP_MS, ms));
     };
     next();
   }
@@ -321,7 +321,7 @@ export class LabBattleUi {
     this.renderActions(true);
     const text =
       end.outcome === 'win' && this.view.boss ? `🏆 ${this.app.cfg.lab.bosses[this.view.floor]?.name ?? 'The boss'} is beaten! The stairs down are open. +${end.coins} Syiling Purba (carried).`
-      : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried).`
+      : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried)${end.xp ? ` · +${end.xp} XP` : ''}.${end.levelUp ? ` ⬆️ Labirin level ${end.levelUp}! A new skill point (📖 in your bag).` : ''}`
       : end.outcome === 'fled' ? '🏃 You got away, back to the last room.'
       : `💫 You fell… ${end.lost ? `Lost ${end.lost} carried Syiling. ` : ''}You wake at your rest chamber.`;
     this.say(text);
@@ -403,7 +403,7 @@ export class LabBattleUi {
     const can = !off && !this.playing && !this.picked && !!me && !me.out;
     if (this.itemsOpen && can) return this.renderItems();
     this.itemsOpen = false;
-    const btn = (label: string, kind: 'attack' | 'skill' | 'guard' | 'run', enabled = true, title = '') => {
+    const btn = (label: string, kind: 'attack' | 'skill' | 'ultimate' | 'guard' | 'run', enabled = true, title = '') => {
       const b = el('button', { class: 'btn', type: 'button', 'data-act': kind, title }, label) as HTMLButtonElement;
       b.disabled = !can || !enabled;
       b.addEventListener('click', () => this.pick(kind));
@@ -422,6 +422,12 @@ export class LabBattleUi {
       btn('⚔️ Attack', 'attack'),
       btn(`💥 Skill`, 'skill', (me?.focus ?? 0) >= cost, `Hits much harder. Uses ${cost} focus (you gain 1 a round).`),
       btn('🛡️ Guard', 'guard', true, 'Take much less damage this round'),
+      (() => {
+        const sp = labSpell(this.app.cfg.lab, me?.spell);
+        const need = this.app.cfg.lab.spells.focus;
+        return btn(sp ? `${sp.icon} Ultimate` : '📜 Ultimate', 'ultimate', !!sp && (me?.focus ?? 0) >= need,
+          sp ? `${sp.move}: ${sp.desc} Uses a full focus bar (${need}).` : `Wear a 📜 spell book for an ultimate (${this.app.cfg.lab.merchant.name} sells them; the tavern has a daily roll).`);
+      })(),
       items,
       btn('🏃 Run', 'run', !this.view.boss, this.view.boss ? 'No running from a boss!' : `${Math.round(this.app.cfg.lab.battle.runChance * 100)}% chance to get away`),
     );
@@ -480,7 +486,7 @@ export class LabBattleUi {
     this.timerBar.style.width = `${this.playing ? 0 : pct}%`;
   }
 
-  private pick(kind: 'attack' | 'skill' | 'guard' | 'run') {
+  private pick(kind: 'attack' | 'skill' | 'ultimate' | 'guard' | 'run') {
     if (this.picked || this.playing) return;
     this.picked = true;
     this.renderActions();

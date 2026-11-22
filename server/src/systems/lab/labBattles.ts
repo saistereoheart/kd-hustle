@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  groupCoins, labPotion, resolveLabRound, rollBoss, rollGroup,
+  groupCoins, groupXp, labPotion, labSkillBonus, labSpell, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -104,6 +104,10 @@ export class LabBattles {
     const me = b.fighters.find((f) => f.id === pid(p));
     if (!me || me.out) throw new GameError("You're out of this fight.");
     if (action.kind === 'skill' && me.focus < this.cfg.player.skillCost) throw new GameError('Not enough focus yet.');
+    if (action.kind === 'ultimate') {
+      if (!labSpell(this.cfg, me.spell)) throw new GameError('Wear a 📜 spell book first (Tok Peraih sells them).');
+      if (me.focus < this.cfg.spells.focus) throw new GameError(`Your ultimate needs a full focus bar (${this.cfg.spells.focus}).`);
+    }
     if (b.boss && action.kind === 'run') throw new GameError("There's no running from a boss!");
     if (action.kind === 'item') {
       const pot = labPotion(this.cfg, action.item);
@@ -138,7 +142,12 @@ export class LabBattles {
   // ---------------------------------------------------------------- the rounds
   private fighterOf(p: OnlinePlayer): LabFighter {
     const st = this.lab.stats(p);
-    return { id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block };
+    const s = this.lab.state(p);
+    const sk = labSkillBonus(this.cfg, s.skills);
+    return {
+      id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block,
+      spell: s.book && s.books.includes(s.book) ? s.book : undefined, skillUp: sk.skillPower || undefined, spellUp: sk.spellPower || undefined,
+    };
   }
 
   private everyoneReady(b: Battle) {
@@ -179,10 +188,10 @@ export class LabBattles {
         this.lab.setHp(p, f.hp);
         end = { outcome: 'fled', coins: 0, lost: 0 };
       } else if (outcome === 'win') {
-        const coins = groupCoins(this.cfg, b.floor, b.fighters.filter((x) => x.side === 'foe'));
+        const foes = b.fighters.filter((x) => x.side === 'foe');
         this.lab.setHp(p, f.out ? 1 : f.hp);
-        this.lab.won(p, b.floor, b.room, coins, b.boss, b.ambush);
-        end = { outcome: 'win', coins, lost: 0 };
+        const got = this.lab.won(p, b.floor, b.room, groupCoins(this.cfg, b.floor, foes), b.boss, b.ambush, groupXp(this.cfg, b.floor, foes));
+        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp };
       } else {
         end = { outcome: 'wipe', coins: 0, lost: 0 };
       }

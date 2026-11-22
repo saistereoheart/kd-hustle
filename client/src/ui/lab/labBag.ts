@@ -8,7 +8,7 @@ import { closePanel, openPanel, tabs } from '../panel';
 import { sfx } from '../sound';
 import { coinIcon } from './labHud';
 
-type Tab = 'shop' | 'gear' | 'potions';
+type Tab = 'shop' | 'gear' | 'potions' | 'skills' | 'books';
 
 const SLOT_LABEL: Record<LabSlot, string> = { weapon: '🗡️ Weapon', shield: '🛡️ Shield', armour: '🥋 Armour', charm: '📿 Charm' };
 
@@ -16,9 +16,9 @@ export function openLabBag(app: App, start: Tab = 'gear') {
   const lc = app.cfg.lab;
   const shop = start === 'shop';
   const panel = openPanel(shop ? `🛒 ${lc.merchant.name}` : '🎒 Labirin bag', { wide: true, testId: 'lab-bag' });
-  const names: Tab[] = shop ? ['shop', 'potions', 'gear'] : ['gear', 'potions'];
-  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions' };
-  let tab: Tab = names[0];
+  const names: Tab[] = shop ? ['shop', 'books', 'potions', 'gear', 'skills'] : ['gear', 'skills', 'books', 'potions'];
+  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '📖 Skills', books: '📜 Spell books' };
+  let tab: Tab = names.includes(start) ? start : names[0];
   let self: LabSelf | null = null;
   let busy = false;
   const head = el('div', { class: 'lab-bag-head' });
@@ -79,6 +79,34 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     });
   };
 
+  const learn = (id: string) => {
+    if (busy) return;
+    busy = true;
+    app.socket?.timeout(6000).emit('lab:skill', { id }, (err, res) => {
+      if (err || !res.ok) return fail(err, res);
+      sfx.coin();
+      done(res.self, res.text);
+    });
+  };
+  const respec = () => {
+    if (busy || !confirm(`Unlearn every skill for ${lc.progress.respec} Syiling? You get all the points back.`)) return;
+    busy = true;
+    app.socket?.timeout(6000).emit('lab:respec', (err, res) => {
+      if (err || !res.ok) return fail(err, res);
+      sfx.click();
+      done(res.self, res.text);
+    });
+  };
+  const wearBook = (id: string | null) => {
+    if (busy) return;
+    busy = true;
+    app.socket?.timeout(6000).emit('lab:book', { id }, (err, res) => {
+      if (err || !res.ok) return fail(err, res);
+      sfx.click();
+      done(res.self);
+    });
+  };
+
   const money = (s: LabSelf) => s.coins + s.carried;
   const stat = (s: LabSelf) => {
     const t = s.stats;
@@ -129,6 +157,81 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       stat(s),
     );
     const list = labGearList(lc);
+    if (tab === 'skills') {
+      const lvl = el('div', { class: 'lab-lv' },
+        el('b', {}, `📈 Labirin level ${s.level}`),
+        el('div', { class: 'lab-lv-bar', title: s.xpNeed ? `${s.xpInto} / ${s.xpNeed} XP` : 'Top level' }, el('i', { style: `width:${s.xpNeed ? Math.round((s.xpInto / s.xpNeed) * 100) : 100}%` })),
+        el('span', { class: 'muted small' }, s.xpNeed ? `${s.xpInto}/${s.xpNeed} XP` : 'max'),
+        el('b', { class: s.points ? 'good' : 'muted' }, `✨ ${s.points} skill point${s.points === 1 ? '' : 's'}`));
+      const rows = lc.skills.map((k) => {
+        const r = s.skills[k.id] ?? 0;
+        const locked = s.level < k.minLevel;
+        const b = el('button', { class: 'btn small primary', type: 'button', 'data-skill': k.id }, r >= k.max ? '✓ Max' : locked ? `🔒 Lv ${k.minLevel}` : '+1 rank') as HTMLButtonElement;
+        b.disabled = busy || r >= k.max || locked || s.points < 1;
+        b.title = locked ? `Needs Labirin level ${k.minLevel}` : s.points < 1 ? 'No skill points: win fights down here to level up' : `Spend 1 skill point: ${k.desc}`;
+        b.addEventListener('click', () => learn(k.id));
+        return el('div', { class: `lab-bag-row${locked ? ' locked' : ''}` },
+          el('span', { class: 'lab-bag-icon' }, k.icon),
+          el('span', { class: 'lab-bag-info' },
+            el('b', {}, k.name, el('span', { class: 'lab-pips' }, ...Array.from({ length: k.max }, (_, i) => el('b', { class: i < r ? 'on' : '' })))),
+            el('small', { class: 'muted' }, k.desc)),
+          b);
+      });
+      const reset = shop && Object.values(s.skills).some((n) => n > 0) ? el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-respec' }, '↺ Unlearn all ', coinIcon(), ` ${lc.progress.respec}`) as HTMLButtonElement : null;
+      if (reset) {
+        reset.disabled = busy || money(s) < lc.progress.respec;
+        reset.addEventListener('click', respec);
+      }
+      content.replaceChildren(
+        lvl,
+        el('p', { class: 'muted small' }, `Win fights down here for Labirin XP. Every level gives a skill point. Skills only work in the labyrinth.${shop ? '' : ` ${lc.merchant.name} can help you unlearn them (for Syiling).`}`),
+        el('div', { class: 'lab-bag-grid' }, ...rows),
+        reset ? el('div', { class: 'actions' }, reset) : '',
+      );
+      return;
+    }
+    if (tab === 'books') {
+      const rows = lc.spells.list.map((sp) => {
+        const owned = s.books.includes(sp.id);
+        const worn = s.book === sp.id;
+        const locked = s.deepest < sp.minFloor;
+        const btn = el('button', { class: 'btn small', type: 'button', 'data-book': sp.id }) as HTMLButtonElement;
+        if (owned) {
+          btn.textContent = worn ? '✓ Ready' : 'Use this one';
+          btn.disabled = busy;
+          btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button. Click to put it away.' : 'Make this your ultimate';
+          btn.addEventListener('click', () => wearBook(worn ? null : sp.id));
+        } else if (sp.rollOnly) {
+          btn.textContent = '🎲 Tavern roll';
+          btn.disabled = true;
+          btn.title = `Only from ${lc.tavern.name}'s once-a-day roll`;
+        } else if (!shop) {
+          btn.textContent = locked ? `🔒 Floor ${sp.minFloor + 1}` : `At ${lc.merchant.name}`;
+          btn.disabled = true;
+        } else if (locked) {
+          btn.textContent = `🔒 Floor ${sp.minFloor + 1}`;
+          btn.disabled = true;
+          btn.title = `Sold once you've reached floor ${sp.minFloor + 1}`;
+        } else {
+          btn.replaceChildren(coinIcon(), ` ${sp.price}`);
+          btn.classList.add('primary');
+          btn.disabled = busy || money(s) < sp.price;
+          btn.title = money(s) < sp.price ? `You have ${money(s)}` : 'Buy it (yours for good)';
+          btn.addEventListener('click', () => buy(sp.id));
+        }
+        const row = el('div', { class: `lab-bag-row lab-book${worn ? ' worn' : ''}${locked && !owned ? ' locked' : ''}` },
+          el('span', { class: 'lab-bag-icon' }, sp.icon),
+          el('span', { class: 'lab-bag-info' }, el('b', {}, sp.name), el('small', { class: 'muted' }, sp.desc)),
+          btn);
+        row.style.setProperty('--book', sp.color);
+        return row;
+      });
+      content.replaceChildren(
+        el('p', { class: 'muted small' }, `A spell book gives you an ultimate: 📜 Ultimate in a fight, once your focus bar is full (${lc.spells.focus}). It hits every monster at once (or heals your whole party). One book at a time. ${lc.tavern.name} has a once-a-day roll for one too.`),
+        el('div', { class: 'lab-bag-grid' }, ...rows),
+      );
+      return;
+    }
     if (tab === 'shop') {
       const groups = LAB_SLOTS.map((slot) => el('div', { class: 'lab-bag-group' }, el('h5', {}, SLOT_LABEL[slot]), ...list.filter((g) => g.slot === slot).map((g) => gearRow(s, g, 'shop'))));
       content.replaceChildren(

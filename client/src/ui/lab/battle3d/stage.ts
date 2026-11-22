@@ -359,6 +359,21 @@ export class Battle3D {
   play(e: LabEvent): number {
     const A = this.actors.get(e.actor);
     const B = e.target ? this.actors.get(e.target) : undefined;
+    // 📜 An ultimate: a burst of the spell's colour on the caster, then every hit lands together.
+    if (e.kind === 'spell' && A) {
+      const c = new THREE.Color(e.color ?? '#ff922b').getHex();
+      const at = this.chest(A);
+      this.flashes.ball(at, c, 0.5, 2 * this.size(A), 0.7, true);
+      this.flashes.ring(A.home.clone().setY(0.05), c, 3.5, 0.7);
+      this.sparks.burst(at, 40, c, 3.5, { up: 3, gravity: -1, life: 0.7, spread: 1.6 });
+      this.punch = 1;
+      return 750;
+    }
+    if (e.kind === 'hit' && e.aoe && A && B) {
+      const c = new THREE.Color(e.color ?? '#ff922b').getHex();
+      this.impact(A, B, e, B.home.clone().sub(A.home).setY(0).normalize(), c);
+      return 260;
+    }
     if (e.kind === 'hit' && A && B) return this.attack(A, B, e);
     if (e.kind === 'guard' && A) {
       A.busy++;

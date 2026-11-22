@@ -772,7 +772,15 @@ export interface ClientToServerEvents {
   'lab:move': (msg: { x: number; y: number; dir: Direction; moving: boolean }) => void;
   'lab:door': (msg: { dir: 'n' | 'e' | 's' | 'w' }, ack: Ack<Result<{ view: LabRoomView }>>) => void;
   'lab:use': (msg: { what: 'chest' | 'key' | 'rest' | 'down' | 'up' | 'exit' }, ack: Ack<Result<{ text: string; view?: LabRoomView; self: LabSelf; left?: boolean }>>) => void;
-  'lab:act': (msg: { kind: 'attack' | 'skill' | 'guard' | 'run' | 'item'; target?: string; item?: string }, ack: Ack<SimpleResult>) => void;
+  'lab:act': (msg: { kind: 'attack' | 'skill' | 'ultimate' | 'guard' | 'run' | 'item'; target?: string; item?: string }, ack: Ack<SimpleResult>) => void;
+  /** 📖 Learn a skill rank (a skill point; out of a fight). */
+  'lab:skill': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 📖 Unlearn every skill (at the merchant, for Syiling): the points come back. */
+  'lab:respec': (ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 📜 Wear a spell book you own (id null: none). */
+  'lab:book': (msg: { id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 🎲 The tavern's once-a-day roll: maybe a spell book, else a free drink. */
+  'lab:roll': (ack: Ack<Result<{ self: LabSelf; text: string; book?: string }>>) => void;
   /** 🛒 Buy from the merchant (gear: n = 1). Spends carried Syiling first, then banked. */
   'lab:buy': (msg: { id: string; n?: number }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 🍵 A drink at the tavern (entrance hall): a buff for your next few fights. */
