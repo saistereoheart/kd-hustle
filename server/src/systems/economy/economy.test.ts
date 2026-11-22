@@ -207,6 +207,18 @@ describe('inventory, pawn shop and shards', () => {
     expect(r.item.grade).toBe('C');
   });
 
+  it('limited items (the Durian Crown) can be rerolled, but never merged', () => {
+    const { p, econ, inv } = setup(0);
+    const { item } = econ.run(p, () => econ.grant(p, 'durian_crown', 'normal', 7, 'D'));
+    expect(item.serial).toBe(7);
+    p.shards = 1_000_000;
+    const hard = cfg.prog.grades.rerollPity.grade.hard;
+    const r = inv.reroll(p, item.iid, 'grade', () => 0, 1, hard - 1);
+    expect(r.improved).toBe(true);
+    expect(r.item.serial).toBe(7);
+    expect(() => inv.reroll(p, item.iid, 'variant', () => 0)).not.toThrow();
+  });
+
   it('merge all merges every full set, tier by tier, up to the chosen tier', () => {
     const { p, econ, inv } = setup(0);
     econ.run(p, () => {

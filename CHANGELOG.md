@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.32.1 (2026-11-22): 🎲 limited items can be rerolled
+- **Tier and variant rerolls now work on limited and event items** (the Durian King Crown and the like). They
+  keep their serial number. Merging still needs crate copies, so limited items still can't be merged.
+
 ## 1.32.0 (2026-11-22): 🪑 Kopitiam tables and chairs are yours; sit on any chair
 - **Your shop's starter tables and chairs become real furniture** (feedback #17): the first time you tap
   🛠️ Decorate in your kopitiam or shoplot, they're handed to you where they stand. Pick them up (back to your

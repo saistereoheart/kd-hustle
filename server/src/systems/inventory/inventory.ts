@@ -101,9 +101,9 @@ export class InventorySystem {
   reroll(p: OnlinePlayer, iid: number, what: 'grade' | 'variant', rand: (max: number) => number, luck = 1, fails = 0) {
     const it = p.inventory.find((i) => i.iid === iid);
     if (!it) throw new GameError('You no longer have that item.');
-    if (it.serial !== null) throw new GameError('Limited items keep their looks.');
+    // (Limited and event items can be rerolled too: only merging needs crate copies.)
     const def = this.cfg.itemById.get(it.itemId);
-    if (!def || !this.cfg.crateOfItem.get(it.itemId)) throw new GameError("That item can't be rerolled.");
+    if (!def) throw new GameError("That item can't be rerolled.");
     const g = this.cfg.prog.grades;
     if (what === 'grade' && !nextGrade(g, it.grade)) throw new GameError("It's already the top tier.");
     if (what === 'variant' && this.cfg.rarities.variants.every((v) => v.oneIn <= 1 || variantParts(it.variant).includes(v.id))) throw new GameError('It already has every variant.');

@@ -216,6 +216,9 @@ export function openInventoryPanel(app: App, startTab = 0) {
           const m = el('button', { class: 'btn', type: 'button', 'data-action': 'merge', title: `${gcfg.mergeCount} copies at this tier → 1, a tier up, variants stack` }, `⚒️ Merge`, el('small', {}, `${copies}/${gcfg.mergeCount} copies`));
           m.addEventListener('click', () => openMergeWindow(app, s.items[0]?.iid));
           actions.append(m);
+        }
+        // Shard rerolls work on any item, limited and event ones too (merging needs crate copies).
+        {
           for (const what of ['grade', 'variant'] as const) {
             const cost = (what === 'grade' ? gcfg.shards.rerollGrade : gcfg.shards.rerollVariant)[def.rarity] ?? 100;
             const b = el('button', { class: 'btn small', type: 'button', 'data-action': `reroll-${what}` }, `🎲 ${what === 'grade' ? 'Tier' : 'Variant'} reroll`, el('small', {}, `${cost} 💎`));

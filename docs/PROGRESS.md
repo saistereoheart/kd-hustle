@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.32.0)_
+_Last updated: 2026-11-22 (v1.32.1)_
 
-**Now at v1.32.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.32.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,10 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🎲 Limited-item rerolls (2026-11-22, your earlier question, v1.32.1)
+- `InventorySystem.reroll` no longer refuses serial or non-crate items; the bag shows the reroll buttons for any item.
+  Unit test with the Durian Crown.
 
 ## 🪑 Feedback #17 (2026-11-22, v1.32.0)
 - `shared/src/property/starterSets.ts` (`starterShopSets`, used by `ShopFloor.houseSets` and the server). `shop:starter`
