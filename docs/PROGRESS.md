@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.23.2)_
+_Last updated: 2026-11-22 (v1.24.0)_
 
-**Now at v1.23.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.24.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,24 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🎮 Pixel-art fight stage (2026-11-22, your request, v1.24.0)
+**FPS check:** cheaper than 3D. One 2D canvas at 1/2–1/4 resolution with `image-rendering: pixelated`, a
+backdrop painted once, about 6 sprites plus effects per frame, and no WebGL context.
+
+**Your choices:** keep 3D as an option; monsters come from their 3D models, pixelated.
+
+**What changed:**
+- **`client/src/ui/lab/battle2d/stage2d.ts`** (`Battle2D`, the same interface as `Battle3D`).
+  - Perspective floor drawn line by line from the tileset, plus walls, the arch, lamps, a banner and
+    clutter.
+  - Party: `drawCharacter` back-view poses (idle, act, hurt) with white copies for the hit flash.
+  - Monsters: `snapshotMonsters` at 96 px without antialiasing, trimmed to their drawn area.
+  - Tweens, hit-stop, shake, zoom punch, pixel sparks, slashes, rings, aura, shield; numbers in the DOM.
+- **Prefs:** `fight3d` is replaced by `fightView: 'pixel' | '3d' | 'cards'`, default `'pixel'`. Old
+  saved prefs fall back to the default.
+- **`labBattle.ts`:** `startPixel()`; a slow 3D fight falls back to pixel.
+- **Portraits** take a size: `monsterPic(..., size)` and `loadMonsterPics(..., size)`.
 
 ## 👁️ See-through circle (2026-11-22, your report, v1.23.2)
 - **`labRoomArt.ts`:**

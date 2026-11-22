@@ -10,7 +10,14 @@ import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
-import type { Battle3D, StageFighter } from './battle3d/stage';
+import type { Stage2DFighter } from './battle2d/stage2d';
+
+/** What both fight stages (pixel and 3D) can do. */
+interface FightStage {
+  setFighters(list: Stage2DFighter[], aim: string | null): void;
+  play(e: LabEvent): number;
+  destroy(): void;
+}
 import { loadMonsterPics, monsterPic, playerPics } from './portraits';
 import { battleMusic, beatSec } from '../battleMusic';
 
@@ -35,7 +42,7 @@ export class LabBattleUi {
   /** Rounds that arrived while the last one was still playing out. */
   private queue: Array<{ events: LabEvent[]; view: LabBattleView; end?: LabBattleEnd; room?: LabRoomView }> = [];
   /** The 3D stage (null: the flat cards). */
-  private stage: Battle3D | null = null;
+  private stage: FightStage | null = null;
   private stageHost: HTMLElement;
   private paused = false;
   private gone = false;
@@ -43,7 +50,7 @@ export class LabBattleUi {
   private introDone: Promise<void>;
   private introEl: HTMLElement | null = null;
   /** Showing the flat cards (2D chosen, no 3D here, or it fell back): they get portraits. */
-  private flat = !loadPrefs().fight3d;
+  private flat = loadPrefs().fightView === 'cards';
 
   constructor(private app: App, view: LabBattleView) {
     this.view = view;
@@ -118,9 +125,11 @@ export class LabBattleUi {
 
   // ---------------------------------------------------------------- 3D
   private async start3d() {
-    if (!loadPrefs().fight3d) return;
+    const view = loadPrefs().fightView;
+    if (view === 'cards') return;
+    if (view === 'pixel') return void this.startPixel();
     const probe = document.createElement('canvas');
-    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return void ((this.flat = true), this.renderCards());
+    if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return void this.startPixel();
     try {
       const { Battle3D } = await import('./battle3d/stage');
       if (this.gone) return;
@@ -133,11 +142,12 @@ export class LabBattleUi {
           this.renderCards();
         },
         onSlow: () => {
-          this.stop3d();
+          this.stop3d(false);
           const prefs = loadPrefs();
-          prefs.fight3d = false;
+          prefs.fightView = 'pixel';
           savePrefs(prefs);
-          labSay('⚔️ 3D fights were too slow on this device, so they are now 2D (fastest). Change it in Settings → Labirin fights.', 'info', 6000);
+          labSay('⚔️ 3D fights were too slow on this device, so they are now pixel art. Change it in Settings → Labirin fights.', 'info', 6000);
+          void this.startPixel();
         },
       });
       this.root.classList.add('is3d');
@@ -149,31 +159,64 @@ export class LabBattleUi {
       this.app.game?.loop.sleep();
       this.paused = true;
     } catch (err) {
-      console.warn('[lab] 3D fight unavailable, using 2D', err);
+      console.warn('[lab] 3D fight unavailable, using pixel art', err);
+      this.stop3d(false);
+      void this.startPixel();
+    }
+  }
+
+  /** 🎮 The pixel-art stage (the default): a 2D canvas, no 3D engine, the 2D game keeps resting. */
+  private async startPixel() {
+    try {
+      const { Battle2D } = await import('./battle2d/stage2d');
+      if (this.gone) return;
+      this.stage = new Battle2D({
+        host: this.stageHost, boss: !!this.view.boss, character: this.app.cfg.character,
+        onAim: (id) => {
+          this.target = id;
+          sfx.click();
+          this.renderCards();
+        },
+      });
+      this.root.classList.add('is3d', 'is-pixel');
+      await this.introDone;
+      if (this.gone || !this.stage) return;
+      this.stage.setFighters(this.stageFighters(), this.target);
+      this.app.game?.loop.sleep();
+      this.paused = true;
+    } catch (err) {
+      console.warn('[lab] pixel fight unavailable, using cards', err);
       this.stop3d();
     }
   }
 
-  private stop3d() {
+  private stop3d(toCards = true) {
     this.stage?.destroy();
     this.stage = null;
+    if (!toCards) {
+      this.root.classList.remove('is3d', 'is-pixel');
+      if (this.paused) this.app.game?.loop.wake();
+      this.paused = false;
+      return;
+    }
     if (!this.flat && !this.gone) {
       this.flat = true;
       window.setTimeout(() => !this.gone && this.renderCards(), 0);
     }
-    this.root.classList.remove('is3d');
+    this.root.classList.remove('is3d', 'is-pixel');
     if (this.paused) this.app.game?.loop.wake();
     this.paused = false;
   }
 
-  /** The fighters for the 3D stage (players with their own colours). */
-  private stageFighters(): StageFighter[] {
+  /** The fighters for the stages (players with their own colours and look). */
+  private stageFighters(): Stage2DFighter[] {
     const looks = this.looks();
     return this.view.fighters.map((f) => {
       const a = looks.get(f.id);
       return {
         id: f.id, side: f.side, name: f.name, kind: f.kind, icon: f.icon, boss: f.boss, out: f.out, fled: f.fled, hp: f.hp, maxHp: f.maxHp,
         look: a ? { skin: a.skin, hair: a.hairColor, top: a.topColor, bottom: a.bottomColor, shoes: a.shoesColor, eyes: a.eyeColor } : undefined,
+        appearance: a,
       };
     });
   }

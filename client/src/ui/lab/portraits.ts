@@ -42,16 +42,17 @@ export function playerPics(a: Appearance, cfg: CharacterConfig): PlayerPics {
   return p;
 }
 
-export const monsterKey = (kind?: string, icon?: string, boss?: boolean) => `${kind ?? icon ?? '?'}${boss ? '|boss' : ''}`;
+export const monsterKey = (kind?: string, icon?: string, boss?: boolean, size = 200) => `${kind ?? icon ?? '?'}${boss ? '|boss' : ''}@${size}`;
 
-export function monsterPic(kind?: string, icon?: string, boss?: boolean): string | undefined {
-  return monsters.get(monsterKey(kind, icon, boss));
+/** A monster's picture (`size` px; small sizes are rendered without smoothing: pixel art). */
+export function monsterPic(kind?: string, icon?: string, boss?: boolean, size = 200): string | undefined {
+  return monsters.get(monsterKey(kind, icon, boss, size));
 }
 
 /** Render the monsters we don't have pictures of yet (once), then call `done`. */
-export async function loadMonsterPics(list: Array<{ kind?: string; icon?: string; boss?: boolean }>, done: () => void) {
+export async function loadMonsterPics(list: Array<{ kind?: string; icon?: string; boss?: boolean }>, done: () => void, size = 200) {
   const todo = list
-    .map((f) => ({ ...f, key: monsterKey(f.kind, f.icon, f.boss) }))
+    .map((f) => ({ ...f, key: monsterKey(f.kind, f.icon, f.boss, size) }))
     .filter((f, i, all) => !monsters.has(f.key) && !pending.has(f.key) && all.findIndex((g) => g.key === f.key) === i);
   if (!todo.length) return;
   const probe = document.createElement('canvas');
@@ -59,7 +60,7 @@ export async function loadMonsterPics(list: Array<{ kind?: string; icon?: string
   for (const t of todo) pending.add(t.key);
   try {
     const { snapshotMonsters } = await import('./battle3d/snapshot');
-    for (const [k, url] of await snapshotMonsters(todo)) monsters.set(k, url);
+    for (const [k, url] of await snapshotMonsters(todo, size)) monsters.set(k, url);
     done();
   } catch (err) {
     console.warn('[lab] monster pictures unavailable', err);

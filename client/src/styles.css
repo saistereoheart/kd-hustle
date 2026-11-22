@@ -1725,3 +1725,7 @@ body[data-lab] .interact-prompt { background: rgba(14, 9, 6, 0.9); border: 2px s
 body[data-lab] .interact-prompt kbd { background: #f08c00; color: #1a0f08; }
 body[data-lab] .lab-hud .lab-title { color: #ffb533; }
 
+/* 🎮 The pixel-art fight: a low-resolution canvas scaled up with hard edges. */
+.b2-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
+.lab-battle.is-pixel .b3-num { font-family: "Pixelify Sans", system-ui, sans-serif; }
+

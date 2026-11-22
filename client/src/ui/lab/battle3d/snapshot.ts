@@ -5,11 +5,11 @@ import * as THREE from 'three';
 import { disposeKit } from './kit';
 import { monsterModel } from './models';
 
-export async function snapshotMonsters(list: Array<{ key: string; kind?: string; icon?: string; boss?: boolean }>): Promise<Map<string, string>> {
+export async function snapshotMonsters(list: Array<{ key: string; kind?: string; icon?: string; boss?: boolean }>, S = 200): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (!list.length) return out;
-  const S = 200;
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+  // Small = pixel art (no smoothing on the edges), for the pixel fight.
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: S > 120, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(S, S, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;

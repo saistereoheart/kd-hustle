@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.24.0 (2026-11-22): 🎮 Labirin fights in pixel art
+- **Fights now match the dungeon** (the new default).
+  - A pixel-art arena from the same tileset: a cobbled floor running off into the dark, rock walls,
+    the lit arch, lamps and a banner.
+  - Your party up close, seen from behind (your own character art).
+  - Monsters across the floor (their 3D models, rendered small as pixel art).
+- **The same big moves:** wind-up and lunge, squash and stretch, a freeze on impact, knockback, screen
+  shake, slash arcs, pixel sparks, shockwaves, a charge aura and zoom on skills, big numbers.
+- **Lighter than 3D:** no 3D engine, just one small canvas scaled up with hard pixel edges.
+- **Settings → ⚔️ Labirin fights:** Pixel art (default), 3D, or Cards. A device too slow for 3D now
+  switches to pixel art.
+
 ## 1.23.2 (2026-11-22): 👁️ Labirin: a see-through circle round you
 - **No more vanishing behind walls.** Rock, roofs and buildings in front of you get a round see-through
   hole around you, instead of a whole roof fading or nothing fading at all.

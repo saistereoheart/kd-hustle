@@ -15,8 +15,8 @@ export interface Prefs {
   quality: 'auto' | 'high' | 'saver';
   /** 🧠 Memory use: low (the default: fewer, slightly softer map pictures, for 8 GB PCs and phones) or normal. */
   memory: 'low' | 'normal';
-  /** ⚔️ Labirin fights: 3D models and effects, or the flat cards (fastest). */
-  fight3d: boolean;
+  /** ⚔️ Labirin fights: pixel art (like the dungeon; the default), 3D models, or the flat cards (fastest). */
+  fightView: 'pixel' | '3d' | 'cards';
   /** Coin sounds when money comes in or you pay. */
   moneySound: boolean;
   /** "+RM" pop-ups by your cash and over your stall. */
@@ -33,7 +33,7 @@ export interface Prefs {
   revLimiter: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', memory: 'low', fight3d: true, moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
+const DEFAULT_PREFS: Prefs = { volume: 70, particles: true, hints: true, musicOn: true, musicVolume: 40, quality: 'auto', memory: 'low', fightView: 'pixel', moneySound: true, moneyPopups: true, pointers: true, engineSound: true, ambience: true, manualGears: false, revLimiter: true };
 /** Parsed once and kept (sounds and pop-ups ask for it many times a second). */
 let cached: Prefs | null = null;
 
@@ -163,9 +163,9 @@ export function openSettings(opts: {
   });
 
   const fight = el('select', { 'aria-label': 'Labirin fight view' },
-    ...([['3d', '3D (models & big effects)'], ['2d', '2D cards (fastest)']] as const).map(([v, label]) => el('option', { value: v, selected: (prefs.fight3d ? '3d' : '2d') === v }, label)));
+    ...([['pixel', 'Pixel art (like the dungeon)'], ['3d', '3D (models & big effects)'], ['cards', 'Cards (fastest)']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.fightView === v }, label)));
   fight.addEventListener('change', () => {
-    prefs.fight3d = fight.value === '3d';
+    prefs.fightView = fight.value as Prefs['fightView'];
     savePrefs(prefs);
   });
 
