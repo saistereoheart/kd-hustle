@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import gradesJson from '../../config/grades.json';
-import { bestVariant, chefStats, mergeOutcome, pityForces, rerollVariantOutcome, rollGradeLuck, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
+import { bestOfOdds, gradeRerollOdds, variantRerollOdds, bestVariant, chefStats, mergeOutcome, pityForces, rerollVariantOutcome, rollGradeLuck, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
 import { joinVariants, topVariant, variantParts, variantProduct } from './variants';
 
 const cfg = gradesConfigSchema.parse(gradesJson);
@@ -97,6 +97,30 @@ describe('multi-variant items, luck rerolls, pity and merging', () => {
     };
     expect(share(3)).toBeGreaterThan(share(1) * 1.8);
   });
+  it('reroll luck = more tries, keep the rarest: rarer outcomes gain most, nothing crowds the rest out', () => {
+    const vs = [{ id: 'normal', oneIn: 1 }, { id: 'shiny', oneIn: 20 }, { id: 'golden', oneIn: 100 }, { id: 'rainbow', oneIn: 1000 }];
+    const base = variantRerollOdds(vs, [], 1);
+    expect(base.find((o) => o.id === 'shiny')!.p).toBeCloseTo(0.05, 3);
+    const lucky = variantRerollOdds(vs, [], 25.28);
+    const p = (id: string, o = lucky) => o.find((x) => x.id === id)!.p;
+    expect(lucky.reduce((a, o) => a + o.p, 0)).toBeCloseTo(1, 6);
+    expect(p('shiny')).toBeLessThan(0.7); // not "100%" any more
+    expect(p('golden')).toBeGreaterThan(0.15);
+    expect(p('rainbow')).toBeGreaterThan(0.02);
+    // The rarer, the bigger the boost.
+    expect(p('rainbow') / p('rainbow', base)).toBeGreaterThan(p('golden') / p('golden', base));
+    expect(p('golden') / p('golden', base)).toBeGreaterThan(p('shiny') / p('shiny', base));
+    // A variant it already has isn't on the table (only new ones count).
+    const hasShiny = variantRerollOdds(vs, ['shiny'], 25.28);
+    expect(hasShiny.some((o) => o.id === 'shiny')).toBe(false);
+    expect(hasShiny.find((o) => o.id === 'golden')!.p).toBeGreaterThan(0.15);
+    // Tiers too: Tier S gets far more than ×luck × its weight would after renormalising.
+    const g = gradeRerollOdds(cfg, 25.28);
+    expect(g.reduce((a, o) => a + o.p, 0)).toBeCloseTo(1, 6);
+    expect(g.find((o) => o.id === 'S')!.p).toBeGreaterThan(0.1);
+    expect(bestOfOdds([0.5, 0.5], 1)).toEqual([0.5, 0.5]);
+  });
+
   it('hard pity forces an upgrade; a variant reroll adds instead of replacing', () => {
     const p = cfg.rerollPity.variant;
     const o = rerollVariantOutcome(cfg, variants, 'golden', () => 999_999, 1, p.hard - 1);

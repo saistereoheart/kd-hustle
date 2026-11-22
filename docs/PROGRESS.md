@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.23.0)_
+_Last updated: 2026-11-22 (v1.23.1)_
 
-**Now at v1.23.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.23.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,16 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🍀 Reroll luck favours the rarer pick (2026-11-22, your report, v1.23.1)
+- **New maths:** `bestOfOdds(ps, L)` in `shared/src/items/grades.ts`. With outcomes ordered common →
+  rare and F their running total, P(best ≤ i) = F(i)^L. It works for fractional luck, and rarer
+  outcomes gain more.
+- **Odds:** `gradeRerollOdds` and `variantRerollOdds` (only variants the item doesn't have yet) feed both
+  the server rolls (`rollGradeLuck` / `rollVariantLuck`) and the forge's odds and reel.
+- **Pity** is unchanged.
+- **Durian King Crown:** a limited item (serial number, only 5 exist). Limited items can't be rerolled or
+  merged ("Limited items keep their looks"). That's by design, unchanged until the owner decides.
 
 ## 🧱 Labirin built from the tileset (option B) (2026-11-22, your sheet, v1.23.0)
 **FPS check:** low risk.

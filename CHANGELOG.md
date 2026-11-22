@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.23.1 (2026-11-22): 🍀 luck on tier / variant rerolls favours the rarer pick
+- **Luck on rerolls now means more tries, keeping the rarest.**
+  - Before, it multiplied every chance, so at high luck Shiny showed "100%" and crowded out Golden and
+    Rainbow.
+  - Now, at ×25 luck: variant (nothing owned) Shiny 55%, Golden 22%, Rainbow 2.5%; with Shiny already
+    owned, Golden 22%, Rainbow 2.5%. Tier S 11.9% (was about 1.5%).
+- The forge shows exactly the odds the server rolls with.
+
 ## 1.23.0 (2026-11-22): 🧱 the Labirin is built from the painted tileset
 - **Every room is now built from the pixel-art tileset:** cobblestone floors, craggy rock walls, a lit
   stone arch for the north door (with a gate when locked), lamp posts, signposts, banners, wall lanterns,

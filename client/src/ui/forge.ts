@@ -5,9 +5,7 @@
 //  - Reroll: spend shards for a better tier, or another variant (they stack). A CS:GO-style reel
 //    shows the roll; your luck boosts the odds, and soft / hard pity guarantee an upgrade in the end.
 // The server decides everything; the reel just lands on what it rolled.
-import {
-  gradeDef, gradeIndex, nextGrade, variantLabel, variantParts, type InventoryItem, type ItemDef, type RerollPity,
-} from '@kh/shared';
+import { gradeDef, gradeIndex, nextGrade, variantLabel, variantParts, type InventoryItem, type ItemDef, type RerollPity, gradeRerollOdds, variantRerollOdds } from '@kh/shared';
 import type { App } from '../app';
 import { el, keepUiState, rebuildNow, toast } from './dom';
 import { iconUrl, openPanel } from './panel';
@@ -165,15 +163,16 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
   /** Each outcome on the reel and its chance (luck applied), for the filler cells and the odds. */
   const outcomes = (): Array<{ id: string; label: string; color: string; p: number }> => {
     const luck = app.mods().luck;
+    // (The same maths the server rolls with: luck = more tries, keep the rarest.)
     if (what === 'grade') {
-      const ws = g.grades.map((x, i) => (i === 0 ? x.weight : x.weight * luck));
-      const tot = ws.reduce((a, b) => a + b, 0);
-      return g.grades.map((x, i) => ({ id: x.id, label: x.id, color: x.color, p: ws[i] / tot }));
+      const odds = gradeRerollOdds(g, luck);
+      return g.grades.map((x, i) => ({ id: x.id, label: x.id, color: x.color, p: odds[i].p }));
     }
-    const special = rar.variants.filter((v) => v.oneIn > 1);
-    const ps = special.map((v) => Math.min(1, luck / v.oneIn));
-    const rest = Math.max(0, 1 - ps.reduce((a, b) => a + b, 0));
-    return [{ id: 'normal', label: 'Normal', color: VARIANT_COLOR.normal, p: rest }, ...special.map((v, i) => ({ id: v.id, label: v.name, color: VARIANT_COLOR[v.id] ?? '#e64980', p: ps[i] }))];
+    const odds = variantRerollOdds(rar.variants, variantParts(item()?.variant ?? 'normal'), luck);
+    return odds.map((o) => {
+      const v = rar.variants.find((x) => x.id === o.id);
+      return { id: o.id, label: o.id === 'normal' ? 'Nothing new' : v?.name ?? o.id, color: VARIANT_COLOR[o.id] ?? '#e64980', p: o.p };
+    });
   };
   const cell = (o: { label: string; color: string }) => {
     const c = el('div', { class: 'reroll-cell' }, el('b', {}, o.label));

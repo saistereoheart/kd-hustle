@@ -130,29 +130,62 @@ export function gearBonuses(cfg: GradesConfig, items: ReadonlyArray<{ type: stri
 // ------------------------------------------------------------------ rerolls (luck + pity) and merging
 export type VariantDefs = ReadonlyArray<{ id: string; oneIn: number }>;
 
-/** A grade roll where every grade above the lowest is `luck`× likelier. */
-export function rollGradeLuck(cfg: GradesConfig, rand: RandInt, luck = 1): string {
-  const ws = cfg.grades.map((g, i) => (i === 0 ? g.weight : g.weight * Math.max(1, luck)));
-  const total = ws.reduce((a, w) => a + w, 0);
-  let r = rand(Math.max(1, Math.round(total * 1000))) / 1000;
-  for (let i = 0; i < ws.length; i++) {
-    if (r < ws[i]) return cfg.grades[i].id;
-    r -= ws[i];
-  }
-  return cfg.grades[0].id;
+/**
+ * 🍀 Luck on rerolls = more tries, keep the rarest. With ×L luck it's as if you rolled L times and
+ * kept the best, so the rarer an outcome is the more luck helps it (Rainbow ×25, Golden ×22, Shiny
+ * ×11 at ×25 luck), and nothing common ever reaches 100% and crowds the rest out (just multiplying
+ * every chance by luck made Shiny "100%" at ×20). Exact for any luck (fractional too): with the
+ * outcomes ordered common → rare and F their running total, P(best ≤ i) = F(i)^L.
+ */
+export function bestOfOdds(ps: number[], luck: number): number[] {
+  const L = Math.max(1, luck);
+  const total = ps.reduce((a, b) => a + b, 0) || 1;
+  let F = 0, prev = 0;
+  return ps.map((p, i) => {
+    F += p / total;
+    const c = i === ps.length - 1 ? 1 : Math.pow(Math.min(1, F), L);
+    const out = Math.max(0, c - prev);
+    prev = c;
+    return out;
+  });
 }
 
-/** A variant roll ("1 in N" each, rarest checked first) with every chance × `luck`. */
-export function rollVariantLuck(variants: VariantDefs, rand: RandInt, luck = 1): string {
-  const special = variants.filter((v) => v.oneIn > 1).sort((a, b) => b.oneIn - a.oneIn);
-  const SC = 1_000_000;
-  const r = rand(SC);
-  let acc = 0;
-  for (const v of special) {
-    acc += (SC * Math.max(1, luck)) / v.oneIn;
-    if (r < acc) return v.id;
+/** Picks one of `ids` by the chances `ps` (summing to 1), rarest (last) first as before. */
+function pickBy<T>(ids: readonly T[], ps: number[], rand: RandInt): T {
+  let r = rand(1_000_000) / 1_000_000;
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (r < ps[i]) return ids[i];
+    r -= ps[i];
   }
-  return 'normal';
+  return ids[0];
+}
+
+/** A tier reroll's chances at this luck (Tier D … Tier S). */
+export function gradeRerollOdds(cfg: GradesConfig, luck = 1): Array<{ id: string; p: number }> {
+  const ps = bestOfOdds(cfg.grades.map((g) => g.weight), luck);
+  return cfg.grades.map((g, i) => ({ id: g.id, p: ps[i] }));
+}
+
+/** A tier reroll at this luck (best of `luck` tries). */
+export function rollGradeLuck(cfg: GradesConfig, rand: RandInt, luck = 1): string {
+  const o = gradeRerollOdds(cfg, luck);
+  return pickBy(o.map((x) => x.id), o.map((x) => x.p), rand);
+}
+
+/** A variant reroll's chances at this luck: 'normal' = nothing new (no special variant, or one the
+ *  item already has), then each special variant it doesn't have yet, commonest first. */
+export function variantRerollOdds(variants: VariantDefs, have: readonly string[], luck = 1): Array<{ id: string; p: number }> {
+  const missing = variants.filter((v) => v.oneIn > 1 && !have.includes(v.id)).sort((a, b) => a.oneIn - b.oneIn);
+  const pMissing = missing.map((v) => 1 / v.oneIn);
+  const nothing = Math.max(0, 1 - pMissing.reduce((a, b) => a + b, 0));
+  const ps = bestOfOdds([nothing, ...pMissing], luck);
+  return [{ id: 'normal', p: ps[0] }, ...missing.map((v, i) => ({ id: v.id, p: ps[i + 1] }))];
+}
+
+/** A variant reroll at this luck (best of `luck` tries, among the variants it doesn't have yet). */
+export function rollVariantLuck(variants: VariantDefs, rand: RandInt, luck = 1, have: readonly string[] = []): string {
+  const o = variantRerollOdds(variants, have, luck);
+  return pickBy(o.map((x) => x.id), o.map((x) => x.p), rand);
 }
 
 /** Pity: is this reroll a sure upgrade? (`fails` = misses in a row so far.) */
@@ -192,7 +225,7 @@ export function rerollVariantOutcome(cfg: GradesConfig, variants: VariantDefs, c
     const add = missing[0].id;
     return { rolled: add, result: joinVariants(order, [...have, add]), improved: true, forced: true };
   }
-  const rolled = rollVariantLuck(variants, rand, luck);
+  const rolled = rollVariantLuck(variants, rand, luck, have);
   const adds = rolled !== 'normal' && !have.includes(rolled);
   return { rolled, result: adds ? joinVariants(order, [...have, rolled]) : current, improved: adds, forced: false };
 }
