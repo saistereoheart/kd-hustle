@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.25.1 (2026-11-22): 👁️ a pixel vignette round the see-through circle
+- **Pixel-art cut-out:** the hole through walls round you is cut in chunky pixels, with a black dithered
+  rim that fades out, like a dark pixel vignette.
+- **Terrain only:** rock, walls, ceilings, stones, rubble and the door arch. Props (the tavern, lamps,
+  barrels, the portal, stalls, signs) are left alone.
+
 ## 1.25.0 (2026-11-22): ⚖️ gear buffs rebalanced (no more RM 18M tips)
 - **Tier and variant grow a gear buff gently now.**
   - Tier S is ×3 (was ×5) and variants ADD: Shiny +25%, Golden +60%, Rainbow +100%.

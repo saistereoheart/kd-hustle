@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.25.0)_
+_Last updated: 2026-11-22 (v1.25.1)_
 
-**Now at v1.25.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.25.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 👁️ Pixel vignette on the see-through circle (2026-11-22, your request, v1.25.1)
+- **The hole:** an inverted GeometryMask built from 5 px grid cells (a stepped circle, radius 1.05
+  tiles). It follows you, snapped to the grid.
+- **The rim:** a black-tinted copy (`setTintFill`) of each covering terrain piece, masked by a dithered
+  ring (Bayer 4×4, 0.75 tiles wide, densest at the hole's edge). Created the first time it's needed,
+  then shown or hidden.
+- **Terrain only:** `piece(..., { terrain: true })` for rock, the arch, rubble and boulders, plus roofs
+  and code-drawn rock rows. Props aren't registered.
 
 ## ⚖️ Gear buff rebalance (2026-11-22, your report: RM 18.4M tip on an RM 530k meal, v1.25.0)
 - **The cause:** buff = base × tier (S ×5) × each variant (×1.5 × ×2.5 × ×4), so ×75 at the top. Chef
