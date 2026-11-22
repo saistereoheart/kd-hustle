@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.27.0)_
+_Last updated: 2026-11-22 (v1.28.0)_
 
-**Now at v1.27.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.28.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,14 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🧙 Pixel-art Labirin NPCs (2026-11-22, your request, v1.28.0)
+- `client/src/world/labNpc.ts`: looks (`NPC_LOOKS`, `MERCHANT_LOOK`) painted pixel by pixel in 4 poses (stand, sit,
+  side on a log, back), 2 breathing frames each, shaded (warm upper-left rim, dark lower-right), dark outline,
+  shown at 2 world px per art px with nearest filtering. Painted once per look. `LabScene.npc()` and the
+  merchant use it; the merchant's staff and orb are in his picture (the room art keeps only the glow).
+- **Note:** drawn in code, so it's close to the ChatGPT picture's style but not identical. A ChatGPT-made
+  NPC sheet (like the tileset) could be sliced in the same way, for an exact match.
 
 ## 📈 Labirin XP, skills, spell books (2026-11-22, your request, v1.27.0)
 - Rules: `shared/src/lab/progress.ts` (levels, points, skill bonus, XP per group, tavern roll); the ultimate is

@@ -4,7 +4,7 @@
 // The server checks everything; this draws and sends intents.
 import Phaser from 'phaser';
 import {
-  DIRECTIONS, labFloor, randomAppearance, roomLayout,
+  DIRECTIONS, labFloor, roomLayout,
   type Direction, type LabDir, type LabFloor, type LabOther, type LabRoom, type LabRoomView, type LabUse, type RoomLayout,
 } from '@kh/shared';
 import type { App } from '../app';
@@ -13,6 +13,7 @@ import { labSay, setLabSpeaker } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
+import { LabNpc, MERCHANT_LOOK, NPC_LOOKS } from './labNpc';
 import { buildRoomArt, KEEPER_DY, LABEL_DEPTH, type RoomArt } from './labRoomArt';
 import { addLabFrames, LAB_SHEET, LAB_SHEET_URL } from './labSheet';
 import { memoryBudget } from '../perf/memory';
@@ -82,7 +83,7 @@ export class LabScene extends Phaser.Scene {
   /** The room you came from (its door says "back"). */
   private prevRoom = -1;
   /** People sitting about (the entrance hall, rest chambers) and the tavern keeper. */
-  private npcs: Avatar[] = [];
+  private npcs: LabNpc[] = [];
   private chatter = 0;
   /** The bush / cobweb tile you're in (to rustle once on stepping in). */
   private brushTile = -1;
@@ -199,21 +200,17 @@ export class LabScene extends Phaser.Scene {
     this.brushTile = -1;
   }
 
-  /** Someone sitting (or standing, for the keeper) about the place. Same few looks, so pictures are shared. */
-  private npc(t: [number, number], look: number, sit: boolean, dx = 0, dy = 0) {
-    let seed = 101 + look * 7919;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const a = new Avatar(this, this.app.cfg.character, this.app.items, {
-      name: '', level: 1, appearance: randomAppearance(this.app.cfg.character, rnd), x: (t[0] + 0.5) * this.T + dx, y: (t[1] + 0.6) * this.T + dy, isSelf: false, npc: true, particles: false,
-    });
-    a.setState('down', false);
-    if (sit) a.playEmote('sit', { emoji: '', loop: true, durationMs: 0 }, false);
+  /** Someone about the place, in the dungeon's pixel-art style: standing (the keeper), sitting facing
+   *  you (benches), side-on on a log (round a fire; `flip` faces left) or from behind (at the counter). */
+  private npc(t: [number, number], look: number, pose: 'stand' | 'sit' | 'side' | 'back', dx = 0, dy = 0, flip = false) {
+    const i = look % NPC_LOOKS.length;
+    const a = new LabNpc(this, `l${i}`, NPC_LOOKS[i], pose, (t[0] + 0.5) * this.T + dx, (t[1] + 0.85) * this.T + dy, this.T / 24, flip);
     this.npcs.push(a);
     return a;
   }
 
   /** 🛒 Tok Peraih, in the entrance hall and every rest chamber. */
-  private merchant: Avatar | null = null;
+  private merchant: LabNpc | null = null;
 
   /** How far the camera zooms in to frame the room. */
   private zoomFor() {
@@ -341,14 +338,8 @@ export class LabScene extends Phaser.Scene {
     // 🛒 The merchant: the entrance hall and every rest chamber.
     if ((view.floor === 0 && room.kind === 'start') || room.kind === 'rest') {
       const m = L.spot.merchant;
-      let seed = 7;
-      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-      this.merchant = new Avatar(this, this.app.cfg.character, this.app.items, {
-        // An old sage: a long white beard and hair, a deep purple robe (he holds the staff and orb).
-        name: lc.merchant.name, level: 1, appearance: { ...randomAppearance(this.app.cfg.character, rnd), hair: 'long', hairColor: '#dee2e6', highlight: null, facialHair: 'beard', headwear: 'none', glasses: 'none', top: 'melayu', topColor: '#3b2352', bottom: 'jeans', bottomColor: '#2a1d36', shoes: 'boots', shoesColor: '#2e1f14', browColor: '#ced4da' },
-        x: (m[0] + 0.5) * T, y: (m[1] + 0.7) * T, isSelf: false, npc: true, particles: false,
-      });
-      this.merchant.setState('down', false);
+      // An old sage in pixel art: a long white beard and hair, a deep purple robe, his hand on the staff.
+      this.merchant = new LabNpc(this, 'merchant', MERCHANT_LOOK, 'stand', (m[0] + 0.5) * T, (m[1] + 0.7) * T, T / 24, true); // (flipped: the staff on the open side, away from his stall)
       emoji([m[0] + 1, m[1]], '🎒', 26, 6);
       label([m[0], m[1] - 0.25], '🛒 SHOP', 'gear & potions (Syiling)');
       this.features.push({ use: 'shop', label: `🛒 ${lc.merchant.name}'s shop: buy gear and potions with Syiling`, at: m });
@@ -374,18 +365,18 @@ export class LabScene extends Phaser.Scene {
       const h = L.hall;
       const tv = lc.tavern;
       const sheet = this.textures.exists(LAB_SHEET);
-      this.npc(h.keeper, 0, false, 0, sheet ? T * KEEPER_DY : 0).say(tv.line, 4000);
+      this.npc(h.keeper, 0, 'stand', 0, (sheet ? T * KEEPER_DY : 0) - T * 0.25).say(tv.line, 4000);
       this.sign([(h.tavern[0] + h.tavern[2]) / 2, h.tavern[1] - 1.5], `🍵 TAVERN: ${tv.name}`, 'drinks = buffs for your next fights', '#ffd8a8');
       this.features.push({ use: 'tavern', label: `🍵 ${tv.name}: drinks that buff your next fights`, at: L.spot.tavern });
-      h.sitters.forEach((s, i) => this.npc(s, 1 + i, true));
-      h.benchSitters.forEach((s, i) => this.npc(s, 4 + i, true, 0, T * 0.05));
-      this.npc(h.stools[1], 3, true, 0, -T * 0.05); // someone having a drink at the counter
+      h.sitters.forEach((s, i) => this.npc(s, 1 + i, 'side', 0, 0, s[0] > h.fire[0]));
+      h.benchSitters.forEach((s, i) => this.npc(s, 4 + i, 'sit', 0, -T * 0.1));
+      this.npc(h.stools[1], 3, 'back', 0, -T * 0.15); // someone having a drink at the counter
       this.features.push({ use: 'read', label: '🔥 Campfire: adventurers swap stories here', text: '🔥 The fire crackles. "Rest at the campfires deeper down: they save your progress."', at: h.fire });
     }
     // 🔥 A rest chamber: one or two adventurers resting by the fire.
     if (room.kind === 'rest') {
-      this.npc([f[0] - 1, f[1]], 6 + view.floor, true, -T * 0.1, T * 0.35);
-      if (room.id % 2) this.npc([f[0] + 1, f[1]], 9 + view.floor, true, T * 0.1, T * 0.35);
+      this.npc([f[0] - 1, f[1]], 6 + view.floor, 'side', -T * 0.1, T * 0.1);
+      if (room.id % 2) this.npc([f[0] + 1, f[1]], 7 + view.floor, 'side', T * 0.1, T * 0.1, true);
     }
     // Things lying about: signs to read, bones, cold campfires.
     const BONES = ['💀 An adventurer who never made it out. Their bag is long empty.', '💀 Old bones, picked clean. Something lives down here.', "💀 A skeleton still clutching a broken keris. Don't end up like this."];

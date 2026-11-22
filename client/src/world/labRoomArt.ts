@@ -990,21 +990,16 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
     objs.push(e);
     scene.tweens.add({ targets: e, alpha: { from: 0.12, to: 0.32 }, duration: 1300 + rnd() * 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
-  // 🛒 The merchant's staff, topped with a bright glowing orb.
+  // 🛒 The glow of the orb on the merchant's staff (the staff and orb are in his pixel-art picture:
+  // labNpc.ts, drawn flipped; 2 world px per art px, the orb ~10 art px left of his middle, 34 above his feet).
   if (o.merchant) {
-    const sx = (o.merchant[0] + 0.5) * T + T * 0.42, sy = (o.merchant[1] + 0.7) * T;
-    const staff = scene.add.graphics().setDepth(AVATAR_DEPTH + sy + 1);
-    staff.fillStyle(0x4a2f1a, 1).fillRect(sx - 2, sy - T * 1.55, 4, T * 1.55);
-    staff.fillStyle(0x8d6e3f, 1).fillRect(sx - 1, sy - T * 1.55, 1.5, T * 1.55);
-    staff.fillStyle(0xc9a227, 1).fillRect(sx - 4, sy - T * 1.6, 8, 4);
-    staff.lineStyle(2, 0xc9a227, 1).strokeCircle(sx, sy - T * 1.72, T * 0.15);
-    const oy = sy - T * 1.72;
-    const orb = scene.add.image(sx, oy, 'lab_glow').setTint(0x9ef0ff).setBlendMode(Phaser.BlendModes.ADD).setScale((T * 0.5) / 128).setDepth(AVATAR_DEPTH + sy + 2);
-    const core = scene.add.circle(sx, oy, T * 0.1, 0xe3fafc).setDepth(AVATAR_DEPTH + sy + 3);
+    const sx = (o.merchant[0] + 0.5) * T - (T / 24) * 10.5, sy = (o.merchant[1] + 0.7) * T;
+    const oy = sy - (T / 24) * 35;
+    const orb = scene.add.image(sx, oy, 'lab_glow').setTint(0x9ef0ff).setBlendMode(Phaser.BlendModes.ADD).setScale((T * 0.6) / 128).setDepth(AVATAR_DEPTH + sy + 2);
     const aura = scene.add.image(sx, oy, 'lab_glow').setTint(0x3bc9db).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setScale((T * 2.4) / 128).setDepth(AVATAR_DEPTH + sy + 2);
     const pool = scene.add.image(sx - T * 0.3, sy + T * 0.1, 'lab_glow').setTint(0x3bc9db).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.3).setScale((T * 4) / 128, (T * 2.4) / 128).setDepth(-5);
-    objs.push(staff, orb, core, aura, pool);
-    scene.tweens.add({ targets: [orb, core], y: oy - 3, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    objs.push(orb, aura, pool);
+    scene.tweens.add({ targets: orb, alpha: { from: 0.7, to: 1 }, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     scene.tweens.add({ targets: aura, alpha: { from: 0.35, to: 0.65 }, scale: { from: (T * 2.2) / 128, to: (T * 2.8) / 128 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     scene.tweens.add({ targets: pool, alpha: { from: 0.22, to: 0.36 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.28.0 (2026-11-22): 🧙 Labirin people in pixel art
+- **The NPCs down there are pixel art now**, like the dungeon's tileset, not the town's chibi look:
+  - Mak Jah in her tudung and apron, holding a mug;
+  - Tok Peraih, an old sage in a trimmed purple robe, his hand on a staff topped with a glowing orb;
+  - a hooded ranger and a knight on logs by the campfire, warming their hands;
+  - a mage and a bearded brawler on the bench;
+  - a traveller at the counter, seen from behind;
+  - more campers by the rest-chamber fires.
+  Dark outlines, firelight on the lit side, hair strands, and breathing.
+- Their speech bubbles show above the fire and the furniture.
+- The spell book slot's icon sits right in the loadout.
+
 ## 1.27.0 (2026-11-22): 📈 Labirin levels, 📖 skills and 📜 spell books (AoE ultimates)
 - **Labirin XP and levels:** every won fight gives XP (more on deeper floors, lots from bosses). Each level
   gives a skill point. Your level shows on the loadout (left), glowing when you have points to spend.
