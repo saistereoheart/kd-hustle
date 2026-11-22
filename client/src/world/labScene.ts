@@ -248,7 +248,7 @@ export class LabScene extends Phaser.Scene {
     const pick = kinds[(at[0] * 7 + at[1] * 13 + here.id) % kinds.length];
     const boss = lc.bosses[Math.min(f.n, lc.bosses.length - 1)];
     const restWay = way(f.rest), bossWay = way(f.boss);
-    const keyRoom = f.rooms.find((r) => r.key !== undefined && !this.view.self.keys.includes(`${f.n}:${r.key}`) && !this.view.self.unlocked.includes(`${f.n}:${r.key}`));
+    const keyRoom = f.rooms.find((r) => r.key !== undefined && !this.view.self.keys.includes(`${f.n}:${r.key}`) && !this.view.self.used.includes(`${f.n}:${r.key}`));
     const keyWay = keyRoom ? way(keyRoom.id) : null;
     if ((pick === 'rest' || pick === 'key') && restWay && !(pick === 'key' && keyWay)) lines.push(`🔥 The rest chamber is ${restWay.k} room${restWay.k === 1 ? '' : 's'} away: take the ${DIR[restWay.dir]} door first.`);
     else if (pick === 'key' && keyWay) lines.push(`🗝️ The key to this floor's locked treasure is ${keyWay.k} room${keyWay.k === 1 ? '' : 's'} away: ${DIR[keyWay.dir]} door first.`);
@@ -404,7 +404,7 @@ export class LabScene extends Phaser.Scene {
     }
     if (room.key !== undefined) {
       const k = `${view.floor}:${room.key}`;
-      const have = view.self.keys.includes(k) || view.self.unlocked.includes(k);
+      const have = view.self.keys.includes(k) || view.self.used.includes(k);
       if (!have) {
         glowAt(f, 0xffd43b);
         const key = emoji(f, '🗝️', 32);

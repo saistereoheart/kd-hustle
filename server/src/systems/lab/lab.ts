@@ -20,7 +20,10 @@ export interface LabSave {
   seen: Record<string, string>;
   /** Loot boxes opened: `${floor}:${room}` → the day (they refill the next day). */
   chests: Record<string, string>;
+  /** Keys held (`${floor}:${key index}`); any one opens any locked treasure door on its floor. */
   keys: string[];
+  /** Keys spent on a door (so their room stays empty). */
+  used: string[];
   unlocked: string[];
   looted: string[];
   /** Where you were when you last left / dropped (not used to resume: you come back at `save`). */
@@ -54,7 +57,7 @@ export interface LabSave {
 }
 
 export function emptyLab(): LabSave {
-  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {}, bosses: [], xp: 0, skills: {}, books: [] };
+  return { coins: 0, carried: 0, save: { floor: 0, room: -1 }, deepest: 0, seen: {}, chests: {}, keys: [], used: [], unlocked: [], looted: [], cleared: {}, gear: {}, owned: [], potions: {}, bosses: [], xp: 0, skills: {}, books: [] };
 }
 
 /** How near (tiles) you must be to a door / chest / fire to use it. */
@@ -469,7 +472,10 @@ export class LabSystem {
   state(p: OnlinePlayer): LabSave {
     let s = this.cache.get(p.id);
     if (!s) {
-      s = { ...emptyLab(), ...(this.repos.playerData.load<Partial<LabSave>>(p.id, 'lab') ?? {}) };
+      const saved = this.repos.playerData.load<Partial<LabSave>>(p.id, 'lab') ?? {};
+      s = { ...emptyLab(), ...saved };
+      // Older saves: each door was opened with its own key, so that key is spent.
+      if (!saved.used) s.used = [...s.unlocked];
       this.cache.set(p.id, s);
     }
     return s;
@@ -493,7 +499,7 @@ export class LabSystem {
     const save = s.save.room < 0 ? { floor: 0, room: this.floor(0).start } : s.save;
     const st = this.stats(p);
     return {
-      coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab,
+      coins: s.coins, carried: s.carried, save, deepest: s.deepest, keys: [...s.keys], used: [...s.used], unlocked: [...s.unlocked], looted: [...s.looted], inside: !!p.lab,
       hp: this.hp(p), maxHp: st.hp, boost: Math.min(this.cfg.teman.max, this.temanBoost(p)),
       gear: { ...s.gear }, owned: [...s.owned], potions: { ...s.potions }, stats: st, bosses: [...s.bosses],
       drink: s.drink ? { ...s.drink } : null,
@@ -585,8 +591,11 @@ export class LabSystem {
     if (d.lock !== undefined) {
       const k = `${pos.floor}:${d.lock}`;
       if (!s.unlocked.includes(k)) {
-        if (!s.keys.includes(k)) throw new GameError('🔒 Locked. Its key is somewhere on this floor.');
-        s.keys = s.keys.filter((x) => x !== k);
+        // Any key from this floor fits (its own key first, if you hold it).
+        const key = s.keys.includes(k) ? k : s.keys.find((x) => x.startsWith(`${pos.floor}:`));
+        if (!key) throw new GameError('🔒 Locked. Find a 🗝️ key on this floor: any key opens it.');
+        s.keys = s.keys.filter((x) => x !== key);
+        s.used.push(key);
         s.unlocked.push(k);
       }
     }
@@ -643,7 +652,7 @@ export class LabSystem {
       if (room.key === undefined) throw new GameError('No key here.');
       if (!this.near(pos, L.spot.feature)) throw new GameError('Walk up to it.');
       const k = `${pos.floor}:${room.key}`;
-      if (s.keys.includes(k) || s.unlocked.includes(k)) throw new GameError('You already have this key.');
+      if (s.keys.includes(k) || s.used.includes(k)) throw new GameError('You already took this key.');
       s.keys.push(k);
       this.save(p);
       return { text: '🗝️ A key! It opens a locked door somewhere on this floor.', view: this.view(p) };

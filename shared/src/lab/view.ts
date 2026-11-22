@@ -27,8 +27,10 @@ export interface LabSelf {
   save: { floor: number; room: number };
   /** Deepest floor reached (0-based). */
   deepest: number;
-  /** Keys held: `${floor}:${treasure index}`. */
+  /** Keys held: `${floor}:${key index}` (any key opens any locked treasure door on its floor). */
   keys: string[];
+  /** Keys already spent on a door (their room stays empty): `${floor}:${key index}`. */
+  used: string[];
   /** Treasure rooms opened (their door stays open for you): `${floor}:${treasure index}`. */
   unlocked: string[];
   /** Treasure already taken: `${floor}:${treasure index}`. */

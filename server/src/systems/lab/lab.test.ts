@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { LAB_DIRS, roomLayout, seenHas, type LabDir } from '@kh/shared';
+import { LAB_DIRS, LAB_OPPOSITE, roomLayout, seenHas, type LabDir } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -428,5 +428,39 @@ describe('Labirin: the tavern and the brush', () => {
       lab.move(p, at(t).x, at(t).y, 'up', true);
     }
     expect(lab.takeAmbush(p)).toBe(true);
+  });
+
+  it('opens a locked treasure door with any key from that floor, and spent keys stay gone', () => {
+    const s = setup();
+    const f = s.lab.floor(0);
+    expect(f.treasure.length).toBeGreaterThanOrEqual(2);
+    // Hold only the key for treasure 1, then stand at treasure 0's locked door.
+    s.repos.playerData.save(s.p.id, 'lab', { keys: ['0:1'], used: [], unlocked: [] });
+    s.lab.enter(s.p, 'entrance');
+    const t = f.rooms[f.treasure[0]];
+    const [d, door] = Object.entries(t.doors)[0] as [LabDir, { to: number }];
+    const outside = f.rooms[door.to];
+    const L = roomLayout(lc, f, outside);
+    const at = L.doorAt[LAB_OPPOSITE[d]]!;
+    const stand = () => { s.p.lab = { floor: 0, room: outside.id, x: (at[0] + 0.5) * T, y: (at[1] + 0.5) * T, dir: 'up', moving: false, at: 0 }; };
+    stand();
+    const v = s.lab.door(s.p, LAB_OPPOSITE[d]);
+    expect(v.room).toBe(t.id);
+    expect(v.self.keys).toEqual([]);
+    expect(v.self.used).toEqual(['0:1']);
+    expect(v.self.unlocked).toEqual(['0:0']);
+    // Treasure 1's door stays locked without another key.
+    const t1 = f.rooms[f.treasure[1]];
+    const [d1, door1] = Object.entries(t1.doors)[0] as [LabDir, { to: number }];
+    const out1 = f.rooms[door1.to];
+    const at1 = roomLayout(lc, f, out1).doorAt[LAB_OPPOSITE[d1]]!;
+    s.p.lab = { floor: 0, room: out1.id, x: (at1[0] + 0.5) * T, y: (at1[1] + 0.5) * T, dir: 'up', moving: false, at: 0 };
+    expect(() => s.lab.door(s.p, LAB_OPPOSITE[d1])).toThrow(/any key/);
+  });
+
+  it('treats keys behind doors opened by older saves as spent', () => {
+    const s = setup();
+    s.repos.playerData.save(s.p.id, 'lab', { keys: [], unlocked: ['0:0'] });
+    expect(s.lab.self(s.p).used).toEqual(['0:0']);
   });
 });

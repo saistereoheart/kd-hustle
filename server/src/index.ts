@@ -74,9 +74,17 @@ async function main() {
   } else {
     const index = path.join(paths.clientDist, 'index.html');
     if (!fs.existsSync(index)) log.warn('client/dist not found. Run "npm run build" first.');
-    app.use(express.static(paths.clientDist, { maxAge: '1h', index: 'index.html' }));
+    // index.html must never be cached: after a rebuild a stale copy points at old hashed
+    // bundles, which would load as HTML and leave players on a white screen.
+    const noStore = (res: express.Response): void => { res.setHeader('Cache-Control', 'no-cache'); };
+    app.use('/assets', express.static(path.join(paths.clientDist, 'assets'), { maxAge: '30d', immutable: true, fallthrough: false }));
+    app.use(express.static(paths.clientDist, {
+      maxAge: '1h',
+      index: 'index.html',
+      setHeaders: (res, file) => { if (file.endsWith('.html')) noStore(res); },
+    }));
     app.use((req, res, next) => {
-      if (req.method === 'GET' && !req.path.startsWith('/api') && fs.existsSync(index)) res.sendFile(index);
+      if (req.method === 'GET' && !req.path.startsWith('/api') && fs.existsSync(index)) { noStore(res); res.sendFile(index); }
       else next();
     });
   }

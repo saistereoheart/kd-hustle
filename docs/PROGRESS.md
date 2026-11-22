@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.33.0)_
+_Last updated: 2026-11-22 (v1.33.1)_
 
-**Now at v1.33.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.33.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,17 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🗝️ Labirin keys fit any treasure door; no-cache page (2026-11-22, your report, v1.33.1)
+- **Bug:** each floor has 2 locked treasure rooms and 2 keys, but each key only opened its own door, while the text
+  said "opens a locked door somewhere on this floor". Holding the wrong key gave "Locked", and the minimap kept
+  showing 🗝️ on rooms whose key you had taken.
+- **Decision:** any key from a floor opens any locked treasure door on it (its own key is used first if you hold it).
+  `LabSave.used` records spent keys so their room stays empty; older saves count keys behind opened doors as spent.
+- Minimap and signs hide keys you hold or spent. Tests in `server/src/systems/lab/lab.test.ts`.
+- **White screen after a rebuild:** the server cached `index.html` for 1 h, so browsers kept asking for the old
+  bundle names and got the page back as JS. Now `index.html` is `no-cache`, `/assets` is cached 30 days
+  (hashed names), and a missing asset is a 404.
 
 ## 🪨 Code-drawn Labirin floor (2026-11-22, option 2 of the texture question, v1.33.0)
 - `client/src/world/labFloor.ts` (`paintCaveFloor`: jittered-cell cobbles at 16 art px per tile, upper-left shading,
