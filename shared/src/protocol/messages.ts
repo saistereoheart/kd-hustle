@@ -131,6 +131,10 @@ export const C2S = {
   propFix: z.object({ unit: z.string().min(3).max(40), req: z.number().int().positive(), how: z.enum(['contractor', 'diy-start', 'diy-finish']) }),
   propClean: z.object({ unit: z.string().min(3).max(40), phase: z.enum(['start', 'finish']) }),
   shopView: z.object({ building: z.string().min(1).max(40) }),
+  /** 🏠 Player visits: someone's places, go into one, your own privacy. */
+  visitList: z.object({ owner: z.number().int().positive() }),
+  visitEnter: z.object({ unit: z.string().max(80) }),
+  visitsSet: z.object({ mode: z.enum(['all', 'only', 'none']), allow: z.array(z.number().int().positive()).max(100), block: z.array(z.number().int().positive()).max(100) }),
   /** `online`: from the phone (anywhere), with a delivery fee. */
   furnitureBuy: z.object({ item: z.string().max(40), qty: z.number().int().min(1).max(50), online: z.boolean().default(false) }),
   /** Talk to / take an errand from a wandering NPC (by id). */
@@ -398,6 +402,20 @@ export interface PropPublic {
 }
 
 /** Your own home, everything about it. */
+/** 🏠 Who may visit your places: everyone (but `block`), `only` the `allow` list, or `none`. */
+export interface VisitPrefs {
+  mode: 'all' | 'only' | 'none';
+  allow: number[];
+  block: number[];
+}
+
+/** One of a player's places you can visit (a home, a loft, an Airbnb, a shop floor). */
+export interface VisitPlace {
+  unit: string;
+  type: string;
+  mode: PropertyMode;
+}
+
 /** 🏪 A shop floor as a visitor sees it (anyone walking into a Venture's shoplot or a kopitiam). */
 export interface ShopView {
   unit: string;
@@ -660,6 +678,13 @@ export interface ClientToServerEvents {
   'prop:layout': (msg: { unit: string; layout: Placed[] }, ack: Ack<Result<{ stars: number }>>) => void;
   /** 🏪 The shop floor in a building (null if it has none): what you see walking in. */
   'shop:view': (msg: { building: string }, ack: Ack<Result<{ view: ShopView | null }>>) => void;
+  /** 🏠 A player's places you may visit (an error if they don't take visitors). */
+  'visit:list': (msg: { owner: number }, ack: Ack<Result<{ places: VisitPlace[]; ownerName: string }>>) => void;
+  /** 🏠 Go into one of them (read-only: you look around). */
+  'visit:enter': (msg: { unit: string }, ack: Ack<Result<{ view: ShopView }>>) => void;
+  /** 🏠 Your visit privacy. */
+  'visits:get': (ack: Ack<Result<{ prefs: VisitPrefs }>>) => void;
+  'visits:set': (msg: VisitPrefs, ack: Ack<Result<{ prefs: VisitPrefs }>>) => void;
   'prop:fix': (msg: { unit: string; req: number; how: 'contractor' | 'diy-start' | 'diy-finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'prop:clean': (msg: { unit: string; phase: 'start' | 'finish' }, ack: Ack<Result<{ doneAt?: number }>>) => void;
   'furniture:buy': (msg: { item: string; qty: number; online?: boolean }, ack: Ack<Result<{ items: InventoryItem[]; feeSen: number }>>) => void;

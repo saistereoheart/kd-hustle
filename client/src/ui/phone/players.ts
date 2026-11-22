@@ -1,5 +1,5 @@
 // HustlePhone → Players: who's online, with Trade and Gift (RM or an item, after a confirm).
-import { formatMoney, gradeDef } from '@kh/shared';
+import { formatMoney, gradeDef, type VisitPrefs } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
 import { itemCard } from '../panel';
@@ -17,7 +17,22 @@ const ack = (ok?: string) => (err: Error | null, res: { ok: boolean; error?: str
   if (ok) toast(ok, 'good');
 };
 
+/** 🏠 Your visit privacy (from the server; fetched once the app opens). */
+let visitPrefs: VisitPrefs | null = null;
+
 export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
+  if (!visitPrefs)
+    app.socket?.timeout(5000).emit('visits:get', (err, res) => {
+      if (err || !res.ok) return;
+      visitPrefs = res.prefs;
+      rerender();
+    });
+  const setPrefs = (next: VisitPrefs) =>
+    app.socket?.timeout(5000).emit('visits:set', next, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      visitPrefs = res.prefs;
+      rerender();
+    });
   if (Date.now() - lastFetch > 3000) {
     lastFetch = Date.now();
     app.socket?.timeout(5000).emit('players:list', (err, res) => {
@@ -71,11 +86,25 @@ export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
       giftTo = { id: p.id, name: p.name };
       rerender();
     });
+    // 🏠 Visits: look round their places; let them (or not) look round yours.
+    const visit = el('button', { class: 'btn small', type: 'button', 'data-action': `visit-${p.id}` }, '🏠 Visit');
+    visit.addEventListener('click', () => app.visitPlayer(p.id, p.name));
+    const vp = visitPrefs;
+    let gate: HTMLElement | null = null;
+    if (vp && vp.mode !== 'none') {
+      const only = vp.mode === 'only';
+      const on = only ? vp.allow.includes(p.id) : !vp.block.includes(p.id);
+      gate = el('button', { class: `btn small${on ? '' : ' danger'}`, type: 'button', 'data-action': `visitgate-${p.id}`, title: only ? 'Only the people you pick can visit your places' : 'Everyone can visit your places, except the ones you block' }, on ? (only ? '✅ Can visit you' : '🚫 Block visits') : only ? '➕ Let them visit' : '🔓 Unblock visits');
+      gate.addEventListener('click', () => {
+        if (only) setPrefs({ ...vp, allow: on ? vp.allow.filter((x) => x !== p.id) : [...vp.allow, p.id] });
+        else setPrefs({ ...vp, block: on ? [...vp.block, p.id] : vp.block.filter((x) => x !== p.id) });
+      });
+    }
     return el(
       'div',
       { class: 'job-card', 'data-player': String(p.id) },
       el('div', { class: 'job-icon' }, '👤'),
-      el('div', { class: 'job-info' }, el('h4', {}, p.name, el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, flip, money, item)),
+      el('div', { class: 'job-info' }, el('h4', {}, p.name, el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, flip, money, item, visit, gate)),
     );
   });
 }

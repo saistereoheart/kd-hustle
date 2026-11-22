@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.30.0)_
+_Last updated: 2026-11-22 (v1.31.0)_
 
-**Now at v1.30.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.31.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,14 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🏠 Feedback #18: player visits (2026-11-22, v1.31.0)
+- Server: `visit:list`, `visit:enter`, `visits:get/set` (economyHandlers). Rule and save:
+  `server/src/systems/property/visits.ts` (`mayVisit`, playerData `visits`; unit test). `PropertySystem.placesOf/placeView`.
+- Client: `App.visitPlayer/visitPlace` reuse the home scene's read-only visitor mode (shop floors get their
+  shop context). The Players app has Visit plus a block or allow button; Settings has the mode.
+- **Decision:** visits are remote (from the phone), not only from the door. The server doesn't mark you as inside
+  their building, so to other players you stay where you were.
 
 ## 📱 Feedback #16: IKEJA Online (2026-11-22, v1.30.0)
 - `furniture:buy` takes `online` (skips the store check, adds `furnitureOnlineFee`: `furniture.json` `online`).

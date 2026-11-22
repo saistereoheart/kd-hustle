@@ -70,6 +70,8 @@ export function openSettings(opts: {
   onLogout?: () => void;
   /** Called once the window has closed. */
   onClosed?: () => void;
+  /** 🏠 Who may visit your places (in the game only): read it, and change it. */
+  visits?: { get: (done: (mode: 'all' | 'only' | 'none') => void) => void; set: (mode: 'all' | 'only' | 'none') => void };
 }) {
   const prefs = loadPrefs();
   const savedLabel = el('span', { class: 'muted', 'data-testid': 'last-saved' }, ago(opts.lastSavedAt?.() ?? null));
@@ -169,6 +171,15 @@ export function openSettings(opts: {
     savePrefs(prefs);
   });
 
+  // 🏠 Player visits: who may look round your homes, lofts, Airbnbs and shop floors.
+  const visits = el('select', { 'aria-label': 'Player visits', disabled: true },
+    ...([['all', 'Everyone (except people I block)'], ['only', 'Only people I pick'], ['none', 'No one']] as const).map(([v, label]) => el('option', { value: v }, label))) as HTMLSelectElement;
+  opts.visits?.get((mode) => {
+    visits.value = mode;
+    visits.disabled = false;
+  });
+  visits.addEventListener('change', () => opts.visits?.set(visits.value as 'all' | 'only' | 'none'));
+
   const edit = el('button', { class: 'btn', type: 'button' }, '👕 Edit character');
   const logout = el('button', { class: 'btn danger', type: 'button', 'data-action': 'logout' }, 'Log out');
   const close = el('button', { class: 'btn', type: 'button', 'data-action': 'settings-close' }, '‹ Done');
@@ -190,6 +201,7 @@ export function openSettings(opts: {
     el('div', { class: 'setting-row muted small' }, el('span', {}, `Now: ${governor.describe()}${governor.lite ? ' · lite effects' : ''}`), el('span', {}, 'Auto lowers the resolution when the frame rate drops')),
     el('div', { class: 'setting-row' }, el('span', {}, '🧠 Memory use'), memory),
     el('div', { class: 'setting-row' }, el('span', {}, '⚔️ Labirin fights'), fight),
+    ...(opts.visits ? [el('div', { class: 'setting-row' }, el('span', {}, '🏠 Player visits (block or pick people in 📱 Players)'), visits)] : []),
     ...(opts.lastSavedAt ? [el('div', { class: 'setting-row' }, el('span', {}, '📊 FPS & ping (is it the WiFi or the game?)'), stats)] : []),
     el('div', { class: 'setting-row' }, el('span', {}, 'Particles / effects'), particles),
     el('div', { class: 'setting-row' }, el('span', {}, '💡 Random hints'), hints),

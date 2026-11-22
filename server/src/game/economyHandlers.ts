@@ -9,6 +9,7 @@ import { variantLabel, petLook, temanBoost, furnitureOnlineFee,
 import type { Socket } from 'socket.io';
 import { RateLimiter } from '../auth/rateLimit';
 import type { ServerConfig } from '../config/loadConfig';
+import { loadVisits, mayVisit, saveVisits } from '../systems/property/visits';
 import type { Repos } from '../db/repos';
 import { log } from '../log';
 import { Economy, GameError } from '../systems/economy/economy';
@@ -591,6 +592,21 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       return { stars: r.stars };
     });
     handle(socket, 'shop:view', C2S.shopView, ({ building }) => ({ view: propSys.shopView(building) }));
+    // 🏠 Player visits (feedback #18): look round someone's places, if they let you.
+    handle(socket, 'visit:list', C2S.visitList, ({ owner }) => {
+      const places = propSys.placesOf(owner);
+      const ownerName = places.length ? propSys.placeView(places[0].unit)?.ownerName ?? '' : '';
+      if (!mayVisit(loadVisits(repos, owner), owner, me.id)) throw new GameError(`${ownerName || 'They'} ${ownerName ? "isn't" : "aren't"} taking visitors right now.`);
+      return { places, ownerName };
+    });
+    handle(socket, 'visit:enter', C2S.visitEnter, ({ unit }) => {
+      const view = propSys.placeView(unit);
+      if (!view) throw new GameError('That place is gone.');
+      if (!mayVisit(loadVisits(repos, view.owner), view.owner, me.id)) throw new GameError(`${view.ownerName} isn't taking visitors right now.`);
+      return { view };
+    });
+    handle(socket, 'visits:get', null, () => ({ prefs: loadVisits(repos, me.id) }));
+    handle(socket, 'visits:set', C2S.visitsSet, (prefs) => ({ prefs: saveVisits(repos, me.id, prefs) }));
     handle(socket, 'prop:fix', C2S.propFix, ({ unit, req, how }) => propSys.fix(me, unit, req, how));
     handle(socket, 'prop:clean', C2S.propClean, ({ unit, phase }) => propSys.clean(me, unit, phase));
     handle(socket, 'welcome:spin', null, () => propSys.luckySpin(me));

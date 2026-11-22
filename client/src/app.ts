@@ -19,7 +19,7 @@ import { openPhone } from './ui/phone/phone';
 import { setGarageConfig } from './items/carArt';
 import { openShowroom } from './ui/garage/garage';
 import { openRonda, type RideHud } from './ui/ronda';
-import { closePanel, isPanelOpen } from './ui/panel';
+import { closePanel, isPanelOpen, openPanel } from './ui/panel';
 import { openPawnPanel } from './ui/pawnPanel';
 import { openMarketPanel } from './ui/stall/market';
 import { openStallPanel } from './ui/stall/stallPanel';
@@ -1114,6 +1114,42 @@ export class App {
     });
   }
 
+  /** 🏠 Look round another player's places (feedback #18), if they let you: one place goes straight
+   *  in, several ask which. Read-only, from anywhere (you come back out where you were). */
+  visitPlayer(id: number, name: string) {
+    if (this.interior || this.home || this.lab) return void toast('Step outside first.', 'bad');
+    this.socket?.timeout(5000).emit('visit:list', { owner: id }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      if (!res.places.length) return void toast(`${name} has no places to visit yet.`);
+      if (res.places.length === 1) return this.visitPlace(res.places[0].unit);
+      const types = this.cfg.properties.types;
+      const panel = openPanel(`🏠 Visit ${res.ownerName || name}`, { testId: 'visit-pick' });
+      panel.body.append(
+        el('p', { class: 'muted small' }, 'Pick a place to look round. You come back out where you are now.'),
+        ...res.places.map((pl) => {
+          const t = types[pl.type];
+          const b = el('button', { class: 'btn', type: 'button', 'data-visit': pl.unit }, `${t?.icon ?? '🏠'} ${t?.name ?? pl.type}${pl.mode === 'shop' ? ' (shop floor)' : pl.mode === 'airbnb' ? ' (Airbnb)' : ''}`);
+          b.addEventListener('click', () => this.visitPlace(pl.unit));
+          return b;
+        }),
+      );
+    });
+  }
+
+  /** 🏠 Into someone's place (their furniture, read-only). */
+  visitPlace(unit: string) {
+    this.socket?.timeout(5000).emit('visit:enter', { unit }, (err, res) => {
+      if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      closePanel();
+      let shop: ShopCtx | undefined;
+      if (unit.endsWith('#shop')) {
+        const b = this.map.buildings.find((x) => x.id === unit.slice(0, -'#shop'.length));
+        shop = (b && this.shopCtxFor(b)) || undefined;
+      }
+      this.enterHome(unit, { shop, visit: res.view });
+    });
+  }
+
   /** Go into one of our own homes (from its door). */
   enterHome(unit: string, extra: { shop?: ShopCtx; visit?: ShopView } = {}) {
     if (this.interior || this.home || !this.town) return;
@@ -1307,6 +1343,20 @@ export class App {
       onLogout: () => void this.logout(),
       onClosed: () => {
         this.settings = null;
+      },
+      visits: {
+        get: (done) =>
+          this.socket?.timeout(5000).emit('visits:get', (err, res) => {
+            if (!err && res.ok) done(res.prefs.mode);
+          }),
+        set: (mode) =>
+          this.socket?.timeout(5000).emit('visits:get', (err, res) => {
+            if (err || !res.ok) return;
+            this.socket?.timeout(5000).emit('visits:set', { ...res.prefs, mode }, (e2, r2) => {
+              if (e2 || !r2.ok) return void toast(e2 ? 'No response.' : r2.ok ? '' : r2.error, 'bad');
+              toast(mode === 'all' ? '🏠 Anyone can visit your places (except people you block).' : mode === 'only' ? '🏠 Only the people you pick (📱 Players) can visit.' : '🏠 Your places are closed to visitors.', 'good');
+            });
+          }),
       },
     });
     this.settings = { close: () => s.close() };

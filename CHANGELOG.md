@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.31.0 (2026-11-22): 🏠 Visit other players' places
+- **📱 Players → 🏠 Visit** (feedback #18): look round another player's homes, lofts, Airbnbs and shop floors
+  (their furniture, their stars), from anywhere. It's read-only, and you come back out where you were.
+  If they have more than one place, you pick which.
+- **Your privacy:** Settings → 🏠 Player visits:
+  - Everyone (the default), except people you block;
+  - only the people you pick;
+  - no one.
+  Block or pick people with the button on each row of 📱 Players. It works while you're offline too.
+
 ## 1.30.0 (2026-11-22): 📱 IKEJA Online (buy furniture from your phone)
 - **New phone app, IKEJA Online** (Shop & bank) (feedback #16): every piece the furniture store sells, ordered
   from anywhere and delivered straight to your bag. Delivery costs 10% of the price (at least RM 50). Walking

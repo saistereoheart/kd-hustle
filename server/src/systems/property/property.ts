@@ -207,6 +207,20 @@ export class PropertySystem {
     return changed;
   }
 
+  /** 🏠 A player's places (homes, lofts, Airbnbs, shop floors) for visitors. */
+  placesOf(owner: number): Array<{ unit: string; type: string; mode: PropertyMode }> {
+    const out: Array<{ unit: string; type: string; mode: PropertyMode }> = [];
+    for (const s of this.props.values()) if (s.owner === owner) out.push({ unit: s.unit, type: s.type, mode: s.mode });
+    return out;
+  }
+
+  /** 🏠 A place as a visitor sees it (its furniture and stars), or null. */
+  placeView(unit: string): ShopView | null {
+    const s = this.props.get(unit);
+    if (!s) return null;
+    return { unit: s.unit, type: s.type, owner: s.owner, ownerName: s.ownerName, layout: s.layout.map((p) => ({ ...p })), stars: this.ratingOf(s).stars, cleanliness: s.cleanliness };
+  }
+
   /** 🏪 A building's shop floor as visitors see it (its furniture, stars), or null. */
   shopView(building: string): ShopView | null {
     const s = this.props.get(building + SHOP_SUFFIX);
