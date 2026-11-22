@@ -6,18 +6,43 @@
 // hit-stop, knockback, screen shake, slash arcs, pixel sparks, shockwaves, a charge aura and zoom
 // punch on skills, big numbers.
 //
-// Cheap: one 2D canvas drawn at a low resolution and scaled up with hard pixel edges (that IS the
-// pixel-art look); the backdrop is painted once; a frame is one backdrop copy, a few sprites and the
-// effects. No 3D engine.
+// The arena is pixel art (painted once at a low resolution, scaled up with hard edges); the fighters
+// are drawn sharp on top: you in a side-on battle stance (the game's own character art: real hair,
+// face, outfit) holding a keris and a shield in your Labirin gear's tier colours, the monsters from
+// their 3D models. Each has a set of poses (stance ×2, wind-up, strike, follow-through, skill, guard,
+// hurt, victory) painted once per fight, then just swapped. Every picture gets a dark outline, darker
+// purple shading and a warm rim from the lamps, so they sit in the same dark cave as the arena.
+//
+// Cheap: one 2D canvas, a few sprites and the effects per frame. No 3D engine.
 import type { Appearance, CharacterConfig, LabEvent } from '@kh/shared';
-import { drawCharacter, FRAME_H, FRAME_W, type Pose } from '../../../character/draw';
+import { drawCharacter, FRAME_H, FRAME_W, sideHand, type Pose } from '../../../character/draw';
 import { LAB_FRAMES, LAB_SHEET_URL, type LabFrame } from '../../../world/labSheet';
 import type { StageFighter } from '../battle3d/stage';
-import { loadMonsterPics, monsterPic } from '../portraits';
+import { loadMonsterPoses, monsterPoses } from '../portraits';
 
 export interface Stage2DFighter extends StageFighter {
   appearance?: Appearance;
+  /** Labirin gear tier colours (what they hold and wear), if known. */
+  gear?: { weapon?: string; shield?: string; armour?: string; charm?: string };
 }
+
+type PoseName = 'idle' | 'idle1' | 'windup' | 'strike' | 'follow' | 'skill' | 'guard' | 'hurt' | 'win';
+type Pic = { img: HTMLCanvasElement; white: HTMLCanvasElement };
+
+/** Your fighter's poses (side view: the art faces left, it's flipped to face the monsters). */
+const PLAYER_POSES: Record<PoseName, Pose> = {
+  idle: { view: 'side', legL: 0.45, legR: -0.35, armL: 0.95, bendL: 0.55, armR: 0.55, bendR: -0.6, tilt: -0.05 },
+  idle1: { view: 'side', legL: 0.45, legR: -0.35, armL: 0.85, bendL: 0.65, armR: 0.5, bendR: -0.55, tilt: -0.04, bob: 0.6 },
+  windup: { view: 'side', legL: 0.6, legR: -0.5, armL: -2.2, bendL: -0.6, armR: 0.9, bendR: -0.4, tilt: 0.07 },
+  strike: { view: 'side', legL: 0.95, legR: -0.85, armL: 1.7, bendL: 0.1, armR: -0.4, bendR: 0, tilt: -0.15, mouth: 'open' },
+  follow: { view: 'side', legL: 0.8, legR: -0.7, armL: 0.5, bendL: -0.9, armR: -0.2, bendR: 0, tilt: -0.1 },
+  skill: { view: 'side', legL: 0.55, legR: -0.5, armL: 2.9, bendL: 0.2, armR: 2.5, bendR: 0.2, mouth: 'grin' },
+  guard: { view: 'side', legL: 0.4, legR: -0.4, armL: 0.5, bendL: 0.3, armR: 1.4, bendR: -1.2, tilt: 0.05 },
+  hurt: { view: 'side', eyes: 'closed', mouth: 'open', tilt: 0.17, armL: -0.4, armR: -0.6, legL: 0.25, legR: -0.25 },
+  win: { view: 'side', armL: 2.8, bendL: 0.3, armR: 2.4, mouth: 'grin', eyes: 'happy', bob: -2, legL: 0.3, legR: -0.3 },
+};
+/** Monster pictures per pose (from their 3D model's own motion). */
+const MONSTER_FOR: Record<PoseName, string> = { idle: 'idle0', idle1: 'idle1', windup: 'windup', strike: 'strike', follow: 'strike', skill: 'windup', guard: 'idle0', hurt: 'hurt', win: 'idle1' };
 
 export interface Stage2DOpts {
   host: HTMLElement;
@@ -36,13 +61,14 @@ interface Actor {
   down: number;
   gone: number;
   flashT: number;
-  pose: 'idle' | 'act' | 'hurt';
+  pose: PoseName;
   busy: number;
   hover: boolean;
   /** Pictures (and white copies for the hit flash), per pose. */
-  pics: Partial<Record<'idle' | 'act' | 'hurt', { img: HTMLCanvasElement; white: HTMLCanvasElement }>>;
-  /** Picture height on screen (internal px). */
+  pics: Partial<Record<PoseName, Pic>>;
+  /** Picture height on screen (internal px), and where its feet are (share of the picture's height). */
   h: number;
+  feet: number;
 }
 
 interface Tween {
@@ -97,24 +123,144 @@ function sheet(): Promise<HTMLImageElement | null> {
   });
 }
 
-/** The picture cut to what's actually drawn (so its feet sit on its shadow, not floating above). */
-function trimmed(im: HTMLImageElement): HTMLCanvasElement {
-  const a = document.createElement('canvas');
-  a.width = im.width;
-  a.height = im.height;
-  const ax = a.getContext('2d')!;
-  ax.drawImage(im, 0, 0);
-  const d = ax.getImageData(0, 0, a.width, a.height).data;
-  let x0 = a.width, y0 = a.height, x1 = -1, y1 = -1;
-  for (let y = 0; y < a.height; y++)
-    for (let x = 0; x < a.width; x++)
-      if (d[(y * a.width + x) * 4 + 3] > 20) (x0 = Math.min(x0, x), y0 = Math.min(y0, y), x1 = Math.max(x1, x), y1 = Math.max(y1, y));
-  if (x1 < 0) return a;
-  const c = document.createElement('canvas');
-  c.width = x1 - x0 + 1;
-  c.height = y1 - y0 + 1;
-  c.getContext('2d')!.drawImage(a, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
-  return c;
+/** Several pictures cut to the area any of them draws (same crop for all poses: no size jumps). */
+function unionTrim(list: HTMLCanvasElement[]): { list: HTMLCanvasElement[]; y0: number } {
+  let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+  for (const c of list) {
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    for (let y = 0; y < c.height; y++)
+      for (let x = 0; x < c.width; x++)
+        if (d[(y * c.width + x) * 4 + 3] > 20) (x0 = Math.min(x0, x), y0 = Math.min(y0, y), x1 = Math.max(x1, x), y1 = Math.max(y1, y));
+  }
+  if (x1 < 0) return { list, y0: 0 };
+  return {
+    y0,
+    list: list.map((c) => {
+      const o = document.createElement('canvas');
+      o.width = x1 - x0 + 1;
+      o.height = y1 - y0 + 1;
+      o.getContext('2d')!.drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+      return o;
+    }),
+  };
+}
+
+/**
+ * Lit like the cave: darker with a purple cast, deeper shade towards the feet, a warm rim from the
+ * lamps on the side facing the light, and a dark outline all round.
+ */
+function gradeDark(src: HTMLCanvasElement, outline: number, lightFromLeft: boolean, tint = '#9b8bb8'): HTMLCanvasElement {
+  const pad = outline + 1;
+  const W = src.width + pad * 2, H = src.height + pad * 2;
+  // The shaded sprite.
+  const sh = document.createElement('canvas');
+  sh.width = W;
+  sh.height = H;
+  const s = sh.getContext('2d')!;
+  s.drawImage(src, pad, pad);
+  s.globalCompositeOperation = 'multiply';
+  s.fillStyle = tint;
+  s.fillRect(0, 0, W, H);
+  s.globalCompositeOperation = 'destination-in';
+  s.drawImage(src, pad, pad);
+  s.globalCompositeOperation = 'source-atop';
+  const down = s.createLinearGradient(0, 0, 0, H);
+  down.addColorStop(0, 'rgba(0,0,0,0)');
+  down.addColorStop(0.55, 'rgba(10,4,20,0.1)');
+  down.addColorStop(1, 'rgba(10,4,20,0.5)');
+  s.fillStyle = down;
+  s.fillRect(0, 0, W, H);
+  const side = s.createLinearGradient(lightFromLeft ? 0 : W, 0, lightFromLeft ? W : 0, 0);
+  side.addColorStop(0, 'rgba(255,160,80,0.28)');
+  side.addColorStop(0.35, 'rgba(255,160,80,0)');
+  side.addColorStop(0.8, 'rgba(0,0,0,0)');
+  side.addColorStop(1, 'rgba(120,150,255,0.18)');
+  s.fillStyle = side;
+  s.fillRect(0, 0, W, H);
+  // Outline (the silhouette, stamped round in a ring), then the sprite on top.
+  const out = document.createElement('canvas');
+  out.width = W;
+  out.height = H;
+  const o = out.getContext('2d')!;
+  const sil = document.createElement('canvas');
+  sil.width = W;
+  sil.height = H;
+  const si = sil.getContext('2d')!;
+  si.drawImage(src, pad, pad);
+  si.globalCompositeOperation = 'source-in';
+  si.fillStyle = '#07040d';
+  si.fillRect(0, 0, W, H);
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    o.drawImage(sil, Math.round(Math.cos(a) * outline), Math.round(Math.sin(a) * outline));
+  }
+  o.drawImage(sh, 0, 0);
+  return out;
+}
+
+/** A keris held in a hand (frame units): grip, gold guard, a wavy blade with its tier's edge. */
+function drawKeris(x: CanvasRenderingContext2D, hx: number, hy: number, angle: number, edge: string) {
+  x.save();
+  x.translate(hx, hy);
+  x.rotate(Math.atan2(Math.cos(angle), -Math.sin(angle)));
+  x.lineCap = 'round';
+  x.strokeStyle = '#2a1608';
+  x.lineWidth = 2.2;
+  x.beginPath();
+  x.moveTo(-3.2, 0);
+  x.lineTo(0.5, 0);
+  x.stroke();
+  x.strokeStyle = '#7a4a22';
+  x.lineWidth = 1.4;
+  x.stroke();
+  x.fillStyle = '#e0b030';
+  x.beginPath();
+  x.ellipse(0.8, 0, 0.9, 2.1, 0, 0, Math.PI * 2);
+  x.fill();
+  // The wavy blade.
+  x.beginPath();
+  x.moveTo(1.5, -1.1);
+  for (let i = 0; i <= 14; i++) x.lineTo(1.5 + i, -1.1 + Math.sin(i * 1.3) * 0.7 + i * 0.05);
+  x.lineTo(17, 0.2);
+  for (let i = 14; i >= 0; i--) x.lineTo(1.5 + i, 1.1 + Math.sin(i * 1.3) * 0.7 - i * 0.03);
+  x.closePath();
+  x.fillStyle = '#cfd6e2';
+  x.fill();
+  x.strokeStyle = edge;
+  x.lineWidth = 0.6;
+  x.stroke();
+  x.strokeStyle = 'rgba(255,255,255,0.7)';
+  x.lineWidth = 0.35;
+  x.beginPath();
+  x.moveTo(2.5, -0.3);
+  x.lineTo(14, 0);
+  x.stroke();
+  x.restore();
+}
+
+/** A round shield on the far arm (frame units), rimmed in its tier colour. */
+function drawShield(x: CanvasRenderingContext2D, hx: number, hy: number, rim: string) {
+  x.save();
+  x.translate(hx - 1.5, hy - 1);
+  x.fillStyle = '#5a3a1c';
+  x.beginPath();
+  x.ellipse(0, 0, 4.6, 6, 0, 0, Math.PI * 2);
+  x.fill();
+  for (let i = -2; i <= 2; i++) (x.strokeStyle = 'rgba(0,0,0,0.25)'), (x.lineWidth = 0.4), x.beginPath(), x.moveTo(i * 1.6, -5.5), x.lineTo(i * 1.6, 5.5), x.stroke();
+  x.strokeStyle = rim;
+  x.lineWidth = 1.2;
+  x.beginPath();
+  x.ellipse(0, 0, 4.6, 6, 0, 0, Math.PI * 2);
+  x.stroke();
+  x.fillStyle = rim;
+  x.beginPath();
+  x.arc(0, 0, 1.3, 0, Math.PI * 2);
+  x.fill();
+  x.fillStyle = 'rgba(255,255,255,0.5)';
+  x.beginPath();
+  x.arc(-0.4, -0.4, 0.5, 0, Math.PI * 2);
+  x.fill();
+  x.restore();
 }
 
 function whiteCopy(src: HTMLCanvasElement): HTMLCanvasElement {
@@ -154,6 +300,8 @@ export class Battle2D {
   private lamps: Array<{ x: number; y: number; r: number }> = [];
   private ro: ResizeObserver;
   private sheet: HTMLImageElement | null = null;
+  /** Canvas pixels per art pixel. */
+  private S = 3;
 
   constructor(private o: Stage2DOpts) {
     this.cv = document.createElement('canvas');
@@ -180,9 +328,11 @@ export class Battle2D {
     this.PX = Math.max(2, Math.min(4, Math.round(r.width / 430)));
     this.W = Math.max(120, Math.ceil(r.width / this.PX));
     this.H = Math.max(90, Math.ceil(r.height / this.PX));
-    this.cv.width = this.W;
-    this.cv.height = this.H;
-    this.ctx.imageSmoothingEnabled = false;
+    // The canvas itself is at screen sharpness (fighters drawn sharp); everything is laid out in art
+    // pixels and scaled by S, and the backdrop is scaled up with hard edges (the pixel look).
+    this.S = this.PX * Math.min(1.5, window.devicePixelRatio || 1);
+    this.cv.width = Math.ceil(this.W * this.S);
+    this.cv.height = Math.ceil(this.H * this.S);
     this.paintBackdrop();
     // Re-place everyone for the new size.
     for (const a of this.actors.values()) this.place(a);
@@ -275,7 +425,7 @@ export class Battle2D {
           a = {
             f, home: { x: 0, y: 0 }, off: { x: 0, y: 0 }, scale: 1, lean: 0, squash: 1, down: f.out && !f.fled ? 1 : 0,
             gone: f.out && (f.fled || f.side === 'foe') ? 1 : 0, flashT: 0, pose: 'idle', busy: 0,
-            hover: f.side === 'foe' && (HOVER_KINDS.has(f.kind ?? '') || HOVER_ICONS.has(f.icon ?? '')), pics: {}, h: 40,
+            hover: f.side === 'foe' && (HOVER_KINDS.has(f.kind ?? '') || HOVER_ICONS.has(f.icon ?? '')), pics: {}, h: 40, feet: 1,
           };
           this.actors.set(f.id, a);
           this.makePics(a);
@@ -309,7 +459,7 @@ export class Battle2D {
     if (a.f.side === 'party') {
       a.home = { x: W * 0.2 + mid * W * 0.14, y: H * 0.9 - Math.abs(mid) * H * 0.03 };
       a.scale = 1;
-      a.h = H * 0.36;
+      a.h = H * 0.42;
     } else {
       a.home = { x: W * 0.68 + mid * W * (a.f.boss ? 0 : 0.17), y: H * 0.62 + Math.abs(mid) * H * 0.04 };
       a.scale = a.f.boss ? 1.55 : 0.95;
@@ -321,40 +471,81 @@ export class Battle2D {
     if (a.f.side === 'party') {
       const ap = a.f.appearance;
       if (!ap) return;
-      const R = 3;
-      const draw = (pose: Pose) => {
+      const R = 5; // sharp: hair strands, face, the keris's wave
+      const weapon = a.f.gear?.weapon ?? '#a0763c';
+      const shield = a.f.gear?.shield;
+      const raw: HTMLCanvasElement[] = [];
+      const names = Object.keys(PLAYER_POSES) as PoseName[];
+      for (const n of names) {
+        const pose = PLAYER_POSES[n];
         const c = document.createElement('canvas');
-        c.width = FRAME_W * R;
-        c.height = FRAME_H * R;
+        c.width = (FRAME_W + 24) * R;
+        c.height = (FRAME_H + 20) * R;
         const x = c.getContext('2d')!;
         x.scale(R, R);
+        x.translate(12, 14); // room round the frame for a raised keris
         drawCharacter(x, ap, this.o.character, pose);
-        return { img: c, white: whiteCopy(c) };
-      };
-      // Your party from behind (facing the monsters).
-      a.pics = {
-        idle: draw({ view: 'back', armR: 0.3 }),
-        act: draw({ view: 'back', armR: 2.6, bendR: 0.4, legL: 0.6, tilt: 0.05 }),
-        hurt: draw({ view: 'back', armL: 0.7, armR: 0.7, tilt: -0.1, bob: 1 }),
-      };
+        if (shield) {
+          const f = sideHand(ap, this.o.character, pose, 'far');
+          drawShield(x, f.x, f.y, shield);
+        }
+        const h = sideHand(ap, this.o.character, pose, 'near');
+        drawKeris(x, h.x, h.y, h.angle, weapon);
+        raw.push(c);
+      }
+      const { list: cut, y0 } = unionTrim(raw);
+      // Where the feet are in the cut picture (the frame's feet line: 68 of 72, 14 down from the top).
+      const pad = Math.max(2, Math.round(R * 0.5));
+      a.feet = Math.min(1, (pad + 1 + (14 + 68) * R - y0) / (cut[0].height + (pad + 1) * 2));
+      a.pics = {};
+      names.forEach((n, i) => {
+        const g = gradeDark(cut[i], pad, false, '#7f739c'); // (the flat character art needs more shade)
+        a.pics[n] = { img: g, white: whiteCopy(g) };
+      });
       return;
     }
-    const set = (url: string) => {
-      const im = new Image();
-      im.onload = () => {
-        const c = trimmed(im);
-        const p = { img: c, white: whiteCopy(c) };
-        a.pics = { idle: p, act: p, hurt: p };
-      };
-      im.src = url;
+    const set = (urls: Record<string, string>) => {
+      const keys = Object.keys(urls);
+      const ims = keys.map((k) => {
+        const im = new Image();
+        im.src = urls[k];
+        return im;
+      });
+      void Promise.all(ims.map((im) => im.decode().catch(() => {}))).then(() => {
+        if (this.dead) return;
+        const cvs = ims.map((im) => {
+          const c = document.createElement('canvas');
+          c.width = im.width || 1;
+          c.height = im.height || 1;
+          c.getContext('2d')!.drawImage(im, 0, 0);
+          return c;
+        });
+        const { list: cut } = unionTrim(cvs);
+        // Its feet: the lowest drawn row of the idle picture (the other poses may reach lower).
+        const idle = cut[Math.max(0, keys.indexOf('idle0'))];
+        const d = idle.getContext('2d')!.getImageData(0, 0, idle.width, idle.height).data;
+        let low = idle.height - 1;
+        find: for (let y = idle.height - 1; y >= 0; y--) for (let x = 0; x < idle.width; x++) if (d[(y * idle.width + x) * 4 + 3] > 40) {
+          low = y;
+          break find;
+        }
+        const byKey: Record<string, Pic> = {};
+        keys.forEach((k, i) => {
+          const g = gradeDark(cut[i], 3, true);
+          byKey[k] = { img: g, white: whiteCopy(g) };
+        });
+        a.pics = {};
+        for (const n of Object.keys(MONSTER_FOR) as PoseName[]) a.pics[n] = byKey[MONSTER_FOR[n]] ?? byKey.idle0;
+        a.feet = (4 + low + 1) / (idle.height + 8); // (gradeDark adds 3 + 1 px all round)
+      });
     };
-    // Its picture (made once per kind; a second monster of the same kind waits for the first's).
+    // Its posed pictures (made once per kind; a second monster of the same kind waits for the first's).
     const tryPic = (n: number) => {
       if (this.dead) return;
-      const u = monsterPic(a.f.kind, a.f.icon, a.f.boss, 96);
+      const u = monsterPoses(a.f.kind, a.f.icon, a.f.boss);
       if (u) return set(u);
-      if (n === 0) void loadMonsterPics([{ kind: a.f.kind, icon: a.f.icon, boss: a.f.boss }], () => tryPic(1), 96);
-      if (n < 20) window.setTimeout(() => tryPic(n + 1), 250);
+      if (n === 0) void loadMonsterPoses([{ kind: a.f.kind, icon: a.f.icon, boss: a.f.boss }], () => tryPic(1));
+      if (n < 30) window.setTimeout(() => tryPic(n + 1), 250);
     };
     tryPic(0);
   }
@@ -373,6 +564,8 @@ export class Battle2D {
     const B = e.target ? this.actors.get(e.target) : undefined;
     if (e.kind === 'hit' && A && B) return this.attack(A, B, e);
     if (e.kind === 'guard' && A) {
+      A.pose = 'guard';
+      this.after(0.7, () => A.pose === 'guard' && (A.pose = 'idle'));
       const [cx, cy] = this.chest(A);
       this.fx.push({ kind: 'shield', x: cx, y: cy, r: A.h * 0.55, ang: 0, t: 0, dur: 0.7, color: '#74c0fc' });
       this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 0.6, ang: 0, t: 0, dur: 0.5, color: '#74c0fc' });
@@ -418,7 +611,7 @@ export class Battle2D {
     }
     if (e.kind === 'win') {
       for (const a of this.actors.values())
-        if (a.f.side === 'party' && !a.f.out) this.tween(0.9, (k) => (a.off.y = -Math.abs(Math.sin(k * Math.PI * 2)) * a.h * 0.25), () => (a.off.y = 0));
+        if (a.f.side === 'party' && !a.f.out) (a.pose = 'win'), this.tween(0.9, (k) => (a.off.y = -Math.abs(Math.sin(k * Math.PI * 2)) * a.h * 0.25), () => (a.off.y = 0));
       for (const c of ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2']) this.burst(this.W * 0.3, this.H * 0.45, 14, c, 4, -3, 5, 1.2);
       return 1000;
     }
@@ -441,18 +634,20 @@ export class Battle2D {
       this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h, ang: 0, t: 0, dur: charge, color });
       this.burst(cx, cy, 26, color, 2, -2, -2, charge);
       this.punch = 1;
+      A.pose = 'skill';
       this.tween(charge, (k) => ((A.squash = 1 - 0.18 * Math.sin(k * Math.PI)), (A.off.y = -Math.sin(k * Math.PI) * A.h * 0.12)));
     }
     this.after(charge, () =>
-      this.tween(0.16, (k) => ((A.lean = -0.25 * k), (A.pose = k > 0.3 ? 'act' : 'idle')), () =>
+      this.tween(0.16, (k) => ((A.lean = -0.25 * k), (A.pose = 'windup')), () =>
         this.tween(skill ? 0.13 : 0.16, (k) => {
           const q = ease.in(k);
           A.off.x = reach.x * q;
           A.off.y = reach.y * q - Math.sin(k * Math.PI) * A.h * (skill ? 0.4 : 0.15);
           A.squash = 1 + 0.25 * Math.sin(k * Math.PI);
           A.lean = 0.3 * k * (party ? 1 : -1);
+          if (k > 0.6) A.pose = 'strike';
         }, () =>
-          this.tween(0.09, () => {}, () => {
+          this.tween(0.09, () => (A.pose = 'strike'), () => {
             this.impact(A, B, e, color, dx / len, dy / len);
             this.after(0.12, () =>
               this.tween(0.3, (k) => {
@@ -460,6 +655,7 @@ export class Battle2D {
                 A.off.x = reach.x * q;
                 A.off.y = reach.y * q;
                 A.lean = 0.3 * q * (party ? 1 : -1);
+                A.pose = k < 0.5 ? 'follow' : 'idle';
               }, () => ((A.lean = 0), (A.squash = 1), (A.pose = 'idle'), A.busy--)),
             );
           }),
@@ -575,7 +771,8 @@ export class Battle2D {
   private draw(real: number) {
     const { ctx: x, W, H } = this;
     const t = this.time;
-    x.setTransform(1, 0, 0, 1, 0, 0);
+    const S = this.S;
+    x.setTransform(S, 0, 0, S, 0, 0);
     x.globalCompositeOperation = 'source-over';
     x.globalAlpha = 1;
     // Camera: shake and the zoom punch on skills.
@@ -583,7 +780,8 @@ export class Battle2D {
     this.punch *= Math.pow(0.08, real);
     const z = 1 + this.punch * 0.08;
     const sx = Math.round((Math.random() - 0.5) * this.shakeAmp), sy = Math.round((Math.random() - 0.5) * this.shakeAmp);
-    x.setTransform(z, 0, 0, z, W / 2 - (W / 2) * z + sx, H / 2 - (H / 2) * z + sy);
+    x.setTransform(z * S, 0, 0, z * S, (W / 2 - (W / 2) * z + sx) * S, (H / 2 - (H / 2) * z + sy) * S);
+    x.imageSmoothingEnabled = false;
     if (this.bg) x.drawImage(this.bg, 0, 0);
     else (x.fillStyle = '#0c0a12'), x.fillRect(0, 0, W, H);
     // Lamp light, flickering.
@@ -678,7 +876,7 @@ export class Battle2D {
     x.globalCompositeOperation = 'source-over';
     if (this.flash > 0) {
       this.flash = Math.max(0, this.flash - real * 1.8);
-      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.setTransform(S, 0, 0, S, 0, 0);
       x.fillStyle = `rgba(255,255,255,${this.flash})`;
       x.fillRect(0, 0, W, H);
     }
@@ -687,7 +885,9 @@ export class Battle2D {
   private drawActor(a: Actor, t: number, real: number) {
     if (a.gone >= 1) return;
     const x = this.ctx;
-    const p = a.pics[a.pose] ?? a.pics.idle;
+    // Idle breathes between two frames (flyers flap faster).
+    const idleFrame = Math.floor(t / (a.hover ? 0.16 : 0.55)) % 2 ? 'idle1' : 'idle';
+    const p = a.pics[a.pose === 'idle' ? idleFrame : a.pose] ?? a.pics.idle;
     const px = a.home.x + a.off.x;
     const hoverY = a.hover && a.down < 0.5 ? a.h * 0.35 + Math.sin(t * 2.6 + a.home.x) * 2 : 0;
     const py = a.home.y + a.off.y - hoverY;
@@ -707,12 +907,15 @@ export class Battle2D {
     x.save();
     x.translate(Math.round(px), Math.round(py));
     x.rotate(a.lean + a.down * (a.f.side === 'party' ? -1.4 : 1.4));
-    x.scale(1 / Math.sqrt(sq), sq);
-    x.drawImage(p.img, -w / 2, -h, w, h);
+    x.scale((a.f.side === 'party' ? -1 : 1) / Math.sqrt(sq), sq); // (your art faces left: flipped to face the monsters)
+    const top = -h * a.feet;
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(p.img, -w / 2, top, w, h);
     if (a.flashT > 0) {
       a.flashT -= real;
       x.globalAlpha = 0.85;
-      x.drawImage(p.white, -w / 2, -h, w, h);
+      x.drawImage(p.white, -w / 2, top, w, h);
       x.globalAlpha = 1;
     }
     x.restore();

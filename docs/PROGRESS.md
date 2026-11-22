@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.25.1)_
+_Last updated: 2026-11-22 (v1.26.0)_
 
-**Now at v1.25.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.26.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🗡️ Detailed pixel fighters + hall table (2026-11-22, your request, v1.26.0)
+- Players: `drawCharacter` side view in 9 poses (`PLAYER_POSES` in `battle2d/stage2d.ts`), keris/shield
+  drawn at the hand (`sideHand` in `character/draw.ts`). Monsters: 5 poses snapshotted from the 3D model
+  (`snapshotMonsters(.., poses=true)`). All pre-rendered once per fight: no per-frame cost.
+- `gradeDark`: multiply tint, downward shade, warm/cool rims, 12-direction dark outline.
+- Hall: bench_long + table_long replaced with one low `table_mug` in front of the sitters.
+- **Decision:** the stage canvas now renders at PX × min(1.5, dpr) (sharp fighters; backdrop still
+  nearest-neighbour pixels).
 
 ## 👁️ Pixel vignette on the see-through circle (2026-11-22, your request, v1.25.1)
 - **The hole:** an inverted GeometryMask built from 5 px grid cells (a stepped circle, radius 1.05

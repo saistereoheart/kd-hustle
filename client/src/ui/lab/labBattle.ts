@@ -6,6 +6,7 @@
 // effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
+import { labGear } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
@@ -208,6 +209,13 @@ export class LabBattleUi {
     this.paused = false;
   }
 
+  /** Your Labirin gear's tier colours (what your fighter holds). */
+  private myGear() {
+    const g = this.app.labHud?.self?.gear ?? {};
+    const lc = this.app.cfg.lab;
+    return { weapon: labGear(lc, g.weapon)?.color, shield: labGear(lc, g.shield)?.color, armour: labGear(lc, g.armour)?.color, charm: labGear(lc, g.charm)?.color };
+  }
+
   /** The fighters for the stages (players with their own colours and look). */
   private stageFighters(): Stage2DFighter[] {
     const looks = this.looks();
@@ -217,6 +225,7 @@ export class LabBattleUi {
         id: f.id, side: f.side, name: f.name, kind: f.kind, icon: f.icon, boss: f.boss, out: f.out, fled: f.fled, hp: f.hp, maxHp: f.maxHp,
         look: a ? { skin: a.skin, hair: a.hairColor, top: a.topColor, bottom: a.bottomColor, shoes: a.shoesColor, eyes: a.eyeColor } : undefined,
         appearance: a,
+        gear: f.id === this.meId ? this.myGear() : undefined,
       };
     });
   }

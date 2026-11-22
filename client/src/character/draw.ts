@@ -1517,6 +1517,30 @@ function wornBack(ctx: Ctx, m: M, worn: WornCosmetics | undefined, view: View, l
   ctx.restore();
 }
 
+/**
+ * Side view: where a hand is in the frame for this pose, and which way the forearm points (radians,
+ * 0 = straight down, positive = towards the face / forward). `near` = the arm drawn in front (armL),
+ * `far` = the one behind (armR). For things held in the hand (the Labirin fight's keris and shield).
+ */
+export function sideHand(a: Appearance, cfg: CharacterConfig, p: Pose, which: 'near' | 'far'): { x: number; y: number; angle: number } {
+  const m = metrics(a, cfg);
+  const sx = CX + 1;
+  const sy = m.shoulderY + 2.5 + (p.bob ?? 0);
+  const angle = which === 'near' ? p.armL ?? 0 : -(p.armR ?? 0);
+  const bend = which === 'near' ? p.bendL ?? 0 : -(p.bendR ?? 0);
+  const l = m.armLen * 0.5;
+  const ex = sx - Math.sin(angle) * l, ey = sy + Math.cos(angle) * l;
+  const a2 = angle + bend;
+  let hx = ex - Math.sin(a2) * l, hy = ey + Math.cos(a2) * l;
+  if (p.tilt) {
+    // drawCharacter tilts the whole body round the feet.
+    const dx = hx - CX, dy = hy - FEET_Y;
+    hx = CX + dx * Math.cos(p.tilt) - dy * Math.sin(p.tilt);
+    hy = FEET_Y + dx * Math.sin(p.tilt) + dy * Math.cos(p.tilt);
+  }
+  return { x: hx, y: hy, angle: a2 + (p.tilt ?? 0) };
+}
+
 export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: Pose, worn?: WornCosmetics) {
   const m = metrics(a, cfg, worn);
   ctx.save();

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.26.0 (2026-11-22): 🗡️ detailed pixel fighters, dungeon-dark lighting, a simpler hall table
+- **Fighters with real poses:** your character fights side-on: idle breathing, a wind-up, a lunge and
+  follow-through, a skill charge, guard, hurt and a win pose. You hold your keris (and shield, when
+  equipped) in your hands, coloured by their tier.
+- **Monsters move too:** each is rendered in a few poses from its 3D model (two idle frames, wind-up,
+  strike, hurt), once per fight.
+- **Lit like the dungeon:** fighters are shaded dark, with a warm lamp rim, a cool back rim and a dark
+  pixel outline, so they sit in the background instead of glowing on it. Drawn sharp at higher resolution.
+- **Hall table:** the stacked bench-and-table is now one low table, so you see the people on the bench
+  from the chest up.
+
 ## 1.25.1 (2026-11-22): 👁️ a pixel vignette round the see-through circle
 - **Pixel-art cut-out:** the hole through walls round you is cut in chunky pixels, with a black dithered
   rim that fades out, like a dark pixel vignette.

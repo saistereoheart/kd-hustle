@@ -50,6 +50,37 @@ export function monsterPic(kind?: string, icon?: string, boss?: boolean, size = 
 }
 
 /** Render the monsters we don't have pictures of yet (once), then call `done`. */
+/** A monster's posed pictures for the pixel-art stage (idle0, idle1, windup, strike, hurt), if made. */
+export function monsterPoses(kind?: string, icon?: string, boss?: boolean): Record<string, string> | undefined {
+  const k = monsterKey(kind, icon, boss, POSE_SIZE);
+  const idle = monsters.get(`${k}#idle0`);
+  if (!idle) return undefined;
+  const out: Record<string, string> = {};
+  for (const p of ['idle0', 'idle1', 'windup', 'strike', 'hurt']) out[p] = monsters.get(`${k}#${p}`) ?? idle;
+  return out;
+}
+const POSE_SIZE = 240;
+
+/** Render the posed pictures of monsters we don't have yet (once), then call `done`. */
+export async function loadMonsterPoses(list: Array<{ kind?: string; icon?: string; boss?: boolean }>, done: () => void) {
+  const todo = list
+    .map((f) => ({ ...f, key: monsterKey(f.kind, f.icon, f.boss, POSE_SIZE) }))
+    .filter((f, i, all) => !monsters.has(`${f.key}#idle0`) && !pending.has(f.key) && all.findIndex((g) => g.key === f.key) === i);
+  if (!todo.length) return;
+  const probe = document.createElement('canvas');
+  if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) return;
+  for (const t of todo) pending.add(t.key);
+  try {
+    const { snapshotMonsters } = await import('./battle3d/snapshot');
+    for (const [k, url] of await snapshotMonsters(todo, POSE_SIZE, true)) monsters.set(k, url);
+    done();
+  } catch (err) {
+    console.warn('[lab] monster pictures unavailable', err);
+  } finally {
+    for (const t of todo) pending.delete(t.key);
+  }
+}
+
 export async function loadMonsterPics(list: Array<{ kind?: string; icon?: string; boss?: boolean }>, done: () => void, size = 200) {
   const todo = list
     .map((f) => ({ ...f, key: monsterKey(f.kind, f.icon, f.boss, size) }))

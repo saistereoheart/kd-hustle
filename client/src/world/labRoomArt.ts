@@ -431,8 +431,9 @@ export function buildRoomArt(scene: Phaser.Scene, L: RoomLayout, o: RoomArtOpts)
       piece('bar_counter', (c0[0] + cn / 2) * T, (c0[1] + 1.55) * T, { w: BAR_W * T, depth: AVATAR_DEPTH + (c0[1] - 0.5) * T });
       // Tables, the long table and its bench.
       for (const t of h.tables) piece('table_round', (t[0] + 0.5) * T, (t[1] + 0.95) * T, { w: T * 1.3 });
-      piece('bench_long', (h.benches[0][0] + h.benches.length / 2) * T, (h.benches[0][1] + 0.95) * T, { w: h.benches.length * T });
-      piece('table_long', (h.longTable[0][0] + h.longTable.length / 2) * T, (h.longTable[0][1] + 0.95) * T, { w: h.longTable.length * T });
+      // One simple table in front of the people on the bench: low, so you see their top half.
+      const by = h.benches[0][1];
+      piece('table_mug', (h.longTable[0][0] + h.longTable.length / 2) * T, (by + 1.25) * T, { w: h.longTable.length * T * 0.9, h: T * 0.62, depth: AVATAR_DEPTH + (by + 1.25) * T });
       // The campfire with people round it.
       piece('campfire', (h.fire[0] + 0.5) * T, (h.fire[1] + 1.05) * T, { w: T * 1.7 });
       // Clutter: barrels and crates by the walls, a banner and a wall lantern on the back wall.
