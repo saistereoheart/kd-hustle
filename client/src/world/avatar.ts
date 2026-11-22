@@ -52,7 +52,7 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
     mk(`walk_${view}`, walkFrames(view), 9);
     mk(`ride_${view}`, rideFrames(view), 1);
   }
-  const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
+  const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sitside: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
   for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, EMOTE_FPS[id] ?? 5);
   return key;
 }
@@ -517,7 +517,9 @@ export class Avatar {
     // On a bike: the riding pose (hands on the handlebar, or holding on to the Ronda rider).
     else if (this.vehicle) key = `${this.texKey}:ride_${this.diag && !this.driver ? 'side' : VIEW_OF[this.dir]}`;
     else key = `${this.texKey}:${this.moving ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;
-    this.sprite.setFlipX(!this.emoteUntil && (this.diag && this.vehicle && !this.driver ? this.diagRight : this.dir === 'right'));
+    // (A side-on emote, sitting on a chair, faces the way you're turned; other emotes face you.)
+    const sideEmote = !!this.emoteUntil && this.emoteId === 'sitside';
+    this.sprite.setFlipX(sideEmote ? this.dir === 'right' : !this.emoteUntil && (this.diag && this.vehicle && !this.driver ? this.diagRight : this.dir === 'right'));
     if (this.bike && this.diag && !this.driver) {
       // 45°: the turned vehicle, the rider sitting on it seen from the side.
       this.bike.setTexture(`${this.bikeTex}_${this.diag}`);

@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.31.0)_
+_Last updated: 2026-11-22 (v1.32.0)_
 
-**Now at v1.31.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.32.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,14 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🪑 Feedback #17 (2026-11-22, v1.32.0)
+- `shared/src/property/starterSets.ts` (`starterShopSets`, used by `ShopFloor.houseSets` and the server). `shop:starter`
+  grants the pieces and places them (`PropertySystem.starterFor/addStarter`); the home scene calls it when you start
+  decorating a shop that still shows starter sets.
+- New `sitside` emote (side-view sitting: `drawLegSideSit`), flipped by facing. Chairs face by rotation (`CHAIR_FACE`:
+  0 down, 1 left, 2 up, 3 right). Home scene: `chairNear`, E sits, moving stands you back where you were.
+- **Note:** sitting is only shown on your own screen (not sent to other players).
 
 ## 🏠 Feedback #18: player visits (2026-11-22, v1.31.0)
 - Server: `visit:list`, `visit:enter`, `visits:get/set` (economyHandlers). Rule and save:

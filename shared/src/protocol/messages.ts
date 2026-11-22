@@ -134,6 +134,8 @@ export const C2S = {
   /** 🏠 Player visits: someone's places, go into one, your own privacy. */
   visitList: z.object({ owner: z.number().int().positive() }),
   visitEnter: z.object({ unit: z.string().max(80) }),
+  /** 🪑 Take over your shop's starter tables and chairs as real furniture. */
+  shopStarter: z.object({ unit: z.string().max(80) }),
   visitsSet: z.object({ mode: z.enum(['all', 'only', 'none']), allow: z.array(z.number().int().positive()).max(100), block: z.array(z.number().int().positive()).max(100) }),
   /** `online`: from the phone (anywhere), with a delivery fee. */
   furnitureBuy: z.object({ item: z.string().max(40), qty: z.number().int().min(1).max(50), online: z.boolean().default(false) }),
@@ -682,6 +684,8 @@ export interface ClientToServerEvents {
   'visit:list': (msg: { owner: number }, ack: Ack<Result<{ places: VisitPlace[]; ownerName: string }>>) => void;
   /** 🏠 Go into one of them (read-only: you look around). */
   'visit:enter': (msg: { unit: string }, ack: Ack<Result<{ view: ShopView }>>) => void;
+  /** 🪑 Your shop's starter tables and chairs become furniture you own (placed where they were). */
+  'shop:starter': (msg: { unit: string }, ack: Ack<Result<{ layout: Placed[] }>>) => void;
   /** 🏠 Your visit privacy. */
   'visits:get': (ack: Ack<Result<{ prefs: VisitPrefs }>>) => void;
   'visits:set': (msg: VisitPrefs, ack: Ack<Result<{ prefs: VisitPrefs }>>) => void;

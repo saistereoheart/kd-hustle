@@ -4,7 +4,7 @@
 // in, order at the counter, sit down to eat / drink, and leave. All for show: the money is the
 // server's (kopitiam orders, Venture income). Everyone walking in sees this, the owner too.
 import Phaser from 'phaser';
-import { randomAppearance, type Placed } from '@kh/shared';
+import { randomAppearance, starterShopSets, type Placed } from '@kh/shared';
 import type { App } from '../app';
 import { furniturePiece } from '../items/furnitureArt';
 import { loadPrefs } from '../ui/settings';
@@ -13,6 +13,9 @@ import { bake } from './bake';
 import { COUNTER_LINES, Walkers } from './walkers';
 
 /** Metres of service area behind the counter (above the furnishable floor). */
+/** Which way someone sits on a chair, by its rotation. */
+export const CHAIR_FACE = ['down', 'left', 'up', 'right'] as const;
+
 export const SERVICE_ROWS = 3;
 
 export interface ShopFixture {
@@ -230,28 +233,7 @@ export class ShopFloor {
   /** Starter tables (a table with a chair each side), shown until the owner puts in tables of their own. */
   houseSets(layout: Placed[]): Placed[] {
     const { W, H, front } = this.g;
-    if (layout.some((p) => furniturePiece(p.item)?.category === 'tables')) return [];
-    const used = new Set<string>();
-    for (const p of layout) {
-      const f = furniturePiece(p.item);
-      if (!f || f.wall) continue;
-      const [w, h] = p.rot % 2 ? [f.h, f.w] : [f.w, f.h];
-      for (let y = p.y; y < p.y + h; y++) for (let x = p.x; x < p.x + w; x++) used.add(`${x},${y}`);
-    }
-    const out: Placed[] = [];
-    const max = this.ctx.kind === 'kopitiam' ? 6 : 4;
-    let id = -1;
-    for (let y = 2; y <= H - 4 && out.length / 3 < max; y += 3) {
-      for (const x0 of [1, W - 4]) {
-        if (out.length / 3 >= max) break;
-        const cells = [x0, x0 + 1, x0 + 2];
-        if (cells.some((x) => used.has(`${x},${y}`) || (x >= front[0] && x <= front[1]))) continue;
-        out.push({ iid: id--, item: 'plastic_chair', x: x0, y, rot: 3 });
-        out.push({ iid: id--, item: 'kopitiam_table', x: x0 + 1, y, rot: 0 });
-        out.push({ iid: id--, item: 'plastic_chair', x: x0 + 2, y, rot: 1 });
-      }
-    }
-    return out;
+    return starterShopSets({ W, H, front, max: this.ctx.kind === 'kopitiam' ? 6 : 4, layout, piece: (id) => furniturePiece(id) });
   }
 
   private pieces(): Placed[] {
@@ -274,7 +256,8 @@ export class ShopFloor {
       if (furniturePiece(p.item)?.category !== 'chairs') continue;
       const around: Array<[number, number, Dir]> = [[1, 0, 'right'], [-1, 0, 'left'], [0, -1, 'up'], [0, 1, 'down']];
       const t = around.find(([dx, dy]) => tables.has(`${p.x + dx},${p.y + dy}`));
-      if (t) out.push({ key: `${p.x},${p.y}`, x: p.x, y: p.y, face: t[2], table: [p.x + t[0], p.y + t[1]] });
+      // They sit the way the chair faces (rot 0 down, 1 left, 2 up, 3 right).
+      if (t) out.push({ key: `${p.x},${p.y}`, x: p.x, y: p.y, face: CHAIR_FACE[((p.rot % 4) + 4) % 4], table: [p.x + t[0], p.y + t[1]] });
     }
     return out;
   }
@@ -354,7 +337,9 @@ export class ShopFloor {
         ...pt([seat.x, seat.y]),
         face: seat.face,
         arrive: (av) => {
-          av.playEmote('sit', { emoji: dish, loop: true, durationMs: 0 }, false);
+          const side = seat.face === 'left' || seat.face === 'right';
+          av.setState(seat.face, false);
+          av.playEmote(side ? 'sitside' : 'sit', { emoji: dish, loop: true, durationMs: 0 }, false);
           const tx = (seat.table[0] + 0.5) * C, ty = (seat.table[1] + 0.45) * C;
           food = this.scene.add.text(tx, ty, dish, { fontFamily: 'system-ui, sans-serif', fontSize: '16px', resolution: 3 }).setOrigin(0.5).setDepth(AVATAR_DEPTH + ty - 2);
           // A bite now and then (the dish bobs, a happy face pops up).
@@ -363,7 +348,7 @@ export class ShopFloor {
             loop: true,
             callback: () => {
               if (food) this.scene.tweens.add({ targets: food, scale: { from: 1.25, to: 1 }, duration: 260 });
-              av.playEmote('sit', { emoji: Math.random() < 0.5 ? '😋' : dish, loop: true, durationMs: 0 }, false);
+              av.playEmote(side ? 'sitside' : 'sit', { emoji: Math.random() < 0.5 ? '😋' : dish, loop: true, durationMs: 0 }, false);
             },
           });
           return 8000 + Math.random() * 7000;

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.32.0 (2026-11-22): 🪑 Kopitiam tables and chairs are yours; sit on any chair
+- **Your shop's starter tables and chairs become real furniture** (feedback #17): the first time you tap
+  🛠️ Decorate in your kopitiam or shoplot, they're handed to you where they stand. Pick them up (back to your
+  bag), move them, or swap in other tables and chairs.
+- **Sit on chairs:** walk up to any chair in a home or shop and press E (🪑 Sit down). You sit facing the
+  way the chair faces, side-on when it faces left or right. Walk to get up.
+- **Customers sit the chair's way too**, side-on on left- and right-facing chairs.
+
 ## 1.31.0 (2026-11-22): 🏠 Visit other players' places
 - **📱 Players → 🏠 Visit** (feedback #18): look round another player's homes, lofts, Airbnbs and shop floors
   (their furniture, their stars), from anywhere. It's read-only, and you come back out where you were.

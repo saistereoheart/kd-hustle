@@ -67,6 +67,13 @@ const EMOTE_POSES: Record<string, Pose[]> = {
     { view: F, armL: 0.25, bendL: -1.95, armR: 0.25, bendR: -1.95, mouth: 'smile', eyes: 'happy', bob: 0.8 },
     { view: F, armL: 0.25, bendL: -1.95, armR: 0.25, bendR: -1.95, mouth: 'smile', eyes: 'happy', bob: 0.4 },
   ],
+  /** Sitting on a chair seen from the side (faces left; flipped to face right). */
+  sitside: [
+    { view: 'side', sit: true, armL: 0.75, bendL: 0.55, armR: 0.6, bendR: 0.5, mouth: 'smile' },
+    { view: 'side', sit: true, armL: 0.75, bendL: 0.55, armR: 0.6, bendR: 0.5, mouth: 'smile', bob: 0.4 },
+    { view: 'side', sit: true, armL: 0.8, bendL: 0.7, armR: 0.6, bendR: 0.5, mouth: 'smile' },
+    { view: 'side', sit: true, armL: 0.75, bendL: 0.55, armR: 0.6, bendR: 0.5, mouth: 'neutral', bob: 0.4 },
+  ],
   sit: [
     { view: F, sit: true, armL: 0.35, armR: 0.35, bendL: -0.6, bendR: -0.6, mouth: 'smile' },
     { view: F, sit: true, armL: 0.35, armR: 0.35, bendL: -0.6, bendR: -0.6, mouth: 'smile', bob: 0.4 },

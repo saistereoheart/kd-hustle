@@ -22,6 +22,7 @@ export * from './property/schemas';
 export * from './property/rating';
 export * from './property/listings';
 export * from './property/floorPlan';
+export * from './property/starterSets';
 export * from './items/grades';
 export * from './items/variants';
 export * from './items/bulk';

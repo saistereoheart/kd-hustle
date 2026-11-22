@@ -605,6 +605,14 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       if (!mayVisit(loadVisits(repos, view.owner), view.owner, me.id)) throw new GameError(`${view.ownerName} isn't taking visitors right now.`);
       return { view };
     });
+    // 🪑 Feedback #17: the shop's starter tables and chairs become yours (to move, pick up or replace).
+    handle(socket, 'shop:starter', C2S.shopStarter, ({ unit }) => {
+      const sets = propSys.starterFor(me, unit);
+      const items = econ.run(me, () => sets.map((pl) => econ.grant(me, pl.item, 'normal', null).item));
+      const layout = propSys.addStarter(me, unit, sets.map((pl, i) => ({ ...pl, iid: items[i].iid })));
+      socketOf(me)?.emit('inv:added', { items, index: [] });
+      return { layout };
+    });
     handle(socket, 'visits:get', null, () => ({ prefs: loadVisits(repos, me.id) }));
     handle(socket, 'visits:set', C2S.visitsSet, (prefs) => ({ prefs: saveVisits(repos, me.id, prefs) }));
     handle(socket, 'prop:fix', C2S.propFix, ({ unit, req, how }) => propSys.fix(me, unit, req, how));

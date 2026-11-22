@@ -7,7 +7,7 @@
 // the offline cap, at the offline efficiency) and gets a "while you were away" summary.
 import {
   shopFrontTop,
-  bookingChance, buildListings, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
+  bookingChance, buildListings, planForType, starterShopSets, STARTER_CHAIR, STARTER_TABLE, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
   type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit, type ShopView } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
@@ -205,6 +205,28 @@ export class PropertySystem {
     }
     if (changed) this.hooks.publicChanged();
     return changed;
+  }
+
+  /** 🪑 Your shop's starter tables and chairs (where they stand now), to hand over as furniture. */
+  starterFor(p: OnlinePlayer, unit: string): Placed[] {
+    const s = this.mine(p, unit);
+    if (s.mode !== 'shop') throw new GameError('Only a shop floor has starter tables.');
+    const t = this.cfg.properties.types[s.type];
+    const plan = planForType(t, s.type);
+    const sets = starterShopSets({ W: t.w, H: t.h, front: plan.front, max: s.type === 'kopitiam_floor' ? 6 : 4, layout: s.layout, piece: (id) => this.cfg.furniture.pieces[id] });
+    if (!sets.length) throw new GameError('Your own tables are already in.');
+    for (const id of [STARTER_TABLE, STARTER_CHAIR]) if (!this.cfg.furniture.pieces[id]) throw new GameError('Those tables are not furniture here.');
+    return sets;
+  }
+
+  /** …and put them in the layout, now as real pieces (`placed`: with the new items' iids). */
+  addStarter(p: OnlinePlayer, unit: string, placed: Placed[]) {
+    const s = this.mine(p, unit);
+    s.layout = [...s.layout, ...placed.map((pl) => ({ iid: pl.iid, item: pl.item, x: pl.x, y: pl.y, rot: pl.rot }))];
+    this.save(s);
+    this.hooks.publicChanged();
+    this.hooks.selfChanged(p);
+    return s.layout.map((pl) => ({ ...pl }));
   }
 
   /** 🏠 A player's places (homes, lofts, Airbnbs, shop floors) for visitors. */

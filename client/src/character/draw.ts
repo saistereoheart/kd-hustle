@@ -279,6 +279,21 @@ function drawLegSide(ctx: Ctx, m: M, swing: number, near: boolean) {
   drawShoe(ctx, m, fx, fy + 0.8, 'side');
 }
 
+/** Sitting, seen from the side (faces left): thigh forward, shin straight down to the floor. */
+function drawLegSideSit(ctx: Ctx, m: M, near: boolean) {
+  const { a, hipY, legLen } = m;
+  const dim = near ? 0 : -0.18;
+  const lw = 5 * Math.sqrt(m.bw);
+  const off = near ? 0 : 1.2;
+  const kx = CX - legLen * 0.5 + off, ky = hipY + 0.5;
+  const fx = kx - 0.6, fy = hipY + legLen * 0.38;
+  const col = LONG_BOTTOMS.has(a.bottom) || a.bottom === 'sarong' ? a.bottomColor : a.skin;
+  line(ctx, [CX + off, hipY, kx, ky], shade(col, dim - 0.06), lw + 0.4);
+  line(ctx, [kx, ky, fx, fy], shade(col === a.bottomColor ? a.bottomColor : a.skin, dim), lw);
+  if (a.bottom === 'shorts') line(ctx, [CX + off, hipY - 0.5, kx + legLen * 0.2, ky - 0.3], shade(a.bottomColor, dim), lw + 0.8);
+  drawShoe(ctx, m, fx, fy + 0.8, 'side');
+}
+
 function drawSkirtSide(ctx: Ctx, m: M) {
   const { a, hipY, bodyW, legLen } = m;
   const pants = a.bottomColor;
@@ -1560,9 +1575,14 @@ export function drawCharacter(ctx: Ctx, a: Appearance, cfg: CharacterConfig, p: 
     wornBack(ctx, m, worn, 'side', 'behind');
     if (!m.cover) drawHairBackLayer(ctx, m, 'side');
     drawArm(ctx, m, CX + 1, sy, -1, (p.armR ?? 0) * -1, -(p.bendR ?? 0), -0.18);
-    drawLegSide(ctx, m, p.legR ?? 0, false);
-    drawLegSide(ctx, m, p.legL ?? 0, true);
-    drawSkirtSide(ctx, m);
+    if (p.sit) {
+      drawLegSideSit(ctx, m, false);
+      drawLegSideSit(ctx, m, true);
+    } else {
+      drawLegSide(ctx, m, p.legR ?? 0, false);
+      drawLegSide(ctx, m, p.legL ?? 0, true);
+      drawSkirtSide(ctx, m);
+    }
     drawTorso(ctx, m, 'side');
     if (m.cover) drawTudungDrape(ctx, m, 'side');
     if (m.cover) drawTudungHead(ctx, m, 'side');

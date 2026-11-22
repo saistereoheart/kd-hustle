@@ -17,7 +17,7 @@ import { iconUrl } from '../ui/panel';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
 import { AVATAR_DEPTH, Avatar } from './avatar';
-import { SERVICE_ROWS, ShopFloor, type ShopCtx, type ShopFixture } from './shopFloor';
+import { CHAIR_FACE, SERVICE_ROWS, ShopFloor, type ShopCtx, type ShopFixture } from './shopFloor';
 import { COUNTER_LINES, Walkers } from './walkers';
 
 const C = 40; // px per cell (1 m)
@@ -84,6 +84,9 @@ export class HomeScene extends Phaser.Scene {
   private bottom = 0;
   private frontTop = false;
   private nearFix: ShopFixture | null = null;
+  /** 🪑 A chair within reach (E: sit on it, facing its way), and where you stood before sitting. */
+  private nearChair: { x: number; y: number; face: (typeof CHAIR_FACE)[number] } | null = null;
+  private sitFrom: { x: number; y: number } | null = null;
 
   init(data: { app: App; unit: string; shop?: ShopCtx; visit?: ShopView }) {
     this.app = data.app;
@@ -451,6 +454,14 @@ export class HomeScene extends Phaser.Scene {
         this.app.hud?.setPrompt(fix?.label ?? null, this.app.touch);
       }
     }
+    // 🪑 A chair next to you (not while decorating, sitting, or at the counter).
+    if (!this.nearFix) {
+      const ch = this.decorating || this.sitFrom ? null : this.chairNear();
+      if ((ch?.x ?? -1) !== (this.nearChair?.x ?? -1) || (ch?.y ?? -1) !== (this.nearChair?.y ?? -1)) {
+        this.nearChair = ch;
+        this.app.hud?.setPrompt(ch ? '🪑 Sit down' : null, this.app.touch);
+      }
+    }
     const dt = Math.min(delta, 100) / 1000;
     let { x: vx, y: vy } = this.decorating ? { x: 0, y: 0 } : this.app.inputVector();
     const len = Math.hypot(vx, vy);
@@ -460,6 +471,12 @@ export class HomeScene extends Phaser.Scene {
     }
     const moving = len > 0.01;
     const W = this.W * C, H = this.H * C;
+    // Getting up from a chair: back where you stood.
+    if (moving && this.sitFrom) {
+      this.pos = { ...this.sitFrom };
+      this.sitFrom = null;
+      this.me.setPosition(this.pos.x, this.pos.y);
+    }
     if (moving) {
       this.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up';
       const sp = this.app.cfg.movement.walkSpeed * 0.8;
@@ -693,7 +710,31 @@ export class HomeScene extends Phaser.Scene {
   /** E / the interact button: use the counter / till / stairs you're at. */
   interact() {
     if (this.decorating || this.leaving) return;
-    this.nearFix?.use();
+    if (this.nearFix) return this.nearFix.use();
+    const ch = this.nearChair;
+    if (!ch || this.sitFrom) return;
+    // Sit on it, facing the chair's way (side-on to the left or right).
+    this.sitFrom = { ...this.pos };
+    this.pos = { x: (ch.x + 0.5) * C, y: (ch.y + 0.75) * C };
+    this.me.setPosition(this.pos.x, this.pos.y);
+    this.dir = ch.face;
+    this.me.setState(ch.face, false);
+    this.me.playEmote(ch.face === 'left' || ch.face === 'right' ? 'sitside' : 'sit', { emoji: '', loop: true, durationMs: 0 }, false);
+    this.nearChair = null;
+    this.app.hud?.setPrompt(null, this.app.touch);
+  }
+
+  /** The chair (yours, or the shop's starter ones) closest to you, within reach. */
+  private chairNear(): { x: number; y: number; face: (typeof CHAIR_FACE)[number] } | null {
+    const all = this.shop ? [...this.layout, ...this.shop.houseSets(this.layout)] : this.layout;
+    let best: { x: number; y: number; face: (typeof CHAIR_FACE)[number] } | null = null;
+    let bd = C * 1.05;
+    for (const p of all) {
+      if (furniturePiece(p.item)?.category !== 'chairs') continue;
+      const d = Math.hypot(this.pos.x - (p.x + 0.5) * C, this.pos.y - 4 - (p.y + 0.5) * C);
+      if (d < bd) (bd = d), (best = { x: p.x, y: p.y, face: CHAIR_FACE[((p.rot % 4) + 4) % 4] });
+    }
+    return best;
   }
 
   private setDecorating(on: boolean) {
@@ -712,7 +753,21 @@ export class HomeScene extends Phaser.Scene {
 
   /** Done decorating: unsaved changes are saved first (stays in decorating if that fails). */
   private toggleDecorating() {
-    if (!this.decorating) return this.setDecorating(true);
+    if (!this.decorating) {
+      // 🪑 Your shop's starter tables and chairs: make them real furniture first (feedback #17), so you
+      // can pick them up, move them, or swap in your own.
+      if (this.shop && !this.visit && this.shop.houseSets(this.layout).length) {
+        this.app.socket?.timeout(6000).emit('shop:starter', { unit: this.unitId }, (err, res) => {
+          if (!err && res.ok) {
+            this.layout = res.layout.map((p) => ({ ...p }));
+            toast('🪑 The starter tables and chairs are yours now: move them, pick them up (back to your bag) or swap in others.', 'good');
+          }
+          this.setDecorating(true);
+        });
+        return;
+      }
+      return this.setDecorating(true);
+    }
     if (!this.dirty) return this.setDecorating(false);
     this.save(() => this.setDecorating(false));
   }
