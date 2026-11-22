@@ -260,7 +260,8 @@ export function computeMods(
     stall: {
       // Your chef: + stall prices and faster cooks.
       // Rebirth's cash multiplier multiplies on top: (1 + bonuses) × rebirth − 1.
-      dishPrice: (1 + sv('dishPrice') + (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0)) * rb.income - 1,
+      // (Gear + the chef's flavour together are capped, like every gear stat.)
+      dishPrice: (1 + sv('dishPrice') + Math.min(cfg.grades?.buffs.caps.dishPrice ?? Infinity, (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0))) * rb.income - 1,
       customers: sv('customers') + (chef?.stats.charm ?? 0),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),

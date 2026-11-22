@@ -19,7 +19,12 @@ export const gradesConfigSchema = z.object({
     bySlot: z.record(z.string(), z.enum(['luck', 'xp', 'jobPay', 'passive', 'dishPrice', 'chef'])),
     /** Chefs are stronger: their base buff by rarity (stall prices AND how fast your cooks work). */
     chefByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
-    variantMult: z.record(z.string(), z.number().positive()),
+    /** A gear buff's tier multiplier (gentler than the value's: Tier S ×3, not ×5). */
+    gradeBuff: z.record(z.string(), z.number().positive()).default({ D: 1, C: 1.25, B: 1.5, A: 2, S: 3 }),
+    /** Each special variant ADDS this to a gear buff (they don't multiply: all three = +185%). */
+    variantBonus: z.record(z.string(), z.number().min(0)).default({ normal: 0, shiny: 0.25, golden: 0.6, rainbow: 1 }),
+    /** The most each stat can get from gear, chefs and cashiers together (1 = +100%; luck: ×(1 + cap)). */
+    caps: z.record(z.string(), z.number().min(0)).default({}),
     /** Each chef's strengths: how much of their buff goes to each stall stat (missing = even). */
     /** Cashiers (kopitiam): their base buff by rarity, split by profile into Tips and Patience. */
     cashierByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
@@ -74,11 +79,28 @@ export function rerollGrade(cfg: GradesConfig, current: string | undefined, rand
 }
 
 /** The buff one equipped item gives: which stat, and how much (0.12 = +12%). */
+/**
+ * How much a gear buff grows with tier and variants. Gentle on purpose: tier × (1 + each variant's
+ * bonus, ADDED). Tier S with Shiny + Golden + Rainbow = 3 × 2.85 ≈ ×8.6. (It used to multiply
+ * everything: ×5 × 1.5 × 2.5 × 4 = ×75, which made one cooked dish pay tens of millions.) An item's
+ * VALUE still uses the full tier and variant multipliers: collecting still pays.
+ */
+export function buffMult(cfg: GradesConfig, grade: string | undefined, variant: string): number {
+  const g = cfg.buffs.gradeBuff[grade ?? DEFAULT_GRADE] ?? 1;
+  const v = variantParts(variant).reduce((a, id) => a + (cfg.buffs.variantBonus[id] ?? 0), 0);
+  return g * (1 + v);
+}
+
+/** A stat's cap (Infinity if none). */
+export function buffCap(cfg: GradesConfig, stat: string): number {
+  return cfg.buffs.caps[stat] ?? Infinity;
+}
+
 export function gearBuff(cfg: GradesConfig, item: { type: string; rarity: string; grade?: string; variant: string }): { stat: GearStat; value: number } | null {
   const stat = cfg.buffs.bySlot[item.type];
   if (!stat) return null;
   const base = (item.type === 'chef' ? cfg.buffs.chefByRarity : cfg.buffs.byRarity)[item.rarity] ?? 0;
-  return { stat, value: base * gradeMult(cfg, item.grade) * variantProduct(cfg.buffs.variantMult, item.variant) };
+  return { stat, value: base * buffMult(cfg, item.grade, item.variant) };
 }
 
 export const CHEF_STATS = ['speed', 'flavour', 'charm'] as const;
@@ -96,9 +118,13 @@ const EVEN_PROFILE: ChefStats = { speed: 0.8, flavour: 0.8, charm: 0.4 };
  * profile (what they're good at), then × (1 + Chef Academy skill).
  */
 export function chefStats(cfg: GradesConfig, chef: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): ChefStats {
-  const base = (cfg.buffs.chefByRarity[chef.rarity] ?? 0) * gradeMult(cfg, chef.grade) * variantProduct(cfg.buffs.variantMult, chef.variant) * (1 + boost);
+  const base = (cfg.buffs.chefByRarity[chef.rarity] ?? 0) * buffMult(cfg, chef.grade, chef.variant) * (1 + boost);
   const prof = cfg.buffs.chefProfiles[chef.id] ?? EVEN_PROFILE;
-  return { speed: base * prof.speed, flavour: base * prof.flavour, charm: base * prof.charm };
+  return {
+    speed: Math.min(buffCap(cfg, 'chefSpeed'), base * prof.speed),
+    flavour: Math.min(buffCap(cfg, 'chefFlavour'), base * prof.flavour),
+    charm: Math.min(buffCap(cfg, 'chefCharm'), base * prof.charm),
+  };
 }
 
 export const CASHIER_STATS = ['tips', 'patience'] as const;
@@ -111,9 +137,9 @@ export const CASHIER_STAT_INFO: Record<CashierStat, { icon: string; name: string
 
 /** A kopitiam cashier's stats: rarity base × tier × variant, split by profile, × (1 + Staff Academy). */
 export function cashierStats(cfg: GradesConfig, c: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): CashierStats {
-  const base = (cfg.buffs.cashierByRarity[c.rarity] ?? 0) * gradeMult(cfg, c.grade) * variantProduct(cfg.buffs.variantMult, c.variant) * (1 + boost);
+  const base = (cfg.buffs.cashierByRarity[c.rarity] ?? 0) * buffMult(cfg, c.grade, c.variant) * (1 + boost);
   const prof = cfg.buffs.cashierProfiles[c.id] ?? { tips: 1, patience: 0.5 };
-  return { tips: base * prof.tips, patience: base * prof.patience };
+  return { tips: Math.min(buffCap(cfg, 'tips'), base * prof.tips), patience: Math.min(buffCap(cfg, 'patience'), base * prof.patience) };
 }
 
 /** All equipped items' buffs added up per stat (the head chef / cashier are handled separately). */
@@ -124,6 +150,8 @@ export function gearBonuses(cfg: GradesConfig, items: ReadonlyArray<{ type: stri
     const b = gearBuff(cfg, it);
     if (b) out[b.stat] = (out[b.stat] ?? 0) + b.value;
   }
+  // Each stat's cap (gear can't take one stat to the moon).
+  for (const k of Object.keys(out) as GearStat[]) out[k] = Math.min(buffCap(cfg, k), out[k]!);
   return out;
 }
 

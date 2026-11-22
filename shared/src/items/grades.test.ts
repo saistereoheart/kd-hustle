@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import gradesJson from '../../config/grades.json';
-import { bestOfOdds, gradeRerollOdds, variantRerollOdds, bestVariant, chefStats, mergeOutcome, pityForces, rerollVariantOutcome, rollGradeLuck, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
+import { buffMult, cashierStats, bestOfOdds, gradeRerollOdds, variantRerollOdds, bestVariant, chefStats, mergeOutcome, pityForces, rerollVariantOutcome, rollGradeLuck, gearBonuses, gearBuff, gradeMult, gradesConfigSchema, nextGrade, rerollGrade, rollGrade } from './grades';
 import { joinVariants, topVariant, variantParts, variantProduct } from './variants';
 
 const cfg = gradesConfigSchema.parse(gradesJson);
@@ -32,11 +32,12 @@ describe('item tiers (grades)', () => {
 });
 
 describe('gear buffs', () => {
-  it('rarity sets the base; tier and variant multiply it', () => {
+  it('rarity sets the base; tier and variants grow it gently (variants add, not multiply)', () => {
     const base = gearBuff(cfg, { type: 'hat', rarity: 'legendary', grade: 'D', variant: 'normal' })!;
     expect(base).toEqual({ stat: 'luck', value: cfg.buffs.byRarity.legendary });
-    const top = gearBuff(cfg, { type: 'hat', rarity: 'legendary', grade: 'S', variant: 'rainbow' })!;
-    expect(top.value).toBeCloseTo(cfg.buffs.byRarity.legendary * gradeMult(cfg, 'S') * cfg.buffs.variantMult.rainbow);
+    const top = gearBuff(cfg, { type: 'hat', rarity: 'legendary', grade: 'S', variant: 'shiny+golden+rainbow' })!;
+    expect(top.value).toBeCloseTo(cfg.buffs.byRarity.legendary * 3 * (1 + 0.25 + 0.6 + 1));
+    expect(buffMult(cfg, 'S', 'shiny+golden+rainbow')).toBeLessThan(10); // was ×75
     expect(gearBuff(cfg, { type: 'trinket', rarity: 'legendary', variant: 'normal' })).toBeNull(); // not wearable
   });
 
@@ -46,13 +47,19 @@ describe('gear buffs', () => {
       { type: 'face', rarity: 'rare', grade: 'C', variant: 'shiny' },
     ]);
     expect(b.luck).toBeCloseTo(0.01);
-    expect(b.xp).toBeCloseTo(0.04 * 1.5 * 1.5);
+    expect(b.xp).toBeCloseTo(0.04 * 1.25 * 1.25);
+  });
+  it('each stat is capped', () => {
+    const many = Array.from({ length: 8 }, () => ({ type: 'hat', rarity: 'secret', grade: 'S', variant: 'shiny+golden+rainbow' }));
+    expect(gearBonuses(cfg, many).luck).toBe(cfg.buffs.caps.luck);
+    const kira = cashierStats(cfg, { id: 'cashier_kira_laju', rarity: 'mythic', grade: 'S', variant: 'shiny+golden+rainbow' }, 1);
+    expect(kira.tips).toBe(cfg.buffs.caps.tips);
   });
 
   it('chefs use their own, stronger table', () => {
     const c = gearBuff(cfg, { type: 'chef', rarity: 'epic', grade: 'B', variant: 'golden' })!;
     expect(c.stat).toBe('chef');
-    expect(c.value).toBeCloseTo(cfg.buffs.chefByRarity.epic * gradeMult(cfg, 'B') * cfg.buffs.variantMult.golden);
+    expect(c.value).toBeCloseTo(cfg.buffs.chefByRarity.epic * buffMult(cfg, 'B', 'golden'));
     expect(cfg.buffs.chefByRarity.common).toBeGreaterThan(cfg.buffs.byRarity.common);
   });
 
@@ -70,7 +77,7 @@ describe('head chef stats', () => {
     expect(s.speed).toBeCloseTo(base * p.speed);
     expect(s.flavour).toBeCloseTo(base * p.flavour);
     const boosted = chefStats(cfg, { id: 'chef_mak_senah', rarity: 'common', grade: 'S', variant: 'golden' }, 0.5);
-    expect(boosted.charm).toBeCloseTo(base * p.charm * gradeMult(cfg, 'S') * cfg.buffs.variantMult.golden * 1.5);
+    expect(boosted.charm).toBeCloseTo(base * p.charm * buffMult(cfg, 'S', 'golden') * 1.5);
   });
   it('chefs are not counted twice as plain gear', () => {
     expect(gearBonuses(cfg, [{ type: 'chef', rarity: 'epic', variant: 'normal' }])).toEqual({});
@@ -85,7 +92,7 @@ describe('multi-variant items, luck rerolls, pity and merging', () => {
     expect(joinVariants(variants.map((v) => v.id), ['golden', 'shiny', 'golden', 'normal'])).toBe('shiny+golden');
     expect(variantParts('normal')).toEqual([]);
     expect(topVariant('shiny+golden')).toBe('golden');
-    expect(variantProduct(cfg.buffs.variantMult, 'shiny+golden')).toBeCloseTo(cfg.buffs.variantMult.shiny * cfg.buffs.variantMult.golden);
+    expect(variantProduct({ shiny: 2, golden: 5 }, 'shiny+golden')).toBeCloseTo(10);
   });
   it('luck makes better tiers likelier', () => {
     const share = (luck: number) => {

@@ -327,7 +327,9 @@ export function dishPay(
 ): { paySen: number; tipSen: number } {
   const pay = Math.round(base * qualityMult * (1 + combo) * (blogger ? cfg.blogger.payMult : 1));
   const order = ['burnt', 'ok', 'good', 'great', 'perfect'];
-  const tip = order.indexOf(quality) >= order.indexOf(cfg.tips.minQuality) ? Math.round(pay * cfg.tips.max * Math.max(0, Math.min(1, patienceLeft))) : 0;
+  // The tip comes from the dish's base price (not the price after quality, combo and the blogger),
+  // so the cashier's tip bonus doesn't compound on every other multiplier.
+  const tip = order.indexOf(quality) >= order.indexOf(cfg.tips.minQuality) ? Math.round(base * cfg.tips.max * Math.max(0, Math.min(1, patienceLeft))) : 0;
   return { paySen: pay, tipSen: tip };
 }
 

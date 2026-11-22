@@ -263,7 +263,8 @@ describe('stall economics', () => {
   });
 
   it('pays quality × combo, tips for Great+ and 5× for the food blogger', () => {
-    expect(dishPay(stalls, 1000, 1.8, 'perfect', 0.1, 1, false)).toEqual({ paySen: 1980, tipSen: Math.round(1980 * stalls.tips.max) });
+    // (The tip comes from the base price, not the price after quality and combo.)
+    expect(dishPay(stalls, 1000, 1.8, 'perfect', 0.1, 1, false)).toEqual({ paySen: 1980, tipSen: Math.round(1000 * stalls.tips.max) });
     expect(dishPay(stalls, 1000, 1, 'good', 0, 1, false).tipSen).toBe(0);
     expect(dishPay(stalls, 1000, 1.3, 'great', 0, 0, false).tipSen).toBe(0); // they waited too long
     expect(dishPay(stalls, 1000, 1, 'good', 0, 1, true).paySen).toBe(1000 * stalls.blogger.payMult);

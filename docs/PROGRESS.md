@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.24.1)_
+_Last updated: 2026-11-22 (v1.25.0)_
 
-**Now at v1.24.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.25.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## ⚖️ Gear buff rebalance (2026-11-22, your report: RM 18.4M tip on an RM 530k meal, v1.25.0)
+- **The cause:** buff = base × tier (S ×5) × each variant (×1.5 × ×2.5 × ×4), so ×75 at the top. Chef
+  flavour hit +3,000% and the cashier's tips about +11,000%, and the tip was taken from the price after
+  every multiplier.
+- **The fix** (`shared/src/items/grades.ts` `buffMult` / `buffCap`):
+  - Buff = base × gradeBuff (S ×3) × (1 + the variant bonuses added up).
+  - Caps per stat in `grades.json` `buffs.caps`.
+  - Dish price: gear plus chef flavour capped together (`progression.ts`).
+  - Tip = base price × `tips.max` × patience × (1 + cashier tips) (`stall.ts` `dishPay`).
+- **Not changed:** item value, pawn price and scrap shards (they still use the full tier and variant
+  multipliers), crate odds, Teman (pets) and the Labirin.
+- **Expect** a big drop at maxed gear: dish payouts of tens of thousands to around RM 100k instead of
+  millions, and less gear luck. Tune with `gradeBuff`, `variantBonus` and `caps` if it's too harsh.
 
 ## 🍳 Stuck "already cooking" after a drop (2026-11-22, your report, v1.24.1)
 - **The cause:** the server keeps the open dish until its deadline. After a reconnect the cooking screen

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.25.0 (2026-11-22): ⚖️ gear buffs rebalanced (no more RM 18M tips)
+- **Tier and variant grow a gear buff gently now.**
+  - Tier S is ×3 (was ×5) and variants ADD: Shiny +25%, Golden +60%, Rainbow +100%.
+  - The very top is about ×8.6 instead of ×75.
+  - An item's value and pawn price still use the full multipliers.
+- **Caps on what gear, the head chef and the cashier can give:**
+  - luck ×5;
+  - XP +300%, job pay +300%, passive +200%;
+  - dish price +300% (gear and chef flavour together);
+  - chef speed and charm +200%;
+  - tips +300%, patience +200%.
+- **Tips come from the dish's base price**, not the price after quality, combo and the blogger.
+- All of these numbers are in `shared/config/grades.json` (`buffs.gradeBuff`, `variantBonus`, `caps`).
+
 ## 1.24.1 (2026-11-22): 🍳 no more "You're already cooking!" after a dropped connection
 - If the connection drops mid-cook, pressing Cook again picks that dish back up (fresh steps, same
   customer, no extra ingredients, combo kept). Before, it said "already cooking" until the dish timed out.
