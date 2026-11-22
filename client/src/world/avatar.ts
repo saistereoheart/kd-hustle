@@ -722,11 +722,15 @@ export class Avatar {
     this.bubble?.destroy();
     this.bubbleTimer?.remove();
     const max = long ? 200 : 90;
+    // Down in the labyrinth: a parchment bubble with a brown border and the pixel font.
+    const lab = this.scene.sys.settings.key === 'lab';
+    if (lab) text = text.replace(/f(?=[ilf])/g, 'f‌'); // the pixel font's odd "fi" glyph
     const label = this.scene.add
       .text(0, 0, text.length > max ? `${text.slice(0, max - 2)}…` : text, {
         ...TEXT_BASE,
-        fontSize: '12px',
-        color: '#1d2133',
+        ...(lab ? { fontFamily: '"Pixelify Sans", system-ui, sans-serif', fontStyle: '500' } : {}),
+        fontSize: lab ? '13px' : '12px',
+        color: lab ? '#3b2414' : '#1d2133',
         wordWrap: { width: long ? 210 : 150, useAdvancedWrap: true },
         align: 'center',
       })
@@ -734,9 +738,17 @@ export class Avatar {
     const w = label.width + 14;
     const h = label.height + 10;
     const g = this.scene.add.graphics();
-    g.fillStyle(0xffffff, 0.96).fillRoundedRect(-w / 2, -h, w, h, 8);
-    g.fillTriangle(-5, 0, 5, 0, 0, 6);
-    g.lineStyle(1, 0x1d2133, 0.25).strokeRoundedRect(-w / 2, -h, w, h, 8);
+    if (lab) {
+      g.fillStyle(0x5a3a1e, 1).fillTriangle(-7, -1, 7, -1, 0, 8);
+      g.fillStyle(0xf3dfbd, 1).fillRoundedRect(-w / 2, -h, w, h, 7);
+      g.fillStyle(0xf3dfbd, 1).fillTriangle(-5, -2, 5, -2, 0, 5);
+      g.lineStyle(2, 0x5a3a1e, 1).strokeRoundedRect(-w / 2, -h, w, h, 7);
+      g.fillStyle(0xffffff, 0.35).fillRect(-w / 2 + 4, -h + 3, w - 8, 2);
+    } else {
+      g.fillStyle(0xffffff, 0.96).fillRoundedRect(-w / 2, -h, w, h, 8);
+      g.fillTriangle(-5, 0, 5, 0, 0, 6);
+      g.lineStyle(1, 0x1d2133, 0.25).strokeRoundedRect(-w / 2, -h, w, h, 8);
+    }
     label.setY(-5);
     this.bubble = this.scene.add.container(0, this.titleText.visible ? -94 : -82, [g, label]);
     this.container.add(this.bubble);

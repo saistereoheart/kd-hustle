@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.1 (2026-11-22): 🗝️ Labirin type like the reference
+- **Labels:** signs and labels in the Labirin use a pixel font (Pixelify Sans, bundled, OFL). The name is
+  in warm gold, what it does in white.
+- **Speech bubbles:** parchment, with a brown border.
+- **Prompt bar:** dark, with a gold rim.
+
 ## 1.22.0 (2026-11-22): 🗝️ Labirin: quiet down there, your loadout, a bigger minimap
 - **The outside world is muted in the Labirin.**
   - No town toasts, money pop-ups, level-up splashes or coin sounds.

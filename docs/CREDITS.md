@@ -14,6 +14,7 @@
 |---|---|
 | [Phaser 3](https://phaser.io) | MIT |
 | [three.js](https://threejs.org) (Labirin 3D fights) | MIT |
+| [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) font (Labirin labels), via @fontsource | SIL OFL 1.1 |
 | [Socket.IO](https://socket.io) (server + client) | MIT |
 | [Express](https://expressjs.com) | MIT |
 | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | MIT |

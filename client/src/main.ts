@@ -1,4 +1,11 @@
 import './styles.css';
+// 🗝️ The Labirin's pixel font (Pixelify Sans, OFL-1.1, bundled: works on the LAN without internet).
+import '@fontsource/pixelify-sans/latin-500.css';
+import '@fontsource/pixelify-sans/latin-700.css';
+
+// Load it now, so the canvas text down in the labyrinth is drawn with it (not a fallback).
+void document.fonts?.load('700 16px "Pixelify Sans"').catch(() => {});
+void document.fonts?.load('500 16px "Pixelify Sans"').catch(() => {});
 import { makeDish } from '@kh/shared';
 import { App } from './app';
 import { playDish } from './ui/stall/cook';

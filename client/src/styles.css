@@ -1715,3 +1715,13 @@ body:has(.panel-backdrop) .lab-loadout, body:has(.lab-battle) .lab-loadout { vis
   .lab-slot { padding: 3px; }
   .lab-slot-icon { flex-basis: 32px; height: 32px; }
 }
+
+/* 🗝️ Labirin type, like the reference: a pixel font on the Labirin's own UI, a dark prompt with a gold rim. */
+/* (Only on headings: at small sizes its C reads like an O, so small text keeps the clean font.) */
+body[data-lab] .lab-hud .lab-title, .lab-loadout-head, .lab-battle .lbi-title b {
+  font-family: "Pixelify Sans", system-ui, sans-serif;
+}
+body[data-lab] .interact-prompt { background: rgba(14, 9, 6, 0.9); border: 2px solid #c98a2b; color: #f8f1e7; letter-spacing: 0.01em; }
+body[data-lab] .interact-prompt kbd { background: #f08c00; color: #1a0f08; }
+body[data-lab] .lab-hud .lab-title { color: #ffb533; }
+

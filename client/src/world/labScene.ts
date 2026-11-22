@@ -42,6 +42,8 @@ interface Feature {
 }
 
 const col = (hex: string) => parseInt(hex.slice(1), 16);
+/** The pixel font joins "fi" / "fl" into one odd glyph on canvas: keep them apart. */
+export const noLig = (s: string) => s.replace(/f(?=[ilf])/g, 'f‌');
 const shade = (c: number, k: number) => {
   const r = Math.min(255, Math.max(0, Math.round(((c >> 16) & 255) * k)));
   const g = Math.min(255, Math.max(0, Math.round(((c >> 8) & 255) * k)));
@@ -127,7 +129,7 @@ export class LabScene extends Phaser.Scene {
     this.showRoom(this.view);
     this.scale.on('resize', this.fit, this);
     // 🗝️ What happens down here, you say to yourself (a bubble over your head).
-    setLabSpeaker((text, ms) => this.me.say(text, ms, true));
+    setLabSpeaker((text, ms) => this.me.say(noLig(text), ms, true));
     const s = this.app.socket;
     if (s) {
       const onOthers = (p: { room: string; others: LabOther[] }) => {
@@ -255,10 +257,14 @@ export class LabScene extends Phaser.Scene {
     // Bigger in the world when the room is shown small (a phone), so it stays readable.
     const size = Math.round(size0 * Math.min(1.8, Math.max(1, 0.8 / this.zoomFor())));
     const x = (t[0] + 0.5) * T, y = (t[1] + 0.5) * T;
-    const style = { fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4, resolution: 3 };
-    const a = this.add.text(x, y - (sub ? size * 0.55 : 0), title, { ...style, fontSize: `${size}px`, color }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH);
+    // Like the reference: a pixel font, the name in warm gold, what it does in white underneath.
+    const style = { fontFamily: '"Pixelify Sans", system-ui, sans-serif', fontStyle: 'bold', stroke: '#1a0f08', strokeThickness: 4, resolution: 3 };
+    const gold = color === '#ffe8a3' ? '#ffb533' : color;
+    title = noLig(title);
+    sub = noLig(sub);
+    const a = this.add.text(x, y - (sub ? size * 0.55 : 0), title, { ...style, fontSize: `${size + 1}px`, color: gold }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH);
     this.roomObjs.push(a);
-    if (sub) this.roomObjs.push(this.add.text(x, y + size * 0.6, sub, { ...style, fontStyle: 'normal', fontSize: `${size - 2}px`, color: '#dee2e6', strokeThickness: 3 }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH));
+    if (sub) this.roomObjs.push(this.add.text(x, y + size * 0.62, sub, { ...style, fontStyle: '500', fontSize: `${size - 1}px`, color: '#f8f1e7', strokeThickness: 3 }).setOrigin(0.5, 0.5).setDepth(LABEL_DEPTH));
   }
 
   /** What's in the room: the town gate / campfire / stairs / key, the loot box, the treasure. */
