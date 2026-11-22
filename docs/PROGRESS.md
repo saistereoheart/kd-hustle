@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.26.0)_
+_Last updated: 2026-11-22 (v1.26.1)_
 
-**Now at v1.26.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.26.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,12 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🔥 Campfire heal + fight keys (2026-11-22, your request, v1.26.1)
+- Server: `LabSystem.atFire` / `fireStep` (lab.ts). HP is settled when you sit down or walk off, and the
+  rate (`player.campfire` in labyrinth.json: 1 HP / 3 s, reach 2.2 tiles) is added in `hp()`. Unit test added.
+- Client: `LabScene.warmUp` says it once and refreshes `lab:self` every 3 s while you're hurt by the fire.
+- Fight keys: `LabBattleUi.onKey` (capture phase, so the hotbar doesn't also fire).
 
 ## 🗡️ Detailed pixel fighters + hall table (2026-11-22, your request, v1.26.0)
 - Players: `drawCharacter` side view in 9 poses (`PLAYER_POSES` in `battle2d/stage2d.ts`), keris/shield

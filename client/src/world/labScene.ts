@@ -464,6 +464,25 @@ export class LabScene extends Phaser.Scene {
     return null;
   }
 
+  /** 🔥 By the hall's campfire (the server heals you there): say so once, and keep the HP shown fresh. */
+  private warmAt = 0;
+  private warm = false;
+  private warmUp(now: number) {
+    const h = this.L?.hall;
+    const fire = this.app.cfg.lab.player.campfire;
+    const T = this.app.cfg.lab.tile;
+    const near = !!h && this.view.floor === 0 && Math.hypot(this.pos.x - (h.fire[0] + 0.5) * T, this.pos.y - (h.fire[1] + 0.5) * T) <= (fire.reach - 0.15) * T;
+    const self = this.app.labHud?.self;
+    const hurt = !!self && self.hp < self.maxHp;
+    if (near && !this.warm && hurt) labSay(`🔥 Ahh, warm… (+${fire.hp} HP every ${fire.everySec}s by the fire)`);
+    this.warm = near;
+    if (!near || !hurt || now < this.warmAt) return;
+    this.warmAt = now + fire.everySec * 1000;
+    this.app.socket?.timeout(5000).emit('lab:self', (err, res) => {
+      if (!err && res.ok && this.app.lab === this) this.app.labHud?.updateSelf(res.self);
+    });
+  }
+
   override update(_t: number, delta: number) {
     const now = performance.now();
     const dt = Math.min(delta, 100) / 1000;
@@ -488,6 +507,7 @@ export class LabScene extends Phaser.Scene {
       this.me.setState(this.dir, this.moving);
       this.sendMove(delta);
       this.checkNear();
+      this.warmUp(now);
     }
     this.me.tick(now);
     this.art?.update(this.pos.x, this.pos.y, delta);

@@ -258,13 +258,40 @@ export class LabSystem {
     throw new GameError(`${pot.name} only works in a fight.`);
   }
 
-  /** Current HP (healing a little for the time spent out of a fight since last asked). */
+  // ---------------------------------------------------------------- 🔥 the hall's campfire
+  /** Players sitting by the campfire (since their HP was last brought up to date). */
+  private warm = new Set<number>();
+
+  /** Close to the entrance hall's campfire? */
+  atFire(p: OnlinePlayer): boolean {
+    const pos = p.lab;
+    if (!pos || pos.floor !== 0 || this.inFight(p)) return false;
+    const f = this.floor(0);
+    const L = roomLayout(this.cfg, f, f.rooms[pos.room]);
+    return !!L.hall && this.near(pos, L.hall.fire, this.cfg.player.campfire.reach);
+  }
+
+  /** After a step: sat down by the fire or walked off (HP is settled at the old rate first). */
+  private fireStep(p: OnlinePlayer) {
+    const w = this.atFire(p);
+    if (w === this.warm.has(p.id)) return;
+    this.hp(p);
+    if (w) this.warm.add(p.id);
+    else this.warm.delete(p.id);
+  }
+
+  /** Current HP (healing a little for the time spent out of a fight since last asked; faster by the campfire). */
   hp(p: OnlinePlayer): number {
     const s = this.state(p);
     const max = this.stats(p).hp;
     const now = this.clock();
     if (s.hp === undefined) s.hp = max;
-    if (!this.inFight(p) && s.hpAt !== undefined && s.hp < max) s.hp = Math.min(max, s.hp + max * this.cfg.player.regenPer10s * ((now - s.hpAt) / 10_000));
+    if (!this.inFight(p) && s.hpAt !== undefined && s.hp < max) {
+      const sec = (now - s.hpAt) / 1000;
+      const fire = this.cfg.player.campfire;
+      const warm = this.warm.has(p.id) && this.atFire(p) ? (fire.hp / fire.everySec) * sec : 0;
+      s.hp = Math.min(max, s.hp + max * this.cfg.player.regenPer10s * (sec / 10) + warm);
+    }
     s.hp = Math.min(max, s.hp);
     s.hpAt = now;
     return Math.max(0, Math.round(s.hp));
@@ -347,6 +374,7 @@ export class LabSystem {
   forget(id: number) {
     this.cache.delete(id);
     this.brushAt.delete(id);
+    this.warm.delete(id);
     this.ambushes.delete(id);
     this.calmUntil.delete(id);
   }
@@ -425,6 +453,7 @@ export class LabSystem {
     pos.y = y;
     pos.dir = dir;
     pos.moving = moving;
+    this.fireStep(p);
     this.brushStep(p, L);
     return true;
   }

@@ -380,7 +380,7 @@ export class App {
     // stay spammable from the keyboard. − is always Manifest.
     for (let i = 0; i < 10; i++) {
       this.keyboard.onPress(`Digit${(i + 1) % 10}`, () => {
-        if (!inTown() || isPanelOpen()) return;
+        if (!inTown() || isPanelOpen() || this.labBattle) return;
         const e = this.cfg.chat.emotes[i];
         if (this.emotes?.isOpen && e) this.triggerEmote(e.id);
         else this.useHotbar(i);

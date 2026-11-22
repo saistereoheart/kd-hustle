@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.26.1 (2026-11-22): 🔥 campfire healing, ⌨️ fight keys
+- **Sit by the entrance hall's campfire to heal:** +1 HP every 3 seconds (on top of the slow regen),
+  within about 2 tiles of the fire. Your HP shown ticks up while you sit there.
+- **Fight keys:** 1 Attack, 2 Skill, 3 Guard, 4 Items, 5 Run. In the potion list, 1… picks a potion and
+  Esc goes back. Tab or ←/→ switches target, Enter or Space presses Continue. The keys show on the buttons
+  (not on touch screens). The hotbar's number keys are off during a fight.
+
 ## 1.26.0 (2026-11-22): 🗡️ detailed pixel fighters, dungeon-dark lighting, a simpler hall table
 - **Fighters with real poses:** your character fights side-on: idle breathing, a wind-up, a lunge and
   follow-through, a skill charge, guard, hurt and a win pose. You hold your keris (and shield, when

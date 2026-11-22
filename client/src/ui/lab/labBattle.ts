@@ -77,11 +77,57 @@ export class LabBattleUi {
     this.introDone = this.intro(boss ? 'boss' : 'fight', boss ? `👹 ${boss.name}` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     this.render();
     this.tick = window.setInterval(() => this.drawTimer(), 200);
+    window.addEventListener('keydown', this.onKey, true);
     void this.start3d();
+  }
+
+  /**
+   * ⌨️ Keys: 1–9 press the buttons in order (1 Attack, 2 Skill, 3 Guard, 4 Items, 5 Run; in the potion
+   * list, 1… each potion), Esc/Backspace goes back, Tab or ←/→ picks the next monster, Enter/Space
+   * presses Continue. Caught first, so the hotbar and the room don't also get them.
+   */
+  private onKey = (e: KeyboardEvent) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
+    if (this.root.classList.contains('intro') || e.repeat) return;
+    const buttons = [...this.actions.querySelectorAll('button')] as HTMLButtonElement[];
+    const press = (b: HTMLButtonElement | undefined) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (b && !b.disabled) b.click();
+    };
+    const n = /^Digit([1-9])$/.exec(e.code) ?? /^Numpad([1-9])$/.exec(e.code);
+    if (n) return press(buttons[Number(n[1]) - 1]);
+    if (e.code === 'Escape' || e.code === 'Backspace') {
+      const back = this.actions.querySelector('[data-act="items-back"]') as HTMLButtonElement | null;
+      if (back) press(back);
+      return;
+    }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') {
+      const ok = this.actions.querySelector('[data-action="lb-continue"]') as HTMLButtonElement | null;
+      if (ok) press(ok);
+      return;
+    }
+    if (e.code === 'Tab' || e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+      const foes = this.view.fighters.filter((f) => f.side === 'foe' && !f.out);
+      if (foes.length < 2) return press(undefined);
+      const i = foes.findIndex((f) => f.id === this.target);
+      const step = e.code === 'ArrowLeft' || (e.code === 'Tab' && e.shiftKey) ? -1 : 1;
+      this.target = foes[(i + step + foes.length) % foes.length].id;
+      sfx.click();
+      this.renderCards();
+      return press(undefined);
+    }
+  };
+
+  /** The number key shown on a button. */
+  private static kbd(i: number) {
+    return el('kbd', { class: 'lb-key' }, String(i + 1));
   }
 
   destroy() {
     this.gone = true;
+    window.removeEventListener('keydown', this.onKey, true);
     this.introEl?.remove();
     document.body.classList.remove('lb-entering');
     clearInterval(this.tick);
@@ -283,6 +329,7 @@ export class LabBattleUi {
     const ok = el('button', { class: 'btn primary', type: 'button', 'data-action': 'lb-continue' }, 'Continue');
     ok.addEventListener('click', () => this.app.labBattleDone(room));
     this.actions.replaceChildren(ok);
+    ok.append(el('kbd', { class: 'lb-key end' }, 'Enter'));
   }
 
   // ---------------------------------------------------------------- drawing
@@ -378,6 +425,12 @@ export class LabBattleUi {
       items,
       btn('🏃 Run', 'run', !this.view.boss, this.view.boss ? 'No running from a boss!' : `${Math.round(this.app.cfg.lab.battle.runChance * 100)}% chance to get away`),
     );
+    this.keyHints();
+  }
+
+  /** The number keys on the buttons (only with a keyboard: hidden on touch screens by the CSS). */
+  private keyHints() {
+    [...this.actions.querySelectorAll('button')].forEach((b, i) => b.dataset.act !== 'items-back' && i < 9 && b.prepend(LabBattleUi.kbd(i)));
   }
 
   /** Potions you carry that do something in a fight. */
@@ -401,6 +454,8 @@ export class LabBattleUi {
       this.renderActions();
     });
     this.actions.replaceChildren(...list, back);
+    this.keyHints();
+    back.append(el('kbd', { class: 'lb-key end' }, 'Esc'));
   }
 
   private pickItem(item: string, target?: string) {

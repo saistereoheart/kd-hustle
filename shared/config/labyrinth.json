@@ -97,7 +97,8 @@
     "guardCut": 0.45,
     "crit": 0.07,
     "critMult": 1.6,
-    "regenPer10s": 0.03
+    "regenPer10s": 0.03,
+    "campfire": { "hp": 1, "everySec": 3, "reach": 2.2 }
   },
   "battle": {
     "roundSec": 20,

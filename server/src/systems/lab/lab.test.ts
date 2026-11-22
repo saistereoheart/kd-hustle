@@ -249,6 +249,28 @@ describe('Labirin: the tavern and the brush', () => {
     expect(s.lab.stats(s.p).def).toBe(def0);
   });
 
+  it('sitting by the hall campfire heals about 1 HP every few seconds, on top of the slow regen', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const f = s.lab.floor(0);
+    const L = roomLayout(lc, f, f.rooms[f.start]);
+    const fire = L.hall!.fire;
+    const max = s.lab.stats(s.p).hp;
+    // Away from the fire: only the slow regen.
+    s.lab.setHp(s.p, 50);
+    s.tick(30_000);
+    const slow = s.lab.hp(s.p) - 50;
+    expect(slow).toBe(Math.round(max * lc.player.regenPer10s * 3));
+    // By the fire (a free tile next to it, reached from the centre).
+    walkTo(s, [L.spot.centre[0], fire[1]]);
+    walkTo(s, [fire[0] + 2, fire[1]]);
+    expect(s.lab.atFire(s.p)).toBe(true);
+    s.lab.setHp(s.p, 50);
+    s.tick(30_000);
+    const fast = s.lab.hp(s.p) - 50;
+    expect(fast - slow).toBe(Math.round((lc.player.campfire.hp / lc.player.campfire.everySec) * 30));
+  });
+
   it('stepping into a bush can start a fight, each time, but not right after one', () => {
     const db = openDatabase(':memory:');
     const repos = createRepos(db);

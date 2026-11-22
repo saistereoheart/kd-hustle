@@ -46,6 +46,8 @@ export const labConfigSchema = z.object({
     crit: z.number().min(0).max(1), critMult: z.number().min(1),
     /** Out of a fight you get this share of max HP back every 10 s. */
     regenPer10s: z.number().min(0).max(1),
+    /** 🔥 Sitting by the entrance hall's campfire: +`hp` HP every `everySec` seconds (on top of the slow regen), within `reach` tiles. */
+    campfire: z.object({ hp: z.number().min(0), everySec: z.number().positive(), reach: z.number().positive() }).default({ hp: 1, everySec: 3, reach: 2.2 }),
   }),
   battle: z.object({
     /** Seconds to pick (then you ⚔️ Attack). */
