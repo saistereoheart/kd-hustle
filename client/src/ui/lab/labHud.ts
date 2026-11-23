@@ -24,6 +24,8 @@ export class LabHud {
   /** ❤️ / 🔷 bars: right above the hotbar, as wide as it. */
   private hp: HTMLElement;
   private mini: HTMLCanvasElement;
+  /** 👥 Your party under the minimap: each one's ❤️ / 🔷 bars and carried Syiling. */
+  private partyBox: HTMLElement;
   private full: HTMLElement | null = null;
   private view: LabRoomView | null = null;
   /** ⚔️ Your gear down the left. */
@@ -42,6 +44,10 @@ export class LabHud {
     this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.coins, bagBtn, partyBtn, mapBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
+    this.partyBox = el('div', { class: 'lab-party-hud hidden', 'data-testid': 'lab-party-hud' });
+    this.partyBox.addEventListener('click', () => openLabParty(this.app));
+    document.body.append(this.partyBox);
+    window.addEventListener('resize', this.placeParty);
     document.body.append(this.root, this.mini);
     if (app.hotbar) app.hotbar.mountAbove(this.hp);
     else document.body.append(this.hp); // (no hotbar: a fixed spot at the bottom)
@@ -49,6 +55,8 @@ export class LabHud {
   }
 
   destroy() {
+    window.removeEventListener('resize', this.placeParty);
+    this.partyBox.remove();
     this.root.remove();
     this.hp.remove();
     this.mini.remove();
@@ -69,16 +77,48 @@ export class LabHud {
     this.updateSelf(v.self);
     this.coins.title = 'Banked coins are safe. Carried coins are banked when you rest or leave; half is lost if your party falls.';
     this.drawMini(f, v);
+    this.renderParty();
     if (this.full) this.openFull(true);
   }
 
   /** 👥 The party changed (someone moved rooms): redraw where they are. */
   partyChanged() {
+    this.renderParty();
     const v = this.view;
     if (!v) return;
     this.drawMini(labFloor(this.app.cfg.lab, v.floor), v);
     if (this.full) this.openFull(true);
   }
+
+  /** 👥 The other party members: name (👑 leader, ⚔️ fighting, where they are), ❤️ / 🔷 bars, 🪙 carried. */
+  private renderParty() {
+    const party = this.app.labParty;
+    const meId = this.app.lastInit?.you.id;
+    const others = party?.members.filter((m) => m.id !== meId) ?? [];
+    this.partyBox.classList.toggle('hidden', !others.length);
+    if (!others.length) return void this.partyBox.replaceChildren();
+    const here = this.view;
+    const rows = others.map((m) => {
+      const where = !m.online ? 'offline' : !m.inside ? 'in town' : m.floor !== here?.floor ? `B${(m.floor ?? 0) + 1}` : m.room === here?.room ? 'here' : '';
+      const head = el('div', { class: 'lph-head' },
+        el('b', {}, `${party!.leader === m.id ? '👑 ' : ''}${m.name}`),
+        m.fighting ? el('span', { class: 'lph-tag fight', title: 'Fighting' }, '⚔️') : null,
+        where ? el('span', { class: 'lph-tag' }, where) : null,
+        m.carried !== undefined ? el('span', { class: 'lph-coins', title: 'Carried Syiling (banked when they rest or leave)' }, coinIcon(), ` ${m.carried}`) : null);
+      const bars = m.maxHp ? [statBar('hp', m.hp ?? 0, m.maxHp), statBar('mp', m.mana ?? 0, m.maxMana ?? 0)] : [];
+      return el('div', { class: `lph-row${m.online && m.inside ? '' : ' away'}${m.hp === 0 ? ' down' : ''}` }, head, ...bars);
+    });
+    this.partyBox.replaceChildren(...rows);
+    this.placeParty();
+  }
+
+  /** Right under the minimap (whatever size it is on this screen). */
+  private placeParty = () => {
+    const r = this.mini.getBoundingClientRect();
+    if (!r.height) return;
+    this.partyBox.style.top = `${Math.round(r.bottom + 6)}px`;
+    this.partyBox.style.width = `${Math.max(150, Math.round(r.width))}px`;
+  };
 
   /** Your labyrinth save as last heard (potions for the battle screen). */
   get self(): LabRoomView['self'] | null {

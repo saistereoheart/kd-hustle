@@ -1850,3 +1850,20 @@ body.lab-warp-out #game { animation: lab-unzoom 0.62s cubic-bezier(0.2, 0.7, 0.3
 @keyframes lu-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-1.5vmin, 1vmin); } 40% { transform: translate(1.5vmin, -1vmin); } 60% { transform: translate(-1vmin, -1.2vmin); } 80% { transform: translate(1vmin, 1vmin); } }
 @media (prefers-reduced-motion: reduce) { .lb-ult, .lb-ult * { animation-duration: 0.6s !important; animation-iteration-count: 1 !important; } .lb-ult .lu-rays, .lb-ult .lu-fx { display: none; } }
 .lb-stats { font-size: 10px; color: #ced4da; letter-spacing: 0.02em; }
+
+/* 👥 Labirin party under the minimap (feedback #22): each member's ❤️ / 🔷 bars and carried Syiling. */
+.lab-party-hud { position: fixed; right: calc(8px + var(--safe-r)); top: 300px; z-index: 40; display: flex; flex-direction: column; gap: 6px; cursor: pointer;
+  padding: 6px; border-radius: 10px; background: rgba(13, 15, 26, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; }
+.lab-party-hud.hidden { display: none; }
+.lph-row { display: flex; flex-direction: column; gap: 2px; }
+.lph-row.away { opacity: 0.55; }
+.lph-row.down .lb-bar.hp { filter: grayscale(1); }
+.lph-head { display: flex; align-items: center; gap: 4px; font-size: 12px; min-width: 0; }
+.lph-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lph-tag { font-size: 10px; padding: 0 4px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); }
+.lph-tag.fight { background: rgba(224, 49, 49, 0.5); }
+.lph-coins { font-size: 11px; color: #ffe066; white-space: nowrap; }
+.lph-coins .lab-coin { width: 10px; height: 10px; }
+.lab-party-hud .lb-bar.hp { height: 13px; } .lab-party-hud .lb-bar.hp span { font-size: 10px; line-height: 11px; }
+.lab-party-hud .lb-bar.mp { height: 10px; } .lab-party-hud .lb-bar.mp span { font-size: 9px; line-height: 8px; }
+body:has(.panel-backdrop) .lab-party-hud { visibility: hidden; }

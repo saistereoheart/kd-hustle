@@ -241,6 +241,9 @@ export const labConfigSchema = z.object({
     coins: z.number().int().min(0),
     move: z.string(),
     line: z.string().default(''),
+    /** Its look: a body shape (rat, bat, snail, spider, worm, golem, cricket, flame, lizard, ghost, pocong, imp,
+     *  book, candle, skeleton, mummy, dragon, ogre), its colour and a size (×). */
+    model: z.string().optional(), color: z.string().optional(), size: z.number().min(0.5).max(2).optional(),
   })).min(2),
 });
 export type LabConfig = z.infer<typeof labConfigSchema>;

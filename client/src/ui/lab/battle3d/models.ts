@@ -2,6 +2,7 @@
 // scary). Every model faces +z, has a `body` that the stage bobs / squashes, and its own idle motion
 // (wings flap, legs scuttle, flames flicker) plus a `swing` pose for its attack (0 → 1).
 import * as THREE from 'three';
+import { monsterLook } from '../monsterLooks';
 import { G, add, eye, mat, part } from './kit';
 import { clothTex, faceTex, furTex, hairTex, scaleTex, skinTex, softTex, stoneTex, wrapTex } from './paint';
 
@@ -562,10 +563,16 @@ const BY_ICON: Record<string, [Builder, number]> = {
   '📚': [book, 0x5f3dc4], '💀': [skeleton, 0xe9ecef], '🐉': [dragon, 0xf59f00], '🦇': [bat, 0x4b3f63], '🔥': [flame, 0xfd7e14],
 };
 
+/** Body shapes by name (labyrinth.json monsters' `model`). */
+const BY_MODEL: Record<string, Builder> = { rat, bat, snail, spider, worm, golem, cricket, flame, lizard, ghost, pocong, imp, book, candle, skeleton, mummy, dragon, ogre };
+
 export function monsterModel(kind: string | undefined, icon: string | undefined, boss: boolean): Model {
-  const [build, color] = (kind && BY_KIND[kind]) || (icon && BY_ICON[icon]) || [ghost, 0xced4da];
+  // The config's look first (shape + colour + size), then the old built-in table, then by emoji.
+  const look = monsterLook(kind);
+  const fromCfg = look && BY_MODEL[look.model] ? ([BY_MODEL[look.model], new THREE.Color(look.color).getHex()] as [Builder, number]) : null;
+  const [build, color] = fromCfg || (kind && BY_KIND[kind]) || (icon && BY_ICON[icon]) || [ghost, 0xced4da];
   const m = build(color);
-  m.root.scale.setScalar(1.3);
+  m.root.scale.setScalar(1.3 * (look?.size ?? 1));
   if (boss) {
     // Bosses: much bigger, with a gold crown floating over them.
     m.root.scale.setScalar(2.1);

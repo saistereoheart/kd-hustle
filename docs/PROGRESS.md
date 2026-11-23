@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.36.0)_
+_Last updated: 2026-11-23 (v1.37.0)_
 
-**Now at v1.36.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.37.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 👥 Feedback #22 and #27 (2026-11-23, v1.37.0)
+- **#22 party list:** `LabPartyView` members now carry hp / maxHp / mana / maxMana / carried (from the live fighter
+  while fighting). `labHandlers.partyVitals` re-sends a party's state every ~2 s only when it changed. Client:
+  `LabHud.renderParty` (other members only), placed under the minimap from its on-screen rect (any size/scale).
+- **#27 monsters:** `labyrinth.json` monsters have `model` / `color` / `size`. 32 cousins were added: each copies
+  a reference monster's stats × a profile (tank / glass / swift / brute, threat ≈ 1). Client looks come from
+  `ui/lab/monsterLooks.ts` (no three.js in the main bundle); `models.ts` `BY_MODEL` maps shape names to builders.
+  The sim before/after is within a few points (bosses with minions slightly harder).
 
 ## 🐞 Feedback #23, #25, #26 (2026-11-23, v1.36.0)
 - **#23 gear in fights:** stats were already right (a wooden weapon is +30% ATK), but every fighter was drawn with

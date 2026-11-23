@@ -34,10 +34,15 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
     max: parties.max,
     members: party.members.map((id) => {
       const o = world.get(id);
-      return {
+      const base = {
         id, name: o?.name ?? '?', level: o?.prog?.level ?? 1, online: !!o, inside: !!o?.lab,
         floor: o?.lab?.floor, room: o?.lab?.room, fighting: !!o && battles.inFight(o),
       };
+      if (!o?.lab) return base;
+      // ❤️ 🔷 🪙 (from the fight while fighting: that's where they change).
+      const f = battles.view(o)?.fighters.find((x) => x.id === `p${o.id}`);
+      const st = lab.stats(o);
+      return { ...base, hp: Math.round(f?.hp ?? lab.hp(o)), maxHp: f?.maxHp ?? st.hp, mana: Math.round(f?.mana ?? lab.mana(o)), maxMana: f?.maxMana ?? st.mana, carried: lab.state(o).carried };
     }),
     invited: parties.invited(party).map((id) => ({ id, name: world.get(id)?.name ?? '?' })),
   });
@@ -277,8 +282,32 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
     });
   }
 
+  /** 👥 Parties' HP / mana / coins, re-sent every ~2 s when something changed (the list under the minimap). */
+  let vitalsAt = 0;
+  const lastVitals = new Map<number, string>();
+  function partyVitals(t: number) {
+    if (t - vitalsAt < 2000) return;
+    vitalsAt = t;
+    const seen = new Set<number>();
+    for (const p of world.players.values()) {
+      const party = p.lab ? parties.of(p.id) : undefined;
+      if (!party || seen.has(party.id)) continue;
+      seen.add(party.id);
+      const v = partyView(party);
+      const key = JSON.stringify(v.members);
+      if (lastVitals.get(party.id) === key) continue;
+      lastVitals.set(party.id, key);
+      for (const id of party.members) {
+        const o = world.get(id);
+        if (o) socketOf(o)?.emit('lab:partyState', { party: v });
+      }
+    }
+    for (const id of lastVitals.keys()) if (!seen.has(id)) lastVitals.delete(id);
+  }
+
   /** Positions of everyone in each labyrinth room with company (called with the town snapshots). */
   function snapshots(t: number) {
+    partyVitals(t);
     const rooms = new Map<string, OnlinePlayer[]>();
     for (const p of world.players.values()) {
       const k = keyOf(p);

@@ -108,6 +108,12 @@ export interface LabPartyView {
     floor?: number;
     room?: number;
     fighting: boolean;
+    /** ❤️ / 🔷 and 🪙 carried Syiling (while in the labyrinth; live from the fight while fighting). */
+    hp?: number;
+    maxHp?: number;
+    mana?: number;
+    maxMana?: number;
+    carried?: number;
   }>;
   invited: Array<{ id: number; name: string }>;
   max: number;

@@ -81,6 +81,7 @@ import { openFurnitureStore } from './ui/property/furnitureStore';
 import { showWelcomeBack } from './ui/property/welcome';
 import { setFurnitureCatalog } from './items/furnitureArt';
 import { setPetCharacterConfig } from './items/petArt';
+import { setMonsterLooks } from './ui/lab/monsterLooks';
 import type { ShopView } from '@kh/shared';
 import { staffName, type ShopCtx } from './world/shopFloor';
 import { startMemoryWatch } from './perf/memory';
@@ -169,6 +170,7 @@ export class App {
     this.listings = buildListings(this.map, this.cfg.properties);
     setFurnitureCatalog(this.cfg.furniture);
     setPetCharacterConfig(this.cfg.character);
+    setMonsterLooks(this.cfg.lab.monsters);
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) if (!c.event) for (const id of c.pool) this.cratesOfItem.set(id, c);

@@ -357,7 +357,9 @@
       ],
       "coins": 3,
       "move": "Gigit",
-      "line": "A moss-green rat. It squeaks a warning."
+      "line": "A moss-green rat. It squeaks a warning.",
+      "model": "rat",
+      "color": "#6f9a54"
     },
     {
       "id": "kelawar",
@@ -373,7 +375,9 @@
       ],
       "coins": 3,
       "move": "Sambar",
-      "line": "It dives out of the dark."
+      "line": "It dives out of the dark.",
+      "model": "bat",
+      "color": "#4b3f63"
     },
     {
       "id": "siput_batu",
@@ -389,7 +393,9 @@
       ],
       "coins": 4,
       "move": "Hempap Cangkerang",
-      "line": "Slow. Very, very hard."
+      "line": "Slow. Very, very hard.",
+      "model": "snail",
+      "color": "#868e96"
     },
     {
       "id": "labah_akar",
@@ -405,7 +411,9 @@
       ],
       "coins": 4,
       "move": "Jaring Akar",
-      "line": "Eight legs, all of them roots."
+      "line": "Eight legs, all of them roots.",
+      "model": "spider",
+      "color": "#6b4f2a"
     },
     {
       "id": "cacing_gergasi",
@@ -421,7 +429,9 @@
       ],
       "coins": 5,
       "move": "Belit",
-      "line": "It came up through the floor."
+      "line": "It came up through the floor.",
+      "model": "worm",
+      "color": "#d6a2c4"
     },
     {
       "id": "kristal_jalan",
@@ -437,7 +447,9 @@
       ],
       "coins": 6,
       "move": "Tumbuk Kristal",
-      "line": "It rings like a bell when it walks."
+      "line": "It rings like a bell when it walks.",
+      "model": "golem",
+      "color": "#66d9e8"
     },
     {
       "id": "pelesit",
@@ -453,7 +465,9 @@
       ],
       "coins": 5,
       "move": "Sengat Halus",
-      "line": "A cricket spirit. Small and vicious."
+      "line": "A cricket spirit. Small and vicious.",
+      "model": "cricket",
+      "color": "#51cf66"
     },
     {
       "id": "api_liar",
@@ -469,7 +483,9 @@
       ],
       "coins": 6,
       "move": "Jilat Api",
-      "line": "A flame that walks."
+      "line": "A flame that walks.",
+      "model": "flame",
+      "color": "#fd7e14"
     },
     {
       "id": "salamander",
@@ -485,7 +501,9 @@
       ],
       "coins": 7,
       "move": "Ekor Bara",
-      "line": "Its footprints smoke."
+      "line": "Its footprints smoke.",
+      "model": "lizard",
+      "color": "#c92a2a"
     },
     {
       "id": "pocong_taman",
@@ -501,7 +519,9 @@
       ],
       "coins": 7,
       "move": "Lompat Hentam",
-      "line": "*lompat* *lompat*"
+      "line": "*lompat* *lompat*",
+      "model": "pocong",
+      "color": "#f8f9fa"
     },
     {
       "id": "toyol_kebun",
@@ -517,7 +537,9 @@
       ],
       "coins": 8,
       "move": "Curi Syiling",
-      "line": "It wants your coins. All of them."
+      "line": "It wants your coins. All of them.",
+      "model": "imp",
+      "color": "#69db7c"
     },
     {
       "id": "buku_hidup",
@@ -533,7 +555,9 @@
       ],
       "coins": 8,
       "move": "Hempas Muka Surat",
-      "line": "A book that bites."
+      "line": "A book that bites.",
+      "model": "book",
+      "color": "#862e9c"
     },
     {
       "id": "hantu_pustaka",
@@ -549,7 +573,9 @@
       ],
       "coins": 9,
       "move": "Sumpah Senyap",
-      "line": "Shhh."
+      "line": "Shhh.",
+      "model": "candle",
+      "color": "#74c0fc"
     },
     {
       "id": "jerangkung_raja",
@@ -565,7 +591,9 @@
       ],
       "coins": 10,
       "move": "Tetak Tulang",
-      "line": "It still guards the king."
+      "line": "It still guards the king.",
+      "model": "skeleton",
+      "color": "#f1e3c6"
     },
     {
       "id": "mumia",
@@ -581,7 +609,9 @@
       ],
       "coins": 11,
       "move": "Balut Maut",
-      "line": "Older than the town."
+      "line": "Older than the town.",
+      "model": "mummy",
+      "color": "#d8c8a8"
     },
     {
       "id": "naga_kecil",
@@ -597,7 +627,596 @@
       ],
       "coins": 13,
       "move": "Nafas Emas",
-      "line": "A small dragon. Still a dragon."
+      "line": "A small dragon. Still a dragon.",
+      "model": "dragon",
+      "color": "#fab005"
+    },
+    {
+      "id": "katak_lumpur",
+      "name": "Katak Lumpur",
+      "icon": "🐸",
+      "hp": 34,
+      "atk": 4.3,
+      "def": 2.4,
+      "spd": 8.8,
+      "floors": [
+        0,
+        2
+      ],
+      "coins": 3,
+      "move": "Lidah Melekat",
+      "line": "",
+      "model": "lizard",
+      "color": "#5c940d",
+      "size": 0.85
+    },
+    {
+      "id": "tikus_kristal",
+      "name": "Tikus Kristal",
+      "icon": "🐁",
+      "hp": 20,
+      "atk": 6,
+      "def": 1.6,
+      "spd": 13.2,
+      "floors": [
+        0,
+        2
+      ],
+      "coins": 3,
+      "move": "Gigit Berkilau",
+      "line": "",
+      "model": "rat",
+      "color": "#66d9e8"
+    },
+    {
+      "id": "kelawar_merah",
+      "name": "Kelawar Merah",
+      "icon": "🦇",
+      "hp": 18,
+      "atk": 6,
+      "def": 0.9,
+      "spd": 20.3,
+      "floors": [
+        0,
+        2
+      ],
+      "coins": 3,
+      "move": "Hisap Darah",
+      "line": "",
+      "model": "bat",
+      "color": "#c92a2a"
+    },
+    {
+      "id": "siput_lumut",
+      "name": "Siput Lumut",
+      "icon": "🐌",
+      "hp": 52,
+      "atk": 3.4,
+      "def": 7.2,
+      "spd": 4,
+      "floors": [
+        0,
+        2
+      ],
+      "coins": 4,
+      "move": "Lendir Licin",
+      "line": "",
+      "model": "snail",
+      "color": "#5c940d"
+    },
+    {
+      "id": "cacing_lumpur",
+      "name": "Cacing Lumpur",
+      "icon": "🪱",
+      "hp": 30,
+      "atk": 5.8,
+      "def": 1.7,
+      "spd": 8.8,
+      "floors": [
+        0,
+        1
+      ],
+      "coins": 3,
+      "move": "Lilit Lumpur",
+      "line": "",
+      "model": "worm",
+      "color": "#8d6e4f",
+      "size": 0.85
+    },
+    {
+      "id": "labah_kaca",
+      "name": "Labah Kaca",
+      "icon": "🕸️",
+      "hp": 24,
+      "atk": 10.8,
+      "def": 2.4,
+      "spd": 14.4,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 4,
+      "move": "Tikam Kaca",
+      "line": "",
+      "model": "spider",
+      "color": "#a5d8ff"
+    },
+    {
+      "id": "kelawar_hantu",
+      "name": "Kelawar Hantu",
+      "icon": "🦇",
+      "hp": 18,
+      "atk": 6,
+      "def": 0.9,
+      "spd": 20.3,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 3,
+      "move": "Jerit Senyap",
+      "line": "",
+      "model": "bat",
+      "color": "#e9ecef",
+      "size": 1.1
+    },
+    {
+      "id": "tikus_raja",
+      "name": "Tikus Raja",
+      "icon": "🐀",
+      "hp": 37,
+      "atk": 10.4,
+      "def": 2.6,
+      "spd": 9.6,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 4,
+      "move": "Cakar Emas",
+      "line": "",
+      "model": "rat",
+      "color": "#fab005",
+      "size": 1.25
+    },
+    {
+      "id": "belalang_batu",
+      "name": "Belalang Batu",
+      "icon": "🦗",
+      "hp": 42,
+      "atk": 7.7,
+      "def": 3.6,
+      "spd": 9.6,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 4,
+      "move": "Tendang Kaki",
+      "line": "",
+      "model": "cricket",
+      "color": "#94d82d"
+    },
+    {
+      "id": "golem_lumpur",
+      "name": "Golem Lumpur",
+      "icon": "🗿",
+      "hp": 62,
+      "atk": 6.8,
+      "def": 4.8,
+      "spd": 5.6,
+      "floors": [
+        1,
+        3
+      ],
+      "coins": 5,
+      "move": "Hempas Lumpur",
+      "line": "",
+      "model": "golem",
+      "color": "#8d6e4f",
+      "size": 0.9
+    },
+    {
+      "id": "golem_ais",
+      "name": "Golem Ais",
+      "icon": "🧊",
+      "hp": 63,
+      "atk": 10.4,
+      "def": 7.7,
+      "spd": 4.8,
+      "floors": [
+        2,
+        4
+      ],
+      "coins": 6,
+      "move": "Tumbuk Beku",
+      "line": "",
+      "model": "golem",
+      "color": "#d0ebff"
+    },
+    {
+      "id": "labah_racun",
+      "name": "Labah Racun",
+      "icon": "🕷️",
+      "hp": 41,
+      "atk": 10.8,
+      "def": 7.2,
+      "spd": 7.2,
+      "floors": [
+        2,
+        4
+      ],
+      "coins": 6,
+      "move": "Gigit Racun",
+      "line": "",
+      "model": "spider",
+      "color": "#9c36b5",
+      "size": 1.1
+    },
+    {
+      "id": "cacing_kristal",
+      "name": "Cacing Kristal",
+      "icon": "🪱",
+      "hp": 72,
+      "atk": 7.7,
+      "def": 10.8,
+      "spd": 4.8,
+      "floors": [
+        2,
+        4
+      ],
+      "coins": 6,
+      "move": "Belit Kristal",
+      "line": "",
+      "model": "worm",
+      "color": "#3bc9db"
+    },
+    {
+      "id": "kunang_gergasi",
+      "name": "Kunang Gergasi",
+      "icon": "✨",
+      "hp": 27,
+      "atk": 12,
+      "def": 2.7,
+      "spd": 21.6,
+      "floors": [
+        2,
+        4
+      ],
+      "coins": 5,
+      "move": "Silau",
+      "line": "",
+      "model": "cricket",
+      "color": "#ffe066"
+    },
+    {
+      "id": "hantu_kabus",
+      "name": "Hantu Kabus",
+      "icon": "👻",
+      "hp": 23,
+      "atk": 14.4,
+      "def": 2.4,
+      "spd": 19.2,
+      "floors": [
+        2,
+        5
+      ],
+      "coins": 5,
+      "move": "Sentuh Sejuk",
+      "line": "",
+      "model": "ghost",
+      "color": "#ced4da"
+    },
+    {
+      "id": "api_biru",
+      "name": "Api Biru",
+      "icon": "🔥",
+      "hp": 27,
+      "atk": 15.6,
+      "def": 3.2,
+      "spd": 15.6,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 6,
+      "move": "Bakar Sejuk",
+      "line": "",
+      "model": "flame",
+      "color": "#4dabf7"
+    },
+    {
+      "id": "biawak_arang",
+      "name": "Biawak Arang",
+      "icon": "🦎",
+      "hp": 68,
+      "atk": 10.2,
+      "def": 8.4,
+      "spd": 7.2,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 7,
+      "move": "Cakar Arang",
+      "line": "",
+      "model": "lizard",
+      "color": "#343a40",
+      "size": 1.15
+    },
+    {
+      "id": "golem_magma",
+      "name": "Golem Magma",
+      "icon": "🌋",
+      "hp": 60,
+      "atk": 13.8,
+      "def": 6,
+      "spd": 7.2,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 7,
+      "move": "Tumbuk Lahar",
+      "line": "",
+      "model": "golem",
+      "color": "#e8590c"
+    },
+    {
+      "id": "kelawar_bara",
+      "name": "Kelawar Bara",
+      "icon": "🦇",
+      "hp": 32,
+      "atk": 13,
+      "def": 3.6,
+      "spd": 17.6,
+      "floors": [
+        3,
+        5
+      ],
+      "coins": 6,
+      "move": "Sambar Bara",
+      "line": "",
+      "model": "bat",
+      "color": "#fd7e14"
+    },
+    {
+      "id": "jembalang_api",
+      "name": "Jembalang Api",
+      "icon": "👺",
+      "hp": 41,
+      "atk": 15,
+      "def": 3.4,
+      "spd": 10.4,
+      "floors": [
+        3,
+        6
+      ],
+      "coins": 6,
+      "move": "Cucuk Bara",
+      "line": "",
+      "model": "imp",
+      "color": "#e03131"
+    },
+    {
+      "id": "pocong_hitam",
+      "name": "Pocong Hitam",
+      "icon": "👻",
+      "hp": 65,
+      "atk": 11,
+      "def": 7.2,
+      "spd": 6.4,
+      "floors": [
+        4,
+        6
+      ],
+      "coins": 7,
+      "move": "Hentak Hitam",
+      "line": "",
+      "model": "pocong",
+      "color": "#495057"
+    },
+    {
+      "id": "toyol_emas",
+      "name": "Toyol Emas",
+      "icon": "👶",
+      "hp": 31,
+      "atk": 14,
+      "def": 3.6,
+      "spd": 24.3,
+      "floors": [
+        4,
+        7
+      ],
+      "coins": 8,
+      "move": "Rampas Emas",
+      "line": "",
+      "model": "imp",
+      "color": "#fcc419"
+    },
+    {
+      "id": "langsuir",
+      "name": "Langsuir",
+      "icon": "👻",
+      "hp": 38,
+      "atk": 15.6,
+      "def": 4.8,
+      "spd": 9.6,
+      "floors": [
+        4,
+        6
+      ],
+      "coins": 7,
+      "move": "Kuku Panjang",
+      "line": "",
+      "model": "ghost",
+      "color": "#f783ac",
+      "size": 1.15
+    },
+    {
+      "id": "gergasi_hutan",
+      "name": "Gergasi Hutan",
+      "icon": "👹",
+      "hp": 57,
+      "atk": 15,
+      "def": 5.1,
+      "spd": 6.4,
+      "floors": [
+        4,
+        6
+      ],
+      "coins": 7,
+      "move": "Hayun Kayu",
+      "line": "",
+      "model": "ogre",
+      "color": "#2b8a3e"
+    },
+    {
+      "id": "lilin_berhantu",
+      "name": "Lilin Berhantu",
+      "icon": "🕯️",
+      "hp": 44,
+      "atk": 16.8,
+      "def": 6.4,
+      "spd": 12,
+      "floors": [
+        4,
+        6
+      ],
+      "coins": 9,
+      "move": "Lelehan Panas",
+      "line": "",
+      "model": "candle",
+      "color": "#ff922b"
+    },
+    {
+      "id": "kitab_sumpahan",
+      "name": "Kitab Sumpahan",
+      "icon": "📖",
+      "hp": 33,
+      "atk": 18,
+      "def": 4.8,
+      "spd": 14.4,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 8,
+      "move": "Jerit Huruf",
+      "line": "",
+      "model": "book",
+      "color": "#c92a2a"
+    },
+    {
+      "id": "rangka_pemanah",
+      "name": "Rangka Pemanah",
+      "icon": "💀",
+      "hp": 58,
+      "atk": 16,
+      "def": 9,
+      "spd": 13.5,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 10,
+      "move": "Panah Tulang",
+      "line": "",
+      "model": "skeleton",
+      "color": "#adb5bd"
+    },
+    {
+      "id": "mumia_firaun",
+      "name": "Mumia Firaun",
+      "icon": "🧟",
+      "hp": 104,
+      "atk": 12.8,
+      "def": 10.8,
+      "spd": 5.6,
+      "floors": [
+        6,
+        7
+      ],
+      "coins": 11,
+      "move": "Sumpahan Firaun",
+      "line": "",
+      "model": "mummy",
+      "color": "#fab005",
+      "size": 1.15
+    },
+    {
+      "id": "gergasi_batu",
+      "name": "Gergasi Batu",
+      "icon": "👹",
+      "hp": 75,
+      "atk": 11.9,
+      "def": 9.6,
+      "spd": 8,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 9,
+      "move": "Hempap Batu",
+      "line": "",
+      "model": "ogre",
+      "color": "#868e96",
+      "size": 1.1
+    },
+    {
+      "id": "naga_jed",
+      "name": "Naga Jed Kecil",
+      "icon": "🐉",
+      "hp": 53,
+      "atk": 21.6,
+      "def": 8.8,
+      "spd": 15.6,
+      "floors": [
+        6,
+        7
+      ],
+      "coins": 13,
+      "move": "Nafas Racun",
+      "line": "",
+      "model": "dragon",
+      "color": "#2f9e44"
+    },
+    {
+      "id": "pelesit_ratu",
+      "name": "Pelesit Ratu",
+      "icon": "🦗",
+      "hp": 51,
+      "atk": 17.3,
+      "def": 5.1,
+      "spd": 9.6,
+      "floors": [
+        5,
+        7
+      ],
+      "coins": 8,
+      "move": "Sengat Ratu",
+      "line": "",
+      "model": "cricket",
+      "color": "#be4bdb",
+      "size": 1.2
+    },
+    {
+      "id": "hantu_dakwat",
+      "name": "Hantu Dakwat",
+      "icon": "👻",
+      "hp": 58,
+      "atk": 16,
+      "def": 9,
+      "spd": 13.5,
+      "floors": [
+        6,
+        7
+      ],
+      "coins": 10,
+      "move": "Percik Dakwat",
+      "line": "",
+      "model": "ghost",
+      "color": "#212529"
     }
   ],
   "boss": {

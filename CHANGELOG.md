@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.37.0 (2026-11-23): 👥 party bars under the minimap, 32 new Labirin monsters
+- **Your party under the minimap** (feedback #22): each member's ❤️ HP and 🔷 mana bars and their carried
+  Syiling, with 👑 for the leader, ⚔️ while fighting and where they are (here, B3, in town). Tap it for the
+  party window.
+- **32 new monsters** (feedback #27): every floor now has 8 to 22 kinds (it was 3 to 6), such as Katak Lumpur,
+  Kelawar Merah, Golem Ais, Api Biru, Langsuir, Toyol Emas, Mumia Firaun and Naga Jed Kecil. Some are tanky,
+  some are fragile but hit hard, some are fast, some are brutes. They're as tough as the monsters they live
+  alongside.
+
 ## 1.36.0 (2026-11-23): ⚔️ Labirin damage tiers, real gear in fights, furniture variants
 - **Skills and ultimates hit much harder than a plain attack now** (feedback #26):
   - ⚔️ Attack ×1;
