@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  canSkill, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
+  canSkill, classMods, wornBase, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -178,8 +178,8 @@ export class LabBattles {
     const sk = labSkillBonus(this.cfg, s.skills);
     return {
       id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block,
-      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, gear: { ...s.gear },
-      spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: sk.skillPower || undefined, spellUp: sk.spellPower || undefined,
+      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, gear: wornBase(this.cfg, s.gear, s.items),
+      spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: sk.skillPower + classMods(this.cfg, s.cls).skillPower || undefined, spellUp: sk.spellPower + classMods(this.cfg, s.cls).spellPower || undefined,
     };
   }
 
@@ -228,8 +228,8 @@ export class LabBattles {
       } else if (outcome === 'win') {
         const foes = b.fighters.filter((x) => x.side === 'foe');
         this.lab.setHp(p, f.out ? 1 : f.hp);
-        const got = this.lab.won(p, b.floor, b.room, groupCoins(this.cfg, b.floor, foes), b.boss, b.ambush, groupXp(this.cfg, b.floor, foes));
-        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp };
+        const got = this.lab.won(p, b.floor, b.room, groupCoins(this.cfg, b.floor, foes), b.boss, b.ambush, groupXp(this.cfg, b.floor, foes), foes.length);
+        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops.length ? got.drops : undefined };
       } else {
         end = { outcome: 'wipe', coins: 0, lost: 0 };
       }

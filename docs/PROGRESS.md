@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.38.0)_
+_Last updated: 2026-11-23 (v1.39.0)_
 
-**Now at v1.38.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.39.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 449 unit tests (2026-11-23, v1.35.0) |
+| `npm test` (Vitest) | ✅ 459 unit tests (2026-11-23, v1.39.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -52,6 +52,21 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🎭 Feedback #24: classes, diamonds, gear drops (2026-11-23, v1.39.0)
+- `shared/src/lab/loot.ts`: `rollLoot`, `itemMult/itemScrap/itemName`, `resolveWorn/wornBonus/wornBase` (a gear slot
+  may hold `#uid` = a dropped item), `classMods`, `rollClass`. Config `loot` and `classes` (see LABYRINTH.md §4f).
+- Server: `LabSave.diamonds/items/nextUid/cls/classes`. Stats use `wornBonus` + class shares. `won()` rolls loot (it
+  now takes the monster count) and returns `drops` (shown after the fight). `scrap`, `setClass`, `buyClass`,
+  `classRoll`; handlers `lab:scrap / lab:class / lab:classBuy / lab:classRoll`. Fighters show base pieces to others.
+- Client: bag 🎭 Classes tab (wear / buy / roll), 🎁 found gear under ⚔️ Your gear (wear / scrap), 💎 in the bag
+  head and the top bar; the loadout shows a worn item's name and ×multiplier.
+- **Decisions:**
+  - Diamonds pay for class rolls only (for now).
+  - Drops use the shop tier sold by that floor, so they don't skip progression.
+  - Grades average ≈ ×1.0, so drops aren't a power spike.
+  - Classes are ±10–25% trade-offs; the limited ones are +12–15% (about a tavern drink, but permanent).
+- Tests: `shared/src/lab/loot.test.ts`, plus loot/classes in `lab.test.ts`.
 
 ## 🐲 Feedback #21: world boss (2026-11-23, v1.38.0)
 - `labyrinth.json` `worldBoss` (stats, `hpPerPlayer`, `minParty` 2, `perWeek` 3, coins/xp, `setChance` 6%,

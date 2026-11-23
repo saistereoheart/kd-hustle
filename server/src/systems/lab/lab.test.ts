@@ -491,3 +491,61 @@ describe('Labirin: the tavern and the brush', () => {
     expect(s.lab.self(s.p).used).toEqual(['0:0']);
   });
 });
+
+describe('Labirin loot and classes (feedback #24)', () => {
+  const lucky = () => {
+    const db = openDatabase(':memory:');
+    const repos = createRepos(db);
+    const id = repos.accounts.create('l', 'h', false, { x: 0, y: 0 }, 2, 0);
+    const p = { id, name: 'l', hasCharacter: true, lab: null } as unknown as OnlinePlayer;
+    let r = 0.0001;
+    const lab = new LabSystem(lc, repos, () => r, () => 1_700_000_000_000);
+    return { lab, p, setRand: (v: number) => (r = v) };
+  };
+
+  it('a win can drop 💎 and gear; wear it as #uid (stats go up); scrap spares for 💎', () => {
+    const { lab, p } = lucky();
+    const before = lab.stats(p).atk;
+    const got = lab.won(p, 2, 3, 10, false, false, 5, 3);
+    expect(got.drops.some((d) => d.startsWith('💎'))).toBe(true);
+    const st = lab.state(p);
+    expect(st.items?.length).toBe(1);
+    const it = st.items![0];
+    const slot = lc.gear.slots.find((s) => it.gear.startsWith(`${s.id}_`))!.id;
+    lab.equip(p, slot, `#${it.uid}`);
+    expect(lab.self(p).gear[slot]).toBe(`#${it.uid}`);
+    if (slot === 'weapon') expect(lab.stats(p).atk).toBeGreaterThan(before);
+    expect(() => lab.scrap(p, it.uid)).toThrow(/take it off/);
+    lab.equip(p, slot, null);
+    const d = st.diamonds ?? 0;
+    expect(lab.scrap(p, it.uid)).toMatch(/scrapped/);
+    expect(st.diamonds).toBeGreaterThan(d);
+    expect(st.items).toEqual([]);
+  });
+
+  it('classes: basics are free and change your stats; shop classes at the merchant; the 💎 roll', () => {
+    const { lab, p, setRand } = lucky();
+    expect(lab.self(p).classes).toEqual(expect.arrayContaining(['pendekar', 'perisai', 'pemburu', 'bomoh']));
+    const hp0 = lab.stats(p).hp;
+    lab.setClass(p, 'perisai');
+    expect(lab.stats(p).hp).toBeGreaterThan(hp0);
+    expect(() => lab.setClass(p, 'hulubalang')).toThrow(/don't have/);
+    expect(() => lab.buyClass(p, 'hulubalang')).toThrow(/sold by/);
+    lab.enter(p, 'entrance');
+    const f = lab.floor(0);
+    const m = roomLayout(lc, f, f.rooms[f.start]).spot.merchant;
+    p.lab!.x = (m[0] + 0.5) * lc.tile;
+    p.lab!.y = (m[1] + 0.5) * lc.tile;
+    lab.state(p).coins = 10_000;
+    expect(lab.buyClass(p, 'hulubalang')).toMatch(/Hulubalang/);
+    expect(lab.self(p).cls).toBe('hulubalang');
+    expect(() => lab.buyClass(p, 'raja_purba')).toThrow(/isn't for sale/);
+    // The roll: not enough diamonds, then a hit, then a miss (refund).
+    expect(() => lab.classRoll(p)).toThrow(/costs/);
+    lab.state(p).diamonds = 30;
+    expect(lab.classRoll(p)).toMatch(/New class/);
+    setRand(0.99);
+    expect(lab.classRoll(p)).toMatch(/back/);
+    expect(lab.state(p).diamonds).toBe(30 - 2 * lc.loot.classRoll.price + lc.loot.classRoll.refund);
+  });
+});

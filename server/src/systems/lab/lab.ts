@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, weekKey, gearBonus, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -63,6 +63,13 @@ export interface LabSave {
   /** 🐲 World boss fights this week: the week (its Monday) and how many. */
   wbWeek?: string;
   wbCount?: number;
+  /** 💎 Diamonds; 🎁 dropped gear (worn as `#uid` in `gear`) and the next uid. */
+  diamonds?: number;
+  items?: LabItem[];
+  nextUid?: number;
+  /** 🎭 The class worn and the non-basic classes owned. */
+  cls?: string;
+  classes?: string[];
 }
 
 export function emptyLab(): LabSave {
@@ -89,16 +96,20 @@ export class LabSystem {
 
   // ---------------------------------------------------------------- ⚔️ HP and stats
   stats(p: OnlinePlayer) {
-    const st = labPlayerStats(this.cfg, this.temanBoost(p), gearBonus(this.cfg, this.state(p).gear));
+    const s0 = this.state(p);
+    const st = labPlayerStats(this.cfg, this.temanBoost(p), wornBonus(this.cfg, s0.gear, s0.items));
+    const cm = classMods(this.cfg, s0.cls);
     // 📖 Skills: +shares of ATK / DEF / HP, +SPD and crit.
     const sk = labSkillBonus(this.cfg, this.state(p).skills);
-    st.hp = Math.round(st.hp * (1 + sk.hp));
-    st.atk = Math.round(st.atk * (1 + sk.atk) * 10) / 10;
-    st.def = Math.round(st.def * (1 + sk.def) * 10) / 10;
-    st.spd = st.spd + sk.spd;
-    st.crit = Math.min(0.5, st.crit + sk.crit);
+    // 🎭 and the class's shares.
+    st.hp = Math.round(st.hp * (1 + sk.hp + cm.hp));
+    st.atk = Math.round(st.atk * (1 + sk.atk + cm.atk) * 10) / 10;
+    st.def = Math.round(st.def * (1 + sk.def + cm.def) * 10) / 10;
+    st.spd = Math.max(1, st.spd + sk.spd + cm.spd);
+    st.crit = Math.min(0.5, st.crit + sk.crit + cm.crit);
+    st.block = Math.min(0.5, st.block);
     // 🔷 Max mana (📖 Tenaga Dalam raises it).
-    const mana = Math.round(this.cfg.player.mana.max * (1 + sk.mana));
+    const mana = Math.round(this.cfg.player.mana.max * (1 + sk.mana + cm.mana));
     // 🍵 A tavern drink: +a share of some stats while it lasts.
     const d = this.state(p).drink;
     const def = d ? this.cfg.tavern.drinks.find((x) => x.id === d.id) : undefined;
@@ -208,7 +219,7 @@ export class LabSystem {
       if (s.deepest < g.minFloor) throw new GameError(`${g.name} is sold once you've reached floor ${g.minFloor + 1}.`);
       this.pay(s, g.price);
       s.owned.push(g.id);
-      const cur = labGear(this.cfg, s.gear[g.slot]);
+      const cur = resolveWorn(this.cfg, s.gear[g.slot], s.items)?.piece;
       const wear = !cur || g.tier > cur.tier;
       const before = this.stats(p).hp;
       if (s.hp !== undefined) this.hp(p);
@@ -247,7 +258,12 @@ export class LabSystem {
     const before = this.stats(p).hp;
     if (s.hp !== undefined) this.hp(p); // bring healing up to date first
     if (id === null) delete s.gear[slot];
-    else {
+    else if (id.startsWith('#')) {
+      // 🎁 A dropped item.
+      const w = resolveWorn(this.cfg, id, s.items);
+      if (!w || w.piece.slot !== slot) throw new GameError("That doesn't go there.");
+      s.gear[slot] = id;
+    } else {
       const g = labGear(this.cfg, id);
       if (!g || g.slot !== slot) throw new GameError("That doesn't go there.");
       if (!s.owned.includes(g.id)) throw new GameError("You don't have that yet.");
@@ -408,19 +424,112 @@ export class LabSystem {
 
   /** Beat the group here: Syiling (carried) and the room stays quiet for a while. Beat the boss:
    *  the stairs down open for good. */
-  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false, xp = 0): { coins: number; xp: number; levelUp?: number } {
+  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false, xp = 0, monsters = 0): { coins: number; xp: number; levelUp?: number; drops: string[] } {
     const s = this.state(p);
     if (boss) {
       if (!s.bosses.includes(floor)) s.bosses.push(floor);
     } else if (!ambush) s.cleared[`${floor}:${room}`] = this.clock(); // (the room's own group stays)
-    const got = Math.round(coins * (1 + labSkillBonus(this.cfg, s.skills).coins)); // 🪙 Untung Purba
+    const got = Math.round(coins * (1 + labSkillBonus(this.cfg, s.skills).coins + classMods(this.cfg, s.cls).coins)); // 🪙 Untung Purba, 🎭 Pencuri
     s.carried += got;
+    // 🎁 Loot: 💎 diamonds, maybe a gear drop, and (floor bosses) the limited class.
+    const drops: string[] = [];
+    if (monsters > 0) {
+      const loot = rollLoot(this.cfg, floor, monsters, boss, this.rand);
+      if (loot.diamonds) (s.diamonds = (s.diamonds ?? 0) + loot.diamonds), drops.push(`💎 +${loot.diamonds}`);
+      if (loot.item) drops.push(`🎁 ${this.addItem(s, loot.item)}`);
+      if (boss) drops.push(...this.classDrop(s, 'boss'));
+    }
     // 📈 XP: a new level brings a skill point (and tops up the HP the new level's skills might add later).
     const before = labLevel(this.cfg, s.xp).level;
     s.xp += xp;
     const after = labLevel(this.cfg, s.xp).level;
     this.save(p);
-    return { coins: got, xp, levelUp: after > before ? after : undefined };
+    return { coins: got, xp, levelUp: after > before ? after : undefined, drops };
+  }
+
+  // ---------------------------------------------------------------- 🎁 loot, 💎 diamonds, 🎭 classes
+  /** Into the bag; its name. */
+  private addItem(s: LabSave, it: Omit<LabItem, 'uid'>): string {
+    s.items ??= [];
+    s.nextUid = (s.nextUid ?? 0) + 1;
+    s.items.push({ ...it, uid: s.nextUid });
+    return itemName(this.cfg, it);
+  }
+
+  /** A limited class drop (if lucky and not owned yet). */
+  private classDrop(s: LabSave, from: 'boss' | 'worldBoss'): string[] {
+    const c = this.cfg.classes.find((x) => x.source === 'drop' && x.from === from);
+    const chance = from === 'boss' ? this.cfg.loot.classDrop.boss : this.cfg.loot.classDrop.worldBoss;
+    if (!c || (s.classes ?? []).includes(c.id) || this.rand() >= chance) return [];
+    (s.classes ??= []).push(c.id);
+    return [`🎭 Class: ${c.icon} ${c.name}!`];
+  }
+
+  /** Scrap a dropped item (not one you're wearing) for diamonds. */
+  scrap(p: OnlinePlayer, uid: number): string {
+    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    const s = this.state(p);
+    const it = (s.items ?? []).find((x) => x.uid === uid);
+    if (!it) throw new GameError('No such item.');
+    if (Object.values(s.gear).includes(`#${uid}`)) throw new GameError("You're wearing it: take it off first.");
+    const d = itemScrap(this.cfg, it);
+    s.items = s.items!.filter((x) => x.uid !== uid);
+    s.diamonds = (s.diamonds ?? 0) + d;
+    this.save(p);
+    return `♻️ ${itemName(this.cfg, it)} scrapped: +${d} 💎`;
+  }
+
+  /** Classes you own (the basic ones and what you've bought, rolled or found). */
+  ownedClasses(s: LabSave): string[] {
+    return [...this.cfg.classes.filter((c) => c.source === 'basic').map((c) => c.id), ...(s.classes ?? [])];
+  }
+
+  /** Wear a class you own (not in a fight). */
+  setClass(p: OnlinePlayer, id: string): string {
+    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    const c = this.cfg.classes.find((x) => x.id === id);
+    if (!c) throw new GameError('No such class.');
+    const s = this.state(p);
+    if (!this.ownedClasses(s).includes(id)) throw new GameError(`You don't have ${c.name} yet.`);
+    const before = this.stats(p).hp;
+    if (s.hp !== undefined) this.hp(p);
+    s.cls = id;
+    this.maxHpChanged(p, before);
+    this.save(p);
+    return `🎭 ${c.icon} ${c.name}: ${c.desc}`;
+  }
+
+  /** Buy a shop class (at the merchant). It's worn at once. */
+  buyClass(p: OnlinePlayer, id: string): string {
+    if (!this.atMerchant(p)) throw new GameError(`Classes are sold by ${this.cfg.merchant.name}: in the entrance hall or a rest chamber.`);
+    const c = this.cfg.classes.find((x) => x.id === id);
+    if (!c || c.source !== 'shop') throw new GameError("That class isn't for sale.");
+    const s = this.state(p);
+    if (this.ownedClasses(s).includes(id)) throw new GameError(`You already have ${c.name}.`);
+    this.pay(s, c.price ?? 0);
+    (s.classes ??= []).push(id);
+    this.save(p);
+    return this.setClass(p, id);
+  }
+
+  /** 🎲 Roll for a class with diamonds: a new roll-class, or some diamonds back. */
+  classRoll(p: OnlinePlayer): string {
+    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    const r = this.cfg.loot.classRoll;
+    const s = this.state(p);
+    if ((s.diamonds ?? 0) < r.price) throw new GameError(`A class roll costs ${r.price} 💎 (you have ${s.diamonds ?? 0}).`);
+    const left = this.cfg.classes.filter((c) => c.source === 'roll' && !(s.classes ?? []).includes(c.id));
+    if (!left.length) throw new GameError('You already have every class the roll can give.');
+    s.diamonds = (s.diamonds ?? 0) - r.price;
+    const c = rollClass(this.cfg, s.classes ?? [], this.rand);
+    if (!c) {
+      s.diamonds += r.refund;
+      this.save(p);
+      return `🎲 No class this time… +${r.refund} 💎 back.`;
+    }
+    (s.classes ??= []).push(c.id);
+    this.save(p);
+    return `🎲 New class: ${c.icon} ${c.name}! ${c.desc}`;
   }
 
   // ---------------------------------------------------------------- 🐲 the world boss
@@ -462,6 +571,9 @@ export class LabSystem {
     const s = this.state(p);
     const got = this.won(p, 0, -1, w.coins, false, true, w.xp);
     const drops: string[] = [];
+    s.diamonds = (s.diamonds ?? 0) + this.cfg.loot.diamond.worldBoss;
+    drops.push(`💎 +${this.cfg.loot.diamond.worldBoss}`);
+    drops.push(...this.classDrop(s, 'worldBoss'));
     // A 🐲 set piece: a random slot of the drop-only tier (one you don't have yet if you can).
     if (this.rand() < w.setChance) {
       const pieces = this.cfg.gear.slots.map((sl) => `${sl.id}_${w.set}`).filter((id) => labGear(this.cfg, id));
@@ -471,7 +583,7 @@ export class LabSystem {
       const g = labGear(this.cfg, id);
       if (g && !s.owned.includes(id)) {
         s.owned.push(id);
-        const cur = labGear(this.cfg, s.gear[g.slot]);
+        const cur = resolveWorn(this.cfg, s.gear[g.slot], s.items)?.piece;
         const before = this.stats(p).hp;
         if (s.hp !== undefined) this.hp(p);
         if (!cur || g.tier > cur.tier) s.gear[g.slot] = id;
@@ -645,6 +757,7 @@ export class LabSystem {
       })(),
       skills: { ...s.skills }, books: [...s.books], rolled: s.rollDay === dayKey(this.clock()),
       mana: this.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, wbLeft: this.wbLeft(p),
+      diamonds: s.diamonds ?? 0, items: (s.items ?? []).map((x) => ({ ...x })), cls: s.cls ?? this.cfg.classes[0]?.id ?? '', classes: this.ownedClasses(s),
       ...(() => {
         const u = labUltimate(this.cfg, s.element, s.books);
         return { ultimate: u.id, book: u.id.startsWith('ult_') ? null : u.id };

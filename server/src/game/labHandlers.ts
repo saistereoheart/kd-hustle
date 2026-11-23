@@ -204,6 +204,11 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       battles.restyle(me);
       return { self: lab.self(me) };
     });
+    // 🎁 Loot and 🎭 classes.
+    handle(socket, 'lab:scrap', LAB_C2S.labScrap, ({ uid }) => ({ text: lab.scrap(me, uid), self: lab.self(me) }));
+    handle(socket, 'lab:class', LAB_C2S.labClass, ({ id }) => ({ text: lab.setClass(me, id), self: lab.self(me) }));
+    handle(socket, 'lab:classBuy', LAB_C2S.labClass, ({ id }) => ({ text: lab.buyClass(me, id), self: lab.self(me) }));
+    handle(socket, 'lab:classRoll', null, () => ({ text: lab.classRoll(me), self: lab.self(me) }));
     // 🐲 The world boss: the whole party, together in the entrance hall.
     handle(socket, 'lab:worldBoss', null, () => {
       const ids = parties.members(me.id);

@@ -1,7 +1,7 @@
 // 🗝️ Labirin Purba: your loadout, down the left of the screen. The four gear slots (weapon, shield,
 // armour, charm): what you wear, in its tier's colour, with its name and stats; an empty slot shows
 // the dashed outline of what goes there. Tap one to open your bag. (Plus the tavern drink, if any.)
-import { LAB_SLOTS, gearLine, labElement, labGear, labSpell, type LabSelf, type LabSlot } from '@kh/shared';
+import { LAB_SLOTS, gearLine, itemName, labElement, labSpell, resolveWorn, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
 import { openLabBag } from './labBag';
@@ -53,12 +53,16 @@ export class LabLoadout {
   update(s: LabSelf) {
     const cfg = this.app.cfg.lab;
     const slots = LAB_SLOTS.map((slot) => {
-      const g = labGear(cfg, s.gear[slot]);
+      // A shop piece, or a 🎁 dropped item (its grade and variant multiply the stats).
+      const w = resolveWorn(cfg, s.gear[slot], s.items);
+      const g = w?.piece;
+      const name = w?.item ? itemName(cfg, w.item) : g?.name;
+      const line = g ? (w && w.mult !== 1 ? `${gearLine(g)} ×${w.mult.toFixed(2)}` : gearLine(g)) : '';
       const b = el(
         'button',
-        { class: `lab-slot${g ? ' on' : ''}`, type: 'button', 'data-slot': slot, title: g ? `${g.name}: ${gearLine(g)}` : `${NAMES[slot]}: nothing worn (buy one from ${cfg.merchant.name})`, style: g ? `--tier:${g.color}` : '' },
+        { class: `lab-slot${g ? ' on' : ''}`, type: 'button', 'data-slot': slot, title: g ? `${name}: ${line}` : `${NAMES[slot]}: nothing worn (buy one from ${cfg.merchant.name})`, style: g ? `--tier:${g.color}` : '' },
         el('span', { class: 'lab-slot-icon' }, shape(slot, g ? g.color : null)),
-        el('span', { class: 'lab-slot-text' }, el('b', {}, g ? g.name : NAMES[slot]), el('small', {}, g ? gearLine(g) : 'empty')),
+        el('span', { class: 'lab-slot-text' }, el('b', {}, g ? name! : NAMES[slot]), el('small', {}, g ? line : 'empty')),
       );
       b.addEventListener('click', () => openLabBag(this.app, 'gear'));
       return b;

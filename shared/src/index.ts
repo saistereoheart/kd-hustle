@@ -40,6 +40,7 @@ export * from './lab/generate';
 export * from './lab/battle';
 export * from './lab/gear';
 export * from './lab/progress';
+export * from './lab/loot';
 export * from './lab/view';
 export * from './pets/pets';
 export * from './garage/garage';

@@ -1,5 +1,6 @@
 // 🗝️ Labirin Purba: what the server tells clients (and the zod schemas for what clients send).
 import { z } from 'zod';
+import type { LabItem } from './loot';
 import type { Appearance, Direction } from '../character/appearance';
 import type { Cosmetics } from '../protocol/messages';
 import type { LabDir } from './generate';
@@ -73,6 +74,11 @@ export interface LabSelf {
   ultimate: string;
   /** 🐲 World boss fights left this week. */
   wbLeft: number;
+  /** 💎 Diamonds, 🎁 dropped gear (equip as `#uid`), 🎭 the class worn and every class you own. */
+  diamonds: number;
+  items: LabItem[];
+  cls: string;
+  classes: string[];
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -172,6 +178,10 @@ export const LAB_C2S = {
   labBuy: z.object({ id: z.string().max(32), n: z.number().int().min(1).max(20).default(1) }),
   /** ⚔️ Wear a piece you own (or take a slot off: id null). Not in a fight. */
   labEquip: z.object({ slot: z.enum(['weapon', 'shield', 'armour', 'charm']), id: z.string().max(32).nullable() }),
+  /** 🎁 Scrap a dropped item for 💎. */
+  labScrap: z.object({ uid: z.number().int().positive() }),
+  /** 🎭 Wear a class you own / buy a shop class (at the merchant). */
+  labClass: z.object({ id: z.string().max(32) }),
   /** 🧪 A potion out of a fight (a heal, or 🧵 Tali Pulang home). */
   labItem: z.object({ id: z.string().max(32) }),
   /** 🍵 A drink at the tavern (entrance hall). */

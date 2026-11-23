@@ -185,7 +185,7 @@ describe('Labirin world boss (feedback #21)', () => {
     const id = repos.accounts.create('l', 'h', false, { x: 0, y: 0 }, 2, 0);
     const p = { id, name: 'l', hasCharacter: true, lab: null } as unknown as OnlinePlayer;
     const got = lucky.wonWorld(p);
-    expect(got.drops.length).toBe(2);
+    expect(got.drops).toEqual(expect.arrayContaining([expect.stringMatching(/Raksasa/), expect.stringMatching(/Kitab Raja/), expect.stringMatching(/💎/), expect.stringMatching(/Raja Purba!/)]));
     const st = lucky.state(p);
     expect(st.owned.some((g) => g.endsWith(`_${wb.set}`))).toBe(true);
     expect(st.books).toContain(wb.skill);

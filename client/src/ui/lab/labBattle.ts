@@ -7,7 +7,7 @@
 // effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
-import { labElement, labGear, labSpell } from '@kh/shared';
+import { labElement, labGear, labSpell, wornBase } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
@@ -265,8 +265,9 @@ export class LabBattleUi {
 
   /** A fighter's Labirin gear tier colours (what they hold): from the fight (everyone's), else your save. */
   private gearOf(f: LabFighter) {
-    const g = f.gear ?? (f.id === this.meId ? (this.app.labHud?.self?.gear ?? {}) : {});
     const lc = this.app.cfg.lab;
+    const self = this.app.labHud?.self;
+    const g = f.gear ?? (f.id === this.meId && self ? wornBase(lc, self.gear, self.items) : {});
     return { weapon: labGear(lc, g.weapon)?.color, shield: labGear(lc, g.shield)?.color, armour: labGear(lc, g.armour)?.color, charm: labGear(lc, g.charm)?.color };
   }
 
@@ -330,7 +331,7 @@ export class LabBattleUi {
     const text =
       end.outcome === 'win' && this.view.world ? `🏆 ${this.app.cfg.lab.worldBoss?.name ?? 'The world boss'} falls! +${end.coins} Syiling Purba · +${end.xp ?? 0} XP.${end.drops?.length ? ` 🎁 ${end.drops.join(', ')}!` : ' No rare drop this time.'}`
       : end.outcome === 'win' && this.view.boss ? `🏆 ${this.app.cfg.lab.bosses[this.view.floor]?.name ?? 'The boss'} is beaten! The stairs down are open. +${end.coins} Syiling Purba (carried).`
-      : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried)${end.xp ? ` · +${end.xp} XP` : ''}.${end.levelUp ? ` ⬆️ Labirin level ${end.levelUp}! A new skill point (📖 in your bag).` : ''}`
+      : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried)${end.xp ? ` · +${end.xp} XP` : ''}.${end.drops?.length ? ` 🎁 ${end.drops.join(' · ')}` : ''}${end.levelUp ? ` ⬆️ Labirin level ${end.levelUp}! A new skill point (📖 in your bag).` : ''}`
       : end.outcome === 'fled' ? '🏃 You got away, back to the last room.'
       : `💫 You fell… ${end.lost ? `Lost ${end.lost} carried Syiling. ` : ''}You wake at your rest chamber.`;
     this.say(text);

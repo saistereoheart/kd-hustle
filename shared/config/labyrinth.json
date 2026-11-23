@@ -1259,6 +1259,210 @@
     "model": "dragon",
     "color": "#7048e8"
   },
+  "loot": {
+    "diamond": {
+      "perMonster": 0.04,
+      "perFloor": 0.15,
+      "boss": 1,
+      "worldBoss": 8
+    },
+    "item": {
+      "perMonster": 0.03,
+      "boss": 0.5,
+      "max": 0.6,
+      "lowerTier": 0.4
+    },
+    "grades": [
+      {
+        "id": "D",
+        "weight": 40,
+        "mult": 0.9,
+        "scrap": 1
+      },
+      {
+        "id": "C",
+        "weight": 30,
+        "mult": 1,
+        "scrap": 2
+      },
+      {
+        "id": "B",
+        "weight": 18,
+        "mult": 1.1,
+        "scrap": 3
+      },
+      {
+        "id": "A",
+        "weight": 9,
+        "mult": 1.2,
+        "scrap": 5
+      },
+      {
+        "id": "S",
+        "weight": 3,
+        "mult": 1.35,
+        "scrap": 8
+      }
+    ],
+    "variants": [
+      {
+        "id": "normal",
+        "name": "Normal",
+        "oneIn": 1,
+        "mult": 1,
+        "scrap": 1
+      },
+      {
+        "id": "shiny",
+        "name": "Shiny",
+        "oneIn": 20,
+        "mult": 1.05,
+        "scrap": 2
+      },
+      {
+        "id": "golden",
+        "name": "Golden",
+        "oneIn": 100,
+        "mult": 1.1,
+        "scrap": 4
+      },
+      {
+        "id": "rainbow",
+        "name": "Rainbow",
+        "oneIn": 1000,
+        "mult": 1.2,
+        "scrap": 10
+      }
+    ],
+    "classRoll": {
+      "price": 12,
+      "chance": 0.35,
+      "refund": 4
+    },
+    "classDrop": {
+      "boss": 0.02,
+      "worldBoss": 0.04
+    }
+  },
+  "classes": [
+    {
+      "id": "pendekar",
+      "name": "Pendekar",
+      "icon": "🗡️",
+      "source": "basic",
+      "desc": "Balanced: no strengths, no weaknesses."
+    },
+    {
+      "id": "perisai",
+      "name": "Perisai",
+      "icon": "🛡️",
+      "source": "basic",
+      "hp": 0.2,
+      "def": 0.15,
+      "atk": -0.1,
+      "desc": "Tank: +20% HP, +15% DEF, −10% ATK."
+    },
+    {
+      "id": "pemburu",
+      "name": "Pemburu",
+      "icon": "🏹",
+      "source": "basic",
+      "atk": 0.12,
+      "crit": 0.05,
+      "hp": -0.1,
+      "desc": "Hunter: +12% ATK, +5% crit, −10% HP."
+    },
+    {
+      "id": "bomoh",
+      "name": "Bomoh",
+      "icon": "🔮",
+      "source": "basic",
+      "mana": 0.25,
+      "skillPower": 0.15,
+      "spellPower": 0.15,
+      "def": -0.1,
+      "desc": "Mystic: +25% mana, +15% skill and ultimate power, −10% DEF."
+    },
+    {
+      "id": "hulubalang",
+      "name": "Hulubalang",
+      "icon": "⚔️",
+      "source": "shop",
+      "price": 1800,
+      "atk": 0.15,
+      "hp": 0.1,
+      "spd": -1,
+      "desc": "Warrior: +15% ATK, +10% HP, −1 SPD."
+    },
+    {
+      "id": "pencuri",
+      "name": "Pencuri",
+      "icon": "🗝️",
+      "source": "shop",
+      "price": 2600,
+      "spd": 3,
+      "crit": 0.06,
+      "coins": 0.15,
+      "hp": -0.1,
+      "desc": "Rogue: +3 SPD, +6% crit, +15% Syiling from fights, −10% HP."
+    },
+    {
+      "id": "penari_bayang",
+      "name": "Penari Bayang",
+      "icon": "🌘",
+      "source": "roll",
+      "weight": 5,
+      "spd": 4,
+      "crit": 0.08,
+      "def": -0.05,
+      "desc": "Shadow dancer: +4 SPD, +8% crit, −5% DEF."
+    },
+    {
+      "id": "dukun_api",
+      "name": "Dukun Api",
+      "icon": "🔥",
+      "source": "roll",
+      "weight": 5,
+      "skillPower": 0.25,
+      "spellPower": 0.1,
+      "hp": -0.08,
+      "desc": "Fire shaman: +25% skill power, +10% ultimate power, −8% HP."
+    },
+    {
+      "id": "pawang_angin",
+      "name": "Pawang Angin",
+      "icon": "🌬️",
+      "source": "roll",
+      "weight": 4,
+      "spd": 2,
+      "atk": 0.1,
+      "hp": -0.05,
+      "desc": "Wind tamer: +2 SPD, +10% ATK, −5% HP."
+    },
+    {
+      "id": "panglima_hitam",
+      "name": "Panglima Hitam",
+      "icon": "🖤",
+      "source": "drop",
+      "from": "boss",
+      "atk": 0.12,
+      "def": 0.12,
+      "hp": 0.12,
+      "desc": "Limited (a floor-boss drop): +12% ATK, DEF and HP."
+    },
+    {
+      "id": "raja_purba",
+      "name": "Raja Purba",
+      "icon": "👑",
+      "source": "drop",
+      "from": "worldBoss",
+      "atk": 0.15,
+      "def": 0.15,
+      "hp": 0.15,
+      "crit": 0.03,
+      "desc": "Limited (a world-boss drop): +15% ATK, DEF and HP, +3% crit."
+    }
+  ],
   "bosses": [
     {
       "name": "Raja Tikus Lumut",

@@ -218,6 +218,23 @@ Numbers in `labyrinth.json` (`elements`, `player.mana`); rules in `shared/src/la
 - **Balance check:** a scratch sim with the real `resolveLabRound` (F1–F8, gear none → mistik). Every element
   stays within a few points of the old 💥 Skill in normal fights; bosses 48–81% with the intended gear.
 
+## 4e. World boss (v1.38.0, feedback #21)
+- `worldBoss` in labyrinth.json. A party of 2+ all in the entrance hall calls it from 👥 Party; 3 tries a week each
+  (a try is spent when the fight starts; resets Monday). HP × (1 + hpPerPlayer × players past 2). No running, no
+  joining mid-fight. A win: Syiling + XP + 💎 for everyone; each rolls a 🐲 Raksasa set piece (6%), 📜 Kitab Raja
+  Purba (3%, any element) and the 👑 Raja Purba class (4%).
+
+## 4f. Loot and classes (v1.39.0, feedback #24)
+- **💎 Diamonds:** 4% per monster beaten × (1 + 15% per floor); a floor boss +1 + floor/2; the world boss +8.
+  Spent on the 🎲 class roll (12 💎: 35% a roll-class you lack, else 4 💎 back). Scrapping found gear gives 💎.
+- **Found gear:** after a win, a chance of 3% per monster (+50% for a floor boss, max 60%) of a piece of the best
+  shop tier on sale by that floor (40%: one tier lower), a random slot. Grade D/C/B/A/S (40/30/18/9/3%,
+  ×0.9/1/1.1/1.2/1.35) and variant (Shiny 1 in 20 ×1.05, Golden 1 in 100 ×1.1, Rainbow 1 in 1000 ×1.2). The
+  average grade ≈ the shop piece, so only lucky drops beat the shop. Worn as `#uid` in a gear slot.
+- **Classes:** basic (Pendekar, Perisai, Pemburu, Bomoh: free trade-offs), shop (Hulubalang 1,800, Pencuri
+  2,600), roll (Penari Bayang, Dukun Api, Pawang Angin), limited drops (Panglima Hitam: floor bosses 2%;
+  Raja Purba: the world boss 4%). Shares add to skills' (ATK/DEF/HP/mana/skill and ultimate power/coins), SPD and crit add.
+
 ## 5. Party / lobby
 - From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a
   Join / No thanks prompt, wherever they are, and the invite runs out after a minute. Inviting someone

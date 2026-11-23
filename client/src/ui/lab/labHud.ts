@@ -129,7 +129,7 @@ export class LabHud {
   updateSelf(self: LabRoomView['self']) {
     if (this.view) this.view = { ...this.view, self };
     this.loadout.update(self);
-    this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`);
+    this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`, self.diamonds ? el('span', { class: 'lab-diamonds', title: 'Diamonds: class rolls (🎭 in your bag)' }, ` 💎 ${self.diamonds}`) : '');
     const pct = self.maxHp ? self.hp / self.maxHp : 1;
     // ❤️ and 🔷 bars with the numbers inside; 🍵 a tavern drink working on you: its icon and the fights it has left.
     const d = self.drink ? this.app.cfg.lab.tavern.drinks.find((x) => x.id === self.drink!.id) : undefined;

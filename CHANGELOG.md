@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.39.0 (2026-11-23): 🎭 Labirin classes, 💎 diamonds and gear drops
+- **🎭 Classes** (feedback #24), in 🎒 Bag → 🎭 Classes. Wear one and switch any time outside a fight.
+  - Free: 🗡️ Pendekar (balanced), 🛡️ Perisai (tank), 🏹 Pemburu (hunter), 🔮 Bomoh (mystic).
+  - Sold by Tok Peraih: ⚔️ Hulubalang, 🗝️ Pencuri.
+  - From the 🎲 class roll: 🌘 Penari Bayang, 🔥 Dukun Api, 🌬️ Pawang Angin.
+  - Limited drops: 🖤 Panglima Hitam (floor bosses) and 👑 Raja Purba (the world boss).
+  
+  Every class gives something up for what it's good at; the limited ones are about +12–15% all round.
+- **💎 Diamonds:** an uncommon drop from monsters (more on deeper floors). Floor bosses give a few and the
+  world boss 8. A 🎲 class roll costs 12 💎 (a new class, or 4 💎 back).
+- **🎁 Gear drops:** after a win, monsters sometimes drop a piece of your floor's gear tier with a **grade** (D to
+  S) and a **variant** (Shiny, Golden, Rainbow) that make it weaker or stronger than the shop piece. Wear it from
+  ⚔️ Your gear, or ♻️ scrap spares for 💎.
+- Balanced so the average drop is about a shop piece; only lucky grades and variants beat it.
+
 ## 1.38.0 (2026-11-23): 🐲 Labirin world boss
 - **🐲 Raja Purba Bangkit** (feedback #21): a world boss for a party of 2 or more. Gather your whole party in
   the entrance hall, open 👥 Party, and press 🐲 Fight. It's turn-based like any fight, with no running away.

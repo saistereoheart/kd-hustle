@@ -240,6 +240,33 @@ export const labConfigSchema = z.object({
     /** Its look (like monsters). */
     model: z.string(), color: z.string(),
   }).optional(),
+  /** 🎁 Loot (feedback #24): 💎 diamonds (an uncommon drop; they pay for class rolls), and gear drops with a
+   *  grade (D..S) and a variant (Shiny / Golden / Rainbow) that multiply a shop piece's stats; scrap them for 💎. */
+  loot: z.object({
+    diamond: z.object({ perMonster: z.number().min(0).max(1), perFloor: z.number().min(0), boss: z.number().int().min(0), worldBoss: z.number().int().min(0) }),
+    item: z.object({ perMonster: z.number().min(0).max(1), boss: z.number().min(0).max(1), max: z.number().min(0).max(1), lowerTier: z.number().min(0).max(1) }),
+    grades: z.array(z.object({ id: z.string(), weight: z.number().min(0), mult: z.number().positive(), scrap: z.number().min(0) })).min(1),
+    variants: z.array(z.object({ id: z.string(), name: z.string(), oneIn: z.number().min(1), mult: z.number().positive(), scrap: z.number().min(0) })).min(1),
+    /** 🎲 Roll for a class: costs 💎; `chance` of a roll-class you don't have yet, else `refund` 💎 back. */
+    classRoll: z.object({ price: z.number().int().min(0), chance: z.number().min(0).max(1), refund: z.number().int().min(0) }),
+    /** Limited classes: chance per player per floor-boss win / world-boss win. */
+    classDrop: z.object({ boss: z.number().min(0).max(1), worldBoss: z.number().min(0).max(1) }),
+  }).default({
+    diamond: { perMonster: 0.04, perFloor: 0.15, boss: 1, worldBoss: 8 }, item: { perMonster: 0.03, boss: 0.5, max: 0.6, lowerTier: 0.4 },
+    grades: [{ id: 'D', weight: 1, mult: 1, scrap: 1 }], variants: [{ id: 'normal', name: 'Normal', oneIn: 1, mult: 1, scrap: 1 }],
+    classRoll: { price: 12, chance: 0.35, refund: 4 }, classDrop: { boss: 0.02, worldBoss: 0.04 },
+  }),
+  /** 🎭 Classes (one worn; switch any time out of a fight): `basic` (everyone has them), `shop` (Syiling at the
+   *  merchant), `roll` (the 💎 class roll), `drop` (limited: a floor boss / the world boss). Shares like skills. */
+  classes: z.array(z.object({
+    id: z.string(), name: z.string(), icon: z.string(), desc: z.string(),
+    source: z.enum(['basic', 'shop', 'roll', 'drop']),
+    price: z.number().int().min(0).optional(), weight: z.number().min(0).optional(),
+    /** For `drop`: who drops it. */
+    from: z.enum(['boss', 'worldBoss']).optional(),
+    atk: z.number().optional(), def: z.number().optional(), hp: z.number().optional(), spd: z.number().optional(), crit: z.number().optional(),
+    mana: z.number().optional(), skillPower: z.number().optional(), spellPower: z.number().optional(), coins: z.number().optional(),
+  })).default([]),
   /** 👹 Floor bosses (one per floor, in its stairs room). They grow with the floor like monsters do
    *  (× scale^floor); more players make them tougher (HP × (1 + partyHp × extra players)) and from
    *  floor `minionsFrom` (0-based) they bring a minion (one more per extra player). */

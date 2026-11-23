@@ -811,6 +811,14 @@ export interface ClientToServerEvents {
   'lab:respec': (ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 📜 Use a spell book you own: switches to its element (id null: nothing). */
   'lab:book': (msg: { id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 🎁 Scrap a dropped gear item for 💎 (not one you're wearing). */
+  'lab:scrap': (msg: { uid: number }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 🎭 Wear a class you own (not in a fight). */
+  'lab:class': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 🎭 Buy a shop class (at the merchant, Syiling). */
+  'lab:classBuy': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  /** 🎲 Roll for a class (💎). */
+  'lab:classRoll': (ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 🐲 Call the world boss: your whole party (at least `worldBoss.minParty`) together in the entrance hall. */
   'lab:worldBoss': (ack: Ack<SimpleResult>) => void;
   /** 🔥 Equip an element's 💥 skill (any time; in a fight it counts from your next pick). */
