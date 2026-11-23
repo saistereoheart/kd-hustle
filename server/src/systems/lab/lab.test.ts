@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { LAB_DIRS, LAB_OPPOSITE, roomLayout, seenHas, type LabDir } from '@kh/shared';
+import { LAB_DIRS, LAB_OPPOSITE, labLevel, roomLayout, seenHas, type LabDir } from '@kh/shared';
 import { loadConfig } from '../../config/loadConfig';
 import { openDatabase } from '../../db/db';
 import { createRepos } from '../../db/repos';
@@ -258,13 +258,16 @@ describe('Labirin: the tavern and the brush', () => {
     expect(s.lab.stats(s.p).atk).toBeGreaterThan(atk0);
     expect(() => s.lab.learn(s.p, 'kulit_badak')).toThrow(/No skill points/);
     st.xp = 10_000;
+    // 🌳 Deeper nodes open with points in their branch.
+    expect(() => s.lab.learn(s.p, 'untung_purba')).toThrow(/needs 8 points/);
+    for (let i = 0; i < 8; i++) s.lab.learn(s.p, 'langkah_angin');
     expect(() => s.lab.learn(s.p, 'untung_purba')).not.toThrow();
     st.xp = 0;
-    expect(() => s.lab.learn(s.p, 'semangat_ilmu')).toThrow(/level 8/);
+    expect(() => s.lab.learn(s.p, 'tenaga_dalam')).toThrow(/No skill points/);
     // Win XP: level up.
-    const r = s.lab.won(s.p, 0, 1, 10, false, true, 1_000);
+    const r = s.lab.won(s.p, 0, 1, 1000, false, true, 1_000);
     expect(r.levelUp).toBeGreaterThan(1);
-    expect(r.coins).toBeGreaterThan(10); // (Untung Purba rank 1)
+    expect(r.coins).toBeGreaterThan(1000); // (Untung Purba rank 1)
     // Respec only at the merchant.
     expect(() => s.lab.respec(s.p)).toThrow(/entrance hall or a rest chamber/);
     const f = s.lab.floor(0);
@@ -317,7 +320,8 @@ describe('Labirin: the tavern and the brush', () => {
     // 📖 Tenaga Dalam raises max mana.
     s.lab.state(s.p).xp = 10_000;
     s.lab.state(s.p).skills.tenaga_dalam = 2;
-    expect(s.lab.self(s.p).maxMana).toBe(Math.round(max * 1.2));
+    const lv = labLevel(lc, 10_000).level;
+    expect(s.lab.self(s.p).maxMana).toBe(Math.round(max + lc.progress.perLevel.mana * (lv - 1) + 2));
   });
 
   it('the tavern roll: once a day, at the counter; a book or a free drink', () => {

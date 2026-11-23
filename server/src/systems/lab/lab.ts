@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labFloor, labGear, labLevel, labPointsFree, labPotion, labStats, labUltimate, treeBlock, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -70,6 +70,8 @@ export interface LabSave {
   /** 🎭 The class worn and the non-basic classes owned. */
   cls?: string;
   classes?: string[];
+  /** 🌳 Skill-tree version (1: the tree; older saves had their skill points given back once). */
+  treeV?: number;
 }
 
 export function emptyLab(): LabSave {
@@ -95,31 +97,13 @@ export class LabSystem {
   ) {}
 
   // ---------------------------------------------------------------- ⚔️ HP and stats
+  /** 🌀 Your abyss stats: (base from level + skill tree, + Labirin gear) × (1 + buffs: class, drink, Teman, tree %). */
   stats(p: OnlinePlayer) {
-    const s0 = this.state(p);
-    const st = labPlayerStats(this.cfg, this.temanBoost(p), wornBonus(this.cfg, s0.gear, s0.items));
-    const cm = classMods(this.cfg, s0.cls);
-    // 📖 Skills: +shares of ATK / DEF / HP, +SPD and crit.
-    const sk = labSkillBonus(this.cfg, this.state(p).skills);
-    // 🎭 and the class's shares.
-    st.hp = Math.round(st.hp * (1 + sk.hp + cm.hp));
-    st.atk = Math.round(st.atk * (1 + sk.atk + cm.atk) * 10) / 10;
-    st.def = Math.round(st.def * (1 + sk.def + cm.def) * 10) / 10;
-    st.spd = Math.max(1, st.spd + sk.spd + cm.spd);
-    st.crit = Math.min(0.5, st.crit + sk.crit + cm.crit);
-    st.block = Math.min(0.5, st.block);
-    // 🔷 Max mana (📖 Tenaga Dalam raises it).
-    const mana = Math.round(this.cfg.player.mana.max * (1 + sk.mana + cm.mana));
-    // 🍵 A tavern drink: +a share of some stats while it lasts.
-    const d = this.state(p).drink;
-    const def = d ? this.cfg.tavern.drinks.find((x) => x.id === d.id) : undefined;
-    if (def) {
-      st.hp = Math.round(st.hp * (1 + (def.hp ?? 0)));
-      st.atk = Math.round(st.atk * (1 + (def.atk ?? 0)) * 10) / 10;
-      st.def = Math.round(st.def * (1 + (def.def ?? 0)) * 10) / 10;
-      st.spd = Math.round(st.spd * (1 + (def.spd ?? 0)) * 10) / 10;
-    }
-    return { ...st, mana };
+    const s = this.state(p);
+    return labStats(this.cfg, {
+      level: labLevel(this.cfg, s.xp).level, ranks: s.skills, gear: wornBonus(this.cfg, s.gear, s.items),
+      cls: s.cls, drink: s.drink?.id, teman: this.temanBoost(p),
+    });
   }
 
   // ---------------------------------------------------------------- 🍵 the tavern
@@ -359,7 +343,7 @@ export class LabSystem {
       const sec = (now - s.hpAt) / 1000;
       const fire = this.cfg.player.campfire;
       const warm = this.warm.has(p.id) && this.atFire(p) ? (fire.hp / fire.everySec) * sec : 0;
-      const k = 1 + labSkillBonus(this.cfg, s.skills).regen; // 🌿 Pulih Pantas
+      const k = 1 + this.stats(p).regen; // 🌿 Pulih Pantas
       s.hp = Math.min(max, s.hp + (max * this.cfg.player.regenPer10s * (sec / 10) + warm) * k);
     }
     s.hp = Math.min(max, s.hp);
@@ -429,7 +413,7 @@ export class LabSystem {
     if (boss) {
       if (!s.bosses.includes(floor)) s.bosses.push(floor);
     } else if (!ambush) s.cleared[`${floor}:${room}`] = this.clock(); // (the room's own group stays)
-    const got = Math.round(coins * (1 + labSkillBonus(this.cfg, s.skills).coins + classMods(this.cfg, s.cls).coins)); // 🪙 Untung Purba, 🎭 Pencuri
+    const got = Math.round(coins * (1 + this.stats(p).coins)); // 🪙 Untung Purba, 🎭 Pencuri
     s.carried += got;
     // 🎁 Loot: 💎 diamonds, maybe a gear drop, and (floor bosses) the limited class.
     const drops: string[] = [];
@@ -611,14 +595,12 @@ export class LabSystem {
   /** Learn one more rank of a skill (a free skill point; not in a fight). */
   learn(p: OnlinePlayer, id: string): string {
     if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
-    const def = this.cfg.skills.find((k) => k.id === id);
+    const def = this.cfg.tree.nodes.find((k) => k.id === id);
     if (!def) throw new GameError('No such skill.');
     const s = this.state(p);
     const rank = s.skills[id] ?? 0;
-    if (rank >= def.max) throw new GameError(`${def.name} is already at its best (rank ${def.max}).`);
-    const lv = labLevel(this.cfg, s.xp).level;
-    if (lv < def.minLevel) throw new GameError(`${def.name} needs Labirin level ${def.minLevel} (you're ${lv}).`);
-    if (labPointsFree(this.cfg, s.xp, s.skills) < 1) throw new GameError('No skill points left. Win fights down here to level up.');
+    const why = treeBlock(this.cfg, s.skills, id, labPointsFree(this.cfg, s.xp, s.skills));
+    if (why) throw new GameError(why);
     const before = this.stats(p).hp;
     if (s.hp !== undefined) this.hp(p);
     s.skills[id] = rank + 1;
@@ -724,6 +706,11 @@ export class LabSystem {
       s = { ...emptyLab(), ...saved };
       // Older saves: each door was opened with its own key, so that key is spent.
       if (!saved.used) s.used = [...s.unlocked];
+      // 🌳 The skill tree replaced the old skills: every point comes back once (spend them again).
+      if (!saved.treeV) {
+        s.skills = {};
+        s.treeV = 1;
+      }
       this.cache.set(p.id, s);
     }
     return s;

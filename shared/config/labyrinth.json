@@ -1652,105 +1652,220 @@
       "boss": 120
     },
     "levels": {
-      "base": 40,
-      "growth": 1.25,
-      "max": 40
+      "base": 30,
+      "growth": 1.08,
+      "max": 999
     },
     "pointsPerLevel": 1,
-    "respec": 200
-  },
-  "skills": [
-    {
-      "id": "tangan_besi",
-      "name": "Tangan Besi",
-      "icon": "👊",
-      "desc": "+5% ATK per rank",
-      "max": 5,
-      "minLevel": 1,
-      "atk": 0.05
-    },
-    {
-      "id": "kulit_badak",
-      "name": "Kulit Badak",
-      "icon": "🦏",
-      "desc": "+6% DEF per rank",
-      "max": 5,
-      "minLevel": 1,
-      "def": 0.06
-    },
-    {
-      "id": "nyawa_liat",
-      "name": "Nyawa Liat",
-      "icon": "❤️",
-      "desc": "+6% max HP per rank",
-      "max": 5,
-      "minLevel": 1,
-      "hp": 0.06
-    },
-    {
-      "id": "tenaga_dalam",
-      "name": "Tenaga Dalam",
-      "icon": "🔷",
-      "desc": "+10% max mana per rank",
-      "max": 5,
-      "minLevel": 2,
-      "mana": 0.1
-    },
-    {
-      "id": "langkah_angin",
-      "name": "Langkah Angin",
-      "icon": "💨",
-      "desc": "+1 SPD per rank (you act sooner)",
-      "max": 5,
-      "minLevel": 3,
-      "spd": 1
-    },
-    {
-      "id": "pulih_pantas",
-      "name": "Pulih Pantas",
-      "icon": "🌿",
-      "desc": "+25% healing out of a fight per rank (campfire too)",
-      "max": 4,
-      "minLevel": 3,
-      "regen": 0.25
-    },
-    {
-      "id": "mata_helang",
-      "name": "Mata Helang",
-      "icon": "🦅",
-      "desc": "+1.5% critical-hit chance per rank",
-      "max": 5,
-      "minLevel": 5,
-      "crit": 0.015
-    },
-    {
-      "id": "jurus_pendekar",
-      "name": "Jurus Pendekar",
-      "icon": "💥",
-      "desc": "+8% 💥 Skill damage per rank",
-      "max": 5,
-      "minLevel": 5,
-      "skillPower": 0.08
-    },
-    {
-      "id": "semangat_ilmu",
-      "name": "Semangat Ilmu",
-      "icon": "📖",
-      "desc": "+10% 📜 spell power per rank (damage and heals)",
-      "max": 5,
-      "minLevel": 8,
-      "spellPower": 0.1
-    },
-    {
-      "id": "untung_purba",
-      "name": "Untung Purba",
-      "icon": "🪙",
-      "desc": "+5% Syiling from fights per rank",
-      "max": 5,
-      "minLevel": 10,
-      "coins": 0.05
+    "respec": 200,
+    "perLevel": {
+      "hp": 1.5,
+      "atk": 0.08,
+      "def": 0.04,
+      "mana": 0.3
     }
-  ],
+  },
+  "tree": {
+    "branches": [
+      {
+        "id": "kuasa",
+        "name": "Kuasa",
+        "icon": "⚔️",
+        "color": "#ff6b6b",
+        "desc": "Might: attack, HP and critical hits."
+      },
+      {
+        "id": "tahan",
+        "name": "Tahan",
+        "icon": "🛡️",
+        "color": "#4dabf7",
+        "desc": "Guard: defence, HP and blocking."
+      },
+      {
+        "id": "batin",
+        "name": "Batin",
+        "icon": "🔮",
+        "color": "#be4bdb",
+        "desc": "Arcane: mana, skills and ultimates."
+      },
+      {
+        "id": "lincah",
+        "name": "Lincah",
+        "icon": "💨",
+        "color": "#38d9a9",
+        "desc": "Agility: speed, healing and Syiling."
+      }
+    ],
+    "nodes": [
+      {
+        "id": "tangan_besi",
+        "name": "Tangan Besi",
+        "icon": "👊",
+        "branch": "kuasa",
+        "need": 0,
+        "atk": 0.25,
+        "desc": "+0.25 ATK (base)"
+      },
+      {
+        "id": "urat_dawai",
+        "name": "Urat Dawai",
+        "icon": "💪",
+        "branch": "kuasa",
+        "need": 0,
+        "hp": 2,
+        "atk": 0.1,
+        "desc": "+2 HP, +0.1 ATK (base)"
+      },
+      {
+        "id": "hentakan",
+        "name": "Hentakan",
+        "icon": "💥",
+        "branch": "kuasa",
+        "need": 8,
+        "max": 25,
+        "crit": 0.004,
+        "desc": "+0.4% critical-hit chance"
+      },
+      {
+        "id": "amukan",
+        "name": "Amukan",
+        "icon": "🔥",
+        "branch": "kuasa",
+        "need": 20,
+        "max": 15,
+        "atkPct": 0.01,
+        "desc": "+1% ATK (buff)"
+      },
+      {
+        "id": "kulit_badak",
+        "name": "Kulit Badak",
+        "icon": "🦏",
+        "branch": "tahan",
+        "need": 0,
+        "def": 0.12,
+        "desc": "+0.12 DEF (base)"
+      },
+      {
+        "id": "nyawa_liat",
+        "name": "Nyawa Liat",
+        "icon": "❤️",
+        "branch": "tahan",
+        "need": 0,
+        "hp": 3,
+        "desc": "+3 HP (base)"
+      },
+      {
+        "id": "perisai_jiwa",
+        "name": "Perisai Jiwa",
+        "icon": "🧱",
+        "branch": "tahan",
+        "need": 8,
+        "max": 25,
+        "block": 0.003,
+        "desc": "+0.3% chance to block (half damage)"
+      },
+      {
+        "id": "benteng",
+        "name": "Benteng",
+        "icon": "🏯",
+        "branch": "tahan",
+        "need": 20,
+        "max": 15,
+        "defPct": 0.01,
+        "hpPct": 0.01,
+        "desc": "+1% DEF and +1% HP (buffs)"
+      },
+      {
+        "id": "tenaga_dalam",
+        "name": "Tenaga Dalam",
+        "icon": "🔷",
+        "branch": "batin",
+        "need": 0,
+        "mana": 1,
+        "desc": "+1 max mana (base)"
+      },
+      {
+        "id": "aliran_tenaga",
+        "name": "Aliran Tenaga",
+        "icon": "🌊",
+        "branch": "batin",
+        "need": 0,
+        "max": 40,
+        "manaRegen": 0.05,
+        "desc": "+0.05 mana every fight round"
+      },
+      {
+        "id": "jurus_pendekar",
+        "name": "Jurus Pendekar",
+        "icon": "🥋",
+        "branch": "batin",
+        "need": 8,
+        "max": 25,
+        "skillPower": 0.01,
+        "desc": "+1% 💥 skill damage"
+      },
+      {
+        "id": "semangat_ilmu",
+        "name": "Semangat Ilmu",
+        "icon": "📖",
+        "branch": "batin",
+        "need": 8,
+        "max": 20,
+        "spellPower": 0.015,
+        "desc": "+1.5% 📜 ultimate power (damage and heals)"
+      },
+      {
+        "id": "fokus_awal",
+        "name": "Fokus Awal",
+        "icon": "🎯",
+        "branch": "batin",
+        "need": 20,
+        "max": 2,
+        "focus": 1,
+        "desc": "Start every fight with +1 focus"
+      },
+      {
+        "id": "langkah_angin",
+        "name": "Langkah Angin",
+        "icon": "💨",
+        "branch": "lincah",
+        "need": 0,
+        "spd": 0.1,
+        "desc": "+0.1 SPD (base: you act sooner)"
+      },
+      {
+        "id": "pulih_pantas",
+        "name": "Pulih Pantas",
+        "icon": "🌿",
+        "branch": "lincah",
+        "need": 0,
+        "max": 20,
+        "regen": 0.05,
+        "desc": "+5% healing out of a fight (campfire too)"
+      },
+      {
+        "id": "untung_purba",
+        "name": "Untung Purba",
+        "icon": "🪙",
+        "branch": "lincah",
+        "need": 8,
+        "max": 30,
+        "coins": 0.01,
+        "desc": "+1% Syiling from fights"
+      },
+      {
+        "id": "mata_helang",
+        "name": "Mata Helang",
+        "icon": "🦅",
+        "branch": "lincah",
+        "need": 8,
+        "max": 25,
+        "crit": 0.003,
+        "spd": 0.05,
+        "desc": "+0.3% crit, +0.05 SPD"
+      }
+    ]
+  },
   "spells": {
     "focus": 6,
     "roll": {

@@ -167,7 +167,26 @@ export const labConfigSchema = z.object({
     pointsPerLevel: z.number().int().min(1),
     /** Syiling to unlearn every skill (at the merchant) and get the points back. */
     respec: z.number().int().min(0),
-  }).default({ xp: { perMonster: 6, perFloor: 0.45, boss: 120 }, levels: { base: 40, growth: 1.25, max: 40 }, pointsPerLevel: 1, respec: 200 }),
+    /** 🌀 Every level past 1 adds this much to your BASE stats (flat; items add on top; buffs % multiply). */
+    perLevel: z.object({ hp: z.number().min(0), atk: z.number().min(0), def: z.number().min(0), mana: z.number().min(0) }).default({ hp: 1.5, atk: 0.08, def: 0.04, mana: 0.3 }),
+  }).default({ xp: { perMonster: 6, perFloor: 0.45, boss: 120 }, levels: { base: 30, growth: 1.08, max: 999 }, pointsPerLevel: 1, respec: 200, perLevel: { hp: 1.5, atk: 0.08, def: 0.04, mana: 0.3 } }),
+  /** 🌳 The skill tree (permanent; a point a level, no cap on points). Branches; each node has per-rank numbers:
+   *  flat ones (hp, atk, def, spd, mana, manaRegen) add to your base stats, `*Pct` ones are buffs (×), crit / block
+   *  add chance. `need`: points already spent in its branch to unlock it. `max`: ranks (none = no limit). */
+  tree: z.object({
+    branches: z.array(z.object({ id: z.string(), name: z.string(), icon: z.string(), color: z.string(), desc: z.string() })).min(1),
+    nodes: z.array(z.object({
+      id: z.string(), name: z.string(), icon: z.string(), desc: z.string(), branch: z.string(),
+      need: z.number().int().min(0), max: z.number().int().min(1).optional(),
+      hp: z.number().optional(), atk: z.number().optional(), def: z.number().optional(), spd: z.number().optional(),
+      mana: z.number().optional(), manaRegen: z.number().optional(),
+      crit: z.number().optional(), block: z.number().optional(),
+      atkPct: z.number().optional(), defPct: z.number().optional(), hpPct: z.number().optional(), manaPct: z.number().optional(),
+      skillPower: z.number().optional(), spellPower: z.number().optional(), coins: z.number().optional(), regen: z.number().optional(),
+      /** Start every fight with this much focus. */
+      focus: z.number().optional(),
+    })).min(1),
+  }).default({ branches: [{ id: 'kuasa', name: 'Kuasa', icon: '⚔️', color: '#ff6b6b', desc: '' }], nodes: [{ id: 'tangan_besi', name: 'Tangan Besi', icon: '👊', desc: '+0.25 ATK', branch: 'kuasa', need: 0, atk: 0.25 }] }),
   /** 📖 Skills (passive, ranked): each rank adds its numbers. `minLevel`: the Labirin level to learn it. */
   skills: z.array(z.object({
     id: z.string(), name: z.string(), icon: z.string(), desc: z.string(),

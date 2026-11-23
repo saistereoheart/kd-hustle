@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.40.0 (2026-11-23): 🌀 the abyss keeps its own you
+- **The Labirin is its own world.** Down there your town hotbar, money, XP and wealth stage are put away. You
+  get an **abyss hotbar** instead: your Labirin potions on keys 1–9 with how many you carry; tap or press to
+  drink. Above it are your 🌀 abyss level and XP, ❤️ HP and 🔷 mana.
+- **Levels come easily and never stop.** Every level adds a little to your **base** stats (HP, ATK, DEF, mana)
+  and gives a skill point.
+- **How stats add up:** (base + items) × (1 + buffs). Gear adds flat on top of your base. Buffs (your class, a
+  tavern drink, your lead Teman, the tree's % nodes) add up, then multiply the lot. 🎒 Bag → 🌳 Level & tree shows
+  each stat's breakdown.
+- **🌳 The skill tree** replaces the old skills, with four branches: ⚔️ Kuasa, 🛡️ Tahan, 🔮 Batin, 💨 Lincah.
+  - First nodes: many tiny points with no limit (+0.25 ATK, +0.12 DEF, +3 HP, +1 mana, +0.1 SPD…).
+  - Deeper nodes open after 8 or 20 points in their branch: small, capped extras like crit, block, +1% ATK,
+    skill and ultimate power, Syiling, or starting fights with focus.
+  
+  **Everyone's old skill points are given back once** so you can spend them in the new tree.
+
 ## 1.39.2 (2026-11-23): 🛠️ decorate panel stays put
 - **The decorate panel's stats stay where they are** (stars, what's missing, the factor bars, suggestions). Only the
   furniture list scrolls, and it keeps its place while you decorate. Undo / Rotate / Save stay at the bottom. On a

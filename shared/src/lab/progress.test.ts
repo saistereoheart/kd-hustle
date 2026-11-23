@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import labJson from '../../config/labyrinth.json';
 import { labConfigSchema } from './config';
-import { groupXp, labLevel, labPointsFree, labSkillBonus, labSpell, labUltimate, labXpNeed, rollSpellBook } from './progress';
+import { groupXp, labLevel, labPointsFree, labSpell, labUltimate, labXpNeed, rollSpellBook } from './progress';
 import { resolveLabRound, type LabFighter } from './battle';
 
 const cfg = labConfigSchema.parse(labJson);
@@ -17,14 +17,10 @@ describe('Labirin progress', () => {
     expect(labLevel(cfg, l1 + l2 - 1)).toEqual({ level: 2, into: l2 - 1, need: l2 });
     expect(labPointsFree(cfg, 0, {})).toBe(1);
     expect(labPointsFree(cfg, l1 + l2, { tangan_besi: 2 })).toBe(1);
-    expect(labLevel(cfg, 1e12).level).toBe(cfg.progress.levels.max);
+    // No real cap: levels keep coming (each costs a bit more).
+    expect(labLevel(cfg, 1e12).level).toBeGreaterThan(100);
   });
 
-  it('adds skill ranks up, capped at each skill’s max', () => {
-    const b = labSkillBonus(cfg, { tangan_besi: 2, langkah_angin: 99 });
-    expect(b.atk).toBeCloseTo(0.1);
-    expect(b.spd).toBe(5);
-  });
 
   it('XP grows with the floor; bosses give much more', () => {
     expect(groupXp(cfg, 0, [foe('m0')])).toBe(cfg.progress.xp.perMonster);

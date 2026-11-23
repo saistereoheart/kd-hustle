@@ -41,6 +41,8 @@ export interface LabFighter {
   /** Players: 🔷 mana (💥 skills cost it) and the element whose skill is equipped. */
   mana?: number;
   maxMana?: number;
+  /** 🔷 Mana back each round (the skill tree raises it; default `player.mana.perRound`). */
+  manaRegen?: number;
   element?: string;
   /** Players: ⚔️ the Labirin gear they wear (slot → gear id), so everyone sees who holds what. */
   gear?: Partial<Record<'weapon' | 'shield' | 'armour' | 'charm', string>>;
@@ -437,7 +439,7 @@ export function resolveLabRound(
   for (const f of fighters) {
     if (f.out) continue;
     f.focus = Math.min(pc.focusMax, f.focus + 1);
-    if (f.mana !== undefined && f.maxMana !== undefined) f.mana = Math.min(f.maxMana, f.mana + pc.mana.perRound);
+    if (f.mana !== undefined && f.maxMana !== undefined) f.mana = Math.min(f.maxMana, Math.round((f.mana + (f.manaRegen ?? pc.mana.perRound)) * 100) / 100);
   }
   const foesLeft = alive(fighters, 'foe').length;
   const partyLeft = alive(fighters, 'party').length;

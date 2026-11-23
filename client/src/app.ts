@@ -387,6 +387,8 @@ export class App {
     for (let i = 0; i < 10; i++) {
       this.keyboard.onPress(`Digit${(i + 1) % 10}`, () => {
         if (!inTown() || isPanelOpen() || this.labBattle) return;
+        // 🌀 In the Labirin the abyss hotbar (potions) takes the keys; 0 isn't used there.
+        if (this.lab) return void (i < 9 && this.labHud?.hotbar.use(i));
         const e = this.cfg.chat.emotes[i];
         if (this.emotes?.isOpen && e) this.triggerEmote(e.id);
         else this.useHotbar(i);

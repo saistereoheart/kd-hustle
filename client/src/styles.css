@@ -1894,3 +1894,29 @@ body.portrait .decorate-panel .deco-stats .factor { font-size: 11px; }
 body.portrait .decorate-panel .deco-stars { font-size: 18px; margin: 0 0 2px; }
 body.portrait .decorate-panel .deco-suggs { max-height: 54px; }
 body.portrait .decorate-panel .deco-keys { display: none; }
+
+/* 🌳 Labirin skill tree + stat breakdown */
+.lab-statlines { display: grid; gap: 2px; margin: 6px 0 10px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.lab-statline { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 8px; font-size: 12px; align-items: baseline; }
+.lab-statline span { color: #adb5bd; }
+.lab-stat-total { color: #ffe066; }
+.lab-tree { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.lab-branch { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 10px; border-top: 3px solid var(--branch, #888); background: rgba(255, 255, 255, 0.03); }
+.lab-branch-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin-bottom: 2px; }
+.lab-branch-head small { flex-basis: 100%; font-size: 11px; }
+.lab-node { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+.lab-node.has { box-shadow: inset 3px 0 0 var(--branch, #888); }
+.lab-node.locked { opacity: 0.5; }
+.lab-node-icon { font-size: 18px; width: 22px; text-align: center; }
+.lab-node-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lab-node-info small { font-size: 11px; }
+.lab-node-rank { color: var(--branch, #ffe066); font-size: 11px; }
+.lab-node .btn { width: auto; flex: none; min-width: 42px; }
+
+/* 🌀 The abyss keeps its own: the town hotbar, money, XP and stage hide in the Labirin; its own hotbar shows. */
+body[data-lab] .hotbar:not(.lab-hotbar) { display: none; }
+body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud .stage-badge { display: none; }
+.lab-hotbar .hotbar-count { color: #ffe066; }
+.lab-vitals .lb-bar.xp { height: 12px; }
+.lab-vitals .lb-bar.xp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #845ef7, #cc5de8); }
+.lab-vitals .lb-bar.xp span { font-size: 10px; line-height: 10px; }

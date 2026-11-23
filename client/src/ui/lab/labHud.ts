@@ -7,6 +7,7 @@ import { openLabBag } from './labBag';
 import { openLabParty } from './labParty';
 import { LabLoadout } from './labLoadout';
 import { statBar } from './statBar';
+import { LabHotbar } from './labHotbar';
 
 /** A Syiling Purba coin, drawn in CSS (the 🪙 emoji is missing from older emoji fonts). */
 export function coinIcon(): HTMLElement {
@@ -24,6 +25,8 @@ export class LabHud {
   /** ❤️ / 🔷 bars: right above the hotbar, as wide as it. */
   private hp: HTMLElement;
   private mini: HTMLCanvasElement;
+  /** 🌀 The abyss hotbar (potions) in place of the town one; the ❤️ / 🔷 / level bars ride on it. */
+  readonly hotbar: LabHotbar;
   /** 👥 Your party under the minimap: each one's ❤️ / 🔷 bars and carried Syiling. */
   private partyBox: HTMLElement;
   private full: HTMLElement | null = null;
@@ -49,12 +52,14 @@ export class LabHud {
     document.body.append(this.partyBox);
     window.addEventListener('resize', this.placeParty);
     document.body.append(this.root, this.mini);
-    if (app.hotbar) app.hotbar.mountAbove(this.hp);
-    else document.body.append(this.hp); // (no hotbar: a fixed spot at the bottom)
+    this.hotbar = new LabHotbar(app);
+    this.hp.classList.add('hotbar-above');
+    this.hotbar.root.append(this.hp);
     this.loadout = new LabLoadout(app);
   }
 
   destroy() {
+    this.hotbar.destroy();
     window.removeEventListener('resize', this.placeParty);
     this.partyBox.remove();
     this.root.remove();
@@ -133,7 +138,12 @@ export class LabHud {
     const pct = self.maxHp ? self.hp / self.maxHp : 1;
     // ❤️ and 🔷 bars with the numbers inside; 🍵 a tavern drink working on you: its icon and the fights it has left.
     const d = self.drink ? this.app.cfg.lab.tavern.drinks.find((x) => x.id === self.drink!.id) : undefined;
-    this.hp.replaceChildren(statBar('hp', self.hp, self.maxHp), statBar('mp', self.mana ?? 0, self.maxMana ?? 0));
+    this.hotbar.update(self);
+    // 🌀 The abyss level and its XP (the town's level and money stay up in town).
+    const xpPct = self.xpNeed ? Math.round((self.xpInto / self.xpNeed) * 100) : 100;
+    const lv = el('div', { class: 'lb-bar xp', title: `Abyss level ${self.level}: ${self.xpInto} / ${self.xpNeed} XP${self.points ? ` · ${self.points} skill point${self.points === 1 ? '' : 's'} to spend (🎒 Bag → 🌳)` : ''}` },
+      el('i', { style: `width:${xpPct}%` }), el('span', {}, `🌀 Lv ${self.level}${self.points ? ` · ✨${self.points}` : ''} · ${self.xpInto}/${self.xpNeed} XP`));
+    this.hp.replaceChildren(lv, statBar('hp', self.hp, self.maxHp), statBar('mp', self.mana ?? 0, self.maxMana ?? 0));
     this.hp.title = d && self.drink ? `${d.icon} ${d.name}: ${d.desc} (${self.drink.left} fight${self.drink.left === 1 ? '' : 's'} left)` : '';
     if (d && self.drink) this.hp.append(el('span', { class: 'lab-drink' }, `${d.icon}×${self.drink.left}`));
     this.hp.classList.toggle('low', pct < 0.3);

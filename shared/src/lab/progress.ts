@@ -27,30 +27,14 @@ export function labLevel(cfg: LabConfig, xp: number): { level: number; into: num
   return { level, into: 0, need: 0 };
 }
 
-/** Skill points spent on these ranks. */
-export function labPointsSpent(skills: Record<string, number>): number {
-  return Object.values(skills).reduce((a, n) => a + Math.max(0, n), 0);
+/** Skill points spent on these tree ranks (unknown ids don't count). */
+export function labPointsSpent(cfg: LabConfig, skills: Record<string, number>): number {
+  return cfg.tree.nodes.reduce((a, n) => a + Math.max(0, skills[n.id] ?? 0), 0);
 }
 
-/** Skill points free to spend. */
+/** Skill points free to spend (a point a level: no cap). */
 export function labPointsFree(cfg: LabConfig, xp: number, skills: Record<string, number>): number {
-  return Math.max(0, labLevel(cfg, xp).level * cfg.progress.pointsPerLevel - labPointsSpent(skills));
-}
-
-export interface LabSkillBonus {
-  atk: number; def: number; hp: number; spd: number; crit: number;
-  skillPower: number; spellPower: number; regen: number; coins: number; mana: number;
-}
-
-/** What your skill ranks add up to. */
-export function labSkillBonus(cfg: LabConfig, skills: Record<string, number>): LabSkillBonus {
-  const b: LabSkillBonus = { atk: 0, def: 0, hp: 0, spd: 0, crit: 0, skillPower: 0, spellPower: 0, regen: 0, coins: 0, mana: 0 };
-  for (const def of cfg.skills) {
-    const r = Math.max(0, Math.min(def.max, skills[def.id] ?? 0));
-    if (!r) continue;
-    for (const k of Object.keys(b) as Array<keyof LabSkillBonus>) b[k] += (def[k] ?? 0) * r;
-  }
-  return b;
+  return Math.max(0, labLevel(cfg, xp).level * cfg.progress.pointsPerLevel - labPointsSpent(cfg, skills));
 }
 
 /** A spell book, or an element's basic ultimate (`ult_<element>`). */

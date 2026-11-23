@@ -1,7 +1,7 @@
 // 🗝️ Labirin Purba: your bag down there. 🛒 the merchant's wares (at Tok Peraih: the entrance hall and
 // every rest chamber), ⚔️ your gear (wear what you own), 🔥 elements (your 💥 skill and 📜 ultimate),
 // 📖 skills, 📜 spell books and 🧪 your potions (drink a heal or mana, or 🧵 go home). Prices are in Syiling Purba: carried coins go first, then banked. The server checks all of it.
-import { LAB_SLOTS, gearLine, itemMult, itemName, itemScrap, labGear, labGearList, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
+import { LAB_SLOTS, branchPoints, gearLine, itemMult, itemName, itemScrap, labGear, labGearList, labStats, treeBlock, wornBonus, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { closePanel, openPanel, tabs } from '../panel';
@@ -17,7 +17,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
   const shop = start === 'shop';
   const panel = openPanel(shop ? `🛒 ${lc.merchant.name}` : '🎒 Labirin bag', { wide: true, testId: 'lab-bag' });
   const names: Tab[] = shop ? ['shop', 'books', 'potions', 'classes', 'gear', 'elements', 'skills'] : ['gear', 'classes', 'elements', 'skills', 'books', 'potions'];
-  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '📖 Skills', books: '📜 Spell books', elements: '🔥 Elements', classes: '🎭 Classes' };
+  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '🌳 Level & tree', books: '📜 Spell books', elements: '🔥 Elements', classes: '🎭 Classes' };
   let tab: Tab = names.includes(start) ? start : names[0];
   let self: LabSelf | null = null;
   let busy = false;
@@ -248,23 +248,40 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     }
     if (tab === 'skills') {
       const lvl = el('div', { class: 'lab-lv' },
-        el('b', {}, `📈 Labirin level ${s.level}`),
-        el('div', { class: 'lab-lv-bar', title: s.xpNeed ? `${s.xpInto} / ${s.xpNeed} XP` : 'Top level' }, el('i', { style: `width:${s.xpNeed ? Math.round((s.xpInto / s.xpNeed) * 100) : 100}%` })),
-        el('span', { class: 'muted small' }, s.xpNeed ? `${s.xpInto}/${s.xpNeed} XP` : 'max'),
+        el('b', {}, `🌀 Abyss level ${s.level}`),
+        el('div', { class: 'lab-lv-bar', title: `${s.xpInto} / ${s.xpNeed} XP` }, el('i', { style: `width:${s.xpNeed ? Math.round((s.xpInto / s.xpNeed) * 100) : 100}%` })),
+        el('span', { class: 'muted small' }, `${s.xpInto}/${s.xpNeed} XP`),
         el('b', { class: s.points ? 'good' : 'muted' }, `✨ ${s.points} skill point${s.points === 1 ? '' : 's'}`));
-      const rows = lc.skills.map((k) => {
-        const r = s.skills[k.id] ?? 0;
-        const locked = s.level < k.minLevel;
-        const b = el('button', { class: 'btn small primary', type: 'button', 'data-skill': k.id }, r >= k.max ? '✓ Max' : locked ? `🔒 Lv ${k.minLevel}` : '+1 rank') as HTMLButtonElement;
-        b.disabled = busy || r >= k.max || locked || s.points < 1;
-        b.title = locked ? `Needs Labirin level ${k.minLevel}` : s.points < 1 ? 'No skill points: win fights down here to level up' : `Spend 1 skill point: ${k.desc}`;
-        b.addEventListener('click', () => learn(k.id));
-        return el('div', { class: `lab-bag-row${locked ? ' locked' : ''}` },
-          el('span', { class: 'lab-bag-icon' }, k.icon),
-          el('span', { class: 'lab-bag-info' },
-            el('b', {}, k.name, el('span', { class: 'lab-pips' }, ...Array.from({ length: k.max }, (_, i) => el('b', { class: i < r ? 'on' : '' })))),
-            el('small', { class: 'muted' }, k.desc)),
-          b);
+      // 📊 Where your stats come from: (base + items) × (1 + buffs).
+      const st = labStats(lc, { level: s.level, ranks: s.skills, gear: wornBonus(lc, s.gear, s.items), cls: s.cls, drink: s.drink?.id, teman: s.boost });
+      const row = (icon: string, name: string, l: { base: number; items: number; pct: number; total: number }) =>
+        el('div', { class: 'lab-statline' }, el('b', {}, `${icon} ${name}`),
+          el('span', {}, `(${l.base} base${l.items ? ` + ${l.items} items` : ''})${l.pct ? ` × ${Math.round((1 + l.pct) * 100)}%` : ''}`),
+          el('b', { class: 'lab-stat-total' }, String(l.total)));
+      const breakdown = el('div', { class: 'lab-statlines' },
+        row('❤️', 'HP', st.lines.hp), row('⚔️', 'ATK', st.lines.atk), row('🛡️', 'DEF', st.lines.def), row('💨', 'SPD', st.lines.spd), row('🔷', 'Mana', st.lines.mana),
+        el('div', { class: 'lab-statline' }, el('b', {}, '🎯 Crit · 🧱 Block · 🌊 Mana/round'), el('span', {}, ''), el('b', { class: 'lab-stat-total' }, `${(st.crit * 100).toFixed(1)}% · ${(st.block * 100).toFixed(1)}% · +${st.manaRegen}`)));
+      // 🌳 The tree: a column per branch; deeper nodes open with points in their branch.
+      const cols = lc.tree.branches.map((br) => {
+        const have = branchPoints(lc, s.skills, br.id);
+        const nodes = lc.tree.nodes.filter((n) => n.branch === br.id).map((n) => {
+          const r = s.skills[n.id] ?? 0;
+          const why = treeBlock(lc, s.skills, n.id, s.points);
+          const locked = have < n.need;
+          const btn = el('button', { class: 'btn small primary', type: 'button', 'data-skill': n.id }, n.max && r >= n.max ? '✓ Max' : '+1') as HTMLButtonElement;
+          btn.disabled = busy || !!why;
+          btn.title = why || `Spend 1 point: ${n.desc}`;
+          btn.addEventListener('click', () => learn(n.id));
+          return el('div', { class: `lab-node${locked ? ' locked' : ''}${r ? ' has' : ''}` },
+            el('span', { class: 'lab-node-icon' }, n.icon),
+            el('span', { class: 'lab-node-info' },
+              el('b', {}, n.name, el('span', { class: 'lab-node-rank' }, ` ${r}${n.max ? `/${n.max}` : ''}`)),
+              el('small', { class: 'muted' }, locked ? `🔒 ${n.need} points in ${br.name}` : n.desc)),
+            btn);
+        });
+        const col = el('div', { class: 'lab-branch' }, el('div', { class: 'lab-branch-head' }, el('b', {}, `${br.icon} ${br.name}`), el('span', { class: 'muted small' }, ` ${have} pts`), el('small', { class: 'muted' }, br.desc)), ...nodes);
+        col.style.setProperty('--branch', br.color);
+        return col;
       });
       const reset = shop && Object.values(s.skills).some((n) => n > 0) ? el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-respec' }, '↺ Unlearn all ', coinIcon(), ` ${lc.progress.respec}`) as HTMLButtonElement : null;
       if (reset) {
@@ -273,8 +290,9 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       }
       content.replaceChildren(
         lvl,
-        el('p', { class: 'muted small' }, `Win fights down here for Labirin XP. Every level gives a skill point. Skills only work in the labyrinth.${shop ? '' : ` ${lc.merchant.name} can help you unlearn them (for Syiling).`}`),
-        el('div', { class: 'lab-bag-grid' }, ...rows),
+        el('p', { class: 'muted small' }, `The abyss keeps its own you: level, stats, items, HP, mana and Syiling stay down here. Every level adds a little to your base stats and gives a skill point (no cap). Flat points add to your base; items add on top; buffs (class, drink, Teman, % nodes) multiply the lot.${shop ? '' : ` ${lc.merchant.name} can reset your tree (for Syiling).`}`),
+        breakdown,
+        el('div', { class: 'lab-tree' }, ...cols),
         reset ? el('div', { class: 'actions' }, reset) : '',
       );
       return;

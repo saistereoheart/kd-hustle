@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  canSkill, classMods, wornBase, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
+  canSkill, classMods, wornBase, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -175,11 +175,11 @@ export class LabBattles {
   private fighterOf(p: OnlinePlayer): LabFighter {
     const st = this.lab.stats(p);
     const s = this.lab.state(p);
-    const sk = labSkillBonus(this.cfg, s.skills);
     return {
-      id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block,
+      id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: st.focusStart, out: false, crit: st.crit, block: st.block,
+      manaRegen: st.manaRegen,
       mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, gear: wornBase(this.cfg, s.gear, s.items),
-      spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: sk.skillPower + classMods(this.cfg, s.cls).skillPower || undefined, spellUp: sk.spellPower + classMods(this.cfg, s.cls).spellPower || undefined,
+      spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: st.skillPower || undefined, spellUp: st.spellPower || undefined,
     };
   }
 
