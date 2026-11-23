@@ -91,7 +91,7 @@
     "atk": 10,
     "def": 4,
     "spd": 10,
-    "focusMax": 3,
+    "focusMax": 6,
     "skillCost": 2,
     "skillPower": 1.9,
     "guardCut": 0.45,
@@ -609,7 +609,7 @@
       "name": "Raja Tikus Lumut",
       "icon": "🐀",
       "move": "Gigitan Raja",
-      "hp": 215,
+      "hp": 280,
       "atk": 9.7,
       "def": 2,
       "spd": 11,
@@ -620,7 +620,7 @@
       "name": "Ratu Labah Akar",
       "icon": "🕷️",
       "move": "Jaring Akar",
-      "hp": 294,
+      "hp": 380,
       "atk": 13,
       "def": 2.7,
       "spd": 12,
@@ -631,7 +631,7 @@
       "name": "Golem Kristal",
       "icon": "🗿",
       "move": "Hentakan Kristal",
-      "hp": 260,
+      "hp": 340,
       "atk": 14,
       "def": 3.7,
       "spd": 13,
@@ -642,7 +642,7 @@
       "name": "Raksasa Bara",
       "icon": "👹",
       "move": "Hembusan Bara",
-      "hp": 340,
+      "hp": 440,
       "atk": 17.4,
       "def": 4.8,
       "spd": 14,
@@ -653,7 +653,7 @@
       "name": "Hantu Raya",
       "icon": "👻",
       "move": "Jeritan Malam",
-      "hp": 400,
+      "hp": 520,
       "atk": 22,
       "def": 6.1,
       "spd": 15,
@@ -664,7 +664,7 @@
       "name": "Penjaga Pustaka",
       "icon": "📚",
       "move": "Kutukan Halaman",
-      "hp": 470,
+      "hp": 610,
       "atk": 27,
       "def": 7.5,
       "spd": 16,
@@ -675,7 +675,7 @@
       "name": "Raja Jerangkung",
       "icon": "💀",
       "move": "Pedang Purba",
-      "hp": 540,
+      "hp": 700,
       "atk": 26,
       "def": 8,
       "spd": 16,
@@ -686,7 +686,7 @@
       "name": "Naga Purba",
       "icon": "🐉",
       "move": "Nafas Purba",
-      "hp": 640,
+      "hp": 830,
       "atk": 27,
       "def": 9,
       "spd": 17,
@@ -893,7 +893,7 @@
     }
   ],
   "spells": {
-    "focus": 3,
+    "focus": 6,
     "roll": {
       "price": 40,
       "bookChance": 0.3
@@ -905,13 +905,13 @@
         "icon": "🔥",
         "color": "#ff922b",
         "move": "Api Pelita",
-        "desc": "Fire rains on every monster (×1.2 damage each) and keeps burning for 2 rounds. Powers up 🔥 Api.",
-        "power": 1.2,
+        "desc": "Fire rains on every monster (×2.4 each) and keeps burning for 2 rounds. Powers up 🔥 Api.",
+        "power": 2.4,
         "price": 450,
         "minFloor": 0,
         "weight": 50,
         "element": "api",
-        "burn": 0.25,
+        "burn": 0.2,
         "burnRounds": 2
       },
       {
@@ -920,12 +920,13 @@
         "icon": "💧",
         "color": "#69db7c",
         "move": "Embun Penawar",
-        "desc": "Healing dew on your whole party (+35% of their HP). Powers up 💧 Air.",
-        "heal": 0.35,
+        "desc": "Healing dew on your whole party (+45% of their HP) and a soaking for every monster (×1.2 each). Powers up 💧 Air.",
+        "heal": 0.45,
         "price": 900,
         "minFloor": 1,
         "weight": 30,
-        "element": "air"
+        "element": "air",
+        "power": 1.2
       },
       {
         "id": "kitab_petir",
@@ -933,8 +934,8 @@
         "icon": "⚡",
         "color": "#ffd43b",
         "move": "Petir Senja",
-        "desc": "Lightning on every monster (×1.1 damage each, ignores half their DEF, +10% crit). Powers up ⚡ Petir.",
-        "power": 1.1,
+        "desc": "Lightning on every monster (×2.4 each, ignores half their DEF, +10% crit). Powers up ⚡ Petir.",
+        "power": 2.4,
         "pierce": 0.5,
         "price": 1600,
         "minFloor": 2,
@@ -948,8 +949,8 @@
         "icon": "🌪️",
         "color": "#74c0fc",
         "move": "Ribut Taufan",
-        "desc": "A storm through every monster (×1.5 damage each). Powers up 🌪️ Angin.",
-        "power": 1.5,
+        "desc": "A storm through every monster (×2.7 each). Powers up 🌪️ Angin.",
+        "power": 2.7,
         "price": 4200,
         "minFloor": 4,
         "weight": 12,
@@ -961,8 +962,8 @@
         "icon": "🌋",
         "color": "#e8590c",
         "move": "Gempa Purba",
-        "desc": "The ground splits under every monster (×1.8 damage each, ignores a quarter of their DEF). Powers up 🪨 Tanah. Only from the tavern's daily roll.",
-        "power": 1.8,
+        "desc": "The ground splits under every monster (×3 each, ignores a quarter of their DEF). Powers up 🪨 Tanah. Only from the tavern's daily roll.",
+        "power": 3,
         "pierce": 0.25,
         "price": 0,
         "minFloor": 0,
@@ -980,18 +981,18 @@
       "color": "#ff922b",
       "skill": {
         "name": "Percikan Api",
-        "mana": 8,
-        "power": 1.45,
-        "burn": 0.25,
+        "mana": 11,
+        "power": 1.8,
+        "burn": 0.2,
         "burnRounds": 2,
-        "desc": "A strong fire hit (×1.45) that keeps burning: +25% of the hit for 2 rounds. Con: costs the most mana."
+        "desc": "A big fire hit (×1.8) that keeps burning: +20% of the hit for 2 rounds. Con: costs the most mana."
       },
       "ultimate": {
         "move": "Hujan Bara",
-        "power": 0.7,
-        "burn": 0.2,
+        "power": 2.3,
+        "burn": 0.1,
         "burnRounds": 2,
-        "desc": "Embers fall on every monster (×0.7 each) and burn for 2 rounds."
+        "desc": "Embers fall on every monster (×2.3 each) and burn for 2 rounds."
       }
     },
     {
@@ -1001,16 +1002,16 @@
       "color": "#4dabf7",
       "skill": {
         "name": "Pancutan Air",
-        "mana": 6,
-        "power": 1.15,
+        "mana": 9,
+        "power": 1.7,
         "drain": 0.3,
-        "desc": "A water jet (×1.15): you heal 30% of the damage it does. Con: a softer hit."
+        "desc": "A water jet (×1.7): you heal 30% of the damage it does. Con: the softest hit."
       },
       "ultimate": {
         "move": "Ombak Penawar",
-        "power": 0.45,
+        "power": 1.9,
         "heal": 0.1,
-        "desc": "A wave heals your whole party (+10% HP) and splashes every monster (×0.45 each)."
+        "desc": "A wave heals your whole party (+10% HP) and crashes on every monster (×1.9 each)."
       }
     },
     {
@@ -1020,19 +1021,19 @@
       "color": "#ffd43b",
       "skill": {
         "name": "Sambaran Kilat",
-        "mana": 7,
-        "power": 1.4,
-        "crit": 0.15,
+        "mana": 10,
+        "power": 1.9,
+        "crit": 0.1,
         "first": true,
         "random": true,
-        "desc": "Strikes before anyone else (×1.4, +15% crit). Con: it picks its own target."
+        "desc": "Strikes before anyone else (×1.9, +10% crit). Con: it picks its own target."
       },
       "ultimate": {
         "move": "Kilat Berantai",
-        "power": 0.65,
-        "pierce": 0.3,
-        "crit": 0.15,
-        "desc": "Chain lightning on every monster (×0.65 each, ignores 30% of their DEF, +15% crit)."
+        "power": 2.3,
+        "pierce": 0.2,
+        "crit": 0.08,
+        "desc": "Chain lightning on every monster (×2.3 each, ignores 20% of their DEF, +8% crit)."
       }
     },
     {
@@ -1042,15 +1043,15 @@
       "color": "#63e6be",
       "skill": {
         "name": "Hembusan Angin",
-        "mana": 7,
-        "power": 0.9,
+        "mana": 10,
+        "power": 1.2,
         "all": true,
-        "desc": "A gust that hits every monster (×0.9 each). Con: weak against a lone monster or a boss on its own."
+        "desc": "A gust that hits every monster (×1.2 each). Con: weak against a lone monster or a boss on its own."
       },
       "ultimate": {
         "move": "Puting Beliung",
-        "power": 0.8,
-        "desc": "A whirlwind through every monster (×0.8 each)."
+        "power": 1.9,
+        "desc": "A whirlwind through every monster (×1.9 each)."
       }
     },
     {
@@ -1060,17 +1061,17 @@
       "color": "#c08a5a",
       "skill": {
         "name": "Tumbuk Batu",
-        "mana": 6,
-        "power": 1.45,
+        "mana": 9,
+        "power": 1.9,
         "shield": 0.35,
         "last": true,
-        "desc": "You turn to stone first (35% less damage all round), then hit hard (×1.45). Con: you hit last."
+        "desc": "You turn to stone first (35% less damage all round), then hit hard (×1.9). Con: you hit last."
       },
       "ultimate": {
         "move": "Gegaran Bumi",
-        "power": 0.7,
+        "power": 2.2,
         "pierce": 0.35,
-        "desc": "The ground shakes under every monster (×0.7 each, ignores 35% of their DEF)."
+        "desc": "The ground shakes under every monster (×2.2 each, ignores 35% of their DEF)."
       }
     }
   ]

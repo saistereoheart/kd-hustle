@@ -198,20 +198,25 @@ All numbers are in `shared/config/labyrinth.json` (`progress`, `skills`, `spells
   Purba only comes from the roll). No book: a free drink instead.
 - **Fight keys:** 1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run, Q switch element.
 
-## 4d. Elements and mana (v1.34.0, feedback #20)
+## 4d. Elements, mana and damage tiers (v1.34.0 feedback #20; tiers v1.36.0 feedback #26)
 Numbers in `labyrinth.json` (`elements`, `player.mana`); rules in `shared/src/lab/battle.ts`.
+- **Damage:** each hit is ATK × the move's power, cut by the target's DEF (`a²/(a+DEF)`, a = ATK × power), ±15%,
+  then a crit (×1.6). **Tiers:** ⚔️ Attack ×1 → 💥 Skill ×1.2–1.9 (costs mana) → 📜 Ultimate ×1.5–2.3 on
+  every monster (a full focus bar: 6 rounds); spell books ×2.4–3. Bosses got about 30% more HP to match.
 - **Elements:** 🔥 Api, 💧 Air, ⚡ Petir, 🌪️ Angin, 🪨 Tanah. One is equipped (default Api); switch any time,
   mid-fight too (free, from your next pick). Its free basic 💥 skill is the Skill button:
-  - 🔥 ×1.45 and burns (25% of the hit for 2 rounds), 8 mana;
-  - 💧 ×1.15 and heals you 30% of the damage, 6 mana;
-  - ⚡ ×1.4, +15% crit, always first, but a random target, 7 mana;
-  - 🌪️ ×0.9 on every monster, 7 mana;
-  - 🪨 −35% damage taken that round (starts at once), ×1.45 but last, 6 mana.
+  - 🔥 ×1.8 and burns (20% of the hit for 2 rounds), 11 mana; ultimate ×2.3 + burn;
+  - 💧 ×1.7 and heals you 30% of the damage, 9 mana; ultimate ×1.9 + party heal 10%;
+  - ⚡ ×1.9, +10% crit, always first, but a random target, 10 mana; ultimate ×2.3;
+  - 🌪️ ×1.2 on every monster, 10 mana; ultimate ×1.9;
+  - 🪨 −35% damage taken that round (starts at once), ×1.9 but last, 9 mana; ultimate ×2.2.
 - **Ultimate:** the element's own basic ultimate (all hit every monster, each with its element's effect), or
   the stronger spell book of that element if you own it.
 - **Mana:** max 20 (+10% a rank of 🔷 Tenaga Dalam), +1 per fight round, 5% of max per 10 s outside a fight,
   +1 per campfire tick by the hall's fire; full again when you rest or fall. Carried over between fights.
   Potions: 🥥 Air Kelapa +50%, 🍯 Madu Kelulut full. Monsters don't use mana (their skill still uses focus).
+- **Balance check:** a scratch sim with the real `resolveLabRound` (F1–F8, gear none → mistik). Every element
+  stays within a few points of the old 💥 Skill in normal fights; bosses 48–81% with the intended gear.
 
 ## 5. Party / lobby
 - From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a

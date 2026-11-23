@@ -684,7 +684,7 @@ function drawGeneric(ctx: Ctx, def: ItemDef, paint: Paint) {
       const k = 26 / Math.max(pw, ph);
       ctx.save();
       ctx.translate((-pw * k) / 2, (-ph * k) / 2);
-      drawFurniturePiece(ctx, def.id, pw * k, ph * k);
+      drawFurniturePiece(ctx, def.id, pw * k, ph * k, paint.variant);
       ctx.restore();
       break;
     }

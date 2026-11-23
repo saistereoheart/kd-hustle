@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.36.0 (2026-11-23): ⚔️ Labirin damage tiers, real gear in fights, furniture variants
+- **Skills and ultimates hit much harder than a plain attack now** (feedback #26):
+  - ⚔️ Attack ×1;
+  - 💥 Skill ×1.2–1.9 (it costs more mana);
+  - 📜 Ultimate ×1.5–2.3 on every monster, and spell books ×2.4–3.
+  
+  The ultimate needs a longer focus bar (6 rounds), and floor bosses have about 30% more HP to match.
+- **Everyone fights with the gear they really wear** (feedback #23): no weapon means bare, taped fists 👊,
+  and no shield means none. Weapons and shields show their tier's colour on every party member, not just you.
+  Party cards show each fighter's ⚔️ ATK, 🛡️ DEF and 💨 SPD.
+- **Furniture variants show up** (feedback #25): Shiny, Golden and Rainbow furniture have their own look (a
+  sheen, gold, rainbow colours, glints) in the decorate list, in your room, as item icons and for visitors.
+
 ## 1.35.0 (2026-11-23): 💥 bigger skills, full-screen ultimates, two idol Teman
 - **Labirin HP and mana bars sit right above the hotbar**, exactly as wide as it, on every screen size.
 - **💥 Skills hit much harder on screen:** a bigger charge-up, big sparks, more zoom and shake, bigger

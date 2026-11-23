@@ -603,7 +603,11 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const view = propSys.placeView(unit);
       if (!view) throw new GameError('That place is gone.');
       if (!mayVisit(loadVisits(repos, view.owner), view.owner, me.id)) throw new GameError(`${view.ownerName} isn't taking visitors right now.`);
-      return { view };
+      // ✨ Their variant pieces look like variants to visitors too.
+      const placed = new Set(view.layout.map((p) => p.iid));
+      const variants: Record<number, string> = {};
+      for (const i of repos.inventory.list(view.owner)) if (placed.has(i.iid) && i.variant && i.variant !== 'normal') variants[i.iid] = i.variant;
+      return { view: { ...view, variants } };
     });
     // 🪑 Feedback #17: the shop's starter tables and chairs become yours (to move, pick up or replace).
     handle(socket, 'shop:starter', C2S.shopStarter, ({ unit }) => {

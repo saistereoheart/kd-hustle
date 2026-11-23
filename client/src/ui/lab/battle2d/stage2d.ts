@@ -241,6 +241,28 @@ function drawKeris(x: CanvasRenderingContext2D, hx: number, hy: number, angle: n
 }
 
 /** A round shield on the far arm (frame units), rimmed in its tier colour. */
+/** 👊 A bare fist wrapped in cloth tape (no weapon worn). */
+function drawFist(x: CanvasRenderingContext2D, hx: number, hy: number, skin: string) {
+  x.save();
+  x.translate(hx, hy);
+  x.fillStyle = skin;
+  x.strokeStyle = '#3b2a20';
+  x.lineWidth = 0.5;
+  x.beginPath();
+  x.ellipse(0, 0, 2.1, 1.9, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+  x.strokeStyle = '#f1f3f5';
+  x.lineWidth = 0.7;
+  for (const dy of [-0.6, 0.5]) {
+    x.beginPath();
+    x.moveTo(-1.9, dy);
+    x.lineTo(1.9, dy + 0.3);
+    x.stroke();
+  }
+  x.restore();
+}
+
 function drawShield(x: CanvasRenderingContext2D, hx: number, hy: number, rim: string) {
   x.save();
   x.translate(hx - 1.5, hy - 1);
@@ -476,7 +498,8 @@ export class Battle2D {
       const ap = a.f.appearance;
       if (!ap) return;
       const R = 5; // sharp: hair strands, face, the keris's wave
-      const weapon = a.f.gear?.weapon ?? '#a0763c';
+      // No weapon worn: bare fists (no keris). No shield: none.
+      const weapon = a.f.gear?.weapon;
       const shield = a.f.gear?.shield;
       const raw: HTMLCanvasElement[] = [];
       const names = Object.keys(PLAYER_POSES) as PoseName[];
@@ -494,7 +517,8 @@ export class Battle2D {
           drawShield(x, f.x, f.y, shield);
         }
         const h = sideHand(ap, this.o.character, pose, 'near');
-        drawKeris(x, h.x, h.y, h.angle, weapon);
+        if (weapon) drawKeris(x, h.x, h.y, h.angle, weapon);
+        else drawFist(x, h.x, h.y, ap.skin);
         raw.push(c);
       }
       const { list: cut, y0 } = unionTrim(raw);

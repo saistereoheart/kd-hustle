@@ -631,7 +631,7 @@ function scaleOf(ctx: Ctx): number {
  * Draws `item` in the box (0,0)-(w,h), standing up: its top in the upper part, the front face
  * below it, a shadow that follows its real outline. (Item icons and the shop use this.)
  */
-export function drawFurniturePiece(ctx: Ctx, item: string, w: number, h: number) {
+export function drawFurniturePiece(ctx: Ctx, item: string, w: number, h: number, variant = 'normal') {
   const k = scaleOf(ctx);
   const floor = !!furniturePiece(item)?.floor;
   const d = floor ? 0 : Math.round(pieceHeight(item) * Math.min(w, h) * 0.45);
@@ -641,7 +641,66 @@ export function drawFurniturePiece(ctx: Ctx, item: string, w: number, h: number)
   const o = off.getContext('2d')!;
   o.scale(k, k);
   drawPieceBody(o, item, w, h - d);
+  variantFinish(o, variant, w, h - d);
   stamp(ctx, off, 0, d, w, h - d, d, k, floor);
+}
+
+/**
+ * ✨ A variant's finish over a piece already drawn (only where it's drawn): Shiny = a sheen and glints,
+ * Golden = gold all over, Rainbow = rainbow colours and glints. Normal: nothing.
+ */
+function variantFinish(o: Ctx, variant: string, w: number, h: number) {
+  if (!variant || variant === 'normal') return;
+  const top = variant.split(',').includes('rainbow') ? 'rainbow' : variant.split(',').includes('golden') ? 'golden' : variant.split(',').includes('shiny') ? 'shiny' : '';
+  if (!top) return;
+  o.save();
+  o.globalCompositeOperation = 'source-atop';
+  if (top === 'golden') {
+    const g = o.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, 'rgba(255,243,191,0.75)');
+    g.addColorStop(0.5, 'rgba(252,196,25,0.62)');
+    g.addColorStop(1, 'rgba(192,138,0,0.7)');
+    o.fillStyle = g;
+    o.fillRect(0, 0, w, h);
+  } else if (top === 'rainbow') {
+    const g = o.createLinearGradient(0, 0, w, h);
+    ['#ff6b6b', '#ffa94d', '#ffe066', '#69db7c', '#4dabf7', '#9775fa', '#f783ac'].forEach((c, i, a) => g.addColorStop(i / (a.length - 1), c));
+    o.globalAlpha = 0.5;
+    o.fillStyle = g;
+    o.fillRect(0, 0, w, h);
+  } else {
+    // Shiny: a diagonal sheen.
+    const g = o.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0.2, 'rgba(255,255,255,0)');
+    g.addColorStop(0.42, 'rgba(255,255,255,0.55)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.45)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0)');
+    o.fillStyle = g;
+    o.fillRect(0, 0, w, h);
+  }
+  o.restore();
+  if (top === 'shiny' || top === 'rainbow' || top === 'golden') {
+    // Glints (on top, a little outside is fine).
+    o.save();
+    o.fillStyle = '#ffffff';
+    const r = Math.max(1.2, Math.min(w, h) * 0.09);
+    for (const [fx, fy] of [[0.22, 0.25], [0.78, 0.4], [0.5, 0.78]]) {
+      const x = w * fx, y = h * fy;
+      o.beginPath();
+      o.moveTo(x, y - r);
+      o.lineTo(x + r * 0.25, y - r * 0.25);
+      o.lineTo(x + r, y);
+      o.lineTo(x + r * 0.25, y + r * 0.25);
+      o.lineTo(x, y + r);
+      o.lineTo(x - r * 0.25, y + r * 0.25);
+      o.lineTo(x - r, y);
+      o.lineTo(x - r * 0.25, y - r * 0.25);
+      o.closePath();
+      o.fill();
+    }
+    o.restore();
+  }
 }
 
 function drawPieceBody(ctx: Ctx, item: string, w: number, h: number) {
@@ -963,7 +1022,7 @@ function drawPieceBody(ctx: Ctx, item: string, w: number, h: number) {
 
 /** Draws a piece rotated by `rot` quarter turns into the cell box at (x, y), cell size `c` px,
  *  standing up out of the floor (see stamp). */
-export function drawPlaced(ctx: Ctx, item: string, x: number, y: number, rot: number, c: number) {
+export function drawPlaced(ctx: Ctx, item: string, x: number, y: number, rot: number, c: number, variant = 'normal') {
   const p = furniturePiece(item);
   if (!p) return;
   const [fw, fh] = rot % 2 ? [p.h, p.w] : [p.w, p.h];
@@ -978,5 +1037,6 @@ export function drawPlaced(ctx: Ctx, item: string, x: number, y: number, rot: nu
   o.rotate((rot * Math.PI) / 2);
   o.translate((-p.w * c) / 2, (-p.h * c) / 2);
   drawPieceBody(o, item, p.w * c, p.h * c);
+  variantFinish(o, variant, p.w * c, p.h * c);
   stamp(ctx, off, x * c, y * c, W, H, Math.round(pieceHeight(item) * c * 0.7), k, !!p.floor);
 }

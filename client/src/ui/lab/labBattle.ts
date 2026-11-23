@@ -263,9 +263,9 @@ export class LabBattleUi {
     this.paused = false;
   }
 
-  /** Your Labirin gear's tier colours (what your fighter holds). */
-  private myGear() {
-    const g = this.app.labHud?.self?.gear ?? {};
+  /** A fighter's Labirin gear tier colours (what they hold): from the fight (everyone's), else your save. */
+  private gearOf(f: LabFighter) {
+    const g = f.gear ?? (f.id === this.meId ? (this.app.labHud?.self?.gear ?? {}) : {});
     const lc = this.app.cfg.lab;
     return { weapon: labGear(lc, g.weapon)?.color, shield: labGear(lc, g.shield)?.color, armour: labGear(lc, g.armour)?.color, charm: labGear(lc, g.charm)?.color };
   }
@@ -277,9 +277,9 @@ export class LabBattleUi {
       const a = looks.get(f.id);
       return {
         id: f.id, side: f.side, name: f.name, kind: f.kind, icon: f.icon, boss: f.boss, out: f.out, fled: f.fled, hp: f.hp, maxHp: f.maxHp,
-        look: a ? { skin: a.skin, hair: a.hairColor, top: a.topColor, bottom: a.bottomColor, shoes: a.shoesColor, eyes: a.eyeColor } : undefined,
+        look: a ? { skin: a.skin, hair: a.hairColor, top: a.topColor, bottom: a.bottomColor, shoes: a.shoesColor, eyes: a.eyeColor, weapon: this.gearOf(f).weapon ?? null, shield: this.gearOf(f).shield ?? null } : undefined,
         appearance: a,
-        gear: f.id === this.meId ? this.myGear() : undefined,
+        gear: f.side === 'party' ? this.gearOf(f) : undefined,
       };
     });
   }
@@ -352,12 +352,14 @@ export class LabBattleUi {
     const pips = f.side === 'party' ? el('div', { class: 'lb-focus', title: `Focus: +1 a round. 📜 Ultimate at ${need}.` }, ...Array.from({ length: this.app.cfg.lab.player.focusMax }, (_, k) => el('b', { class: k < f.focus ? 'on' : '' }))) : null;
     const burning = f.burn && !f.out ? el('span', { class: 'lb-burn', title: `Burning: −${f.burn.dmg} for ${f.burn.left} more round${f.burn.left === 1 ? '' : 's'}` }, '🔥') : null;
     const ready = f.side === 'party' && this.view.chosen.includes(f.id) ? el('span', { class: 'lb-ready' }, '✓') : null;
+    // ⚔️ Party cards show their fighting stats (what gear and skills add up to).
+    const stats = f.side === 'party' ? el('small', { class: 'lb-stats' }, `⚔️${Math.round(f.atk)} 🛡️${Math.round(f.def)} 💨${Math.round(f.spd)}${f.gear?.weapon ? '' : ' 👊'}`) : null;
     const art = el('div', { class: 'lb-art' }, this.figure(f));
     const c = el(
       'div',
       { class: `lb-card ${f.side}${f.boss ? ' boss' : ''}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
       art,
-      el('div', { class: 'lb-info' }, el('b', {}, f.name, burning, ready), bar, mana, pips),
+      el('div', { class: 'lb-info' }, el('b', {}, f.name, burning, ready), bar, mana, pips, stats),
     );
     if (f.side === 'foe' && !f.out) {
       c.addEventListener('click', () => {

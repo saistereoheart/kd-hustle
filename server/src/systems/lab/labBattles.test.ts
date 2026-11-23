@@ -51,6 +51,22 @@ describe('Labirin party battles', () => {
     expect(s.battles.join(d, a)).toBe(false);
   });
 
+  it('each fighter carries their own gear and stats (a gearless player fights with bare fists)', () => {
+    const s = setup();
+    const a = s.player('a'), b = s.player('b');
+    [a, b].forEach(s.putIn);
+    const sb = s.lab.state(b);
+    sb.owned.push('weapon_kayu', 'shield_kayu');
+    sb.gear = { weapon: 'weapon_kayu', shield: 'shield_kayu' };
+    s.battles.encounter([a, b]);
+    const fs = s.battles.view(a)!.fighters;
+    const fa = fs.find((f) => f.id === `p${a.id}`)!, fb = fs.find((f) => f.id === `p${b.id}`)!;
+    expect(fa.gear).toEqual({});
+    expect(fb.gear).toEqual({ weapon: 'weapon_kayu', shield: 'shield_kayu' });
+    expect(fb.atk).toBeGreaterThan(fa.atk);
+    expect(fb.def).toBeGreaterThan(fa.def);
+  });
+
   it('only lets you use a potion you have', () => {
     const s = setup();
     const a = s.player('a');

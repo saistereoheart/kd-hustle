@@ -42,6 +42,8 @@ export interface LabFighter {
   mana?: number;
   maxMana?: number;
   element?: string;
+  /** Players: ⚔️ the Labirin gear they wear (slot → gear id), so everyone sees who holds what. */
+  gear?: Partial<Record<'weapon' | 'shield' | 'armour' | 'charm', string>>;
   /** 🔥 Burning: `dmg` at the end of each of the next `left` rounds. */
   burn?: { dmg: number; left: number };
 }

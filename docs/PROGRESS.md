@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.35.0)_
+_Last updated: 2026-11-23 (v1.36.0)_
 
-**Now at v1.35.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.36.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🐞 Feedback #23, #25, #26 (2026-11-23, v1.36.0)
+- **#23 gear in fights:** stats were already right (a wooden weapon is +30% ATK), but every fighter was drawn with
+  the same keris and only your own colours. Now `LabFighter.gear` carries each player's worn gear ids; the 2D stage
+  draws taped fists (`drawFist`) with no weapon and no shield without one; the 3D model (`Look.weapon/shield`,
+  null = none) does the same; party cards show ATK/DEF/SPD (👊 = bare-handed). Test in `labBattles.test.ts`.
+- **#25 furniture variants:** furniture art ignored `variant`. `variantFinish` in `furnitureArt.ts` (source-atop
+  over the drawn piece: shiny sheen, golden gradient, rainbow gradient, glints) is used by icons, `drawPlaced`
+  and the ghost. The decorate list groups by item + variant (its own icon, "Golden Sofa ×2"). Visits get the
+  owner's variants (`ShopView.variants`, filled in `visit:enter`). Checked as a rendered image.
+- **#26 damage tiers:** the formula stays (ATK × power, cut by DEF, then crit); the powers changed. Skills ×1.2–1.9
+  (mana 9–11), basic ultimates ×1.5–2.3, books ×2.4–3; focus bar 6 (was 3) for the ultimate; boss HP ×1.3.
+  - **Decision:** rather than weaken the big numbers, bosses got more HP.
+  - Balance re-checked with the scratch sim (see LABYRINTH.md §4d). A test locks Attack < Skill < Ultimate.
 
 ## 💥 Your review of #20 + feedback #9 (2026-11-23, v1.35.0)
 - **Bars above the hotbar:** `Hotbar.mountAbove()` hangs the Labirin ❤️/🔷 bars on the hotbar itself (absolute,

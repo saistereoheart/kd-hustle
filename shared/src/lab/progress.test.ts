@@ -7,7 +7,7 @@ import { resolveLabRound, type LabFighter } from './battle';
 const cfg = labConfigSchema.parse(labJson);
 
 const foe = (id: string, hp = 100): LabFighter => ({ id, side: 'foe', name: id, move: 'Gigit', hp, maxHp: hp, atk: 1, def: 2, spd: 1, focus: 0, out: false });
-const me = (over: Partial<LabFighter> = {}): LabFighter => ({ id: 'p1', side: 'party', name: 'me', move: '', hp: 50, maxHp: 100, atk: 20, def: 4, spd: 99, focus: 3, out: false, crit: 0, ...over });
+const me = (over: Partial<LabFighter> = {}): LabFighter => ({ id: 'p1', side: 'party', name: 'me', move: '', hp: 50, maxHp: 100, atk: 20, def: 4, spd: 99, focus: cfg.spells.focus, out: false, crit: 0, ...over });
 
 describe('Labirin progress', () => {
   it('levels from XP on the curve, with a skill point per level', () => {
@@ -47,7 +47,7 @@ describe('Labirin ultimates', () => {
     const hits = events.filter((e) => e.kind === 'hit' && e.aoe && e.actor === 'p1');
     expect(events[0]).toMatchObject({ kind: 'spell', spell: 'kitab_api' });
     expect(hits.map((e) => e.target)).toEqual(['m0', 'm1', 'm2']);
-    expect(fs2[0].focus).toBe(1); // 3 − 3, +1 for the round
+    expect(fs2[0].focus).toBe(1); // a full bar spent, +1 for the round
     for (const f of fs2.slice(1)) expect(f.hp).toBeLessThan(100);
   });
 
@@ -119,7 +119,7 @@ describe('Labirin elements and mana', () => {
     expect(labSpell(cfg, 'ult_tanah')?.move).toBe(el('tanah').ultimate.move);
     // Every book belongs to an element.
     for (const b of cfg.spells.list) expect(cfg.elements.some((e) => e.id === b.element)).toBe(true);
-    const a = [caster('air', { focus: 3, spell: 'ult_air', hp: 50 }), foe('m0', 1e6)];
+    const a = [caster('air', { focus: cfg.spells.focus, spell: 'ult_air', hp: 50 }), foe('m0', 1e6)];
     resolveLabRound(cfg, a, { p1: { kind: 'ultimate' } }, () => 0.5);
     expect(a[0].hp).toBeGreaterThan(50);
   });
@@ -129,5 +129,16 @@ describe('Labirin elements and mana', () => {
     const r = resolveLabRound(cfg, a, { p1: { kind: 'item', item: 'air_kelapa' } }, () => 0.5);
     expect(r.used).toEqual([{ actor: 'p1', item: 'air_kelapa' }]);
     expect(a[0].mana).toBe(10 + cfg.player.mana.perRound);
+  });
+});
+
+describe('Labirin damage tiers (feedback #26)', () => {
+  it('⚔️ Attack < 💥 Skill < 📜 Ultimate for every element, and a book beats its basic ultimate', () => {
+    for (const e of cfg.elements) {
+      expect(e.skill.power ?? 1).toBeGreaterThan(1);
+      expect(e.ultimate.power ?? 0).toBeGreaterThan(e.skill.power ?? 1);
+      const book = cfg.spells.list.find((b) => b.element === e.id)!;
+      expect((book.power ?? 0) + (book.heal ?? 0)).toBeGreaterThan((e.ultimate.power ?? 0) * 0.6 + (e.ultimate.heal ?? 0));
+    }
   });
 });

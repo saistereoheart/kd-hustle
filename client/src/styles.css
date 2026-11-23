@@ -1849,3 +1849,4 @@ body.lab-warp-out #game { animation: lab-unzoom 0.62s cubic-bezier(0.2, 0.7, 0.3
 @keyframes lu-gust { from { transform: translateX(-30%); } to { transform: translateX(30%); } }
 @keyframes lu-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-1.5vmin, 1vmin); } 40% { transform: translate(1.5vmin, -1vmin); } 60% { transform: translate(-1vmin, -1.2vmin); } 80% { transform: translate(1vmin, 1vmin); } }
 @media (prefers-reduced-motion: reduce) { .lb-ult, .lb-ult * { animation-duration: 0.6s !important; animation-iteration-count: 1 !important; } .lb-ult .lu-rays, .lb-ult .lu-fx { display: none; } }
+.lb-stats { font-size: 10px; color: #ced4da; letter-spacing: 0.02em; }

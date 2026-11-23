@@ -162,7 +162,7 @@ export class LabBattles {
     const sk = labSkillBonus(this.cfg, s.skills);
     return {
       id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block,
-      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id,
+      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, gear: { ...s.gear },
       spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: sk.skillPower || undefined, spellUp: sk.spellPower || undefined,
     };
   }

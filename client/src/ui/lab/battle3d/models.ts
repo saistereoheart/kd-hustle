@@ -23,6 +23,9 @@ export interface Look {
   bottom: string;
   shoes: string;
   eyes: string;
+  /** ⚔️ Labirin gear tier colours: no weapon = bare fists, no shield = none. Undefined = both (old callers). */
+  weapon?: string | null;
+  shield?: string | null;
 }
 
 function base(height: number, hover = false): Model & { parts: Record<string, THREE.Object3D> } {
@@ -60,12 +63,21 @@ export function playerModel(look: Look): Model {
     add(arm, G.sphere(), skin, [0, -0.5, 0], 0.12);
   }
   // The keris (a gold-hilted blade with a blue sheen) in the right hand, a round shield on the left.
-  const blade = part(armR, [0, -0.5, 0.05], [Math.PI / 2.4, 0, 0]);
-  add(blade, G.cyl(), 0x6b3f1d, [0, 0, 0], [0.05, 0.25, 0.05]);
-  add(blade, G.box(), mat(0xffd43b, { emissive: 0x7a5b00, glow: 0.4 }), [0, 0.14, 0], [0.22, 0.05, 0.08]);
-  add(blade, G.cone(), mat(0xdee2e6, { emissive: 0x3b5bdb, glow: 0.3 }), [0, 0.55, 0], [0.07, 0.8, 0.03]);
-  add(armL, G.cyl(), mat(0x8d6e3f, { map: stoneTex(0x8d6e3f) }), [-0.08, -0.4, 0.12], [0.3, 0.05, 0.3], [Math.PI / 2, 0, 0.3]);
-  add(armL, G.sphere(), 0xced4da, [-0.08, -0.4, 0.16], [0.08, 0.08, 0.04]);
+  if (look.weapon !== null) {
+    const blade = part(armR, [0, -0.5, 0.05], [Math.PI / 2.4, 0, 0]);
+    add(blade, G.cyl(), 0x6b3f1d, [0, 0, 0], [0.05, 0.25, 0.05]);
+    add(blade, G.box(), mat(0xffd43b, { emissive: 0x7a5b00, glow: 0.4 }), [0, 0.14, 0], [0.22, 0.05, 0.08]);
+    const edge = look.weapon ? new THREE.Color(look.weapon).getHex() : 0xdee2e6;
+    add(blade, G.cone(), mat(edge, { emissive: 0x3b5bdb, glow: 0.3 }), [0, 0.55, 0], [0.07, 0.8, 0.03]);
+  } else {
+    // 👊 Bare fists: a bigger hand wrapped in white tape.
+    add(armR, G.sphere(), 0xf1f3f5, [0, -0.5, 0], [0.15, 0.13, 0.15]);
+  }
+  if (look.shield !== null) {
+    const rim = look.shield ? new THREE.Color(look.shield).getHex() : 0x8d6e3f;
+    add(armL, G.cyl(), mat(rim, { map: stoneTex(rim) }), [-0.08, -0.4, 0.12], [0.3, 0.05, 0.3], [Math.PI / 2, 0, 0.3]);
+    add(armL, G.sphere(), 0xced4da, [-0.08, -0.4, 0.16], [0.08, 0.08, 0.04]);
+  }
   // The big chibi head: a painted face (irises, lashes, brows, blush), ears, hair.
   const head = part(b, [0, 1.62, 0]);
   add(head, G.sphere(), mat(look.skin, { map: faceTex(look.skin, look.eyes, look.hair) }), [0, 0, 0], [0.55, 0.52, 0.5]);

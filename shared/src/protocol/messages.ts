@@ -427,6 +427,8 @@ export interface ShopView {
   layout: Placed[];
   stars: number;
   cleanliness: number;
+  /** ✨ Placed pieces that are a variant (iid → Shiny / Golden / Rainbow …), for visitors. */
+  variants?: Record<number, string>;
 }
 
 export interface PropSelf {

@@ -357,6 +357,13 @@ export class HomeScene extends Phaser.Scene {
 
   private camGo = { k: 0 };
 
+  /** ✨ A placed piece's variant (Shiny, Golden, Rainbow…): from your inventory; visits use theirs if sent. */
+  private variantOf(): (iid: number) => string {
+    const inv = new Map(this.app.store.inventory.map((i) => [i.iid, i.variant]));
+    const theirs = (this.visit as { variants?: Record<number, string> } | null)?.variants;
+    return (iid) => inv.get(iid) ?? theirs?.[iid] ?? 'normal';
+  }
+
   private redraw() {
     const tex = this.furnTex!;
     const ctx = tex.getContext();
@@ -368,7 +375,8 @@ export class HomeScene extends Phaser.Scene {
     const bottom = (p: Placed) => p.y + this.footprint(p.item, p.rot)[1];
     const flat = (p: Placed) => (furniturePiece(p.item)?.floor ? 0 : 1);
     const house = this.shop && !this.decorating ? this.shop.houseSets(this.layout) : [];
-    for (const p of [...this.layout, ...house].sort((a, b) => flat(a) - flat(b) || bottom(a) - bottom(b) || a.x - b.x)) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C);
+    const vOf = this.variantOf();
+    for (const p of [...this.layout, ...house].sort((a, b) => flat(a) - flat(b) || bottom(a) - bottom(b) || a.x - b.x)) drawPlaced(ctx, p.item, p.x, p.y, p.rot, C, vOf(p.iid));
     // Each room's label: what it still needs, or ✓ complete.
     if (this.decorating) {
       const st = roomStatus(this.ratingCfg(), this.plan, this.layout);
@@ -606,7 +614,7 @@ export class HomeScene extends Phaser.Scene {
       if (this.hand && t) {
         const problem = layoutProblem(this.ratingCfg(), this.unit(), [...this.layout, { ...this.hand, x: t.x, y: t.y }]);
         ctx.globalAlpha = 0.65;
-        drawPlaced(ctx, this.hand.item, t.x, t.y, this.hand.rot, C);
+        drawPlaced(ctx, this.hand.item, t.x, t.y, this.hand.rot, C, this.variantOf()(this.hand.iid));
         ctx.globalAlpha = 1;
         ctx.fillStyle = problem ? 'rgba(255,107,107,0.25)' : 'rgba(81,207,102,0.18)';
         ctx.fillRect(t.x * C, t.y * C, t.w * C, t.h * C);
@@ -866,16 +874,20 @@ export class HomeScene extends Phaser.Scene {
       (b.firstChild as HTMLElement).style.width = `${Math.round(v * 100)}%`;
       return el('div', { class: 'factor' }, el('span', {}, label), b);
     };
-    const counts = new Map<string, { item: string; iids: number[] }>();
+    const counts = new Map<string, { item: string; variant: string; iids: number[] }>();
     for (const i of free) {
-      const c = counts.get(i.itemId) ?? { item: i.itemId, iids: [] };
+      const key = `${i.itemId}|${i.variant}`;
+      const c = counts.get(key) ?? { item: i.itemId, variant: i.variant || 'normal', iids: [] };
       c.iids.push(i.iid);
-      counts.set(i.itemId, c);
+      counts.set(key, c);
     }
+    const vName = (v: string) => v.split(',').filter((x) => x && x !== 'normal').map((x) => this.app.cfg.rarities.variants.find((r) => r.id === x)?.name ?? x).join(' ');
     const pieces = [...counts.values()].map((c) => {
       const def = this.app.items.get(c.item);
       const fp = furniturePiece(c.item);
-      const b = el('button', { class: `deco-piece${this.hand?.item === c.item ? ' active' : ''}`, type: 'button', 'data-piece': c.item, title: def?.name ?? c.item }, el('img', { src: def ? iconUrl(def, 'normal', 48) : '', alt: '' }), el('span', {}, `${def?.name ?? c.item}${c.iids.length > 1 ? ` ×${c.iids.length}` : ''}`), el('small', { class: 'muted' }, fp ? `${fp.w}×${fp.h} m${fp.wall ? ' · wall' : fp.floor ? ' · floor' : ''}` : ''));
+      const vn = vName(c.variant);
+      const name = `${vn ? `${vn} ` : ''}${def?.name ?? c.item}`;
+      const b = el('button', { class: `deco-piece${this.hand && c.iids.includes(this.hand.iid) ? ' active' : ''}${vn ? ' variant' : ''}`, type: 'button', 'data-piece': c.item, 'data-variant': c.variant, title: name }, el('img', { src: def ? iconUrl(def, c.variant, 48) : '', alt: '' }), el('span', {}, `${name}${c.iids.length > 1 ? ` ×${c.iids.length}` : ''}`), el('small', { class: 'muted' }, fp ? `${fp.w}×${fp.h} m${fp.wall ? ' · wall' : fp.floor ? ' · floor' : ''}` : ''));
       b.addEventListener('click', () => {
         this.hand = { iid: c.iids[0], item: c.item, rot: 0, manual: false };
         this.hover ??= { x: Math.floor(this.W / 2), y: Math.floor(this.H / 2) };
