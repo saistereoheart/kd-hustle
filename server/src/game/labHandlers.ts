@@ -204,6 +204,17 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       battles.restyle(me);
       return { self: lab.self(me) };
     });
+    // 🐲 The world boss: the whole party, together in the entrance hall.
+    handle(socket, 'lab:worldBoss', null, () => {
+      const ids = parties.members(me.id);
+      const players = ids.map((id) => world.get(id)).filter((o): o is OnlinePlayer => !!o);
+      if (players.length !== ids.length) throw new GameError('Everyone in the party has to be online.');
+      battles.worldBoss([me, ...players.filter((o) => o.id !== me.id)]);
+      const key = keyOf(me);
+      if (key) for (const o of players) battleRoom.set(o.id, key);
+      partyChanged(parties.of(me.id));
+      return {};
+    });
     handle(socket, 'lab:element', LAB_C2S.labElement, ({ id }) => {
       const text = lab.setElement(me, id);
       battles.restyle(me);

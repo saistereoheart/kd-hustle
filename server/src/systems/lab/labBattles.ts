@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  canSkill, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
+  canSkill, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -23,6 +23,8 @@ interface Battle {
   boss: boolean;
   /** 🌿 Jumped out of the brush (beating it doesn't clear the room's own group). */
   ambush: boolean;
+  /** 🐲 The world boss. */
+  world?: boolean;
 }
 
 export interface LabBattleHooks {
@@ -79,9 +81,23 @@ export class LabBattles {
     return true;
   }
 
+  /** 🐲 The party calls the world boss (the checks and this week's tries are the LabSystem's). */
+  worldBoss(players: OnlinePlayer[]): void {
+    this.lab.wbCheck(players);
+    const lead = players[0];
+    for (const p of players) this.lab.wbSpend(p);
+    const fighters: LabFighter[] = [...players.map((p) => this.fighterOf(p)), ...rollWorldBoss(this.cfg, players.length)];
+    const b: Battle = { id: this.nextId++, floor: lead.lab!.floor, room: lead.lab!.room, fighters, members: new Map(players.map((p) => [p.id, p])), choices: new Map(), round: 1, deadline: 0, timer: null, boss: true, ambush: false, world: true };
+    this.battles.set(b.id, b);
+    for (const p of players) this.byPlayer.set(p.id, b);
+    this.arm(b);
+    this.hooks.started(players, this.viewOf(b));
+  }
+
   /** Walked into the room where a party member is fighting: join in (you can pick this round). */
   join(p: OnlinePlayer, ally: OnlinePlayer): boolean {
     const b = this.byPlayer.get(ally.id);
+    if (b?.world) return false; // (the world boss is called with the whole party at once)
     if (!b || !p.lab || this.byPlayer.has(p.id) || p.lab.floor !== b.floor || p.lab.room !== b.room) return false;
     if (b.fighters.filter((f) => f.side === 'party').length >= 4) return false;
     const f = this.fighterOf(p);
@@ -205,6 +221,10 @@ export class LabBattles {
       if (f.fled) {
         this.lab.setHp(p, f.hp);
         end = { outcome: 'fled', coins: 0, lost: 0 };
+      } else if (outcome === 'win' && b.world) {
+        this.lab.setHp(p, f.out ? 1 : f.hp);
+        const got = this.lab.wonWorld(p);
+        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops };
       } else if (outcome === 'win') {
         const foes = b.fighters.filter((x) => x.side === 'foe');
         this.lab.setHp(p, f.out ? 1 : f.hp);
@@ -245,6 +265,6 @@ export class LabBattles {
   }
 
   private viewOf(b: Battle): LabBattleView {
-    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()], boss: b.boss, ambush: b.ambush };
+    return { id: b.id, floor: b.floor, room: b.room, round: b.round, deadline: b.deadline, roundSec: this.cfg.battle.roundSec, fighters: b.fighters.map((f) => ({ ...f })), chosen: [...b.choices.keys()], boss: b.boss, ambush: b.ambush, world: b.world };
   }
 }

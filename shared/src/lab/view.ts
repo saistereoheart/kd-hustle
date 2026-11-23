@@ -71,6 +71,8 @@ export interface LabSelf {
   /** 🔥 The element whose 💥 skill is equipped, and your 📜 ultimate (a book id, or `ult_<element>`). */
   element: string;
   ultimate: string;
+  /** 🐲 World boss fights left this week. */
+  wbLeft: number;
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -135,6 +137,8 @@ export interface LabBattleView {
   boss: boolean;
   /** 🌿 It jumped out of a bush or a cobweb you walked through. */
   ambush?: boolean;
+  /** 🐲 The world boss. */
+  world?: boolean;
 }
 
 /** How a battle ended for one player. */
@@ -147,6 +151,8 @@ export interface LabBattleEnd {
   /** 📈 Labirin XP won, and the new level if you went up. */
   xp?: number;
   levelUp?: number;
+  /** 🐲 Rare drops won (their names, e.g. "🐲 Keris Raksasa"). */
+  drops?: string[];
 }
 
 

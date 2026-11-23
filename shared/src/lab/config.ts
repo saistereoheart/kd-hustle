@@ -119,7 +119,11 @@ export const labConfigSchema = z.object({
   /** ⚔️ Gear (kept forever, bought with Syiling): each slot comes in every tier. A tier is sold once
    *  you've reached `minFloor` (0-based). Stats per tier are added to the weakened state. */
   gear: z.object({
-    tiers: z.array(z.object({ id: z.string(), name: z.string(), color: z.string(), minFloor: z.number().int().min(0), price: z.number().int().positive() })).min(1),
+    tiers: z.array(z.object({
+      id: z.string(), name: z.string(), color: z.string(), minFloor: z.number().int().min(0), price: z.number().int().positive(),
+      /** 🐲 Never sold: only dropped (the world boss's mythic set). */
+      dropOnly: z.boolean().optional(),
+    })).min(1),
     slots: z.array(z.object({
       id: z.enum(['weapon', 'shield', 'armour', 'charm']),
       name: z.string(),
@@ -197,6 +201,8 @@ export const labConfigSchema = z.object({
       /** Weight in the tavern roll. */
       weight: z.number().min(0),
       rollOnly: z.boolean().optional(),
+      /** 🐲 Never sold or rolled: only dropped (the world boss's mythic skill). `element: 'all'` = works with any element. */
+      dropOnly: z.boolean().optional(),
     })).min(1),
   }).default({ focus: 3, roll: { price: 40, bookChance: 0.3 }, list: [{ id: 'kitab_api', name: 'Kitab Api Pelita', icon: '🔥', color: '#ff922b', desc: 'Fire on every monster.', move: 'Api Pelita', power: 1.2, price: 450, minFloor: 0, weight: 1 }] }),
   /** 🔥💧⚡🌪️🪨 Elements: each has a free basic 💥 skill (one equipped at a time, change it whenever you like;
@@ -220,6 +226,20 @@ export const labConfigSchema = z.object({
     }),
     ultimate: z.object({ move: z.string(), desc: z.string(), ...labEffect }),
   })).min(1).default([{ id: 'api', name: 'Api', icon: '🔥', color: '#ff922b', skill: { name: 'Percikan Api', desc: 'A burst of fire.', mana: 8, power: 1.5 }, ultimate: { move: 'Bara Api', desc: 'Embers on every monster.', power: 0.75 } }]),
+  /** 🐲 The world boss (feedback #21): a party of at least `minParty` together in the entrance hall can call
+   *  it, `perWeek` times a week each (the week starts on Monday). HP grows with every player past `minParty`.
+   *  Winning pays Syiling + XP to everyone, and each player rolls the rare mythic drops. */
+  worldBoss: z.object({
+    name: z.string(), icon: z.string(), move: z.string(), line: z.string(),
+    hp: z.number().positive(), hpPerPlayer: z.number().min(0), atk: z.number().positive(), def: z.number().min(0), spd: z.number().positive(),
+    minParty: z.number().int().min(1), perWeek: z.number().int().min(1),
+    coins: z.number().int().min(0), xp: z.number().int().min(0),
+    /** Per player per win: a 🐲 set piece (a random slot of the drop-only tier), the boss skill (a book). */
+    setChance: z.number().min(0).max(1), skillChance: z.number().min(0).max(1),
+    set: z.string(), skill: z.string(),
+    /** Its look (like monsters). */
+    model: z.string(), color: z.string(),
+  }).optional(),
   /** 👹 Floor bosses (one per floor, in its stairs room). They grow with the floor like monsters do
    *  (× scale^floor); more players make them tougher (HP × (1 + partyHp × extra players)) and from
    *  floor `minionsFrom` (0-based) they bring a minion (one more per extra player). */

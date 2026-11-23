@@ -76,7 +76,10 @@ function basicUltimate(e: LabElementDef): LabSpellDef {
 /** 📜 Your ultimate: the spell book of your equipped element if you own one, else that element's basic one. */
 export function labUltimate(cfg: LabConfig, element: string | undefined, books: string[]): LabSpellDef {
   const e = labElement(cfg, element);
-  return cfg.spells.list.find((s) => s.element === e.id && books.includes(s.id)) ?? basicUltimate(e);
+  // Your strongest book for this element (a boss skill, element 'all', works with any).
+  const mine = cfg.spells.list.filter((s) => (s.element === e.id || s.element === 'all') && books.includes(s.id));
+  mine.sort((a, b) => (b.power ?? 0) + (b.heal ?? 0) - ((a.power ?? 0) + (a.heal ?? 0)));
+  return mine[0] ?? basicUltimate(e);
 }
 
 /** XP for beating these monsters on this floor (each player who stayed gets it all). */

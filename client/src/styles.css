@@ -1867,3 +1867,6 @@ body.lab-warp-out #game { animation: lab-unzoom 0.62s cubic-bezier(0.2, 0.7, 0.3
 .lab-party-hud .lb-bar.hp { height: 13px; } .lab-party-hud .lb-bar.hp span { font-size: 10px; line-height: 11px; }
 .lab-party-hud .lb-bar.mp { height: 10px; } .lab-party-hud .lb-bar.mp span { font-size: 9px; line-height: 8px; }
 body:has(.panel-backdrop) .lab-party-hud { visibility: hidden; }
+/* 🐲 World boss (party window) */
+.lab-wb { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px; border-radius: 10px; background: linear-gradient(135deg, rgba(112, 72, 232, 0.25), rgba(230, 73, 128, 0.18)); border: 1px solid rgba(204, 93, 232, 0.5); }
+.lab-wb .btn { align-self: flex-start; width: auto; }

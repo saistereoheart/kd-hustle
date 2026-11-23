@@ -170,7 +170,9 @@ export class App {
     this.listings = buildListings(this.map, this.cfg.properties);
     setFurnitureCatalog(this.cfg.furniture);
     setPetCharacterConfig(this.cfg.character);
-    setMonsterLooks(this.cfg.lab.monsters);
+    // (The world boss looks like a monster too: kind 'world'.)
+    const wb = this.cfg.lab.worldBoss;
+    setMonsterLooks([...this.cfg.lab.monsters, ...(wb ? [{ id: 'world', model: wb.model, color: wb.color, size: 1.15 }] : [])]);
     this.items = new Map(this.cfg.items.items.map((i) => [i.id, i]));
     this.crates = new Map(this.cfg.crates.crates.map((c) => [c.id, c]));
     for (const c of this.cfg.crates.crates) if (!c.event) for (const id of c.pool) this.cratesOfItem.set(id, c);

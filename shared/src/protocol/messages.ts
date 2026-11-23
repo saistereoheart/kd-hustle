@@ -811,6 +811,8 @@ export interface ClientToServerEvents {
   'lab:respec': (ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 📜 Use a spell book you own: switches to its element (id null: nothing). */
   'lab:book': (msg: { id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 🐲 Call the world boss: your whole party (at least `worldBoss.minParty`) together in the entrance hall. */
+  'lab:worldBoss': (ack: Ack<SimpleResult>) => void;
   /** 🔥 Equip an element's 💥 skill (any time; in a fight it counts from your next pick). */
   'lab:element': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 🎲 The tavern's once-a-day roll: maybe a spell book, else a free drink. */

@@ -159,6 +159,14 @@ export function rollBoss(cfg: LabConfig, floor: number, partySize: number, rand:
   return out;
 }
 
+/** 🐲 The world boss for a party of this size. */
+export function rollWorldBoss(cfg: LabConfig, partySize: number): LabFighter[] {
+  const w = cfg.worldBoss;
+  if (!w) return [];
+  const hp = Math.round(w.hp * (1 + w.hpPerPlayer * Math.max(0, partySize - w.minParty)));
+  return [{ id: 'b0', side: 'foe', name: w.name, icon: w.icon, kind: 'world', move: w.move, boss: true, hp, maxHp: hp, atk: w.atk, def: w.def, spd: w.spd, focus: 0, out: false }];
+}
+
 /** Syiling for beating these monsters on this floor (a boss pays its own, once). */
 export function groupCoins(cfg: LabConfig, floor: number, foes: LabFighter[]): number {
   let sum = 0;

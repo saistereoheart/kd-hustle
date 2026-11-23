@@ -178,6 +178,14 @@
         "color": "#cc5de8",
         "minFloor": 5,
         "price": 8000
+      },
+      {
+        "id": "raksasa",
+        "name": "Raksasa",
+        "color": "#e64980",
+        "minFloor": 0,
+        "price": 1,
+        "dropOnly": true
       }
     ],
     "slots": [
@@ -191,7 +199,8 @@
           13,
           20,
           28,
-          37
+          37,
+          43
         ]
       },
       {
@@ -204,7 +213,8 @@
           3.1,
           4.8,
           6.7,
-          8.9
+          8.9,
+          10.3
         ],
         "block": [
           0.03,
@@ -212,7 +222,8 @@
           0.07,
           0.09,
           0.11,
-          0.13
+          0.13,
+          0.15
         ]
       },
       {
@@ -225,7 +236,8 @@
           130,
           200,
           280,
-          370
+          370,
+          430
         ],
         "def": [
           0.4,
@@ -233,7 +245,8 @@
           2.1,
           3.2,
           4.5,
-          5.9
+          5.9,
+          6.8
         ]
       },
       {
@@ -246,7 +259,8 @@
           3,
           4,
           5,
-          6
+          6,
+          7
         ],
         "crit": [
           0.01,
@@ -254,7 +268,8 @@
           0.03,
           0.04,
           0.05,
-          0.06
+          0.06,
+          0.07
         ]
       }
     ]
@@ -1223,6 +1238,27 @@
     "partyHp": 0.7,
     "minionsFrom": 2
   },
+  "worldBoss": {
+    "name": "Raja Purba Bangkit",
+    "icon": "🐲",
+    "move": "Hentakan Zaman",
+    "line": "Siapa berani mengejutkan beta dari tidur seribu tahun?",
+    "hp": 2900,
+    "hpPerPlayer": 1,
+    "atk": 43,
+    "def": 12,
+    "spd": 15,
+    "minParty": 2,
+    "perWeek": 3,
+    "coins": 1500,
+    "xp": 900,
+    "setChance": 0.06,
+    "skillChance": 0.03,
+    "set": "raksasa",
+    "skill": "kitab_raja",
+    "model": "dragon",
+    "color": "#7048e8"
+  },
   "bosses": [
     {
       "name": "Raja Tikus Lumut",
@@ -1589,6 +1625,21 @@
         "weight": 5,
         "rollOnly": true,
         "element": "tanah"
+      },
+      {
+        "id": "kitab_raja",
+        "name": "Kitab Raja Purba",
+        "icon": "👑",
+        "color": "#e64980",
+        "element": "all",
+        "power": 3.2,
+        "pierce": 0.3,
+        "move": "Murka Raja Purba",
+        "desc": "The world boss's own fury on every monster (×3.2 each, ignores 30% of their DEF). Works with any element. Mythic: only the world boss drops it.",
+        "price": 0,
+        "minFloor": 0,
+        "weight": 0,
+        "dropOnly": true
       }
     ]
   },

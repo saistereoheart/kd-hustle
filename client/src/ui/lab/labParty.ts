@@ -4,7 +4,7 @@
 import type { LabPartyView } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay, uiRoot } from '../dom';
-import { openPanel } from '../panel';
+import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 
 type Online = Array<{ id: number; name: string; level: number; inParty: boolean }>;
@@ -56,6 +56,24 @@ export function openLabParty(app: App) {
         render();
       }));
       parts.push(leave);
+      // 🐲 The world boss: the whole party together in the entrance hall, 3 tries a week each.
+      const wb = app.cfg.lab.worldBoss;
+      if (wb) {
+        const left = app.labHud?.self?.wbLeft ?? wb.perWeek;
+        const call = el('button', { class: 'btn primary', type: 'button', 'data-action': 'world-boss' }, `${wb.icon} Fight ${wb.name}`) as HTMLButtonElement;
+        call.disabled = party.members.length < wb.minParty || left < 1;
+        call.addEventListener('click', () => {
+          if (!confirm(`Fight ${wb.icon} ${wb.name} with your whole party? It uses one of your ${wb.perWeek} tries this week (${left} left). No running away.`)) return;
+          app.socket?.timeout(6000).emit('lab:worldBoss', (err, res) => {
+            if (err || !res.ok) return fail(err, res);
+            closePanel();
+          });
+        });
+        parts.push(el('div', { class: 'lab-wb' },
+          el('b', {}, `${wb.icon} World boss: ${wb.name}`),
+          el('span', { class: 'muted small' }, `A party of ${wb.minParty}+, all in the entrance hall. ${left}/${wb.perWeek} tries left this week (resets Monday). Rare mythic drops: the 🐲 Raksasa gear set and 📜 Kitab Raja Purba.`),
+          call));
+      }
     } else parts.push(el('p', {}, "You're not in a party. Invite someone below: you lead it."));
     // Invite
     const full = !!party && party.members.length + party.invited.length >= party.max;

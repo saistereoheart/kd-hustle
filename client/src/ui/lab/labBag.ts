@@ -136,6 +136,10 @@ export function openLabBag(app: App, start: Tab = 'gear') {
         btn.textContent = worn ? '✓ Wearing' : 'Wear';
         btn.disabled = worn || busy;
         btn.addEventListener('click', () => equip(g.slot, g.id));
+      } else if (lc.gear.tiers[g.tier]?.dropOnly) {
+        btn.textContent = '🐲 World boss drop';
+        btn.disabled = true;
+        btn.title = 'Never sold: only the world boss drops it (rarely)';
       } else if (locked) {
         btn.textContent = `🔒 Floor ${g.minFloor + 1}`;
         btn.disabled = true;
@@ -235,6 +239,10 @@ export function openLabBag(app: App, start: Tab = 'gear') {
           btn.disabled = busy || worn || !elem;
           btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button.' : elem ? `Equip ${elem.icon} ${elem.skill.name}: this book then powers your ultimate` : '';
           btn.addEventListener('click', () => wearBook(sp.id));
+        } else if (sp.dropOnly) {
+          btn.textContent = '🐲 World boss drop';
+          btn.disabled = true;
+          btn.title = 'Mythic: only the world boss drops it (rarely)';
         } else if (sp.rollOnly) {
           btn.textContent = '🎲 Tavern roll';
           btn.disabled = true;

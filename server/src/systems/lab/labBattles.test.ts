@@ -135,3 +135,67 @@ describe('Labirin floor bosses', () => {
     expect(s.lab.use(a, 'down').view!.floor).toBe(1);
   });
 });
+
+describe('Labirin world boss (feedback #21)', () => {
+  const wb = lc.worldBoss!;
+  const hall = (s: ReturnType<typeof setup>, p: OnlinePlayer) => {
+    const f = s.lab.floor(0);
+    p.lab = { floor: 0, room: f.start, x: 400, y: 300, dir: 'up', moving: false, at: 0 };
+  };
+  const win = (s: ReturnType<typeof setup>, a: OnlinePlayer) => {
+    const fs = (s.battles as unknown as { byPlayer: Map<number, { fighters: Array<{ side: string; hp: number }> }> }).byPlayer.get(a.id)!.fighters;
+    for (const x of fs) if (x.side === 'foe') x.hp = 1;
+  };
+
+  it('needs a party together in the entrance hall; 3 tries a week; no running; pays everyone', () => {
+    const s = setup();
+    const a = s.player('a'), b = s.player('b');
+    hall(s, a);
+    expect(() => s.battles.worldBoss([a])).toThrow(/at least 2/);
+    s.putIn(b); // b is in another room
+    expect(() => s.battles.worldBoss([a, b])).toThrow(/entrance hall/);
+    hall(s, b);
+    s.battles.worldBoss([a, b]);
+    const v = s.battles.view(a)!;
+    expect(v.world).toBe(true);
+    expect(v.fighters.find((f) => f.side === 'foe')!.name).toBe(wb.name);
+    expect(() => s.battles.act(a, { kind: 'run' })).toThrow(/no running/);
+    expect(s.lab.wbLeft(a)).toBe(wb.perWeek - 1);
+    win(s, a);
+    s.battles.act(a, { kind: 'attack' });
+    s.battles.act(b, { kind: 'attack' });
+    expect(s.battles.inFight(a)).toBe(false);
+    expect(s.lab.state(a).carried).toBeGreaterThanOrEqual(wb.coins);
+    expect(s.lab.state(b).xp).toBeGreaterThanOrEqual(wb.xp);
+    // Two more tries, then no more this week.
+    for (let i = 0; i < 2; i++) {
+      s.battles.worldBoss([a, b]);
+      win(s, a);
+      s.battles.act(a, { kind: 'attack' });
+      s.battles.act(b, { kind: 'attack' });
+    }
+    expect(s.lab.wbLeft(a)).toBe(0);
+    expect(() => s.battles.worldBoss([a, b])).toThrow(/3 times this week/);
+  });
+
+  it('rare drops: a Raksasa set piece (worn if better) and the boss book; never sold', () => {
+    const db = openDatabase(':memory:');
+    const repos = createRepos(db);
+    const lucky = new LabSystem(lc, repos, () => 0.001, () => 1_700_000_000_000);
+    const id = repos.accounts.create('l', 'h', false, { x: 0, y: 0 }, 2, 0);
+    const p = { id, name: 'l', hasCharacter: true, lab: null } as unknown as OnlinePlayer;
+    const got = lucky.wonWorld(p);
+    expect(got.drops.length).toBe(2);
+    const st = lucky.state(p);
+    expect(st.owned.some((g) => g.endsWith(`_${wb.set}`))).toBe(true);
+    expect(st.books).toContain(wb.skill);
+    expect(Object.values(st.gear)[0]).toMatch(new RegExp(`_${wb.set}$`));
+    p.lab = { floor: 0, room: lucky.floor(0).start, x: 0, y: 0, dir: 'up', moving: false, at: 0 };
+    const merchant = roomLayout(lc, lucky.floor(0), lucky.floor(0).rooms[lucky.floor(0).start]).spot.merchant;
+    p.lab.x = (merchant[0] + 0.5) * lc.tile;
+    p.lab.y = (merchant[1] + 0.5) * lc.tile;
+    st.coins = 99_999;
+    expect(() => lucky.buy(p, `weapon_${wb.set}`)).toThrow(/world boss/);
+    expect(() => lucky.buy(p, wb.skill)).toThrow(/world boss/);
+  });
+});

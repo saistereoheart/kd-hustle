@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.38.0 (2026-11-23): 🐲 Labirin world boss
+- **🐲 Raja Purba Bangkit** (feedback #21): a world boss for a party of 2 or more. Gather your whole party in
+  the entrance hall, open 👥 Party, and press 🐲 Fight. It's turn-based like any fight, with no running away.
+  It has more HP for every extra player. Each player gets **3 tries a week** (they come back on Monday).
+- **Winning pays everyone** 1,500 Syiling and 900 XP. Each player also rolls the rare **mythic drops**:
+  - a piece of the 🐲 **Raksasa** gear set: a new top tier above Mistik, never sold, worn at once if better;
+  - 📜 **Kitab Raja Purba**: a boss ultimate (×3.2 on every monster) that works with any element.
+- It's endgame: a Mistik-geared party of 2 wins about 40% of the time, 3 players about 65%, 4 players about
+  95% (more with potions).
+
 ## 1.37.0 (2026-11-23): 👥 party bars under the minimap, 32 new Labirin monsters
 - **Your party under the minimap** (feedback #22): each member's ❤️ HP and 🔷 mana bars and their carried
   Syiling, with 👑 for the leader, ⚔️ while fighting and where they are (here, B3, in town). Tap it for the

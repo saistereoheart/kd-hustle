@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.37.0)_
+_Last updated: 2026-11-23 (v1.38.0)_
 
-**Now at v1.37.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.38.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🐲 Feedback #21: world boss (2026-11-23, v1.38.0)
+- `labyrinth.json` `worldBoss` (stats, `hpPerPlayer`, `minParty` 2, `perWeek` 3, coins/xp, `setChance` 6%,
+  `skillChance` 3%, look). The gear tier `raksasa` (`dropOnly`, ~+15% over mistik) and the book `kitab_raja`
+  (`dropOnly`, element `all` = any element; `labUltimate` picks your strongest owned book) were added.
+- Server: `LabSystem.wbLeft / wbCheck / wbSpend / wonWorld` (`LabSave.wbWeek/wbCount`, the week from `weekKey`),
+  `LabBattles.worldBoss` (whole party at once, no joining mid-fight, `noEscape`), handler `lab:worldBoss`.
+  Client: a 🐲 button in the party window, the world boss name/line in the fight, drops in the result.
+- **Decisions:**
+  - It's called from the party window (no new map prop). The whole party must be in the entrance hall.
+  - A try is used when the fight starts, win or lose.
+  - A spare set piece you already own turns into Syiling.
+- Tuned with a party sim (scratchpad `_wb.test.ts`): Mistik ×2 39%, ×3 64%, ×4 94%, without potions. Below
+  Mistik it isn't winnable (endgame on purpose). Tests in `labBattles.test.ts`.
 
 ## 👥 Feedback #22 and #27 (2026-11-23, v1.37.0)
 - **#22 party list:** `LabPartyView` members now carry hp / maxHp / mana / maxMana / carried (from the live fighter

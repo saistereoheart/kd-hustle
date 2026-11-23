@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, gearBonus, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, weekKey, gearBonus, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -60,6 +60,9 @@ export interface LabSave {
   crates?: Record<string, number>;
   /** 🪨 Floors whose secret stash you've found. */
   secrets?: number[];
+  /** 🐲 World boss fights this week: the week (its Monday) and how many. */
+  wbWeek?: string;
+  wbCount?: number;
 }
 
 export function emptyLab(): LabSave {
@@ -200,6 +203,7 @@ export class LabSystem {
     const s = this.state(p);
     const g = labGear(this.cfg, id);
     if (g) {
+      if (this.cfg.gear.tiers[g.tier]?.dropOnly) throw new GameError(`${g.name} isn't sold: only the 🐲 world boss drops it.`);
       if (s.owned.includes(g.id)) throw new GameError(`You already have ${g.name}.`);
       if (s.deepest < g.minFloor) throw new GameError(`${g.name} is sold once you've reached floor ${g.minFloor + 1}.`);
       this.pay(s, g.price);
@@ -215,6 +219,7 @@ export class LabSystem {
     }
     const book = this.cfg.spells.list.find((b) => b.id === id);
     if (book) {
+      if (book.dropOnly) throw new GameError(`${book.name} isn't sold: only the 🐲 world boss drops it.`);
       if (book.rollOnly) throw new GameError(`${book.name} isn't sold: only the tavern's daily roll has it.`);
       if (s.books.includes(book.id)) throw new GameError(`You already have ${book.name}.`);
       if (s.deepest < book.minFloor) throw new GameError(`${book.name} is sold once you've reached floor ${book.minFloor + 1}.`);
@@ -418,6 +423,78 @@ export class LabSystem {
     return { coins: got, xp, levelUp: after > before ? after : undefined };
   }
 
+  // ---------------------------------------------------------------- 🐲 the world boss
+  /** Fights left this week. */
+  wbLeft(p: OnlinePlayer): number {
+    const w = this.cfg.worldBoss;
+    if (!w) return 0;
+    const s = this.state(p);
+    return s.wbWeek === weekKey(this.clock()) ? Math.max(0, w.perWeek - (s.wbCount ?? 0)) : w.perWeek;
+  }
+
+  /** Can this party call the world boss here? (Throws why not.) */
+  wbCheck(players: OnlinePlayer[]) {
+    const w = this.cfg.worldBoss;
+    if (!w) throw new GameError('There is no world boss.');
+    if (players.length < w.minParty) throw new GameError(`🐲 ${w.name} needs a party of at least ${w.minParty}. Invite someone (👥).`);
+    const lead = players[0];
+    const f0 = this.floor(0);
+    for (const p of players) {
+      if (!p.lab || p.lab.floor !== 0 || p.lab.room !== f0.start) throw new GameError(`Everyone in the party has to be in the entrance hall (${p.name} isn't).`);
+      if (this.inFight(p)) throw new GameError(`${p.name} is in a fight.`);
+      if (this.wbLeft(p) < 1) throw new GameError(`${p.name} has fought ${w.name} ${w.perWeek} times this week already (it resets on Monday).`);
+    }
+    void lead;
+  }
+
+  /** A world boss fight starts: it uses one of this week's tries. */
+  wbSpend(p: OnlinePlayer) {
+    const s = this.state(p);
+    const wk = weekKey(this.clock());
+    if (s.wbWeek !== wk) (s.wbWeek = wk), (s.wbCount = 0);
+    s.wbCount = (s.wbCount ?? 0) + 1;
+    this.save(p);
+  }
+
+  /** Beat the world boss: Syiling + XP, and the rare mythic drops (each rolled for this player). */
+  wonWorld(p: OnlinePlayer): { coins: number; xp: number; levelUp?: number; drops: string[] } {
+    const w = this.cfg.worldBoss!;
+    const s = this.state(p);
+    const got = this.won(p, 0, -1, w.coins, false, true, w.xp);
+    const drops: string[] = [];
+    // A 🐲 set piece: a random slot of the drop-only tier (one you don't have yet if you can).
+    if (this.rand() < w.setChance) {
+      const pieces = this.cfg.gear.slots.map((sl) => `${sl.id}_${w.set}`).filter((id) => labGear(this.cfg, id));
+      const missing = pieces.filter((id) => !s.owned.includes(id));
+      const pool = missing.length ? missing : pieces;
+      const id = pool[Math.floor(this.rand() * pool.length)];
+      const g = labGear(this.cfg, id);
+      if (g && !s.owned.includes(id)) {
+        s.owned.push(id);
+        const cur = labGear(this.cfg, s.gear[g.slot]);
+        const before = this.stats(p).hp;
+        if (s.hp !== undefined) this.hp(p);
+        if (!cur || g.tier > cur.tier) s.gear[g.slot] = id;
+        this.maxHpChanged(p, before);
+        drops.push(`🐲 ${g.icon} ${g.name}`);
+      } else if (g) {
+        // Already own every piece: it melts into Syiling instead.
+        s.carried += w.coins;
+        drops.push(`🐲 ${g.name} (a spare: +${w.coins} Syiling)`);
+      }
+    }
+    // 📜 The boss skill (a book).
+    if (this.rand() < w.skillChance) {
+      const book = this.cfg.spells.list.find((b) => b.id === w.skill);
+      if (book && !s.books.includes(book.id)) {
+        s.books.push(book.id);
+        drops.push(`📜 ${book.icon} ${book.name}`);
+      }
+    }
+    this.save(p);
+    return { ...got, drops };
+  }
+
   // ---------------------------------------------------------------- 📖 skills and 📜 spell books
   /** Learn one more rank of a skill (a free skill point; not in a fight). */
   learn(p: OnlinePlayer, id: string): string {
@@ -567,7 +644,7 @@ export class LabSystem {
         return { xp: s.xp, level: lv.level, xpInto: lv.into, xpNeed: lv.need, points: labPointsFree(this.cfg, s.xp, s.skills) };
       })(),
       skills: { ...s.skills }, books: [...s.books], rolled: s.rollDay === dayKey(this.clock()),
-      mana: this.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id,
+      mana: this.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, wbLeft: this.wbLeft(p),
       ...(() => {
         const u = labUltimate(this.cfg, s.element, s.books);
         return { ultimate: u.id, book: u.id.startsWith('ult_') ? null : u.id };

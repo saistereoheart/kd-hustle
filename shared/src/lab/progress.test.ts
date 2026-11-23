@@ -118,7 +118,9 @@ describe('Labirin elements and mana', () => {
     expect(labUltimate(cfg, 'air', ['kitab_api']).id).toBe('ult_air');
     expect(labSpell(cfg, 'ult_tanah')?.move).toBe(el('tanah').ultimate.move);
     // Every book belongs to an element.
-    for (const b of cfg.spells.list) expect(cfg.elements.some((e) => e.id === b.element)).toBe(true);
+    for (const b of cfg.spells.list) expect(b.element === 'all' || cfg.elements.some((e) => e.id === b.element)).toBe(true);
+    // A boss skill (element 'all') works with any element, and wins if it's stronger.
+    expect(labUltimate(cfg, 'air', ['kitab_raja']).id).toBe('kitab_raja');
     const a = [caster('air', { focus: cfg.spells.focus, spell: 'ult_air', hp: 50 }), foe('m0', 1e6)];
     resolveLabRound(cfg, a, { p1: { kind: 'ultimate' } }, () => 0.5);
     expect(a[0].hp).toBeGreaterThan(50);

@@ -78,7 +78,7 @@ export class LabBattleUi {
     document.body.append(this.root);
     const foes = view.fighters.filter((f) => f.side === 'foe');
     const names = foes.length > 1 ? `${foes.slice(0, -1).map((f) => f.name).join(', ')} and ${foes[foes.length - 1].name}` : foes[0]?.name;
-    const boss = view.boss ? app.cfg.lab.bosses[view.floor] : undefined;
+    const boss = view.world ? app.cfg.lab.worldBoss : view.boss ? app.cfg.lab.bosses[view.floor] : undefined;
     if (boss) this.root.classList.add('boss-fight');
     this.say(boss ? `👹 ${boss.name}: "${boss.line}"` : view.ambush ? `🌿 Ambush! ${names} ${foes.length > 1 ? 'leap' : 'leaps'} out of hiding!` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
     this.introDone = this.intro(boss ? 'boss' : 'fight', boss ? `👹 ${boss.name}` : `${names} ${foes.length > 1 ? 'jump' : 'jumps'} out!`);
@@ -328,7 +328,8 @@ export class LabBattleUi {
   private finish(end: LabBattleEnd, room?: LabRoomView) {
     this.renderActions(true);
     const text =
-      end.outcome === 'win' && this.view.boss ? `🏆 ${this.app.cfg.lab.bosses[this.view.floor]?.name ?? 'The boss'} is beaten! The stairs down are open. +${end.coins} Syiling Purba (carried).`
+      end.outcome === 'win' && this.view.world ? `🏆 ${this.app.cfg.lab.worldBoss?.name ?? 'The world boss'} falls! +${end.coins} Syiling Purba · +${end.xp ?? 0} XP.${end.drops?.length ? ` 🎁 ${end.drops.join(', ')}!` : ' No rare drop this time.'}`
+      : end.outcome === 'win' && this.view.boss ? `🏆 ${this.app.cfg.lab.bosses[this.view.floor]?.name ?? 'The boss'} is beaten! The stairs down are open. +${end.coins} Syiling Purba (carried).`
       : end.outcome === 'win' ? `🏆 Victory! +${end.coins} Syiling Purba (carried)${end.xp ? ` · +${end.xp} XP` : ''}.${end.levelUp ? ` ⬆️ Labirin level ${end.levelUp}! A new skill point (📖 in your bag).` : ''}`
       : end.outcome === 'fled' ? '🏃 You got away, back to the last room.'
       : `💫 You fell… ${end.lost ? `Lost ${end.lost} carried Syiling. ` : ''}You wake at your rest chamber.`;
