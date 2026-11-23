@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.39.1 (2026-11-23): 🔒 furniture in your other places
+- **Decorate shows what's already placed elsewhere.** Furniture in your kopitiam or shop floor was still listed as
+  free in your home, and saving said "already in another of your homes". Now those pieces aren't in the free list. A
+  **🔒 In your other places** list shows them greyed out, with where each one is (for example "☕ Kopitiam · The Strand").
+  Pick it up there to use it here.
+
 ## 1.39.0 (2026-11-23): 🎭 Labirin classes, 💎 diamonds and gear drops
 - **🎭 Classes** (feedback #24), in 🎒 Bag → 🎭 Classes. Wear one and switch any time outside a fight.
   - Free: 🗡️ Pendekar (balanced), 🛡️ Perisai (tank), 🏹 Pemburu (hunter), 🔮 Bomoh (mystic).

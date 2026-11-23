@@ -805,13 +805,58 @@ export class HomeScene extends Phaser.Scene {
     this.refreshUi();
   }
 
-  /** Free furniture: owned, not placed here (in the editor) or in another home. */
+  /** Furniture placed in your other places (homes, lofts AND shop floors, like the server checks): iid → where. */
+  private placedElsewhere(): Map<number, string> {
+    const out = new Map<number, string>();
+    for (const p of [...this.app.store.myProps, ...this.app.store.myShops]) {
+      if (p.unit === this.unitId) continue;
+      const where = this.placeName(p.unit, p.type);
+      for (const pl of p.layout) out.set(pl.iid, where);
+    }
+    return out;
+  }
+
+  /** "🏠 Condo · Mitraland" / "☕ Kopitiam · The Strand". */
+  private placeName(unit: string, type: string): string {
+    const t = this.app.cfg.properties.types[type];
+    const u = this.app.listings.find((x) => x.id === unit);
+    const b = this.app.map.buildings.find((x) => x.id === (u?.building ?? unit.split('#')[0]));
+    return `${t?.icon ?? '🏠'} ${t?.name ?? type}${u && u.n > 1 ? ` ${u.n}` : ''}${b?.name ? ` · ${b.name}` : ''}`;
+  }
+
+  /** Free furniture: owned, not placed here (in the editor) or in another of your places. */
   private freeFurniture() {
-    const elsewhere = new Set<number>();
-    for (const p of this.app.store.myProps) if (p.unit !== this.unitId) for (const pl of p.layout) elsewhere.add(pl.iid);
+    const elsewhere = this.placedElsewhere();
     const here = new Set(this.layout.map((p) => p.iid));
     if (this.hand) here.add(this.hand.iid);
     return this.app.store.inventory.filter((i) => furniturePiece(i.itemId) && !elsewhere.has(i.iid) && !here.has(i.iid));
+  }
+
+  /** 🔒 Pieces already placed in your other homes / shops: shown (greyed) with where they are, so it's clear
+   *  why they can't go here. Pick one up there first to use it here. */
+  private usedElsewhereList(vName: (v: string) => string): HTMLElement[] {
+    const elsewhere = this.placedElsewhere();
+    if (!elsewhere.size) return [];
+    const byKey = new Map<string, { item: string; variant: string; where: string; n: number }>();
+    for (const i of this.app.store.inventory) {
+      const where = elsewhere.get(i.iid);
+      if (!where || !furniturePiece(i.itemId)) continue;
+      const key = `${i.itemId}|${i.variant}|${where}`;
+      const e = byKey.get(key) ?? { item: i.itemId, variant: i.variant || 'normal', where, n: 0 };
+      e.n++;
+      byKey.set(key, e);
+    }
+    if (!byKey.size) return [];
+    const rows = [...byKey.values()].sort((a, b) => a.where.localeCompare(b.where)).map((e) => {
+      const def = this.app.items.get(e.item);
+      const vn = vName(e.variant);
+      const name = `${vn ? `${vn} ` : ''}${def?.name ?? e.item}`;
+      return el('div', { class: 'deco-piece used', 'data-piece': e.item, title: `${name}: placed in your ${e.where}. Pick it up there to use it here.` },
+        el('img', { src: def ? iconUrl(def, e.variant, 48) : '', alt: '' }),
+        el('span', {}, `${name}${e.n > 1 ? ` ×${e.n}` : ''}`),
+        el('small', { class: 'deco-where' }, `🔒 In ${e.where}`));
+    });
+    return [el('h4', {}, `🔒 In your other places (${[...byKey.values()].reduce((a, e) => a + e.n, 0)})`), el('div', { class: 'deco-pieces' }, ...rows)];
   }
 
   /** 🏪 A shop's cleaner on / off. */
@@ -908,8 +953,9 @@ export class HomeScene extends Phaser.Scene {
       bar(`Rooms (${r.rooms.filter((x) => !x.missing.length).length}/${r.rooms.length} complete${r.misplaced.length ? ` · ${r.misplaced.length} in the wrong room` : ''})`, r.factors.rooms),
       el('h4', {}, '💡 Suggestions'),
       ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → ${x.gain > 0 ? `+${x.gain.toFixed(1)}★` : 'a small boost'}${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')]),
-      el('h4', {}, `🛋️ Your furniture (${free.length})`),
-      el('div', { class: 'deco-pieces' }, ...(pieces.length ? pieces : [el('p', { class: 'muted small' }, `Nothing to place. Buy at ${this.app.cfg.furniture.storeName} or win some from the Mall Mystery Box.`)])),
+      el('h4', {}, `🛋️ Your furniture (${free.length} free)`),
+      el('div', { class: 'deco-pieces' }, ...(pieces.length ? pieces : [el('p', { class: 'muted small' }, `Nothing free to place. Buy at ${this.app.cfg.furniture.storeName} or win some from the Mall Mystery Box.`)])),
+      ...this.usedElsewhereList(vName),
       el('p', { class: 'muted small deco-keys' }, keys),
       el(
         'div',

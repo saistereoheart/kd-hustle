@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.39.0)_
+_Last updated: 2026-11-23 (v1.39.1)_
 
-**Now at v1.39.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.39.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,12 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🔒 Decorate: pieces placed elsewhere (2026-11-23, your report, v1.39.1)
+- **Bug:** `homeScene.freeFurniture` only skipped pieces in your other **homes** (`store.myProps`), but the server
+  (`setLayout`) also counts **shop floors** (`store.myShops`), so a piece in your kopitiam looked free and saving failed.
+  Now both count (`placedElsewhere`). Decorate lists those pieces greyed out under "🔒 In your other places", with each
+  place's name (`placeName`). (The forge already counted both.)
 
 ## 🎭 Feedback #24: classes, diamonds, gear drops (2026-11-23, v1.39.0)
 - `shared/src/lab/loot.ts`: `rollLoot`, `itemMult/itemScrap/itemName`, `resolveWorn/wornBonus/wornBase` (a gear slot
