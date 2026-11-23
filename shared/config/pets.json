@@ -13,7 +13,9 @@
     "pet_naga":    { "hp": 75, "atk": 21, "def": 15, "spd": 15, "move": "Api Naga",         "ultimate": "Naga Langit Murka",  "cry": "Aku penjaga gua ini." },
     "pet_unicorn": { "hp": 70, "atk": 19, "def": 14, "spd": 18, "move": "Tanduk Pelangi",   "ultimate": "Pelangi Ajaib",      "cry": "Neigh~! Percaya pada magik!" },
     "pet_arnab":   { "hp": 62, "atk": 18, "def": 11, "spd": 19, "move": "Lompat Pentas",    "ultimate": "Encore Bintang",     "cry": "Annyeong~! Tepuk tangan semua!" },
-    "pet_rubah":   { "hp": 68, "atk": 20, "def": 13, "spd": 18, "move": "Kenyit Mata",      "ultimate": "Konsert Bulan Purnama", "cry": "Fighting! Lightstick naik!" }
+    "pet_rubah":   { "hp": 68, "atk": 20, "def": 13, "spd": 18, "move": "Kenyit Mata",      "ultimate": "Konsert Bulan Purnama", "cry": "Fighting! Lightstick naik!" },
+    "pet_kuki":    { "hp": 64, "atk": 19, "def": 12, "spd": 19, "move": "Lompat Emas",      "ultimate": "Encore Maknae",      "cry": "Annyeong! Jom menari sama-sama!" },
+    "pet_wonnie":  { "hp": 61, "atk": 18, "def": 12, "spd": 20, "move": "Kenyit Bertuah",   "ultimate": "Hari Paling Bertuah", "cry": "Untungnya hari ni~! Semua jadi!" }
   },
   "gear": {
     "pg_kolar":   { "def": 0.125 },

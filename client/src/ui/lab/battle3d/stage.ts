@@ -366,9 +366,19 @@ export class Battle3D {
       this.flashes.ball(at, c, 0.5, 2 * this.size(A), 0.7, true);
       this.flashes.ring(A.home.clone().setY(0.05), c, 3.5, 0.7);
       this.sparks.burst(at, 40, c, 3.5, { up: 3, gravity: -1, life: 0.7, spread: 1.6 });
-      if (e.element) this.elementFx(A, e.element, c);
-      this.punch = 1;
-      return 750;
+      if (e.element) this.elementFx(A, e.element, c, 1.5);
+      this.punch = 1.2;
+      this.after(0.4, () => {
+        this.punch = 2.2;
+        this.shake(0.9);
+        this.screenFlash(0.9);
+        this.hitStop(0.12);
+        const mid = new THREE.Vector3(0, 0.05, 0);
+        this.flashes.ring(mid, c, 14, 0.6);
+        this.flashes.ring(mid.clone().setY(1.5), 0xffffff, 10, 0.5);
+        for (const f of this.actors.values()) if (f.f.side === 'foe' && !f.f.out) this.sparks.burst(this.chest(f), 40, c, 6, { up: 4, gravity: 4, life: 0.9, spread: 1.2 });
+      });
+      return 1150;
     }
     // 🔥 A burn ticking.
     if (e.kind === 'hit' && e.burn && B) {
@@ -392,7 +402,7 @@ export class Battle3D {
     if (e.kind === 'hit' && e.aoe && A && B) {
       const c = new THREE.Color(e.color ?? '#ff922b').getHex();
       this.impact(A, B, e, B.home.clone().sub(A.home).setY(0).normalize(), c);
-      return 260;
+      return e.spell ? 340 : 280;
     }
     if (e.kind === 'hit' && A && B) return this.attack(A, B, e);
     if (e.kind === 'guard' && A) {
@@ -472,10 +482,12 @@ export class Battle3D {
     if (skill) {
       // ⚡ Charge up: an aura, sparks spiralling in, the camera leans in.
       const at = this.chest(A);
-      this.flashes.ball(at, color, 0.3, 1.6 * this.size(A), charge);
-      this.flashes.ring(A.home.clone().setY(0.05), color, 3, charge);
-      this.sparks.burst(at, 30, color, 3, { up: 2.5, gravity: -2, life: charge, spread: 1.4 });
-      this.punch = 1;
+      this.flashes.ball(at, color, 0.4, 2.6 * this.size(A), charge);
+      this.flashes.ring(A.home.clone().setY(0.05), color, 4.5, charge);
+      this.flashes.ring(A.home.clone().setY(0.05), 0xffffff, 3, charge * 0.8);
+      this.sparks.burst(at, 50, color, 3.5, { up: 4, gravity: -3, life: charge + 0.1, spread: 1.6 });
+      this.punch = 1.6;
+      this.shake(0.15);
       this.tween(charge, (k) => ((A.lean = -0.35 * ease.out(k)), (A.squash = 1 - 0.18 * Math.sin(k * Math.PI)), (A.off.y = A.m.hover ? 0 : Math.sin(k * Math.PI) * 0.3)));
     }
     // Wind up (lean back, raise the weapon), lunge, strike, hold, back home.
@@ -525,47 +537,61 @@ export class Battle3D {
       this.flashes.ball(at, 0x74c0fc, 0.5, 1.1 * this.size(B), 0.3, true);
       this.sparks.burst(at, 24, 0x74c0fc, 5, { up: 1, gravity: 3, life: 0.4 });
     }
-    const n = skill ? 70 : crit ? 45 : 24;
-    this.sparks.burst(at, n, crit ? 0xfff3bf : color, skill ? 8 : 6, { up: 1.5, gravity: 7, life: 0.6 });
+    const ult = !!e.spell;
+    const n = ult ? 80 : skill ? 100 : crit ? 45 : 24;
+    this.sparks.burst(at, n, crit ? 0xfff3bf : color, ult || skill ? 10 : 6, { up: 1.5, gravity: 7, life: ult || skill ? 0.85 : 0.6 });
     this.sparks.burst(at, Math.round(n / 3), 0xffffff, 9, { up: 1, gravity: 9, life: 0.3 });
     const s = this.size(B);
     this.flashes.slash(at, color, 1.3 * s, 0.6);
     if (crit || skill) this.flashes.slash(at, crit ? 0xfff3bf : 0xffffff, 1.6 * s, -1.1);
-    if (skill) {
-      this.flashes.slash(at, color, 2.2 * s, 2.2);
-      this.flashes.ring(B.home.clone().setY(0.05), color, 5 * s, 0.6);
-      this.screenFlash(0.55);
+    if (skill || ult) {
+      this.flashes.slash(at, color, 3.2 * s, 2.2);
+      this.flashes.slash(at, 0xffffff, 3.8 * s, -0.4);
+      this.flashes.ring(B.home.clone().setY(0.05), color, 8 * s, 0.7);
+      this.flashes.ball(at, color, 0.5, (ult ? 3.2 : 2.6) * s, 0.4);
+      this.screenFlash(ult ? 0.5 : 0.7);
+      this.hitStop(0.22);
+      this.punch = Math.max(this.punch, ult ? 1.8 : 2);
+      this.shake(ult ? 0.5 : 0.6);
     } else if (crit) this.screenFlash(0.3);
-    if (e.element) this.elementFx(B, e.element, color);
+    if (e.element) this.elementFx(B, e.element, color, ult ? 2.2 : skill ? 1.7 : 1);
     this.popup(B, `${blocked ? '🛡' : ''}${e.dmg ?? 0}`, skill ? 'skill' : crit ? 'crit' : blocked ? 'block' : A.f.side === 'party' ? 'hit' : 'hurt');
   }
 
   /** 🔥💧⚡🌪️🪨 What each element adds where it lands (same style, its own look). */
-  private elementFx(B: Actor, element: string, color: number) {
+  private elementFx(B: Actor, element: string, color: number, big = 1) {
     const at = this.chest(B);
-    const s = this.size(B);
+    const s = this.size(B) * big;
     const ground = B.home.clone().setY(0.05);
+    const n = (k: number) => Math.round(k * big);
+    /** A column of sparks shooting up from the ground (skills and ultimates). */
+    const column = (c: number, k: number) => big > 1 && this.sparks.burst(ground, n(k), c, 1.2, { up: 9 * big, gravity: 2, life: 0.8, spread: 0.25 });
     if (element === 'api') {
-      this.sparks.burst(at, 30, 0xff922b, 2, { up: 4, gravity: -3, life: 0.7, spread: 0.8 });
-      this.sparks.burst(at, 12, 0xffe066, 1.5, { up: 3, gravity: -2, life: 0.5, spread: 0.5 });
-      this.flashes.ball(at, 0xff6b00, 0.4, 1.3 * s, 0.3);
+      this.sparks.burst(at, n(30), 0xff922b, 2 * big, { up: 4 * big, gravity: -3, life: 0.7 + 0.15 * big, spread: 0.8 * big });
+      this.sparks.burst(at, n(12), 0xffe066, 1.5 * big, { up: 3 * big, gravity: -2, life: 0.5 + 0.15 * big, spread: 0.5 * big });
+      this.flashes.ball(at, 0xff6b00, 0.4, 1.3 * s, 0.3 + 0.1 * big);
+      column(0xff6b00, 30);
     } else if (element === 'air') {
-      this.sparks.burst(at, 30, 0x74c0fc, 4, { up: 4, gravity: 12, life: 0.7, spread: 0.6 });
+      this.sparks.burst(at, n(30), 0x74c0fc, 4 * big, { up: 4 * big, gravity: 12, life: 0.7 + 0.15 * big, spread: 0.6 * big });
       this.flashes.ring(ground, 0xa5d8ff, 3 * s, 0.5);
+      if (big > 1) this.flashes.ring(ground, 0x4dabf7, 4.5 * s, 0.7);
+      column(0x4dabf7, 26);
     } else if (element === 'petir') {
       this.flashes.slash(at.clone().setY(at.y + 1.2 * s), 0xfff3bf, 2.6 * s, Math.PI / 2);
       this.flashes.slash(at.clone().setY(at.y + 1.2 * s), color, 2.2 * s, Math.PI / 2 + 0.25);
-      this.sparks.burst(at, 24, 0xffe066, 7, { up: 0.5, gravity: 2, life: 0.3 });
-      this.screenFlash(0.4);
+      this.sparks.burst(at, n(24), 0xffe066, 7 * big, { up: 0.5, gravity: 2, life: 0.3 + 0.15 * big });
+      column(0xfff3bf, 20);
+      this.screenFlash(Math.min(0.8, 0.4 * big));
     } else if (element === 'angin') {
-      this.flashes.ring(ground.clone().setY(0.5 * s), color, 2.6 * s, 0.45);
-      this.flashes.ring(ground.clone().setY(1.1 * s), 0xc3fae8, 2 * s, 0.4);
-      this.sparks.burst(at, 22, 0x96f2d7, 4.5, { up: 1, gravity: -1, life: 0.6, spread: 1.4 });
+      const rings = big > 1 ? 4 : 2;
+      for (let j = 0; j < rings; j++) this.flashes.ring(ground.clone().setY((0.5 + j * 0.6) * this.size(B)), j % 2 ? 0xc3fae8 : color, (2.6 - j * 0.3) * s, 0.45 + j * 0.05);
+      this.sparks.burst(at, n(22), 0x96f2d7, 4.5 * big, { up: 1, gravity: -1, life: 0.6 + 0.15 * big, spread: 1.4 * big });
     } else if (element === 'tanah') {
-      this.sparks.burst(ground, 26, 0xa47148, 3.5, { up: 5, gravity: 16, life: 0.8, spread: 0.8 });
-      this.sparks.burst(ground, 10, 0x5c3d2e, 2.5, { up: 4, gravity: 16, life: 0.7 });
+      this.sparks.burst(ground, n(26), 0xa47148, 3.5 * big, { up: 5 * big, gravity: 16, life: 0.8 + 0.1 * big, spread: 0.8 * big });
+      this.sparks.burst(ground, n(10), 0x5c3d2e, 2.5 * big, { up: 4 * big, gravity: 16, life: 0.7 + 0.1 * big });
       this.flashes.ring(ground, 0xc08a5a, 3.5 * s, 0.5);
-      this.shake(0.2);
+      column(0xa47148, 22);
+      this.shake(0.2 * big);
     }
   }
 

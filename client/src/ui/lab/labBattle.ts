@@ -25,6 +25,9 @@ import { loadMonsterPics, monsterPic, playerPics } from './portraits';
 import { battleMusic, beatSec } from '../battleMusic';
 
 const STEP_MS = 750;
+/** 📜 An ultimate's cast: the caster blazes, the full-screen burst, then its hits. */
+const ULT_MS = 1150;
+const ULT_BURST_AT = 350;
 
 export class LabBattleUi {
   private root: HTMLElement;
@@ -308,7 +311,7 @@ export class LabBattleUi {
       if (!e) return this.afterRound(p);
       this.apply(e);
       const ms = this.stage?.play(e) ?? 0;
-      window.setTimeout(next, Math.max(e.kind === 'guard' ? STEP_MS * 0.6 : e.aoe ? 280 : STEP_MS, ms));
+      window.setTimeout(next, Math.max(e.kind === 'spell' ? ULT_MS : e.kind === 'guard' ? STEP_MS * 0.6 : e.aoe ? 280 : STEP_MS, ms));
     };
     next();
   }
@@ -573,9 +576,23 @@ export class LabBattleUi {
     });
   }
 
+  /** 📜 The ultimate's full-screen burst: for a split second it covers most of the screen (its colour,
+   *  rays, the spell's icon and name; each element has its own twist). CSS only, gone in under a second. */
+  private ultBurst(e: LabEvent) {
+    const sp = labSpell(this.app.cfg.lab, e.spell);
+    const color = e.color ?? sp?.color ?? '#cc5de8';
+    const box = el('div', { class: `lb-ult el-${e.element ?? 'none'}`, style: `--c:${color}`, 'data-testid': 'lb-ult' },
+      el('i', { class: 'lu-glow' }), el('i', { class: 'lu-rays' }), el('i', { class: 'lu-ring' }), el('i', { class: 'lu-fx' }),
+      el('b', { class: 'lu-icon' }, sp?.icon ?? '📜'), el('span', { class: 'lu-name' }, sp?.move ?? 'Ultimate'));
+    this.root.append(box);
+    sfx.locked();
+    window.setTimeout(() => box.remove(), 950);
+  }
+
   /** One event: the message, the hit (shake + number), HP bars. */
   private apply(e: LabEvent) {
     this.say(e.text);
+    if (e.kind === 'spell') window.setTimeout(() => !this.gone && this.ultBurst(e), ULT_BURST_AT);
     // 🔷 Mana spent (a skill: the actor's) or given back (a potion: the target's).
     if (e.mana !== undefined) {
       const who = this.view.fighters.find((x) => x.id === (e.kind === 'item' ? e.target : e.actor));

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.35.0 (2026-11-23): 💥 bigger skills, full-screen ultimates, two idol Teman
+- **Labirin HP and mana bars sit right above the hotbar**, exactly as wide as it, on every screen size.
+- **💥 Skills hit much harder on screen:** a bigger charge-up, big sparks, more zoom and shake, bigger
+  numbers, and each element's own column, bolt or tornado on the monster.
+- **📜 Ultimates take over the screen** for a split second: a burst in the element's colour with rays, a
+  giant icon and the move's name (fire rises from below, lightning strobes, water ripples, wind gusts,
+  stone shakes). Then a bigger hit lands on every monster.
+- **Two new idol Teman** in the Telur Teman egg (legendary), drawn like the game's own characters:
+  🎤 **Kuki Emas** (black mullet, leather jacket) and 🎀 **Wonnie Bertuah** (long hair, pink stage outfit).
+  They wave, sparkle and dance-hop after you.
+
 ## 1.34.0 (2026-11-23): 🔥 Labirin elements, mana and a portal warp
 - **Free basic skills by element** (feedback #20): 🔥 Api, 💧 Air, ⚡ Petir, 🌪️ Angin and 🪨 Tanah. Equip one
   in 🎒 Bag → 🔥 Elements, or mid-fight with the small ⇄ next to the Skill button (Q on a keyboard). Switching

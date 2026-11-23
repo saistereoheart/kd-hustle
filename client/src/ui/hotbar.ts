@@ -50,6 +50,13 @@ export class Hotbar {
     this.render();
   }
 
+  /** Put something right above the hotbar, exactly as wide (the Labirin's ❤️/🔷 bars): it rides on the
+   *  bar itself, absolutely placed, so it follows it on every screen size. */
+  mountAbove(node: HTMLElement) {
+    node.classList.add('hotbar-above');
+    this.root.append(node);
+  }
+
   private clear(i: number) {
     if (!this.app.store.hotbar[i]) return;
     this.app.setHotbarSlot(i, null);

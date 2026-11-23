@@ -21,6 +21,7 @@ export class LabHud {
   private root: HTMLElement;
   private title: HTMLElement;
   private coins: HTMLElement;
+  /** ❤️ / 🔷 bars: right above the hotbar, as wide as it. */
   private hp: HTMLElement;
   private mini: HTMLCanvasElement;
   private full: HTMLElement | null = null;
@@ -31,22 +32,25 @@ export class LabHud {
   constructor(private app: App) {
     this.title = el('b', { class: 'lab-title' });
     this.coins = el('span', { class: 'lab-coins', 'data-testid': 'lab-coins' });
-    this.hp = el('span', { class: 'lab-hp', 'data-testid': 'lab-hp' });
+    this.hp = el('div', { class: 'lab-hp lab-vitals', 'data-testid': 'lab-hp' });
     const mapBtn = el('button', { class: 'btn small', type: 'button', title: 'The whole floor (M)' }, '🗺️ Map');
     mapBtn.addEventListener('click', () => this.openFull());
     const bagBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-bag', title: 'Your Labirin gear and potions' }, '🎒 Bag');
     bagBtn.addEventListener('click', () => openLabBag(this.app, 'gear'));
     const partyBtn = el('button', { class: 'btn small', type: 'button', 'data-action': 'lab-party', title: 'Your party: fight together' }, '👥');
     partyBtn.addEventListener('click', () => openLabParty(this.app));
-    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.hp, this.coins, bagBtn, partyBtn, mapBtn);
+    this.root = el('div', { class: 'lab-hud', 'data-testid': 'lab-hud' }, this.title, this.coins, bagBtn, partyBtn, mapBtn);
     this.mini = el('canvas', { class: 'lab-minimap', title: 'Tap for the whole floor (M)' }) as HTMLCanvasElement;
     this.mini.addEventListener('click', () => this.openFull());
     document.body.append(this.root, this.mini);
+    if (app.hotbar) app.hotbar.mountAbove(this.hp);
+    else document.body.append(this.hp); // (no hotbar: a fixed spot at the bottom)
     this.loadout = new LabLoadout(app);
   }
 
   destroy() {
     this.root.remove();
+    this.hp.remove();
     this.mini.remove();
     this.loadout.destroy();
     this.closeFull();

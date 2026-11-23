@@ -1438,10 +1438,21 @@ body[data-lab] .place-pointers { display: none !important; }
   background: radial-gradient(circle at 35% 30%, #fff3bf 0 18%, #fcc419 40%, #e67700 100%);
   box-shadow: inset 0 0 0 0.09em #b35900;
 }
-.lab-hud .lab-hp { display: flex; flex-direction: column; gap: 2px; width: 150px; font-weight: 700; }
-.lab-hud .lab-hp.low .lb-bar.hp { animation: lb-blink 1s infinite; }
-.lab-hud .lab-drink { font-size: 12px; margin-left: 4px; }
-@media (max-width: 600px) { .lab-hud .lab-hp { width: 110px; } }
+/* ❤️ / 🔷 bars right above the hotbar, exactly as wide (they ride on it: ui/hotbar.ts mountAbove). */
+.lab-vitals { display: flex; flex-direction: column; gap: 3px; pointer-events: none; font-weight: 700; color: #fff; }
+.lab-vitals.hotbar-above { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); }
+.lab-vitals:not(.hotbar-above) { position: fixed; z-index: 40; left: 50%; transform: translateX(-50%); bottom: calc(16px + var(--safe-b)); width: min(420px, calc(100vw - 32px)); }
+.lab-vitals .lb-bar.hp { height: 18px; }
+.lab-vitals .lb-bar.hp span { font-size: 12px; line-height: 16px; }
+.lab-vitals .lb-bar.mp { height: 14px; }
+.lab-vitals .lb-bar.mp span { font-size: 11px; line-height: 12px; }
+.lab-vitals.low .lb-bar.hp { animation: lb-blink 1s infinite; }
+.lab-vitals .lab-drink { position: absolute; right: 0; bottom: calc(100% + 3px); font-size: 12px; padding: 1px 6px; border-radius: 8px; background: rgba(13, 15, 26, 0.85); }
+body:not([data-lab]) .lab-vitals { display: none; }
+/* The E prompt steps up above the bars. */
+body[data-lab] .interact-prompt { bottom: calc(124px + var(--safe-b)); }
+body.touch[data-lab] .interact-prompt { bottom: calc(110px + var(--safe-b)); }
+body.touch.portrait[data-lab] .interact-prompt { bottom: calc(250px + var(--safe-b)); }
 @keyframes lb-blink { 50% { opacity: 0.5; } }
 
 /* ⚔️ Labirin battle (Pokémon style) */
@@ -1614,7 +1625,7 @@ body:has(.panel-backdrop) .lab-hud, body:has(.panel-backdrop) .lab-minimap { vis
 .b3-num small { display: block; font-size: 0.42em; letter-spacing: 0.12em; }
 .b3-num.hurt { color: #ffc9c9; }
 .b3-num.crit { font-size: 58px; color: #ffe066; text-shadow: 0 4px 0 #e8590c, 0 0 16px #000; }
-.b3-num.skill { font-size: 64px; color: #a5d8ff; text-shadow: 0 4px 0 #1864ab, 0 0 18px #000; }
+.b3-num.skill { font-size: 82px; color: #fff; text-shadow: 0 5px 0 #1864ab, 0 0 22px #4dabf7, 0 0 6px #000; }
 .b3-num.ult { font-size: 40px; color: #fff3bf; text-shadow: 0 3px 0 #862e9c, 0 0 18px #000; white-space: nowrap; }
 .b3-num.block { color: #a5d8ff; text-shadow: 0 3px 0 #1864ab, 0 0 12px #000; }
 .b3-num.heal { color: #b2f2bb; text-shadow: 0 3px 0 #2b8a3e, 0 0 12px #000; }
@@ -1627,7 +1638,7 @@ body:has(.panel-backdrop) .lab-hud, body:has(.panel-backdrop) .lab-minimap { vis
   100% { transform: translate(-50%, -150%) scale(0.9); opacity: 0; }
 }
 @media (max-width: 600px) {
-  .b3-num { font-size: 28px; } .b3-num.crit { font-size: 42px; } .b3-num.skill { font-size: 46px; }
+  .b3-num { font-size: 28px; } .b3-num.crit { font-size: 42px; } .b3-num.skill { font-size: 58px; }
 }
 
 /* ⚔️ Flat (2D) fight cards: real portraits with fake 3D. A soft floor shadow, a cool back-light rim,
@@ -1801,3 +1812,40 @@ body.lab-warp-out #game { animation: lab-unzoom 0.62s cubic-bezier(0.2, 0.7, 0.3
   body.lab-warp-in #game, body.lab-warp-out #game { transform: none; transition: none; animation: none; }
   .lab-warp .lw-swirl { display: none; }
 }
+
+/* 📜 An ultimate's full-screen burst (labBattle.ultBurst): covers most of the screen for a split second. */
+.lb-ult { position: absolute; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; animation: lu-fade 0.85s ease-out forwards; }
+.lb-ult i, .lb-ult b, .lb-ult span { position: absolute; left: 50%; top: 45%; pointer-events: none; will-change: transform, opacity; }
+.lb-ult .lu-glow { width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #fff 6%, var(--c) 20%, color-mix(in srgb, var(--c) 55%, #000) 42%, rgba(0, 0, 0, 0) 66%);
+  animation: lu-grow 0.85s cubic-bezier(0.1, 0.9, 0.3, 1) forwards; }
+.lb-ult .lu-rays { width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 70%, #fff) 0deg 5deg, rgba(0, 0, 0, 0) 7deg 16deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 6%, #000 22%, #000 55%, transparent 70%); mask-image: radial-gradient(circle, transparent 6%, #000 22%, #000 55%, transparent 70%);
+  animation: lu-spin 0.85s cubic-bezier(0.15, 0.8, 0.3, 1) forwards; }
+.lb-ult .lu-ring { width: 40vmin; height: 40vmin; margin: -20vmin 0 0 -20vmin; border-radius: 50%; border: 2.5vmin solid #fff; box-shadow: 0 0 6vmin var(--c), inset 0 0 6vmin var(--c); animation: lu-ring 0.6s ease-out forwards; }
+.lb-ult .lu-fx { inset: 0; left: 0; top: 0; }
+.lb-ult .lu-icon { font-size: 34vmin; line-height: 1; transform: translate(-50%, -50%); filter: drop-shadow(0 0 4vmin var(--c)) drop-shadow(0 0 1vmin #fff); animation: lu-icon 0.85s cubic-bezier(0.2, 1.6, 0.4, 1) forwards; }
+.lb-ult .lu-name { top: 72%; transform: translate(-50%, -50%); font: 900 clamp(26px, 7vmin, 64px)/1 system-ui, sans-serif; letter-spacing: 0.08em; color: #fff; white-space: nowrap;
+  text-shadow: 0 0.06em 0 color-mix(in srgb, var(--c) 60%, #000), 0 0 0.4em var(--c), 0 0 0.1em #000; animation: lu-name 0.85s ease-out forwards; }
+@keyframes lu-fade { 0% { opacity: 0; } 6% { opacity: 1; } 50% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lu-grow { from { transform: scale(0.08); } 45% { transform: scale(1); } to { transform: scale(1.2); } }
+@keyframes lu-spin { from { transform: scale(0.3) rotate(0deg); } to { transform: scale(1.5) rotate(var(--spin, 50deg)); } }
+@keyframes lu-ring { from { transform: scale(0.1); opacity: 1; } to { transform: scale(4.5); opacity: 0; } }
+@keyframes lu-icon { from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; } 25% { opacity: 1; } 45% { transform: translate(-50%, -50%) scale(1.15); } to { transform: translate(-50%, -50%) scale(1.3); opacity: 0.9; } }
+@keyframes lu-name { from { transform: translate(-50%, -50%) scale(1.8); opacity: 0; } 20% { transform: translate(-50%, -50%) scale(1); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.05); } }
+/* Each element's twist. */
+.lb-ult.el-api .lu-fx { background: linear-gradient(to top, #ff6b00 0%, rgba(255, 146, 43, 0.7) 25%, rgba(255, 212, 59, 0) 60%); animation: lu-rise 0.85s ease-out forwards; }
+.lb-ult.el-air .lu-fx { background: repeating-radial-gradient(circle at 50% 45%, rgba(165, 216, 255, 0.55) 0 1.5vmin, rgba(0, 0, 0, 0) 1.5vmin 6vmin); animation: lu-ripple 0.85s ease-out forwards; }
+.lb-ult.el-petir .lu-glow { animation: lu-grow 0.85s cubic-bezier(0.1, 0.9, 0.3, 1) forwards, lu-strobe 0.12s steps(2) 4; }
+.lb-ult.el-petir .lu-fx { background: linear-gradient(100deg, transparent 46%, #fff 48%, #ffe066 49%, transparent 51%), linear-gradient(80deg, transparent 30%, #fff3bf 31.5%, transparent 33%); animation: lu-strobe 0.1s steps(2) 5; }
+.lb-ult.el-angin .lu-rays { --spin: 260deg; }
+.lb-ult.el-angin .lu-fx { background: repeating-linear-gradient(170deg, rgba(195, 250, 232, 0) 0 5vmin, rgba(195, 250, 232, 0.45) 5vmin 5.6vmin); animation: lu-gust 0.85s linear forwards; }
+.lb-ult.el-tanah { animation: lu-fade 0.85s ease-out forwards, lu-shake 0.45s steps(9); }
+.lb-ult.el-tanah .lu-fx { background: linear-gradient(to top, #5c3d2e 0%, rgba(164, 113, 72, 0.8) 18%, rgba(164, 113, 72, 0) 45%); animation: lu-rise 0.6s ease-out forwards; }
+@keyframes lu-rise { from { transform: translateY(60%); } 35% { transform: translateY(0); } to { transform: translateY(-10%); } }
+@keyframes lu-ripple { from { transform: scale(0.4); } to { transform: scale(1.6); } }
+@keyframes lu-strobe { 50% { opacity: 0.35; } }
+@keyframes lu-gust { from { transform: translateX(-30%); } to { transform: translateX(30%); } }
+@keyframes lu-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-1.5vmin, 1vmin); } 40% { transform: translate(1.5vmin, -1vmin); } 60% { transform: translate(-1vmin, -1.2vmin); } 80% { transform: translate(1vmin, 1vmin); } }
+@media (prefers-reduced-motion: reduce) { .lb-ult, .lb-ult * { animation-duration: 0.6s !important; animation-iteration-count: 1 !important; } .lb-ult .lu-rays, .lb-ult .lu-fx { display: none; } }

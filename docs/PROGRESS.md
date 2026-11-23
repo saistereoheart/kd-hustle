@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.34.0)_
+_Last updated: 2026-11-23 (v1.35.0)_
 
-**Now at v1.34.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.35.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 449 unit tests (2026-11-23, v1.34.0) |
+| `npm test` (Vitest) | ✅ 449 unit tests (2026-11-23, v1.35.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -29,7 +29,7 @@ rounds below. The §19 content list is met, including 74 achievements.
    - a kopitiam's shop floor (stoves, two cooks, steam);
    - the 3D kapcai and basikal in normal play, including a second player riding pillion;
    - the Ronda ride-hailing bike with its rider.
-5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). Real people can't go in the game
+5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). v1.35.0 adds look-alikes (Kuki Emas, Wonnie Bertuah) on top of
    (parody rule). v1.9.4 adds two original idol Teman instead (Arnab Bintang, Rubah Superstar). Tell them,
    then close it: `npm run admin -- feedback-done 9`.
 6. **Review and push** the local commits when you're happy with them.
@@ -52,6 +52,24 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 💥 Your review of #20 + feedback #9 (2026-11-23, v1.35.0)
+- **Bars above the hotbar:** `Hotbar.mountAbove()` hangs the Labirin ❤️/🔷 bars on the hotbar itself (absolute,
+  `left/right: 0`, `bottom: 100% + 6px`), so they're exactly its width on desktop, touch and portrait. The E
+  prompt moves up in the labyrinth. No hotbar: a fixed spot at the bottom.
+- **Bigger skills:** 2D stage (`battle2d/stage2d.ts`) has new effect shapes `bolt`, `pillar` and `nova`,
+  bigger sparks (`burst(…, size)`), and `elementFx(…, big)` (1 plain hit, 1.7 skill, 2.2 ultimate hit). The 3D stage
+  does the same with its own sparks and flashes. Skill numbers are 82 px.
+- **Ultimates:** `LabBattleUi.ultBurst` draws a full-screen CSS overlay (`.lb-ult`, 0.85 s) 350 ms into the cast,
+  with element variants (`.el-api` …). The stages add a screen-sized nova and a field-wide element motif at the
+  same moment. The cast now takes 1.15 s, so the hits land after it. **Perf:** transforms and opacity only for
+  the overlay; the stage effects use the capped particle pools (2D 520, 3D 220 / 480). No FPS risk.
+- **#9 idol Teman (your call: look-alikes in the game's character style):** shapes `idol_kuki` / `idol_wonnie`
+  in `client/src/items/petArt.ts` are drawn with `drawCharacter` (fixed `Appearance`s, front view, ×0.52 so they
+  fit the Teman portrait box), plus sparkles. `setPetCharacterConfig` is called once the config loads.
+  - **Decision:** parody names only (Kuki Emas, Wonnie Bertuah), no real names anywhere in the repo.
+    Both are legendary, in the Telur Teman pool; stats are like Arnab Bintang.
+  - Checked as a rendered image (portrait size and in-world size).
 
 ## 🔥 Feedback #20: elements, mana, HP/mana bars, portal warp (2026-11-23, v1.34.0)
 - **Elements** (`labyrinth.json` `elements`; helpers `labElement` / `labUltimate` in `shared/src/lab/progress.ts`):

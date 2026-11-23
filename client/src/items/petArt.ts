@@ -1,7 +1,58 @@
 // 🐾 Teman art, drawn in code: chibi Malaysian creatures (big heads, round bodies) and pet gear.
 // Drawn centred on (0, 0) in a box about 36 units wide (feet near y = +14), facing right; the
 // caller scales and flips. `t` (ms) makes them breathe and blink.
+import type { Appearance, CharacterConfig } from '@kh/shared';
+import { drawCharacter } from '../character/draw';
+
 type Ctx = CanvasRenderingContext2D;
+
+// 🎤 Idol Teman (feedback #9): original look-alike characters drawn with the game's own character art
+// (the same parts as players and town NPCs), shrunk to Teman size. Parody names only.
+let charCfg: CharacterConfig | null = null;
+/** The character parts (from the server's config), needed to draw the idol Teman. Set once at start. */
+export function setPetCharacterConfig(cfg: CharacterConfig) {
+  charCfg = cfg;
+}
+const BASE_LOOK: Appearance = {
+  skin: '#f9d7b9', face: 'oval', height: 'tall', build: 'slim', eyes: 'almond', eyeColor: '#2b1d16', brows: 'straight', browColor: null,
+  nose: 'line', mouth: 'smile', blush: false, freckles: false, beautyMark: false, glasses: 'none', hair: 'mullet', hairColor: '#1b1b1f',
+  highlight: null, headwear: 'none', headwearColor: '#212529', facialHair: 'none', top: 'blazer', topColor: '#212529', bottom: 'jeans',
+  bottomColor: '#343a40', shoes: 'boots', shoesColor: '#111111',
+};
+const IDOLS: Record<string, (c1?: string, c2?: string) => Appearance> = {
+  // Black mullet, a mole under the lip, black leather jacket and jeans, boots.
+  idol_kuki: (c1, c2) => ({ ...BASE_LOOK, beautyMark: true, topColor: c1 ?? '#212529', bottomColor: c2 ?? '#343a40' }),
+  // Long straight dark hair, big lashes, blush, a pastel stage outfit with a pink skirt.
+  idol_wonnie: (c1, c2) => ({
+    ...BASE_LOOK, skin: '#fde7d3', eyes: 'lashes', eyeColor: '#3b2416', brows: 'arched', nose: 'button', blush: true, hair: 'long', hairColor: '#2b1d16',
+    top: 'blazer', topColor: c1 ?? '#f8f0fc', bottom: 'skirt', bottomColor: c2 ?? '#f783ac', shoes: 'heels', shoesColor: '#ffffff',
+  }),
+};
+/** Draws an idol Teman if `shape` is one (feet at +14, about 34 units tall, facing you). */
+function drawIdol(ctx: Ctx, shape: string, t: number, c1?: string, c2?: string): boolean {
+  const look = IDOLS[shape];
+  if (!look) return false;
+  if (charCfg) {
+    ctx.save();
+    const s = 0.52;
+    ctx.translate(0, 14);
+    ctx.scale(s, s);
+    ctx.translate(-28, -68); // the character frame's feet (CX, FEET_Y) on the Teman's feet
+    const sway = Math.sin(t / 380);
+    drawCharacter(ctx, look(c1, c2), charCfg, {
+      view: 'front', bob: Math.abs(sway) * -0.8, armL: 0.25 + sway * 0.25, armR: 2.6 - sway * 0.2, bendR: 0.6,
+      eyes: (t % 3800) < 140 ? 'closed' : undefined, mouth: 'grin',
+    });
+    ctx.restore();
+  }
+  // Stage sparkles (they twinkle).
+  const tw = (k: number) => 0.6 + 0.6 * Math.abs(Math.sin(t / 300 + k));
+  for (const [x, y, k] of [[-13, -14, 0], [13, -18, 1.7], [-14, 0, 3.1], [14, -4, 4.4]] as const) {
+    const r = 1.5 * tw(k);
+    poly(ctx, [x, y - r * 1.6, x + r * 0.4, y - r * 0.4, x + r * 1.6, y, x + r * 0.4, y + r * 0.4, x, y + r * 1.6, x - r * 0.4, y + r * 0.4, x - r * 1.6, y, x - r * 0.4, y - r * 0.4], shape === 'idol_wonnie' ? '#fcc2d7' : '#ffe066');
+  }
+  return true;
+}
 
 function ell(ctx: Ctx, x: number, y: number, rx: number, ry: number, fill: string | CanvasGradient, rot = 0) {
   ctx.beginPath();
@@ -59,6 +110,7 @@ export function drawPet(ctx: Ctx, shape: string, t = 0, c1?: string, c2?: string
   const breathe = Math.sin(t / 420) * 0.4;
   ctx.save();
   if (!noShadow) shadow(ctx);
+  if (drawIdol(ctx, shape, t, c1, c2)) return void ctx.restore();
   ctx.translate(0, breathe);
   switch (shape) {
     case 'kucing': {
