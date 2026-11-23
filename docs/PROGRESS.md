@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.39.1)_
+_Last updated: 2026-11-23 (v1.39.2)_
 
-**Now at v1.39.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.39.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -52,6 +52,11 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🛠️ Decorate panel layout (2026-11-23, your request, v1.39.2)
+- `homeScene.refreshUi` builds three parts: `.deco-stats` (fixed), `.deco-list` (the only scroller; its `scrollTop` is kept
+  across rebuilds) and `.deco-foot` (keys + buttons). The panel is a flex column; in portrait it has a fixed 46vh height
+  and the stats are capped at 30%. Checked with a mock render at 1280×800 and 390×844.
 
 ## 🔒 Decorate: pieces placed elsewhere (2026-11-23, your report, v1.39.1)
 - **Bug:** `homeScene.freeFurniture` only skipped pieces in your other **homes** (`store.myProps`), but the server

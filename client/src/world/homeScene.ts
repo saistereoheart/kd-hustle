@@ -944,7 +944,10 @@ export class HomeScene extends Phaser.Scene {
     const keys = this.app.touch
       ? 'Tap a piece, then tap the floor to place it (or drag a placed piece). ⟳ turns it.'
       : 'Click or drag pieces · R / E rotate, Q back · arrows move · Enter place · X pick up · Esc / Del put away · Ctrl+Z undo';
-    this.side.replaceChildren(
+    // Three parts: the stats stay put at the top, the furniture list scrolls, the buttons stay at the bottom.
+    // (The panel is rebuilt on every change: keep the list where it was scrolled to.)
+    const prevScroll = (this.side.querySelector('.deco-list') as HTMLElement | null)?.scrollTop ?? 0;
+    const stats = el('div', { class: 'deco-stats' },
       el('div', { class: 'deco-stars', 'data-testid': 'deco-stars' }, `${'★'.repeat(Math.floor(r.stars))}${r.stars % 1 >= 0.5 ? '½' : ''} ${r.stars.toFixed(1)}`),
       ...(r.missing.length ? [el('div', { class: 'deco-missing' }, `Missing: ${r.missing.join(', ')} (caps the stars)`)] : []),
       ...(bad.length ? [el('div', { class: 'deco-missing' }, `⚠️ ${bad.length} piece${bad.length > 1 ? 's' : ''} outlined in red: ${bad.length > 1 ? 'they' : 'it'} cross a wall or block a doorway. Pick ${bad.length > 1 ? 'them' : 'it'} up and move ${bad.length > 1 ? 'them' : 'it'} before saving.`)] : []),
@@ -952,10 +955,14 @@ export class HomeScene extends Phaser.Scene {
       bar('Amenities', r.factors.amenities), bar('Cleanliness', r.factors.clean), bar(r.blocked ? 'Space (walkway blocked!)' : 'Space', r.factors.space),
       bar(`Rooms (${r.rooms.filter((x) => !x.missing.length).length}/${r.rooms.length} complete${r.misplaced.length ? ` · ${r.misplaced.length} in the wrong room` : ''})`, r.factors.rooms),
       el('h4', {}, '💡 Suggestions'),
-      ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → ${x.gain > 0 ? `+${x.gain.toFixed(1)}★` : 'a small boost'}${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')]),
+      el('div', { class: 'deco-suggs' }, ...(sugg.length ? sugg.map((x) => el('div', { class: 'deco-sugg' }, `${x.text} → ${x.gain > 0 ? `+${x.gain.toFixed(1)}★` : 'a small boost'}${x.nightGainSen > 0 ? `, +${formatMoney(x.nightGainSen)}/night` : ''}`)) : [el('div', { class: 'muted' }, 'Looking good!')])),
+    );
+    const list = el('div', { class: 'deco-list', 'data-testid': 'deco-list' },
       el('h4', {}, `🛋️ Your furniture (${free.length} free)`),
       el('div', { class: 'deco-pieces' }, ...(pieces.length ? pieces : [el('p', { class: 'muted small' }, `Nothing free to place. Buy at ${this.app.cfg.furniture.storeName} or win some from the Mall Mystery Box.`)])),
       ...this.usedElsewhereList(vName),
+    );
+    const foot = el('div', { class: 'deco-foot' },
       el('p', { class: 'muted small deco-keys' }, keys),
       el(
         'div',
@@ -966,6 +973,8 @@ export class HomeScene extends Phaser.Scene {
         btn(this.dirty ? '💾 Save' : '✓ Saved', () => this.save(), this.dirty ? 'btn primary' : 'btn', { 'data-action': 'save-layout' }),
       ),
     );
+    this.side.replaceChildren(stats, list, foot);
+    list.scrollTop = prevScroll;
   }
 
   /** Cleaning / a DIY repair: start, wait it out (you're "working"), then finish. */

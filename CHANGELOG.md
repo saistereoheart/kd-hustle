@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.39.2 (2026-11-23): 🛠️ decorate panel stays put
+- **The decorate panel's stats stay where they are** (stars, what's missing, the factor bars, suggestions). Only the
+  furniture list scrolls, and it keeps its place while you decorate. Undo / Rotate / Save stay at the bottom. On a
+  phone held upright the stats are compact so the list keeps room.
+
 ## 1.39.1 (2026-11-23): 🔒 furniture in your other places
 - **Decorate shows what's already placed elsewhere.** Furniture in your kopitiam or shop floor was still listed as
   free in your home, and saving said "already in another of your homes". Now those pieces aren't in the free list. A

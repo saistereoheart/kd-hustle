@@ -842,7 +842,7 @@ body.portrait .title-menu { margin-bottom: 4vh; }
 /* ---- homes: toolbar, decorate panel, property panels, welcome back ---- */
 .home-bar { position: absolute; left: 50%; bottom: calc(92px + var(--safe-b, 0px)); transform: translateX(-50%); z-index: 12; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: calc(100vw - 32px); }
 body.touch .home-bar { bottom: calc(150px + var(--safe-b, 0px)); }
-.decorate-panel { position: absolute; right: 12px; top: 70px; bottom: 100px; width: min(330px, 40vw); z-index: 12; overflow: auto; background: var(--panel-solid, rgba(24,27,44,0.96)); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; color: #fff; font-size: 13px; }
+.decorate-panel { position: absolute; right: 12px; top: 70px; bottom: 100px; width: min(330px, 40vw); z-index: 12; overflow: hidden; display: flex; flex-direction: column; gap: 6px; background: var(--panel-solid, rgba(24,27,44,0.96)); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; color: #fff; font-size: 13px; }
 body.portrait .decorate-panel { left: 8px; right: 8px; width: auto; top: auto; bottom: calc(200px + var(--safe-b, 0px)); max-height: 38vh; }
 .deco-stars { font: 900 24px system-ui, sans-serif; color: #ffd43b; text-align: center; margin: 2px 0 6px; }
 .deco-stars.small-stars { font-size: 18px; text-align: left; }
@@ -1877,3 +1877,20 @@ body:has(.panel-backdrop) .lab-party-hud { visibility: hidden; }
 /* 🔒 Decorate: furniture placed in your other homes / shops (not pickable here; shows where it is). */
 .deco-piece.used { cursor: default; opacity: 0.55; filter: grayscale(0.6); border-style: dashed; }
 .deco-piece .deco-where { font-size: 10px; color: #ffc078; text-align: center; line-height: 1.2; }
+
+/* 🛠️ Decorate panel: the stats stay put at the top, the furniture list scrolls, the buttons stay at the bottom. */
+.decorate-panel.hidden { display: none; }
+.decorate-panel .deco-stats { flex: none; }
+.decorate-panel .deco-stats h4 { margin: 6px 0 2px; }
+.decorate-panel .deco-suggs { max-height: 92px; overflow: auto; }
+.decorate-panel .deco-list { flex: 1 1 auto; min-height: 90px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); padding-top: 4px; margin: 0 -4px; padding-left: 4px; padding-right: 4px; }
+.decorate-panel .deco-list h4 { position: sticky; top: -4px; z-index: 1; margin: 0; padding: 4px 0; background: var(--panel-solid, rgba(24,27,44,0.96)); }
+.decorate-panel .deco-foot { flex: none; border-top: 1px solid var(--line); padding-top: 4px; }
+.decorate-panel .deco-foot .deco-keys { margin: 0 0 4px; }
+/* Phone upright: a short panel, so the stats get compact (bars only) and the list keeps some room. */
+body.portrait .decorate-panel { height: 46vh; max-height: none; }
+body.portrait .decorate-panel .deco-stats { max-height: 30%; overflow-y: auto; }
+body.portrait .decorate-panel .deco-stats .factor { font-size: 11px; }
+body.portrait .decorate-panel .deco-stars { font-size: 18px; margin: 0 0 2px; }
+body.portrait .decorate-panel .deco-suggs { max-height: 54px; }
+body.portrait .decorate-panel .deco-keys { display: none; }
