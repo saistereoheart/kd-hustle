@@ -10,7 +10,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 463 unit tests (2026-11-23, v1.40.0) |
+| `npm test` (Vitest) | ✅ 462 unit tests (2026-11-23, v1.40.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -54,22 +54,22 @@ rounds below. The §19 content list is met, including 74 achievements.
 ---
 
 ## 🌀 Abyss rework: levels, stats, tree, own hotbar (2026-11-23, your request, v1.40.0)
-- **Stats:**  : FINAL = (BASE + ITEMS) × (1 + Σ BUFFS).
-  - BASE =  +  × (level − 1) + the tree's flat points.
-  - ITEMS = .
+- **Stats:** `shared/src/lab/stats.ts` `labStats`: FINAL = (BASE + ITEMS) × (1 + Σ BUFFS).
+  - BASE = `player` + `progress.perLevel` × (level − 1) + the tree's flat points.
+  - ITEMS = `wornBonus`.
   - BUFFS = class + drink + lead Teman + tree % nodes, added. Crit and block add up.
   
-  It also returns per-stat  (base / items / pct / total) for the bag. Server  and the
-  fighter use it; fighters get  (per-round mana in the battle rules) and .
-- **Levels:**  base 30, growth 1.08, max 999 (effectively none): L10 in under 500 XP.
-- **Tree:**   (4 branches, 17 nodes;  = points in the branch,  optional).
-  , , ;  counts only tree ids. The old  list was removed.
-  - **Decision:**  resets every old save's skills once (points refunded).
+  It also returns per-stat `lines` (base / items / pct / total) for the bag. Server `LabSystem.stats` and the
+  fighter use it; fighters get `manaRegen` (per-round mana in the battle rules) and `focusStart`.
+- **Levels:** `progress.levels` base 30, growth 1.08, max 999 (effectively none): L10 in under 500 XP.
+- **Tree:** `labyrinth.json` `tree` (4 branches, 17 nodes; `need` = points in the branch, `max` optional).
+  `treeTotals`, `branchPoints`, `treeBlock`; `labPointsSpent` counts only tree ids. The old `skills` list was removed.
+  - **Decision:** `LabSave.treeV` resets every old save's skills once (points refunded).
   - **Balance:** a test pins all-in ATK at under +40% (L10, gearless), +35% (L30, Emas) and +45% (L60, Mistik)
     over level 1. That's about what the old max skills gave, and gear still dominates.
-- **Abyss UI:**  (potions, keys 1–9; the town hotbar, money, XP and stage are hidden with
-  ). The vitals ride on it, with a 🌀 level/XP bar. Bag tab 🌳 Level & tree: stat breakdown plus
-  branch columns.
+- **Abyss UI:** `client/src/ui/lab/labHotbar.ts` (potions, keys 1–9; the town hotbar, money, XP and stage are hidden
+  with `body[data-lab]`). The vitals ride on it, with a 🌀 level/XP bar. Bag tab 🌳 Level & tree: stat breakdown
+  plus branch columns.
 
 ## 🛠️ Decorate panel layout (2026-11-23, your request, v1.39.2)
 - `homeScene.refreshUi` builds three parts: `.deco-stats` (fixed), `.deco-list` (the only scroller; its `scrollTop` is kept
