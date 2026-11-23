@@ -29,9 +29,9 @@ rounds below. The §19 content list is met, including 74 achievements.
    - a kopitiam's shop floor (stoves, two cooks, steam);
    - the 3D kapcai and basikal in normal play, including a second player riding pillion;
    - the Ronda ride-hailing bike with its rider.
-5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). v1.35.0 adds look-alikes (Kuki Emas, Wonnie Bertuah) on top of
-   (parody rule). v1.9.4 adds two original idol Teman instead (Arnab Bintang, Rubah Superstar). Tell them,
-   then close it: `npm run admin -- feedback-done 9`.
+5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). v1.35.0 adds look-alikes in the
+   game's character style with parody names (Kuki Emas, Wonnie Bertuah, in the Telur Teman egg), on top of
+   v1.9.4's Arnab Bintang and Rubah Superstar. Tell them, then close it: `npm run admin -- feedback-done 9`.
 6. **Review and push** the local commits when you're happy with them.
 
 **Open on the code side (small, optional):**
