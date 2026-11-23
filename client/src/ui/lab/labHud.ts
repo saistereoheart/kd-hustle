@@ -6,6 +6,7 @@ import { el } from '../dom';
 import { openLabBag } from './labBag';
 import { openLabParty } from './labParty';
 import { LabLoadout } from './labLoadout';
+import { statBar } from './statBar';
 
 /** A Syiling Purba coin, drawn in CSS (the 🪙 emoji is missing from older emoji fonts). */
 export function coinIcon(): HTMLElement {
@@ -86,10 +87,11 @@ export class LabHud {
     this.loadout.update(self);
     this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`);
     const pct = self.maxHp ? self.hp / self.maxHp : 1;
-    // 🍵 A tavern drink working on you: its icon and the fights it has left.
+    // ❤️ and 🔷 bars with the numbers inside; 🍵 a tavern drink working on you: its icon and the fights it has left.
     const d = self.drink ? this.app.cfg.lab.tavern.drinks.find((x) => x.id === self.drink!.id) : undefined;
-    this.hp.textContent = `❤️ ${self.hp}/${self.maxHp}${d && self.drink ? `  ${d.icon}×${self.drink.left}` : ''}`;
-    this.hp.title = d ? `${d.name}: ${d.desc} (${self.drink!.left} fight${self.drink!.left === 1 ? '' : 's'} left)` : '';
+    this.hp.replaceChildren(statBar('hp', self.hp, self.maxHp), statBar('mp', self.mana ?? 0, self.maxMana ?? 0));
+    this.hp.title = d && self.drink ? `${d.icon} ${d.name}: ${d.desc} (${self.drink.left} fight${self.drink.left === 1 ? '' : 's'} left)` : '';
+    if (d && self.drink) this.hp.append(el('span', { class: 'lab-drink' }, `${d.icon}×${self.drink.left}`));
     this.hp.classList.toggle('low', pct < 0.3);
   }
 

@@ -566,6 +566,27 @@ export class Battle2D {
     const B = e.target ? this.actors.get(e.target) : undefined;
     // 📜 An ultimate: the cast, then every hit lands together (no lunge).
     if (e.kind === 'spell' && A) return this.cast(A, e);
+    // 🔥 A burn ticking: a lick of flame and the number.
+    if (e.kind === 'hit' && e.burn && B) {
+      const [cx, cy] = this.chest(B);
+      this.burst(cx, cy + B.h * 0.2, 18, '#ff922b', 1.2, -4, -3, 0.6);
+      this.burst(cx, cy, 8, '#ffe066', 1, -3, -2, 0.4);
+      B.flashT = 0.08;
+      this.popup(B, `${e.dmg ?? 0}`, 'hurt');
+      return 380;
+    }
+    // 🌪️ A skill that hits everyone: a short charge of the element's colour (the hits follow).
+    if (e.kind === 'cast' && A) {
+      const color = e.color ?? '#63e6be';
+      const [cx, cy] = this.chest(A);
+      A.pose = 'skill';
+      this.fx.push({ kind: 'ball', x: cx, y: cy, r: A.h * 0.8, ang: 0, t: 0, dur: 0.4, color });
+      this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 1.1, ang: 0, t: 0, dur: 0.45, color });
+      this.burst(cx, cy, 26, color, 3, -1, 0, 0.45);
+      this.punch = 1;
+      this.after(0.45, () => A.pose === 'skill' && (A.pose = 'idle'));
+      return 450;
+    }
     if (e.kind === 'hit' && e.aoe && A && B) {
       const dx = B.home.x - A.home.x, dy = B.home.y - A.home.y, len = Math.hypot(dx, dy) || 1;
       const [cx, cy] = this.chest(B);
@@ -581,9 +602,12 @@ export class Battle2D {
       A.pose = 'guard';
       this.after(0.7, () => A.pose === 'guard' && (A.pose = 'idle'));
       const [cx, cy] = this.chest(A);
-      this.fx.push({ kind: 'shield', x: cx, y: cy, r: A.h * 0.55, ang: 0, t: 0, dur: 0.7, color: '#74c0fc' });
-      this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 0.6, ang: 0, t: 0, dur: 0.5, color: '#74c0fc' });
-      this.burst(cx, cy, 16, '#a5d8ff', 2, 0, 0, 0.5);
+      const gc = e.color ?? '#74c0fc';
+      this.fx.push({ kind: 'shield', x: cx, y: cy, r: A.h * 0.55, ang: 0, t: 0, dur: 0.7, color: gc });
+      this.fx.push({ kind: 'ring', x: A.home.x, y: A.home.y, r: A.h * 0.6, ang: 0, t: 0, dur: 0.5, color: gc });
+      this.burst(cx, cy, 16, e.element ? gc : '#a5d8ff', 2, 0, 0, 0.5);
+      // 🪨 Stone: chips fall off.
+      if (e.element === 'tanah') this.burst(cx, cy, 14, '#8d6e4f', 1.5, -1, 8, 0.6);
       return 500;
     }
     if (e.kind === 'faint' && A) {
@@ -642,7 +666,7 @@ export class Battle2D {
     A.busy++;
     const skill = !!e.skill;
     const party = A.f.side === 'party';
-    const color = party ? (skill ? '#4dabf7' : '#ffd43b') : skill ? '#da77f2' : '#ff6b6b';
+    const color = party ? (skill ? (e.color ?? '#4dabf7') : '#ffd43b') : skill ? '#da77f2' : '#ff6b6b';
     const dx = B.home.x - A.home.x, dy = B.home.y - A.home.y;
     const len = Math.hypot(dx, dy) || 1;
     const stopAt = Math.max(0, len - (B.h * 0.55 + A.h * 0.25));
@@ -698,6 +722,7 @@ export class Battle2D {
     this.burst(cx, cy, 50, color, 2.5, -3, -1, 0.7);
     this.burst(cx, cy, 16, '#ffffff', 3, -2, 0, 0.5);
     this.popup(A, e.text.replace(/^.* casts /, '').replace(/!$/, ''), 'ult');
+    if (e.element) this.elementFx(A, e.element, color);
     this.tween(0.7, (k) => ((A.off.y = -Math.sin(k * Math.PI) * A.h * 0.25), (A.squash = 1 + 0.1 * Math.sin(k * Math.PI * 2))), () => {
       A.off.y = 0;
       A.squash = 1;
@@ -742,7 +767,43 @@ export class Battle2D {
       this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y, r: B.h * 1.4, ang: 0, t: 0, dur: 0.6, color });
       this.flash = 0.55;
     } else if (crit) this.flash = 0.3;
+    if (e.element) this.elementFx(B, e.element, color);
     this.popup(B, `${blocked ? '🛡' : ''}${e.dmg ?? 0}`, skill ? 'skill' : crit ? 'crit' : blocked ? 'block' : A.f.side === 'party' ? 'hit' : 'hurt');
+  }
+
+  /** 🔥💧⚡🌪️🪨 What each element adds where it lands (same style, its own look). */
+  private elementFx(B: Actor, element: string, color: string) {
+    const [cx, cy] = this.chest(B);
+    const h = B.h;
+    if (element === 'api') {
+      // Flames licking up, embers drifting.
+      this.burst(cx, cy + h * 0.3, 30, '#ff922b', 1.6, -5, -4, 0.7);
+      this.burst(cx, cy, 14, '#ffe066', 1.2, -4, -3, 0.5);
+      this.fx.push({ kind: 'ball', x: cx, y: cy, r: h * 0.6, ang: 0, t: 0, dur: 0.3, color: '#ff6b00' });
+    } else if (element === 'air') {
+      // A splash: drops thrown up that rain back, a ripple on the ground.
+      this.burst(cx, cy, 30, '#74c0fc', 3.5, -4, 14, 0.7);
+      this.burst(cx, cy, 10, '#e7f5ff', 2.5, -3, 12, 0.5);
+      this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y, r: h * 0.9, ang: 0, t: 0, dur: 0.5, color: '#a5d8ff' });
+    } else if (element === 'petir') {
+      // A bolt from above and a white flash.
+      this.fx.push({ kind: 'slash', x: cx, y: cy - h * 0.6, r: h * 1.3, ang: -1.45, t: 0, dur: 0.22, color: '#fff3bf' });
+      this.fx.push({ kind: 'slash', x: cx, y: cy - h * 0.6, r: h * 1.1, ang: -1.7, t: 0, dur: 0.22, color });
+      this.burst(cx, cy, 24, '#ffe066', 6, 0, 2, 0.3);
+      this.flash = Math.max(this.flash, 0.4);
+      this.flashColor = '#fff9db';
+    } else if (element === 'angin') {
+      // Swirling rings and leaves blown sideways.
+      this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y - h * 0.3, r: h * 0.8, ang: 0, t: 0, dur: 0.45, color });
+      this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y - h * 0.7, r: h * 0.6, ang: 0, t: 0, dur: 0.4, color: '#c3fae8' });
+      this.burst(cx, cy, 22, '#96f2d7', 4, -1, -1, 0.6);
+    } else if (element === 'tanah') {
+      // Rocks thrown up that fall hard, a heavy thud.
+      this.burst(B.home.x, B.home.y, 26, '#a47148', 3, -6, 16, 0.8);
+      this.burst(B.home.x, B.home.y, 10, '#5c3d2e', 2, -4, 16, 0.7);
+      this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y, r: h * 1.1, ang: 0, t: 0, dur: 0.5, color: '#c08a5a' });
+      this.shake(5);
+    }
   }
 
   private chest(a: Actor): [number, number] {

@@ -1,16 +1,18 @@
 // 🗝️ Labirin Purba: the battle screen, Pokémon style. Monsters at the top, your party at the bottom,
-// a message box that plays each round out, and your choices: ⚔️ Attack, 💥 Skill, 🛡️ Guard,
-// 🧪 Items, 🏃 Run. Tap a monster to aim at it. The server decides everything.
+// a message box that plays each round out, and your choices: ⚔️ Attack, 💥 Skill (your element's, for
+// 🔷 mana; ⇄ switches element), 🛡️ Guard, 📜 Ultimate, 🧪 Items, 🏃 Run. Tap a monster to aim at it.
+// The server decides everything.
 //
 // ⚔️ In 3D (Settings → Labirin fights, on by default): the fight plays out with 3D models and big
 // effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
-import { labGear, labSpell } from '@kh/shared';
+import { labElement, labGear, labSpell } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
+import { statBar } from './statBar';
 import type { Stage2DFighter } from './battle2d/stage2d';
 
 /** What both fight stages (pixel and 3D) can do. */
@@ -38,6 +40,8 @@ export class LabBattleUi {
   private tick = 0;
   /** 🧪 Showing the potion list instead of the moves. */
   private itemsOpen = false;
+  /** 🔥 Showing the element list (switching your skill) instead of the moves. */
+  private elementsOpen = false;
   /** Potions carried (from your save; less as you use them here). */
   private potions: Record<string, number>;
   /** Rounds that arrived while the last one was still playing out. */
@@ -83,14 +87,14 @@ export class LabBattleUi {
 
   /**
    * ⌨️ Keys: 1–9 press the buttons in order (1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run; in the potion
-   * list, 1… each potion), Esc/Backspace goes back, Tab or ←/→ picks the next monster, Enter/Space
+   * or element list, 1… each one), Q switches element, Esc/Backspace goes back, Tab or ←/→ picks the next monster, Enter/Space
    * presses Continue. Caught first, so the hotbar and the room don't also get them.
    */
   private onKey = (e: KeyboardEvent) => {
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
     if (this.root.classList.contains('intro') || e.repeat) return;
-    const buttons = [...this.actions.querySelectorAll('button')] as HTMLButtonElement[];
+    const buttons = this.keyButtons();
     const press = (b: HTMLButtonElement | undefined) => {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -98,6 +102,7 @@ export class LabBattleUi {
     };
     const n = /^Digit([1-9])$/.exec(e.code) ?? /^Numpad([1-9])$/.exec(e.code);
     if (n) return press(buttons[Number(n[1]) - 1]);
+    if (e.code === 'KeyQ') return press(this.actions.querySelector('[data-act="swap"]') as HTMLButtonElement | undefined ?? undefined);
     if (e.code === 'Escape' || e.code === 'Backspace') {
       const back = this.actions.querySelector('[data-act="items-back"]') as HTMLButtonElement | null;
       if (back) press(back);
@@ -338,16 +343,18 @@ export class LabBattleUi {
   }
 
   private card(f: LabFighter): HTMLElement {
-    const pct = Math.max(0, Math.round((f.hp / f.maxHp) * 100));
-    const bar = el('div', { class: 'lb-hp' }, el('i', { style: `width:${pct}%`, class: pct < 25 ? 'low' : pct < 55 ? 'mid' : '' }));
-    const pips = f.side === 'party' ? el('div', { class: 'lb-focus', title: 'Focus (💥 Skill uses 2)' }, ...Array.from({ length: this.app.cfg.lab.player.focusMax }, (_, k) => el('b', { class: k < f.focus ? 'on' : '' }))) : null;
+    const bar = statBar('hp', f.hp, f.maxHp);
+    const mana = f.side === 'party' && f.maxMana ? statBar('mp', f.mana ?? 0, f.maxMana) : null;
+    const need = this.app.cfg.lab.spells.focus;
+    const pips = f.side === 'party' ? el('div', { class: 'lb-focus', title: `Focus: +1 a round. 📜 Ultimate at ${need}.` }, ...Array.from({ length: this.app.cfg.lab.player.focusMax }, (_, k) => el('b', { class: k < f.focus ? 'on' : '' }))) : null;
+    const burning = f.burn && !f.out ? el('span', { class: 'lb-burn', title: `Burning: −${f.burn.dmg} for ${f.burn.left} more round${f.burn.left === 1 ? '' : 's'}` }, '🔥') : null;
     const ready = f.side === 'party' && this.view.chosen.includes(f.id) ? el('span', { class: 'lb-ready' }, '✓') : null;
     const art = el('div', { class: 'lb-art' }, this.figure(f));
     const c = el(
       'div',
       { class: `lb-card ${f.side}${f.boss ? ' boss' : ''}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
       art,
-      el('div', { class: 'lb-info' }, el('b', {}, f.name, ready), bar, el('small', {}, `${Math.max(0, Math.round(f.hp))} / ${f.maxHp}`), pips),
+      el('div', { class: 'lb-info' }, el('b', {}, f.name, burning, ready), bar, mana, pips),
     );
     if (f.side === 'foe' && !f.out) {
       c.addEventListener('click', () => {
@@ -402,14 +409,16 @@ export class LabBattleUi {
     const me = this.me();
     const can = !off && !this.playing && !this.picked && !!me && !me.out;
     if (this.itemsOpen && can) return this.renderItems();
+    if (this.elementsOpen && !off && me && !me.out) return this.renderElements();
     this.itemsOpen = false;
+    this.elementsOpen = false;
     const btn = (label: string, kind: 'attack' | 'skill' | 'ultimate' | 'guard' | 'run', enabled = true, title = '') => {
       const b = el('button', { class: 'btn', type: 'button', 'data-act': kind, title }, label) as HTMLButtonElement;
       b.disabled = !can || !enabled;
       b.addEventListener('click', () => this.pick(kind));
       return b;
     };
-    const cost = this.app.cfg.lab.player.skillCost;
+    const elem = labElement(this.app.cfg.lab, me?.element);
     const usable = this.usablePotions();
     const items = el('button', { class: 'btn', type: 'button', 'data-act': 'items', title: usable.length ? 'Use a potion (it takes your turn)' : 'No potions that work in a fight. Tok Peraih sells them.' }, '🧪 Items') as HTMLButtonElement;
     items.disabled = !can || !usable.length;
@@ -418,15 +427,27 @@ export class LabBattleUi {
       sfx.click();
       this.renderActions();
     });
+    // 💥 Your element's skill, and ⇄ to switch element (it doesn't take your turn).
+    const skill = btn(`${elem.icon} ${elem.skill.name}`, 'skill', (me?.mana ?? 0) >= elem.skill.mana, `${elem.skill.desc} Costs ${elem.skill.mana} 🔷 mana (you have ${me?.mana ?? 0}).`);
+    skill.append(el('small', { class: 'lb-cost' }, `🔷${elem.skill.mana}`));
+    skill.style.setProperty('--elem', elem.color);
+    const swap = el('button', { class: 'btn lb-swap', type: 'button', 'data-act': 'swap', title: 'Switch element (Q). Free: it does not use your turn.' }, '⇄') as HTMLButtonElement;
+    swap.disabled = off || !me || me.out;
+    swap.addEventListener('click', () => {
+      this.elementsOpen = true;
+      this.itemsOpen = false;
+      sfx.click();
+      this.renderActions();
+    });
     this.actions.replaceChildren(
       btn('⚔️ Attack', 'attack'),
-      btn(`💥 Skill`, 'skill', (me?.focus ?? 0) >= cost, `Hits much harder. Uses ${cost} focus (you gain 1 a round).`),
+      el('div', { class: 'lb-skillbox' }, skill, swap),
       btn('🛡️ Guard', 'guard', true, 'Take much less damage this round'),
       (() => {
         const sp = labSpell(this.app.cfg.lab, me?.spell);
         const need = this.app.cfg.lab.spells.focus;
         return btn(sp ? `${sp.icon} Ultimate` : '📜 Ultimate', 'ultimate', !!sp && (me?.focus ?? 0) >= need,
-          sp ? `${sp.move}: ${sp.desc} Uses a full focus bar (${need}).` : `Wear a 📜 spell book for an ultimate (${this.app.cfg.lab.merchant.name} sells them; the tavern has a daily roll).`);
+          sp ? `${sp.move}: ${sp.desc} Uses a full focus bar (${need}).` : 'No ultimate.');
       })(),
       items,
       btn('🏃 Run', 'run', !this.view.boss, this.view.boss ? 'No running from a boss!' : `${Math.round(this.app.cfg.lab.battle.runChance * 100)}% chance to get away`),
@@ -436,7 +457,57 @@ export class LabBattleUi {
 
   /** The number keys on the buttons (only with a keyboard: hidden on touch screens by the CSS). */
   private keyHints() {
-    [...this.actions.querySelectorAll('button')].forEach((b, i) => b.dataset.act !== 'items-back' && i < 9 && b.prepend(LabBattleUi.kbd(i)));
+    this.keyButtons().forEach((b, i) => b.dataset.act !== 'items-back' && i < 9 && b.prepend(LabBattleUi.kbd(i)));
+    const swap = this.actions.querySelector('[data-act="swap"]');
+    if (swap) swap.append(el('kbd', { class: 'lb-key end' }, 'Q'));
+  }
+
+  /** The buttons the number keys press, in order (⇄ has its own key). */
+  private keyButtons(): HTMLButtonElement[] {
+    return ([...this.actions.querySelectorAll('button')] as HTMLButtonElement[]).filter((b) => b.dataset.act !== 'swap');
+  }
+
+  /** 🔥 Pick an element: its 💥 skill (and 📜 ultimate) from your next pick. Free: no turn used. */
+  private renderElements() {
+    const me = this.me()!;
+    const lc = this.app.cfg.lab;
+    const books = this.app.labHud?.self?.books ?? [];
+    const list = lc.elements.map((x) => {
+      const on = x.id === labElement(lc, me.element).id;
+      const ult = lc.spells.list.find((b) => b.element === x.id && books.includes(b.id));
+      const b = el('button', { class: `btn lb-item lb-elem${on ? ' on' : ''}`, type: 'button', 'data-element': x.id, title: `${x.skill.desc}\n📜 ${ult ? `${ult.move} (${ult.name})` : x.ultimate.move}` },
+        `${x.icon} ${x.skill.name}`, el('small', {}, `🔷${x.skill.mana}${on ? ' · equipped' : ''}`)) as HTMLButtonElement;
+      b.style.setProperty('--elem', x.color);
+      b.addEventListener('click', () => this.pickElement(x.id));
+      return b;
+    });
+    const back = el('button', { class: 'btn', type: 'button', 'data-act': 'items-back' }, '↩ Back');
+    back.addEventListener('click', () => {
+      this.elementsOpen = false;
+      this.renderActions();
+    });
+    this.actions.replaceChildren(...list, back);
+    this.keyHints();
+    back.append(el('kbd', { class: 'lb-key end' }, 'Esc'));
+  }
+
+  private pickElement(id: string) {
+    this.elementsOpen = false;
+    sfx.click();
+    const me = this.me();
+    if (me?.element === id) return this.renderActions();
+    this.app.socket?.timeout(5000).emit('lab:element', { id }, (err, res) => {
+      if (err || !res.ok) return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      this.app.labHud?.updateSelf(res.self);
+      const f = this.me();
+      if (f) {
+        f.element = res.self.element;
+        f.spell = res.self.ultimate;
+      }
+      labSay(res.text, 'good', 2500);
+      if (!this.playing) this.renderActions();
+    });
+    this.renderActions();
   }
 
   /** Potions you carry that do something in a fight. */
@@ -448,7 +519,7 @@ export class LabBattleUi {
     const me = this.me()!;
     const fallen = this.view.fighters.find((f) => f.side === 'party' && f.out && !f.fled);
     const list = this.usablePotions().map((p) => {
-      const why = p.revive && !fallen ? 'Nobody has fallen' : p.heal && me.hp >= me.maxHp ? "You're at full HP" : p.escape && this.view.boss ? 'No escaping a boss' : '';
+      const why = p.revive && !fallen ? 'Nobody has fallen' : p.heal && me.hp >= me.maxHp ? "You're at full HP" : p.mana && (me.mana ?? 0) >= (me.maxMana ?? 0) ? 'Mana is full' : p.escape && this.view.boss ? 'No escaping a boss' : '';
       const b = el('button', { class: 'btn lb-item', type: 'button', 'data-item': p.id, title: why || p.desc }, `${p.icon} ${p.name}`, el('small', {}, `×${this.potions[p.id]}${why ? ` · ${why}` : ''}`)) as HTMLButtonElement;
       b.disabled = !!why;
       b.addEventListener('click', () => this.pickItem(p.id, p.revive ? fallen?.id : me.id));
@@ -505,6 +576,12 @@ export class LabBattleUi {
   /** One event: the message, the hit (shake + number), HP bars. */
   private apply(e: LabEvent) {
     this.say(e.text);
+    // 🔷 Mana spent (a skill: the actor's) or given back (a potion: the target's).
+    if (e.mana !== undefined) {
+      const who = this.view.fighters.find((x) => x.id === (e.kind === 'item' ? e.target : e.actor));
+      if (who) who.mana = e.mana;
+      if (e.kind === 'cast' || e.kind === 'guard') this.renderCards();
+    }
     // 🧪 One of ours used up (it only counts when it actually happened).
     if (e.item && e.actor === this.meId && (e.kind === 'item' || e.kind === 'run' || e.kind === 'runfail')) this.potions[e.item] = Math.max(0, (this.potions[e.item] ?? 0) - 1);
     if (e.kind === 'item' && e.target) {
@@ -529,8 +606,9 @@ export class LabBattleUi {
       this.renderCards();
       const card = this.root.querySelector(`[data-fighter="${e.target}"]`);
       card?.classList.add('hit');
-      // 2D: the attacker lunges at it.
-      this.root.querySelector(`[data-fighter="${e.actor}"]`)?.classList.add('lunge');
+      // 2D: the attacker lunges at it (not for a burn or a hit from above).
+      if (!e.burn && !e.aoe) this.root.querySelector(`[data-fighter="${e.actor}"]`)?.classList.add('lunge');
+      if (f.burn && e.burn) f.burn = f.burn.left > 1 ? { ...f.burn, left: f.burn.left - 1 } : undefined;
       const pop = el('span', { class: `lb-pop${e.crit ? ' crit' : ''}` }, `−${e.dmg}`);
       card?.append(pop);
       window.setTimeout(() => pop.remove(), 900);
@@ -546,3 +624,4 @@ export class LabBattleUi {
     }
   }
 }
+

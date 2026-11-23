@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, gearBonus, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labSpell, rollSpellBook, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, gearBonus, labElement, labFloor, labGear, labLevel, labPlayerStats, labPointsFree, labPotion, labSkillBonus, labUltimate, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -32,6 +32,11 @@ export interface LabSave {
   hp?: number;
   /** When `hp` was last brought up to date (out-of-fight healing). */
   hpAt?: number;
+  /** 🔷 Mana (carries over like HP) and when it was last brought up to date. */
+  mana?: number;
+  manaAt?: number;
+  /** 🔥 The element whose 💥 skill is equipped (its 📜 ultimate comes with it). */
+  element?: string;
   /** Monster groups beaten: `${floor}:${room}` → when (they're back after a while). */
   cleared: Record<string, number>;
   /** ⚔️ Gear worn (slot → gear id) and owned (kept forever). */
@@ -46,7 +51,8 @@ export interface LabSave {
   /** 📈 Labirin XP (levels and skill points come from it) and skill ranks learned. */
   xp: number;
   skills: Record<string, number>;
-  /** 📜 Spell books owned and the one worn; the day of the last tavern roll. */
+  /** 📜 Spell books owned (each powers up its element's ultimate); `book` is from before elements
+   *  (no longer used); the day of the last tavern roll. */
   books: string[];
   book?: string;
   rollDay?: string;
@@ -88,6 +94,8 @@ export class LabSystem {
     st.def = Math.round(st.def * (1 + sk.def) * 10) / 10;
     st.spd = st.spd + sk.spd;
     st.crit = Math.min(0.5, st.crit + sk.crit);
+    // 🔷 Max mana (📖 Tenaga Dalam raises it).
+    const mana = Math.round(this.cfg.player.mana.max * (1 + sk.mana));
     // 🍵 A tavern drink: +a share of some stats while it lasts.
     const d = this.state(p).drink;
     const def = d ? this.cfg.tavern.drinks.find((x) => x.id === d.id) : undefined;
@@ -97,7 +105,7 @@ export class LabSystem {
       st.def = Math.round(st.def * (1 + (def.def ?? 0)) * 10) / 10;
       st.spd = Math.round(st.spd * (1 + (def.spd ?? 0)) * 10) / 10;
     }
-    return st;
+    return { ...st, mana };
   }
 
   // ---------------------------------------------------------------- 🍵 the tavern
@@ -205,16 +213,15 @@ export class LabSystem {
       this.save(p);
       return `🛒 ${g.name}${wear ? ' · now wearing it' : ''}`;
     }
-    const book = labSpell(this.cfg, id);
+    const book = this.cfg.spells.list.find((b) => b.id === id);
     if (book) {
       if (book.rollOnly) throw new GameError(`${book.name} isn't sold: only the tavern's daily roll has it.`);
       if (s.books.includes(book.id)) throw new GameError(`You already have ${book.name}.`);
       if (s.deepest < book.minFloor) throw new GameError(`${book.name} is sold once you've reached floor ${book.minFloor + 1}.`);
       this.pay(s, book.price);
       s.books.push(book.id);
-      s.book ??= book.id;
       this.save(p);
-      return `🛒 ${book.icon} ${book.name}${s.book === book.id ? ' · its ultimate is ready in fights' : ''}`;
+      return `🛒 ${book.icon} ${book.name} · ${this.bookLine(book.element)}`;
     }
     const pot = labPotion(this.cfg, id);
     if (!pot) throw new GameError("The merchant doesn't sell that.");
@@ -287,6 +294,14 @@ export class LabSystem {
       this.consume(p, id);
       return { text: `${pot.icon} ${pot.name}: +${this.hp(p) - hp} HP` };
     }
+    if (pot.mana) {
+      const max = this.stats(p).mana;
+      const m = this.mana(p);
+      if (m >= max) throw new GameError('Your mana is already full.');
+      this.setMana(p, m + max * pot.mana);
+      this.consume(p, id);
+      return { text: `${pot.icon} ${pot.name}: +${this.mana(p) - m} 🔷 mana` };
+    }
     throw new GameError(`${pot.name} only works in a fight.`);
   }
 
@@ -308,6 +323,7 @@ export class LabSystem {
     const w = this.atFire(p);
     if (w === this.warm.has(p.id)) return;
     this.hp(p);
+    this.mana(p);
     if (w) this.warm.add(p.id);
     else this.warm.delete(p.id);
   }
@@ -334,6 +350,37 @@ export class LabSystem {
     const s = this.state(p);
     s.hp = Math.max(0, Math.min(this.stats(p).hp, hp));
     s.hpAt = this.clock();
+  }
+
+  /** 🔷 Current mana (a little back for the time spent out of a fight since last asked; faster by the campfire). */
+  mana(p: OnlinePlayer): number {
+    const s = this.state(p);
+    const max = this.stats(p).mana;
+    const now = this.clock();
+    if (s.mana === undefined) s.mana = max;
+    if (!this.inFight(p) && s.manaAt !== undefined && s.mana < max) {
+      const sec = (now - s.manaAt) / 1000;
+      const m = this.cfg.player.mana;
+      const fire = this.cfg.player.campfire;
+      const warm = this.warm.has(p.id) && this.atFire(p) ? (m.campfire / fire.everySec) * sec : 0;
+      s.mana = s.mana + max * m.regenPer10s * (sec / 10) + warm;
+    }
+    s.mana = Math.min(max, s.mana);
+    s.manaAt = now;
+    return Math.max(0, Math.floor(s.mana));
+  }
+
+  setMana(p: OnlinePlayer, mana: number) {
+    const s = this.state(p);
+    s.mana = Math.max(0, Math.min(this.stats(p).mana, mana));
+    s.manaAt = this.clock();
+  }
+
+  /** Back to full HP and mana (resting, falling). */
+  private refill(p: OnlinePlayer) {
+    const st = this.stats(p);
+    this.setHp(p, st.hp);
+    this.setMana(p, st.mana);
   }
 
   /** 👹 Is this floor's boss waiting here for this player (its stairs room, not beaten yet)? */
@@ -405,17 +452,30 @@ export class LabSystem {
     return '📖 Skills unlearned: every point is free to spend again.';
   }
 
-  /** Wear a spell book you own (null: none). Not in a fight. */
+  /** 📜 "Use" a spell book you own: switch to its element (its ultimate comes with it). null: nothing to do. */
   wearBook(p: OnlinePlayer, id: string | null) {
-    if (this.inFight(p)) throw new GameError('Not in the middle of a fight!');
+    if (id === null) return;
     const s = this.state(p);
-    if (id === null) delete s.book;
-    else {
-      if (!labSpell(this.cfg, id)) throw new GameError('No such spell book.');
-      if (!s.books.includes(id)) throw new GameError("You don't have that book.");
-      s.book = id;
-    }
+    const book = this.cfg.spells.list.find((b) => b.id === id);
+    if (!book) throw new GameError('No such spell book.');
+    if (!s.books.includes(id)) throw new GameError("You don't have that book.");
+    if (book.element) this.setElement(p, book.element);
+  }
+
+  /** 🔥 Equip an element's 💥 skill (any time, even in a fight: it counts from your next pick). */
+  setElement(p: OnlinePlayer, id: string): string {
+    const e = this.cfg.elements.find((x) => x.id === id);
+    if (!e) throw new GameError('No such element.');
+    const s = this.state(p);
+    s.element = e.id;
     this.save(p);
+    return `${e.icon} ${e.skill.name} equipped · 📜 ${labUltimate(this.cfg, e.id, s.books).move}`;
+  }
+
+  /** What a newly bought book does for you. */
+  private bookLine(element: string | undefined): string {
+    const e = this.cfg.elements.find((x) => x.id === element);
+    return e ? `powers up the ${e.icon} ${e.name} ultimate (equip ${e.icon} ${e.skill.name} to use it)` : 'yours for good';
   }
 
   /** 🎲 The tavern's once-a-day roll: a spell book you don't have yet, or a free drink. */
@@ -430,7 +490,6 @@ export class LabSystem {
     const book = rollSpellBook(this.cfg, s.books, this.rand);
     if (book) {
       s.books.push(book.id);
-      s.book ??= book.id;
       this.save(p);
       return { text: `🎲 ${book.icon} ${book.name}! ${book.desc}`, book: book.id };
     }
@@ -451,7 +510,7 @@ export class LabSystem {
     s.carried -= lost;
     const save = s.save.room < 0 ? { floor: 0, room: this.floor(0).start } : s.save;
     this.place(p, save.floor, save.room, null);
-    this.setHp(p, this.stats(p).hp);
+    this.refill(p);
     this.see(p);
     this.save(p);
     return lost;
@@ -507,7 +566,12 @@ export class LabSystem {
         const lv = labLevel(this.cfg, s.xp);
         return { xp: s.xp, level: lv.level, xpInto: lv.into, xpNeed: lv.need, points: labPointsFree(this.cfg, s.xp, s.skills) };
       })(),
-      skills: { ...s.skills }, books: [...s.books], book: s.book ?? null, rolled: s.rollDay === dayKey(this.clock()),
+      skills: { ...s.skills }, books: [...s.books], rolled: s.rollDay === dayKey(this.clock()),
+      mana: this.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id,
+      ...(() => {
+        const u = labUltimate(this.cfg, s.element, s.books);
+        return { ultimate: u.id, book: u.id.startsWith('ult_') ? null : u.id };
+      })(),
     };
   }
 
@@ -664,9 +728,9 @@ export class LabSystem {
       s.coins += s.carried;
       s.carried = 0;
       s.save = { floor: pos.floor, room: room.id };
-      this.setHp(p, this.stats(p).hp);
+      this.refill(p);
       this.save(p);
-      return { text: `🔥 Rested. HP full. You'll come back here.${banked ? ` Banked ${banked} Syiling.` : ''}`, view: this.view(p) };
+      return { text: `🔥 Rested. HP and mana full. You'll come back here.${banked ? ` Banked ${banked} Syiling.` : ''}`, view: this.view(p) };
     }
     if (what === 'down') {
       if (room.kind !== 'boss') throw new GameError('No stairs down here.');

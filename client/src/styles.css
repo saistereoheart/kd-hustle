@@ -1438,8 +1438,10 @@ body[data-lab] .place-pointers { display: none !important; }
   background: radial-gradient(circle at 35% 30%, #fff3bf 0 18%, #fcc419 40%, #e67700 100%);
   box-shadow: inset 0 0 0 0.09em #b35900;
 }
-.lab-hud .lab-hp { font-weight: 700; color: #ffc9c9; }
-.lab-hud .lab-hp.low { color: #ff6b6b; animation: lb-blink 1s infinite; }
+.lab-hud .lab-hp { display: flex; flex-direction: column; gap: 2px; width: 150px; font-weight: 700; }
+.lab-hud .lab-hp.low .lb-bar.hp { animation: lb-blink 1s infinite; }
+.lab-hud .lab-drink { font-size: 12px; margin-left: 4px; }
+@media (max-width: 600px) { .lab-hud .lab-hp { width: 110px; } }
 @keyframes lb-blink { 50% { opacity: 0.5; } }
 
 /* ⚔️ Labirin battle (Pokémon style) */
@@ -1468,9 +1470,24 @@ body[data-lab] .place-pointers { display: none !important; }
 .lb-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .lb-info b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-info small { color: #ced4da; font-size: 11px; }
-.lb-hp { height: 8px; background: rgba(0, 0, 0, 0.5); border-radius: 6px; overflow: hidden; }
-.lb-hp i { display: block; height: 100%; background: #51cf66; transition: width 0.4s; }
-.lb-hp i.mid { background: #fcc419; } .lb-hp i.low { background: #ff6b6b; }
+/* ❤️ / 🔷 bars with their numbers inside (fight cards and the Labirin HUD) */
+.lb-bar { position: relative; height: 16px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 8px; overflow: hidden; }
+.lb-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #69db7c, #2f9e44); transition: width 0.4s; }
+.lb-bar.mid i { background: linear-gradient(180deg, #ffd43b, #f08c00); }
+.lb-bar.low i { background: linear-gradient(180deg, #ff8787, #e03131); }
+.lb-bar.mp { height: 13px; }
+.lb-bar.mp i { background: linear-gradient(180deg, #74c0fc, #1c7ed6); }
+.lb-bar span { position: relative; display: block; text-align: center; font: 800 11px/14px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; white-space: nowrap; }
+.lb-bar.mp span { font-size: 10px; line-height: 11px; }
+.lb-burn { margin-left: 4px; animation: lb-blink 0.8s infinite; }
+/* 💥 the element skill and ⇄ switch share one cell */
+.lb-skillbox { display: flex; gap: 4px; min-width: 0; }
+.lb-skillbox [data-act="skill"] { flex: 1; min-width: 0; border-bottom: 3px solid var(--elem, #4dabf7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-skillbox .lb-swap { flex: 0 0 auto; width: auto; padding: 12px 8px; }
+.lb-cost { margin-left: 4px; font-size: 11px; opacity: 0.85; }
+.lb-elem { border-left: 4px solid var(--elem, #4dabf7); }
+.lb-elem.on { box-shadow: inset 0 0 0 2px var(--elem, #4dabf7); }
+@media (max-width: 600px) { .lb-cost { display: none; } .lb-skillbox .lb-swap { padding: 12px 7px; } }
 .lb-focus { display: flex; gap: 3px; }
 .lb-focus b { width: 12px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.2); }
 .lb-focus b.on { background: #74c0fc; }
@@ -1758,3 +1775,29 @@ body[data-lab] .lab-hud .lab-title { color: #ffb533; }
 /* 🍳 Cooking (feedback #19): the buttons stay put at the bottom of the window, whatever the order list
    above them does (they sit at the bottom when there's room, and stick there when it scrolls). */
 .cook-frame > .cook-box .cw-foot { position: sticky; bottom: 0; margin-top: auto; padding: 8px 0 2px; background: var(--panel-solid); z-index: 3; box-shadow: 0 -8px 10px -6px var(--panel-solid); flex: none; }
+
+/* 🌀 Labirin portal warp (ui/lab/warp.ts): zoom into a purple swirl, swap, unzoom. Transforms + opacity only. */
+.lab-warp { position: fixed; inset: 0; z-index: 9000; pointer-events: all; overflow: hidden; }
+.lab-warp i { position: absolute; left: 50%; top: 50%; border-radius: 50%; pointer-events: none; opacity: 0; will-change: transform, opacity; }
+.lab-warp .lw-glow { width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax; background: radial-gradient(circle, #f3d9fa 0%, #cc5de8 14%, #862e9c 32%, #5f3dc4 50%, #1b1036 72%); transform: scale(0.04); transition: transform 0.52s cubic-bezier(0.6, 0, 0.85, 0.5), opacity 0.25s; }
+.lab-warp .lw-swirl { width: 130vmax; height: 130vmax; margin: -65vmax 0 0 -65vmax; background: repeating-conic-gradient(from 0deg, rgba(243, 217, 250, 0.7) 0deg 9deg, rgba(204, 93, 232, 0.15) 14deg, rgba(95, 61, 196, 0) 20deg 36deg); transform: scale(0.04) rotate(0deg); transition: transform 0.52s ease-in, opacity 0.3s; }
+.lab-warp .lw-swirl.b { width: 90vmax; height: 90vmax; margin: -45vmax 0 0 -45vmax; background: repeating-conic-gradient(from 12deg, rgba(177, 151, 252, 0.6) 0deg 6deg, rgba(95, 61, 196, 0) 12deg 24deg); }
+.lab-warp .lw-core { width: 36vmax; height: 36vmax; margin: -18vmax 0 0 -18vmax; background: radial-gradient(circle, #fff 0%, #f8f0fc 25%, rgba(204, 93, 232, 0.6) 50%, rgba(204, 93, 232, 0) 70%); transform: scale(0); transition: transform 0.52s ease-in, opacity 0.4s; }
+.lab-warp.in .lw-glow { opacity: 1; transform: scale(1); }
+.lab-warp.in .lw-swirl { opacity: 1; transform: scale(1) rotate(220deg); }
+.lab-warp.in .lw-swirl.b { transform: scale(1.4) rotate(-300deg); }
+.lab-warp.in .lw-core { opacity: 1; transform: scale(1.6); }
+.lab-warp.out .lw-glow { opacity: 0; transform: scale(2.6); transition: transform 0.62s ease-out, opacity 0.62s ease-in; }
+.lab-warp.out .lw-swirl { opacity: 0; transform: scale(3) rotate(420deg); transition: transform 0.62s ease-out, opacity 0.5s ease-in; }
+.lab-warp.out .lw-swirl.b { transform: scale(3.4) rotate(-520deg); }
+.lab-warp.out .lw-core { opacity: 0; transform: scale(4); transition: transform 0.62s ease-out, opacity 0.35s; }
+.lab-warp.gone { opacity: 0; transition: opacity 0.3s; }
+/* The world zooms and twists into it, then unzooms out of it in the new place. */
+#game { transform-origin: 50% 50%; }
+body.lab-warp-in #game { transform: scale(1.7) rotate(10deg); transition: transform 0.52s cubic-bezier(0.6, 0, 0.85, 0.5); }
+body.lab-warp-out #game { animation: lab-unzoom 0.62s cubic-bezier(0.2, 0.7, 0.3, 1); }
+@keyframes lab-unzoom { from { transform: scale(1.7) rotate(-10deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  body.lab-warp-in #game, body.lab-warp-out #game { transform: none; transition: none; animation: none; }
+  .lab-warp .lw-swirl { display: none; }
+}

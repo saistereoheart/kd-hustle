@@ -196,7 +196,13 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
     });
     handle(socket, 'lab:book', LAB_C2S.labBook, ({ id }) => {
       lab.wearBook(me, id);
+      battles.restyle(me);
       return { self: lab.self(me) };
+    });
+    handle(socket, 'lab:element', LAB_C2S.labElement, ({ id }) => {
+      const text = lab.setElement(me, id);
+      battles.restyle(me);
+      return { self: lab.self(me), text };
     });
     handle(socket, 'lab:roll', null, () => {
       const r = lab.roll(me);

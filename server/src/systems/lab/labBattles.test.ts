@@ -64,6 +64,31 @@ describe('Labirin party battles', () => {
     s.battles.act(a, { kind: 'item', item: 'sambal_semangat' }); // a party of one: the round plays at once
     expect(s.lab.state(a).potions.sambal_semangat).toBeUndefined();
   });
+
+  it('💥 skills spend 🔷 mana (it carries over after the fight); switching element mid-fight changes skill and ultimate', () => {
+    const s = setup();
+    const a = s.player('a');
+    s.putIn(a);
+    s.battles.encounter([a]);
+    const me = () => s.battles.view(a)!.fighters.find((f) => f.id === `p${a.id}`)!;
+    expect(me()).toMatchObject({ element: 'api', spell: 'ult_api', mana: lc.player.mana.max });
+    s.lab.setElement(a, 'tanah');
+    s.battles.restyle(a);
+    expect(me()).toMatchObject({ element: 'tanah', spell: 'ult_tanah' });
+    // Out of mana: no skill.
+    const live = (s.battles as unknown as { byPlayer: Map<number, { fighters: Array<{ id: string; mana?: number; hp: number; side: string }> }> }).byPlayer.get(a.id)!.fighters;
+    live.find((f) => f.id === `p${a.id}`)!.mana = 2;
+    expect(() => s.battles.act(a, { kind: 'skill' })).toThrow(/Not enough 🔷 mana/);
+    live.find((f) => f.id === `p${a.id}`)!.mana = lc.player.mana.max;
+    // Win with 🌪️ (it hits them all): the mana spent stays spent (+1 for the round).
+    s.lab.setElement(a, 'angin');
+    s.battles.restyle(a);
+    for (const f of live) if (f.side === 'foe') f.hp = 1;
+    s.battles.act(a, { kind: 'skill' });
+    expect(s.battles.inFight(a)).toBe(false);
+    const cost = lc.elements.find((e) => e.id === 'angin')!.skill.mana;
+    expect(s.lab.mana(a)).toBe(lc.player.mana.max - cost + lc.player.mana.perRound);
+  });
 });
 
 describe('Labirin floor bosses', () => {

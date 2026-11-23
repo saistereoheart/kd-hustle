@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.34.0 (2026-11-23): 🔥 Labirin elements, mana and a portal warp
+- **Free basic skills by element** (feedback #20): 🔥 Api, 💧 Air, ⚡ Petir, 🌪️ Angin and 🪨 Tanah. Equip one
+  in 🎒 Bag → 🔥 Elements, or mid-fight with the small ⇄ next to the Skill button (Q on a keyboard). Switching
+  doesn't use your turn. Each has its own pros and cons:
+  - 🔥 strong hit that keeps burning, but costs the most mana;
+  - 💧 heals you part of the damage, but hits softer;
+  - ⚡ always strikes first with extra crit, but picks its own target;
+  - 🌪️ hits every monster, but is weak against a lone one;
+  - 🪨 turns you to stone for the round (less damage), but hits last.
+- **🔷 Mana:** skills cost mana now (focus is only for the ultimate). You get some back every round, slowly
+  outside fights, faster by the hall's campfire, and resting fills it. New potions: 🥥 Air Kelapa (+50%)
+  and 🍯 Madu Kelulut (full). New skill: 🔷 Tenaga Dalam (+10% max mana per rank).
+- **Your 📜 Ultimate follows your element:** every element has a free basic one with its own look. A spell
+  book of that element makes it stronger (🔥 Kitab Api Pelita for Api, and so on).
+- **HP and mana bars** with the numbers inside, on the fight cards and the Labirin HUD.
+- **Portal warp:** going into the Labirin (and out through the hall's portal) zooms through a purple swirl.
+
 ## 1.33.0 (2026-11-22): 🪨 a seamless Labirin floor, drawn in code
 - **The cave floor is drawn in code now**, not tiled from the picture sheet: pixel cobblestones in the same
   colours and pixel size, with no seams between tiles. It has no light painted in, so the lamps and fires light

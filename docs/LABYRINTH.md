@@ -191,11 +191,27 @@ All numbers are in `shared/config/labyrinth.json` (`progress`, `skills`, `spells
   unlearns them all for `respec` Syiling.
 - **Skills** (per rank): ATK +5%, DEF +6%, max HP +6%, SPD +1, healing out of a fight +25%, crit +1.5%,
   💥 Skill damage +8%, 📜 spell power +10%, Syiling from fights +5%. They only count down here.
-- **Spell books:** one worn at a time. Its ultimate (📜 Ultimate, the 4th fight button) costs a full focus
-  bar (3) and hits every monster at once (or heals every standing friend). Sold by Tok Peraih (450 to
-  4,200, by floor), or won at the tavern's once-a-day roll (40 Syiling, 30% chance of a book you don't
-  have, weighted; Kitab Gempa Purba only comes from the roll). No book: a free drink instead.
-- **Fight keys:** 1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run.
+- **Spell books:** each belongs to an element (see §4d) and powers up that element's ultimate while it's
+  equipped. The ultimate (📜 Ultimate, the 4th fight button) costs a full focus bar (3) and hits every
+  monster at once (or heals every standing friend). Sold by Tok Peraih (450 to 4,200, by floor), or won at
+  the tavern's once-a-day roll (40 Syiling, 30% chance of a book you don't have, weighted; Kitab Gempa
+  Purba only comes from the roll). No book: a free drink instead.
+- **Fight keys:** 1 Attack, 2 Skill, 3 Guard, 4 Ultimate, 5 Items, 6 Run, Q switch element.
+
+## 4d. Elements and mana (v1.34.0, feedback #20)
+Numbers in `labyrinth.json` (`elements`, `player.mana`); rules in `shared/src/lab/battle.ts`.
+- **Elements:** 🔥 Api, 💧 Air, ⚡ Petir, 🌪️ Angin, 🪨 Tanah. One is equipped (default Api); switch any time,
+  mid-fight too (free, from your next pick). Its free basic 💥 skill is the Skill button:
+  - 🔥 ×1.45 and burns (25% of the hit for 2 rounds), 8 mana;
+  - 💧 ×1.15 and heals you 30% of the damage, 6 mana;
+  - ⚡ ×1.4, +15% crit, always first, but a random target, 7 mana;
+  - 🌪️ ×0.9 on every monster, 7 mana;
+  - 🪨 −35% damage taken that round (starts at once), ×1.45 but last, 6 mana.
+- **Ultimate:** the element's own basic ultimate (all hit every monster, each with its element's effect), or
+  the stronger spell book of that element if you own it.
+- **Mana:** max 20 (+10% a rank of 🔷 Tenaga Dalam), +1 per fight round, 5% of max per 10 s outside a fight,
+  +1 per campfire tick by the hall's fire; full again when you rest or fall. Carried over between fights.
+  Potions: 🥥 Air Kelapa +50%, 🍯 Madu Kelulut full. Monsters don't use mana (their skill still uses focus).
 
 ## 5. Party / lobby
 - From 👥 (the labyrinth's top bar) or the 📱 Labirin app: invite players who are online. They get a

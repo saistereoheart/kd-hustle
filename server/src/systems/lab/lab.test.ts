@@ -276,21 +276,48 @@ describe('Labirin: the tavern and the brush', () => {
     expect(st.coins).toBe(0);
   });
 
-  it('spell books: bought once at the merchant (worn at once), roll-only ones are not sold', () => {
+  it('spell books: bought once at the merchant, they power up their element; roll-only ones are not sold', () => {
     const s = setup();
     s.lab.enter(s.p, 'entrance');
     const st = s.lab.state(s.p);
     const f = s.lab.floor(0);
     walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
     st.coins = 10_000;
+    // 🔥 Api is the default element: its basic ultimate until you own its book.
+    expect(s.lab.self(s.p)).toMatchObject({ element: 'api', ultimate: 'ult_api', book: null });
     expect(s.lab.buy(s.p, 'kitab_api')).toMatch(/Kitab Api/);
-    expect(s.lab.self(s.p).book).toBe('kitab_api');
+    expect(s.lab.self(s.p)).toMatchObject({ ultimate: 'kitab_api', book: 'kitab_api' });
     expect(() => s.lab.buy(s.p, 'kitab_api')).toThrow(/already/);
     expect(() => s.lab.buy(s.p, 'kitab_gempa')).toThrow(/daily roll/);
     expect(() => s.lab.buy(s.p, 'kitab_ribut')).toThrow(/floor 5/);
+    expect(() => s.lab.buy(s.p, 'ult_air')).toThrow(/doesn't sell/);
     expect(() => s.lab.wearBook(s.p, 'kitab_petir')).toThrow(/don't have/);
-    s.lab.wearBook(s.p, null);
-    expect(s.lab.self(s.p).book).toBeNull();
+    // Another element: its own basic ultimate.
+    expect(s.lab.setElement(s.p, 'air')).toMatch(/Pancutan Air/);
+    expect(s.lab.self(s.p)).toMatchObject({ element: 'air', ultimate: 'ult_air', book: null });
+    expect(() => s.lab.setElement(s.p, 'kayu')).toThrow(/No such element/);
+    // "Using" a book switches to its element.
+    s.lab.wearBook(s.p, 'kitab_api');
+    expect(s.lab.self(s.p).element).toBe('api');
+  });
+
+  it('🔷 mana: full at first, comes back slowly, potions refill it, resting fills it', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const max = lc.player.mana.max;
+    expect(s.lab.self(s.p)).toMatchObject({ mana: max, maxMana: max });
+    expect(() => s.lab.useItem(s.p, 'air_kelapa')).toThrow(/no Air Kelapa/);
+    s.lab.state(s.p).potions.air_kelapa = 1;
+    expect(() => s.lab.useItem(s.p, 'air_kelapa')).toThrow(/already full/);
+    s.lab.setMana(s.p, 0);
+    s.tick(10_000);
+    expect(s.lab.mana(s.p)).toBe(Math.floor(max * lc.player.mana.regenPer10s));
+    expect(s.lab.useItem(s.p, 'air_kelapa').text).toMatch(/mana/);
+    expect(s.lab.mana(s.p)).toBe(Math.floor(max * lc.player.mana.regenPer10s) + max / 2);
+    // 📖 Tenaga Dalam raises max mana.
+    s.lab.state(s.p).xp = 10_000;
+    s.lab.state(s.p).skills.tenaga_dalam = 2;
+    expect(s.lab.self(s.p).maxMana).toBe(Math.round(max * 1.2));
   });
 
   it('the tavern roll: once a day, at the counter; a book or a free drink', () => {

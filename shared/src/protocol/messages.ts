@@ -807,8 +807,10 @@ export interface ClientToServerEvents {
   'lab:skill': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 📖 Unlearn every skill (at the merchant, for Syiling): the points come back. */
   'lab:respec': (ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
-  /** 📜 Wear a spell book you own (id null: none). */
+  /** 📜 Use a spell book you own: switches to its element (id null: nothing). */
   'lab:book': (msg: { id: string | null }, ack: Ack<Result<{ self: LabSelf }>>) => void;
+  /** 🔥 Equip an element's 💥 skill (any time; in a fight it counts from your next pick). */
+  'lab:element': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 🎲 The tavern's once-a-day roll: maybe a spell book, else a free drink. */
   'lab:roll': (ack: Ack<Result<{ self: LabSelf; text: string; book?: string }>>) => void;
   /** 🛒 Buy from the merchant (gear: n = 1). Spends carried Syiling first, then banked. */

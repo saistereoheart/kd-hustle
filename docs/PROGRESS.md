@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-22 (v1.33.1)_
+_Last updated: 2026-11-23 (v1.34.0)_
 
-**Now at v1.33.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.34.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 412 unit tests (2026-11-22, v1.17.0) |
+| `npm test` (Vitest) | ✅ 449 unit tests (2026-11-23, v1.34.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -52,6 +52,35 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---
+
+## 🔥 Feedback #20: elements, mana, HP/mana bars, portal warp (2026-11-23, v1.34.0)
+- **Elements** (`labyrinth.json` `elements`; helpers `labElement` / `labUltimate` in `shared/src/lab/progress.ts`):
+  5 free basic skills, one equipped (`LabSave.element`, default the first, 🔥 Api). `lab:element` works any time,
+  mid-fight too (`LabBattles.restyle` updates the fighter and re-sends the view). Skill effects in `battle.ts`:
+  `burn` (a share of the hit per round, `burnRounds`), `drain`, `crit`, `first` / `last` (turn order), `random`
+  target, `all` (a `'cast'` event, then aoe hits), `shield` (🪨 pays and hardens at round start, like a guard).
+- **Mana** (`player.mana`): max 20, +1 a fight round, 5% / 10 s outside, +1 per campfire tick, full on rest or
+  falling. Carried over like HP (`LabSave.mana` / `manaAt`, `LabSystem.mana()` / `setMana()`). Potions `mana`.
+  Monsters keep the old focus skill. Player focus is now only for the ultimate.
+- **Decision (ultimate):** your ultimate = the owned spell book of your equipped element, else that element's basic
+  ultimate (`ult_<id>`, built from `elements[].ultimate`, shaped like a book). Every book got an `element`. The
+  old "wear a book" (`LabSave.book`) is no longer used; `lab:book` now switches to the book's element.
+  `LabSelf.book` = the book powering your ultimate (or null).
+- **Decision (monsters have no elements):** pros and cons are in the skills themselves, not in weaknesses. Simplest
+  reading of "different effect pros/cons for different elements".
+- **Balance:** checked with a scratch sim (real `resolveLabRound`, mana full at the start of each fight, ultimates
+  used when ready). Each element lands within about ±10 points of the old 💥 Skill's win rates (F1–F8, gear
+  none → mistik, bosses). 🌪️ is best against bosses with minions and weakest one-on-one; 💧 survives with the
+  most HP. Real play is a bit harder than the sim (mana carries over between fights).
+- **UI:** `client/src/ui/lab/statBar.ts` (❤️/🔷 bars with numbers inside: fight cards + HUD); Skill cell =
+  element skill + ⇄ (`renderElements`, key Q); bag 🔥 Elements tab; loadout slot shows your element and ultimate.
+  Element looks: `elementFx` in `battle2d/stage2d.ts` and `battle3d/stage.ts` (existing particle pools, no new
+  textures). Burn ticks and the 🌪️ cast have their own short effects.
+- **Portal warp:** `client/src/ui/lab/warp.ts` + `.lab-warp` CSS. Starts on the click (while the server answers),
+  swaps when covered (~0.5 s), unzooms (~0.6 s). CSS transforms and opacity only (no FPS risk). Reduced motion:
+  no zoom or swirl.
+- Tests: `progress.test.ts` (elements and mana), `lab.test.ts` (books power their element, mana regen and
+  potions), `labBattles.test.ts` (mana spent and carried over, switching mid-fight).
 
 ## 🗝️ Labirin keys fit any treasure door; no-cache page (2026-11-22, your report, v1.33.1)
 - **Bug:** each floor has 2 locked treasure rooms and 2 keys, but each key only opened its own door, while the text

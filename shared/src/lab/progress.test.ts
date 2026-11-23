@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import labJson from '../../config/labyrinth.json';
 import { labConfigSchema } from './config';
-import { groupXp, labLevel, labPointsFree, labSkillBonus, labXpNeed, rollSpellBook } from './progress';
+import { groupXp, labLevel, labPointsFree, labSkillBonus, labSpell, labUltimate, labXpNeed, rollSpellBook } from './progress';
 import { resolveLabRound, type LabFighter } from './battle';
 
 const cfg = labConfigSchema.parse(labJson);
@@ -64,5 +64,70 @@ describe('Labirin ultimates', () => {
     const fs3 = [me({ focus: 2, spell: 'kitab_api' }), foe('m0')];
     const { events } = resolveLabRound(cfg, fs3, { p1: { kind: 'ultimate' } }, () => 0.5);
     expect(events.some((e) => e.kind === 'spell')).toBe(false);
+  });
+});
+
+describe('Labirin elements and mana', () => {
+  const caster = (element: string, over: Partial<LabFighter> = {}) => me({ element, mana: 20, maxMana: 20, focus: 0, ...over });
+  const el = (id: string) => cfg.elements.find((e) => e.id === id)!;
+
+  it('a skill spends its mana (+1 back for the round); short of mana it is a plain attack', () => {
+    const a = [caster('petir'), foe('m0', 1e6)];
+    const { events } = resolveLabRound(cfg, a, { p1: { kind: 'skill' } }, () => 0.5);
+    expect(events.find((e) => e.kind === 'hit' && e.actor === 'p1')).toMatchObject({ skill: true, element: 'petir' });
+    expect(a[0].mana).toBe(20 - el('petir').skill.mana + cfg.player.mana.perRound);
+    const b = [caster('petir', { mana: 1 }), foe('m0', 1e6)];
+    const r2 = resolveLabRound(cfg, b, { p1: { kind: 'skill' } }, () => 0.5);
+    expect(r2.events.find((e) => e.kind === 'hit' && e.actor === 'p1')?.skill).toBeFalsy();
+    expect(b[0].mana).toBe(1 + cfg.player.mana.perRound);
+  });
+
+  it('🔥 burns tick at the end of the round; 💧 heals you a share of the damage', () => {
+    const a = [caster('api'), foe('m0', 1e6)];
+    const { events } = resolveLabRound(cfg, a, { p1: { kind: 'skill' } }, () => 0.5);
+    const hit = events.find((e) => e.kind === 'hit' && e.actor === 'p1' && !e.burn)!;
+    const tick = events.find((e) => e.burn)!;
+    expect(tick.dmg).toBe(Math.round(hit.dmg! * el('api').skill.burn!));
+    expect(a[1].burn?.left).toBe(el('api').skill.burnRounds! - 1);
+    const b = [caster('air'), foe('m0', 1e6)];
+    resolveLabRound(cfg, b, { p1: { kind: 'skill' } }, () => 0.5);
+    expect(b[0].hp).toBeGreaterThan(50 - 5); // healed back more than the monster's tiny hit
+  });
+
+  it('🌪️ hits every monster; ⚡ goes first even when slower; 🪨 takes less damage that round', () => {
+    const a = [caster('angin'), foe('m0', 1e6), foe('m1', 1e6), foe('m2', 1e6)];
+    const r = resolveLabRound(cfg, a, { p1: { kind: 'skill' } }, () => 0.5);
+    expect(r.events[0]).toMatchObject({ kind: 'cast', element: 'angin' });
+    expect(r.events.filter((e) => e.kind === 'hit' && e.actor === 'p1')).toHaveLength(3);
+    const fast = { ...foe('m0', 1e6), spd: 999 };
+    const b = [caster('petir', { spd: 1 }), fast];
+    const r2 = resolveLabRound(cfg, b, { p1: { kind: 'skill' } }, () => 0.5);
+    expect(r2.events.find((e) => e.kind === 'hit')!.actor).toBe('p1');
+    const hurt = (element: string, kind: 'skill' | 'attack') => {
+      const big = { ...foe('m0', 1e6), atk: 30 };
+      const c = [caster(element, { hp: 100 }), big];
+      resolveLabRound(cfg, c, { p1: { kind } }, () => 0.5);
+      return 100 - c[0].hp;
+    };
+    expect(hurt('tanah', 'skill')).toBeLessThan(hurt('tanah', 'attack'));
+  });
+
+  it('your ultimate follows your element: its book if you own it, else the basic one', () => {
+    expect(labUltimate(cfg, 'api', []).id).toBe('ult_api');
+    expect(labUltimate(cfg, 'api', ['kitab_api']).id).toBe('kitab_api');
+    expect(labUltimate(cfg, 'air', ['kitab_api']).id).toBe('ult_air');
+    expect(labSpell(cfg, 'ult_tanah')?.move).toBe(el('tanah').ultimate.move);
+    // Every book belongs to an element.
+    for (const b of cfg.spells.list) expect(cfg.elements.some((e) => e.id === b.element)).toBe(true);
+    const a = [caster('air', { focus: 3, spell: 'ult_air', hp: 50 }), foe('m0', 1e6)];
+    resolveLabRound(cfg, a, { p1: { kind: 'ultimate' } }, () => 0.5);
+    expect(a[0].hp).toBeGreaterThan(50);
+  });
+
+  it('a mana potion gives mana back', () => {
+    const a = [caster('api', { mana: 0 }), foe('m0', 1e6)];
+    const r = resolveLabRound(cfg, a, { p1: { kind: 'item', item: 'air_kelapa' } }, () => 0.5);
+    expect(r.used).toEqual([{ actor: 'p1', item: 'air_kelapa' }]);
+    expect(a[0].mana).toBe(10 + cfg.player.mana.perRound);
   });
 });

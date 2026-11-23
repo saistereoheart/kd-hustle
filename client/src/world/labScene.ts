@@ -19,6 +19,7 @@ import { addLabFrames, LAB_SHEET, LAB_SHEET_URL } from './labSheet';
 import { memoryBudget } from '../perf/memory';
 import { openLabBag } from '../ui/lab/labBag';
 import { openLabTavern } from '../ui/lab/labTavern';
+import { startWarp } from '../ui/lab/warp';
 
 interface Sample {
   t: number;
@@ -708,12 +709,21 @@ export class LabScene extends Phaser.Scene {
       return void labSay(f.text ?? '', 'info', 6500);
     }
     this.busy = true;
+    // 🌀 Stepping into the portal: the warp covers the way back to town.
+    const warp = f.use === 'exit' ? startWarp() : null;
     this.app.socket?.timeout(5000).emit('lab:use', { what: f.use }, (err, res) => {
       this.busy = false;
-      if (err || !res.ok) return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      if (err || !res.ok) {
+        warp?.cancel();
+        return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+      }
       sfx.coin();
       labSay(res.text, 'good', 3200);
-      if (res.left) return void this.app.exitLab(res.self);
+      if (res.left) {
+        if (warp) return void warp.done(() => this.app.exitLab(res.self));
+        return void this.app.exitLab(res.self);
+      }
+      warp?.cancel();
       if (res.view) {
         const moved = res.view.floor !== this.view.floor || res.view.room !== this.view.room;
         if (moved) this.cameras.main.fadeIn(260, 0, 0, 0);

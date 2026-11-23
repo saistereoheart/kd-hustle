@@ -366,8 +366,28 @@ export class Battle3D {
       this.flashes.ball(at, c, 0.5, 2 * this.size(A), 0.7, true);
       this.flashes.ring(A.home.clone().setY(0.05), c, 3.5, 0.7);
       this.sparks.burst(at, 40, c, 3.5, { up: 3, gravity: -1, life: 0.7, spread: 1.6 });
+      if (e.element) this.elementFx(A, e.element, c);
       this.punch = 1;
       return 750;
+    }
+    // 🔥 A burn ticking.
+    if (e.kind === 'hit' && e.burn && B) {
+      const at = this.chest(B);
+      this.sparks.burst(at, 18, 0xff922b, 1.5, { up: 3, gravity: -2, life: 0.6, spread: 0.6 });
+      this.sparks.burst(at, 8, 0xffe066, 1.2, { up: 2.5, gravity: -2, life: 0.4, spread: 0.4 });
+      B.flashT = 0.08;
+      this.popup(B, `${e.dmg ?? 0}`, 'hurt');
+      return 380;
+    }
+    // 🌪️ A skill that hits everyone: a short charge (the hits follow).
+    if (e.kind === 'cast' && A) {
+      const c = new THREE.Color(e.color ?? '#63e6be').getHex();
+      const at = this.chest(A);
+      this.flashes.ball(at, c, 0.3, 1.5 * this.size(A), 0.4, true);
+      this.flashes.ring(A.home.clone().setY(0.05), c, 3, 0.45);
+      this.sparks.burst(at, 26, c, 3, { up: 1.5, gravity: 0, life: 0.45, spread: 1.2 });
+      this.punch = 1;
+      return 450;
     }
     if (e.kind === 'hit' && e.aoe && A && B) {
       const c = new THREE.Color(e.color ?? '#ff922b').getHex();
@@ -378,10 +398,11 @@ export class Battle3D {
     if (e.kind === 'guard' && A) {
       A.busy++;
       const at = this.chest(A);
-      this.flashes.ball(at, 0x4dabf7, 0.6, 1.25 * this.size(A), 0.7, true);
-      this.flashes.ball(at, 0x1c7ed6, 0.5, 1.1 * this.size(A), 0.5);
-      this.flashes.ring(A.home.clone().setY(0.05), 0x74c0fc, 2.2, 0.5);
-      this.sparks.burst(at, 18, 0x74c0fc, 2.5, { up: 1, gravity: 0, life: 0.5 });
+      const stone = e.element === 'tanah';
+      this.flashes.ball(at, stone ? 0xc08a5a : 0x4dabf7, 0.6, 1.25 * this.size(A), 0.7, true);
+      this.flashes.ball(at, stone ? 0x8d6e4f : 0x1c7ed6, 0.5, 1.1 * this.size(A), 0.5);
+      this.flashes.ring(A.home.clone().setY(0.05), stone ? 0xc08a5a : 0x74c0fc, 2.2, 0.5);
+      this.sparks.burst(at, 18, stone ? 0xa47148 : 0x74c0fc, 2.5, { up: 1, gravity: stone ? 6 : 0, life: 0.5 });
       this.tween(0.5, (k) => (A.squash = 1 - Math.sin(k * Math.PI) * 0.15), () => A.busy--);
       return 500;
     }
@@ -447,7 +468,7 @@ export class Battle3D {
     const dir = B.home.clone().sub(A.home).setY(0).normalize();
     const reach = B.home.clone().sub(dir.clone().multiplyScalar(1.1 * this.size(B))).sub(A.home);
     const charge = skill ? 0.45 : 0;
-    const color = party ? (skill ? 0x4dabf7 : 0xffd43b) : skill ? 0xda77f2 : 0xff6b6b;
+    const color = party ? (skill ? (e.color ? new THREE.Color(e.color).getHex() : 0x4dabf7) : 0xffd43b) : skill ? 0xda77f2 : 0xff6b6b;
     if (skill) {
       // ⚡ Charge up: an aura, sparks spiralling in, the camera leans in.
       const at = this.chest(A);
@@ -515,7 +536,37 @@ export class Battle3D {
       this.flashes.ring(B.home.clone().setY(0.05), color, 5 * s, 0.6);
       this.screenFlash(0.55);
     } else if (crit) this.screenFlash(0.3);
+    if (e.element) this.elementFx(B, e.element, color);
     this.popup(B, `${blocked ? '🛡' : ''}${e.dmg ?? 0}`, skill ? 'skill' : crit ? 'crit' : blocked ? 'block' : A.f.side === 'party' ? 'hit' : 'hurt');
+  }
+
+  /** 🔥💧⚡🌪️🪨 What each element adds where it lands (same style, its own look). */
+  private elementFx(B: Actor, element: string, color: number) {
+    const at = this.chest(B);
+    const s = this.size(B);
+    const ground = B.home.clone().setY(0.05);
+    if (element === 'api') {
+      this.sparks.burst(at, 30, 0xff922b, 2, { up: 4, gravity: -3, life: 0.7, spread: 0.8 });
+      this.sparks.burst(at, 12, 0xffe066, 1.5, { up: 3, gravity: -2, life: 0.5, spread: 0.5 });
+      this.flashes.ball(at, 0xff6b00, 0.4, 1.3 * s, 0.3);
+    } else if (element === 'air') {
+      this.sparks.burst(at, 30, 0x74c0fc, 4, { up: 4, gravity: 12, life: 0.7, spread: 0.6 });
+      this.flashes.ring(ground, 0xa5d8ff, 3 * s, 0.5);
+    } else if (element === 'petir') {
+      this.flashes.slash(at.clone().setY(at.y + 1.2 * s), 0xfff3bf, 2.6 * s, Math.PI / 2);
+      this.flashes.slash(at.clone().setY(at.y + 1.2 * s), color, 2.2 * s, Math.PI / 2 + 0.25);
+      this.sparks.burst(at, 24, 0xffe066, 7, { up: 0.5, gravity: 2, life: 0.3 });
+      this.screenFlash(0.4);
+    } else if (element === 'angin') {
+      this.flashes.ring(ground.clone().setY(0.5 * s), color, 2.6 * s, 0.45);
+      this.flashes.ring(ground.clone().setY(1.1 * s), 0xc3fae8, 2 * s, 0.4);
+      this.sparks.burst(at, 22, 0x96f2d7, 4.5, { up: 1, gravity: -1, life: 0.6, spread: 1.4 });
+    } else if (element === 'tanah') {
+      this.sparks.burst(ground, 26, 0xa47148, 3.5, { up: 5, gravity: 16, life: 0.8, spread: 0.8 });
+      this.sparks.burst(ground, 10, 0x5c3d2e, 2.5, { up: 4, gravity: 16, life: 0.7 });
+      this.flashes.ring(ground, 0xc08a5a, 3.5 * s, 0.5);
+      this.shake(0.2);
+    }
   }
 
   private chest(a: Actor) {

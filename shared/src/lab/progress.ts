@@ -6,6 +6,7 @@ import type { LabFighter } from './battle';
 
 export type LabSkillDef = LabConfig['skills'][number];
 export type LabSpellDef = LabConfig['spells']['list'][number];
+export type LabElementDef = LabConfig['elements'][number];
 
 /** XP to go from `level` to the next. */
 export function labXpNeed(cfg: LabConfig, level: number): number {
@@ -38,12 +39,12 @@ export function labPointsFree(cfg: LabConfig, xp: number, skills: Record<string,
 
 export interface LabSkillBonus {
   atk: number; def: number; hp: number; spd: number; crit: number;
-  skillPower: number; spellPower: number; regen: number; coins: number;
+  skillPower: number; spellPower: number; regen: number; coins: number; mana: number;
 }
 
 /** What your skill ranks add up to. */
 export function labSkillBonus(cfg: LabConfig, skills: Record<string, number>): LabSkillBonus {
-  const b: LabSkillBonus = { atk: 0, def: 0, hp: 0, spd: 0, crit: 0, skillPower: 0, spellPower: 0, regen: 0, coins: 0 };
+  const b: LabSkillBonus = { atk: 0, def: 0, hp: 0, spd: 0, crit: 0, skillPower: 0, spellPower: 0, regen: 0, coins: 0, mana: 0 };
   for (const def of cfg.skills) {
     const r = Math.max(0, Math.min(def.max, skills[def.id] ?? 0));
     if (!r) continue;
@@ -52,8 +53,30 @@ export function labSkillBonus(cfg: LabConfig, skills: Record<string, number>): L
   return b;
 }
 
+/** A spell book, or an element's basic ultimate (`ult_<element>`). */
 export function labSpell(cfg: LabConfig, id: string | undefined): LabSpellDef | undefined {
-  return id ? cfg.spells.list.find((s) => s.id === id) : undefined;
+  if (!id) return undefined;
+  if (id.startsWith('ult_')) {
+    const e = cfg.elements.find((x) => `ult_${x.id}` === id);
+    return e ? basicUltimate(e) : undefined;
+  }
+  return cfg.spells.list.find((s) => s.id === id);
+}
+
+/** 🔥 An element (an unknown or missing id: the first one, the default). */
+export function labElement(cfg: LabConfig, id: string | undefined): LabElementDef {
+  return cfg.elements.find((e) => e.id === id) ?? cfg.elements[0];
+}
+
+/** An element's free basic ultimate, shaped like a spell book. */
+function basicUltimate(e: LabElementDef): LabSpellDef {
+  return { ...e.ultimate, id: `ult_${e.id}`, name: `${e.name} (basic)`, icon: e.icon, color: e.color, price: 0, minFloor: 0, weight: 0, element: e.id };
+}
+
+/** 📜 Your ultimate: the spell book of your equipped element if you own one, else that element's basic one. */
+export function labUltimate(cfg: LabConfig, element: string | undefined, books: string[]): LabSpellDef {
+  const e = labElement(cfg, element);
+  return cfg.spells.list.find((s) => s.element === e.id && books.includes(s.id)) ?? basicUltimate(e);
 }
 
 /** XP for beating these monsters on this floor (each player who stayed gets it all). */

@@ -1,6 +1,6 @@
 // 🗝️ Labirin Purba: your bag down there. 🛒 the merchant's wares (at Tok Peraih: the entrance hall and
-// every rest chamber), ⚔️ your gear (wear what you own) and 🧪 your potions (drink a heal, or 🧵 go
-// home). Prices are in Syiling Purba: carried coins go first, then banked. The server checks all of it.
+// every rest chamber), ⚔️ your gear (wear what you own), 🔥 elements (your 💥 skill and 📜 ultimate),
+// 📖 skills, 📜 spell books and 🧪 your potions (drink a heal or mana, or 🧵 go home). Prices are in Syiling Purba: carried coins go first, then banked. The server checks all of it.
 import { LAB_SLOTS, gearLine, labGearList, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
@@ -8,7 +8,7 @@ import { closePanel, openPanel, tabs } from '../panel';
 import { sfx } from '../sound';
 import { coinIcon } from './labHud';
 
-type Tab = 'shop' | 'gear' | 'potions' | 'skills' | 'books';
+type Tab = 'shop' | 'gear' | 'potions' | 'skills' | 'books' | 'elements';
 
 const SLOT_LABEL: Record<LabSlot, string> = { weapon: '🗡️ Weapon', shield: '🛡️ Shield', armour: '🥋 Armour', charm: '📿 Charm' };
 
@@ -16,8 +16,8 @@ export function openLabBag(app: App, start: Tab = 'gear') {
   const lc = app.cfg.lab;
   const shop = start === 'shop';
   const panel = openPanel(shop ? `🛒 ${lc.merchant.name}` : '🎒 Labirin bag', { wide: true, testId: 'lab-bag' });
-  const names: Tab[] = shop ? ['shop', 'books', 'potions', 'gear', 'skills'] : ['gear', 'skills', 'books', 'potions'];
-  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '📖 Skills', books: '📜 Spell books' };
+  const names: Tab[] = shop ? ['shop', 'books', 'potions', 'gear', 'elements', 'skills'] : ['gear', 'elements', 'skills', 'books', 'potions'];
+  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '📖 Skills', books: '📜 Spell books', elements: '🔥 Elements' };
   let tab: Tab = names.includes(start) ? start : names[0];
   let self: LabSelf | null = null;
   let busy = false;
@@ -97,6 +97,15 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       done(res.self, res.text);
     });
   };
+  const setElement = (id: string) => {
+    if (busy) return;
+    busy = true;
+    app.socket?.timeout(6000).emit('lab:element', { id }, (err, res) => {
+      if (err || !res.ok) return fail(err, res);
+      sfx.click();
+      done(res.self, res.text);
+    });
+  };
   const wearBook = (id: string | null) => {
     if (busy) return;
     busy = true;
@@ -111,7 +120,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
   const stat = (s: LabSelf) => {
     const t = s.stats;
     return el('div', { class: 'lab-bag-stats' },
-      el('span', {}, `❤️ ${s.hp}/${t.hp}`), el('span', {}, `⚔️ ${t.atk}`), el('span', {}, `🛡️ ${t.def}`), el('span', {}, `💨 ${t.spd}`),
+      el('span', {}, `❤️ ${s.hp}/${t.hp}`), el('span', {}, `🔷 ${s.mana}/${s.maxMana}`), el('span', {}, `⚔️ ${t.atk}`), el('span', {}, `🛡️ ${t.def}`), el('span', {}, `💨 ${t.spd}`),
       el('span', {}, `🎯 ${Math.round(t.crit * 100)}% crit`), t.block ? el('span', {}, `🧱 ${Math.round(t.block * 100)}% block`) : null);
   };
 
@@ -157,6 +166,30 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       stat(s),
     );
     const list = labGearList(lc);
+    if (tab === 'elements') {
+      const rows = lc.elements.map((x) => {
+        const on = s.element === x.id;
+        const book = lc.spells.list.find((b) => b.element === x.id && s.books.includes(b.id));
+        const ult = book ? `📜 ${book.move} (${book.name}): ${book.desc}` : `📜 ${x.ultimate.move}: ${x.ultimate.desc}`;
+        const b = el('button', { class: `btn small${on ? '' : ' primary'}`, type: 'button', 'data-element': x.id }, on ? '✓ Equipped' : 'Equip') as HTMLButtonElement;
+        b.disabled = busy || on;
+        b.addEventListener('click', () => setElement(x.id));
+        const row = el('div', { class: `lab-bag-row lab-book${on ? ' worn' : ''}` },
+          el('span', { class: 'lab-bag-icon' }, x.icon),
+          el('span', { class: 'lab-bag-info' },
+            el('b', {}, `${x.skill.name} `, el('span', { class: 'muted' }, `🔷 ${x.skill.mana} mana`)),
+            el('small', { class: 'muted' }, x.skill.desc),
+            el('small', { class: 'muted' }, ult)),
+          b);
+        row.style.setProperty('--book', x.color);
+        return row;
+      });
+      content.replaceChildren(
+        el('p', { class: 'muted small' }, `Equip one element: its 💥 skill is your Skill button in a fight (it costs 🔷 mana) and its 📜 ultimate comes with it (a spell book of that element makes the ultimate stronger). Switch any time, even mid-fight with ⇄. Mana: +${lc.player.mana.perRound} a round in a fight, slowly back outside, faster by the campfire; resting fills it.`),
+        el('div', { class: 'lab-bag-grid' }, ...rows),
+      );
+      return;
+    }
     if (tab === 'skills') {
       const lvl = el('div', { class: 'lab-lv' },
         el('b', {}, `📈 Labirin level ${s.level}`),
@@ -194,13 +227,14 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       const rows = lc.spells.list.map((sp) => {
         const owned = s.books.includes(sp.id);
         const worn = s.book === sp.id;
+        const elem = lc.elements.find((x) => x.id === sp.element);
         const locked = s.deepest < sp.minFloor;
         const btn = el('button', { class: 'btn small', type: 'button', 'data-book': sp.id }) as HTMLButtonElement;
         if (owned) {
-          btn.textContent = worn ? '✓ Ready' : 'Use this one';
-          btn.disabled = busy;
-          btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button. Click to put it away.' : 'Make this your ultimate';
-          btn.addEventListener('click', () => wearBook(worn ? null : sp.id));
+          btn.textContent = worn ? '✓ In use' : elem ? `Use (${elem.icon} ${elem.name})` : 'Owned';
+          btn.disabled = busy || worn || !elem;
+          btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button.' : elem ? `Equip ${elem.icon} ${elem.skill.name}: this book then powers your ultimate` : '';
+          btn.addEventListener('click', () => wearBook(sp.id));
         } else if (sp.rollOnly) {
           btn.textContent = '🎲 Tavern roll';
           btn.disabled = true;
@@ -227,7 +261,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
         return row;
       });
       content.replaceChildren(
-        el('p', { class: 'muted small' }, `A spell book gives you an ultimate: 📜 Ultimate in a fight, once your focus bar is full (${lc.spells.focus}). It hits every monster at once (or heals your whole party). One book at a time. ${lc.tavern.name} has a once-a-day roll for one too.`),
+        el('p', { class: 'muted small' }, `Every element has a basic 📜 ultimate (once your focus bar is full: ${lc.spells.focus}). A spell book makes its element's ultimate stronger: it works while that element is equipped (🔥 Elements). Books are yours for good. ${lc.tavern.name} has a once-a-day roll for one too.`),
         el('div', { class: 'lab-bag-grid' }, ...rows),
       );
       return;
@@ -260,9 +294,9 @@ export function openLabBag(app: App, start: Tab = 'gear') {
             btns.append(b);
           }
         }
-        if (s.inside && (p.heal || p.home)) {
+        if (s.inside && (p.heal || p.home || p.mana)) {
           const u = el('button', { class: 'btn small', type: 'button', 'data-use': p.id }, p.home ? 'Go home' : 'Drink') as HTMLButtonElement;
-          u.disabled = busy || !have || (!!p.heal && s.hp >= s.stats.hp);
+          u.disabled = busy || !have || (!!p.heal && s.hp >= s.stats.hp) || (!!p.mana && s.mana >= s.maxMana);
           u.addEventListener('click', () => drink(p.id));
           btns.append(u);
         }

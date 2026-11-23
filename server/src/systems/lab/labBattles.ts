@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  groupCoins, groupXp, labPotion, labSkillBonus, labSpell, resolveLabRound, rollBoss, rollGroup,
+  canSkill, groupCoins, groupXp, labElement, labPotion, labSkillBonus, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -103,9 +103,12 @@ export class LabBattles {
     if (!b) throw new GameError("You're not in a fight.");
     const me = b.fighters.find((f) => f.id === pid(p));
     if (!me || me.out) throw new GameError("You're out of this fight.");
-    if (action.kind === 'skill' && me.focus < this.cfg.player.skillCost) throw new GameError('Not enough focus yet.');
+    if (action.kind === 'skill' && !canSkill(this.cfg, me)) {
+      const el = labElement(this.cfg, me.element);
+      throw new GameError(`Not enough 🔷 mana for ${el.icon} ${el.skill.name} (${el.skill.mana}). A mana potion helps.`);
+    }
     if (action.kind === 'ultimate') {
-      if (!labSpell(this.cfg, me.spell)) throw new GameError('Wear a 📜 spell book first (Tok Peraih sells them).');
+      if (!labSpell(this.cfg, me.spell)) throw new GameError('No ultimate to cast.');
       if (me.focus < this.cfg.spells.focus) throw new GameError(`Your ultimate needs a full focus bar (${this.cfg.spells.focus}).`);
     }
     if (b.boss && action.kind === 'run') throw new GameError("There's no running from a boss!");
@@ -116,6 +119,7 @@ export class LabBattles {
       if (pot.home) throw new GameError(`${pot.name} doesn't work in a fight. Try 🏃 Run or 💨 Asap Lari.`);
       if (pot.revive && !b.fighters.some((f) => f.side === 'party' && f.out && !f.fled)) throw new GameError('Nobody has fallen.');
       if (pot.heal && me.hp >= me.maxHp) throw new GameError("You're at full HP.");
+      if (pot.mana && (me.mana ?? 0) >= (me.maxMana ?? 0)) throw new GameError('Your mana is already full.');
       if (pot.escape && b.boss) throw new GameError("There's no escaping a boss!");
     }
     b.choices.set(me.id, action);
@@ -133,10 +137,22 @@ export class LabBattles {
       me.fled = true;
     }
     this.lab.setHp(p, me?.hp ?? 0);
+    if (me?.mana !== undefined) this.lab.setMana(p, me.mana);
     this.byPlayer.delete(p.id);
     b.members.delete(p.id);
     if (!b.members.size) return this.close(b);
     if (this.everyoneReady(b)) this.play(b);
+  }
+
+  /** 🔥 Switched element mid-fight: their 💥 skill and 📜 ultimate change from the next pick. */
+  restyle(p: OnlinePlayer) {
+    const b = this.byPlayer.get(p.id);
+    const me = b?.fighters.find((f) => f.id === pid(p));
+    if (!b || !me) return;
+    const s = this.lab.state(p);
+    me.element = labElement(this.cfg, s.element).id;
+    me.spell = labUltimate(this.cfg, s.element, s.books).id;
+    this.hooks.picked([...b.members.values()], this.viewOf(b));
   }
 
   // ---------------------------------------------------------------- the rounds
@@ -146,7 +162,8 @@ export class LabBattles {
     const sk = labSkillBonus(this.cfg, s.skills);
     return {
       id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: 0, out: false, crit: st.crit, block: st.block,
-      spell: s.book && s.books.includes(s.book) ? s.book : undefined, skillUp: sk.skillPower || undefined, spellUp: sk.spellPower || undefined,
+      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id,
+      spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: sk.skillPower || undefined, spellUp: sk.spellPower || undefined,
     };
   }
 
@@ -184,6 +201,7 @@ export class LabBattles {
       const f = b.fighters.find((x) => x.id === pid(p))!;
       if (outcome === null && !f.fled) continue;
       let end: LabBattleEnd;
+      if (f.mana !== undefined) this.lab.setMana(p, f.mana);
       if (f.fled) {
         this.lab.setHp(p, f.hp);
         end = { outcome: 'fled', coins: 0, lost: 0 };

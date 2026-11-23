@@ -3,7 +3,7 @@
 // pick their own. Guards and items first, then everyone acts, fastest first. Pure: the server owns it.
 import type { LabConfig } from './config';
 import { labPotion, type LabGearBonus } from './gear';
-import { labSpell } from './progress';
+import { labElement, labSpell } from './progress';
 
 export type LabSide = 'party' | 'foe';
 
@@ -38,6 +38,12 @@ export interface LabFighter {
   spell?: string;
   skillUp?: number;
   spellUp?: number;
+  /** Players: 🔷 mana (💥 skills cost it) and the element whose skill is equipped. */
+  mana?: number;
+  maxMana?: number;
+  element?: string;
+  /** 🔥 Burning: `dmg` at the end of each of the next `left` rounds. */
+  burn?: { dmg: number; left: number };
 }
 
 export type LabAction =
@@ -51,7 +57,8 @@ export type LabAction =
   | { kind: 'item'; item: string; target?: string };
 
 export interface LabEvent {
-  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe' | 'item' | 'spell';
+  /** 'cast': a 💥 skill that hits every monster is let loose (its 'hit's follow, aoe). */
+  kind: 'hit' | 'guard' | 'faint' | 'run' | 'runfail' | 'win' | 'wipe' | 'item' | 'spell' | 'cast';
   actor: string;
   target?: string;
   dmg?: number;
@@ -71,6 +78,12 @@ export interface LabEvent {
   aoe?: boolean;
   /** The spell's colour (for the effects). */
   color?: string;
+  /** 🔥 The element behind a skill / ultimate (each has its own effects on screen). */
+  element?: string;
+  /** 🔥 A burn ticking (not a new hit). */
+  burn?: boolean;
+  /** 🔷 Someone's mana after this (a skill spent it, a potion gave it back): `actor`'s, or `target`'s for a potion. */
+  mana?: number;
   text: string;
 }
 
@@ -175,6 +188,12 @@ export function foeAction(cfg: LabConfig, me: LabFighter, fighters: LabFighter[]
   return { kind: 'attack', target: target.id };
 }
 
+/** 💥 Can this party fighter pay for their equipped element's skill? (No mana kept: the old focus rule.) */
+export function canSkill(cfg: LabConfig, f: LabFighter): boolean {
+  if (f.side !== 'party' || f.mana === undefined) return f.focus >= cfg.player.skillCost;
+  return f.mana >= labElement(cfg, f.element).skill.mana;
+}
+
 /**
  * One round. `actions` = what each party fighter (by id) picked; missing ones ⚔️ Attack. Fighters
  * are changed in place. Returns what happened, in order, and how the battle stands.
@@ -195,14 +214,56 @@ export function resolveLabRound(
     if (f.out) continue;
     picks.set(f.id, f.side === 'party' ? (actions[f.id] ?? { kind: 'attack' }) : foeAction(cfg, f, fighters, rand));
   }
+  /** A player's element skill this round (if they picked 💥 and use mana). */
+  const skillOf = (f: LabFighter) => (f.side === 'party' && f.mana !== undefined && picks.get(f.id)?.kind === 'skill' ? labElement(cfg, f.element) : undefined);
   // Guards first (they protect for the whole round), then by speed (a little random on ties).
   const guarding = new Set<string>();
+  /** 🪨 Turned to stone this round: id → share of damage taken off. */
+  const stone = new Map<string, number>();
+  /** Skills already paid for (🪨 pays as it hardens, at the start). */
+  const paid = new Set<string>();
   for (const [id, a] of picks) {
-    if (a.kind !== 'guard') continue;
-    guarding.add(id);
     const f = fighters.find((x) => x.id === id)!;
-    events.push({ kind: 'guard', actor: id, text: `${f.name} braces behind their guard.` });
+    if (a.kind === 'guard') {
+      guarding.add(id);
+      events.push({ kind: 'guard', actor: id, text: `${f.name} braces behind their guard.` });
+      continue;
+    }
+    const el = skillOf(f);
+    if (el?.skill.shield && f.mana! >= el.skill.mana) {
+      f.mana! -= el.skill.mana;
+      paid.add(id);
+      stone.set(id, el.skill.shield);
+      events.push({ kind: 'guard', actor: id, element: el.id, color: el.color, mana: f.mana, text: `${f.name} turns to stone! ${el.icon}` });
+    }
   }
+  /** Damage after 🛡️ guard and 🪨 stone. */
+  const cut = (t: LabFighter, dmg: number) => {
+    let d = guarding.has(t.id) ? dmg * pc.guardCut : dmg;
+    const st = stone.get(t.id);
+    if (st) d *= 1 - st;
+    return Math.max(1, Math.round(d));
+  };
+  const faint = (t: LabFighter) => {
+    if (t.hp > 0 || t.out) return;
+    t.out = true;
+    t.burn = undefined;
+    events.push({ kind: 'faint', actor: t.id, text: t.side === 'foe' ? `${t.name} is defeated!` : `${t.name} fainted!` });
+  };
+  /** 🔥 Set it burning (a stronger burn replaces a weaker one). */
+  const ignite = (t: LabFighter, hit: number, share: number | undefined, rounds: number | undefined) => {
+    if (!share || t.out) return;
+    const dmg = Math.max(1, Math.round(hit * share));
+    const n = rounds ?? 2;
+    if (!t.burn || t.burn.dmg * t.burn.left < dmg * n) t.burn = { dmg, left: n };
+  };
+  /** 💧 Heal the attacker a share of what they dealt. */
+  const drink = (f: LabFighter, dealt: number, share: number | undefined, el?: { id: string; color: string; icon: string }) => {
+    if (!share || f.out || dealt <= 0) return;
+    const before = f.hp;
+    f.hp = Math.min(f.maxHp, Math.round(f.hp + dealt * share));
+    if (f.hp > before) events.push({ kind: 'item', actor: f.id, target: f.id, hp: f.hp, element: el?.id, color: el?.color, text: `${el?.icon ?? '💧'} ${f.name} +${f.hp - before} HP` });
+  };
   // 🧪 Potions next (before anyone swings), fastest first.
   const drinkers = fighters.filter((f) => !f.out && picks.get(f.id)?.kind === 'item').sort((a, b) => b.spd - a.spd);
   for (const f of drinkers) {
@@ -227,6 +288,13 @@ export function resolveLabRound(
       t.hp = Math.min(t.maxHp, Math.round(t.hp + t.maxHp * pot.heal));
       used.push({ actor: f.id, item: pot.id });
       events.push({ kind: 'item', actor: f.id, target: t.id, item: pot.id, hp: t.hp, text: `${f.name} drinks ${pot.name}. ${t.name} +${t.hp - before} HP` });
+    } else if (pot.mana) {
+      const t = target.out || target.maxMana === undefined ? f : target;
+      const max = t.maxMana ?? 0;
+      const before = t.mana ?? 0;
+      t.mana = Math.min(max, Math.round(before + max * pot.mana));
+      used.push({ actor: f.id, item: pot.id });
+      events.push({ kind: 'item', actor: f.id, target: t.id, item: pot.id, mana: t.mana, text: `${f.name} drinks ${pot.name}. ${t.name} +${t.mana - before} 🔷 mana` });
     } else if (pot.escape) {
       used.push({ actor: f.id, item: pot.id });
       if (opts.noEscape) {
@@ -243,7 +311,16 @@ export function resolveLabRound(
     }
   }
   // Everyone else, fastest first (someone just revived has no pick yet: they act from the next round).
-  const order = fighters.filter((f) => !f.out && picks.has(f.id) && picks.get(f.id)!.kind !== 'guard' && picks.get(f.id)!.kind !== 'item').sort((a, b) => b.spd + rand() - (a.spd + rand()));
+  // ⚡ Some skills go before everyone, 🪨 some after.
+  const speed = (f: LabFighter) => {
+    const sk = skillOf(f)?.skill;
+    return f.spd + rand() + (sk?.first ? 1e4 : sk?.last ? -1e4 : 0);
+  };
+  const order = fighters
+    .filter((f) => !f.out && picks.has(f.id) && picks.get(f.id)!.kind !== 'guard' && picks.get(f.id)!.kind !== 'item')
+    .map((f) => ({ f, s: speed(f) }))
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.f);
   for (const f of order) {
     if (f.out) continue;
     const a = picks.get(f.id)!;
@@ -264,49 +341,94 @@ export function resolveLabRound(
       if (!sp || f.focus < cfg.spells.focus) continue;
       f.focus -= cfg.spells.focus;
       const mult = 1 + (f.spellUp ?? 0);
-      events.push({ kind: 'spell', actor: f.id, spell: sp.id, color: sp.color, text: `${f.name} casts ${sp.icon} ${sp.move}!` });
+      const el = sp.element ? labElement(cfg, sp.element) : undefined;
+      events.push({ kind: 'spell', actor: f.id, spell: sp.id, color: sp.color, element: el?.id, text: `${f.name} casts ${sp.icon} ${sp.move}!` });
       if (sp.heal) {
         for (const t of alive(fighters, f.side)) {
           const before = t.hp;
           t.hp = Math.min(t.maxHp, Math.round(t.hp + t.maxHp * sp.heal * mult));
-          events.push({ kind: 'item', actor: f.id, target: t.id, spell: sp.id, color: sp.color, aoe: true, hp: t.hp, text: `${t.name} +${t.hp - before} HP` });
+          events.push({ kind: 'item', actor: f.id, target: t.id, spell: sp.id, color: sp.color, element: el?.id, aoe: true, hp: t.hp, text: `${t.name} +${t.hp - before} HP` });
         }
       }
       if (sp.power) {
+        let dealt = 0;
         for (const t of alive(fighters, f.side === 'party' ? 'foe' : 'party')) {
-          const r = damage(cfg, f.atk * (f.buff ?? 1), t.def * (1 - (sp.pierce ?? 0)), sp.power * mult, rand, f.crit ?? pc.crit);
-          const dmg = guarding.has(t.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
+          const r = damage(cfg, f.atk * (f.buff ?? 1), t.def * (1 - (sp.pierce ?? 0)), sp.power * mult, rand, Math.min(0.9, (f.crit ?? pc.crit) + (sp.crit ?? 0)));
+          const dmg = cut(t, r.dmg);
           t.hp = Math.max(0, t.hp - dmg);
-          events.push({ kind: 'hit', actor: f.id, target: t.id, dmg, crit: r.crit, spell: sp.id, color: sp.color, aoe: true, hp: t.hp, text: `${sp.icon} ${t.name} −${dmg}${r.crit ? ' (critical!)' : ''}` });
-          if (t.hp <= 0) {
-            t.out = true;
-            events.push({ kind: 'faint', actor: t.id, text: t.side === 'foe' ? `${t.name} is defeated!` : `${t.name} fainted!` });
-          }
+          dealt += dmg;
+          events.push({ kind: 'hit', actor: f.id, target: t.id, dmg, crit: r.crit, spell: sp.id, color: sp.color, element: el?.id, aoe: true, hp: t.hp, text: `${sp.icon} ${t.name} −${dmg}${r.crit ? ' (critical!)' : ''}` });
+          ignite(t, dmg, sp.burn, sp.burnRounds);
+          faint(t);
         }
+        drink(f, dealt, sp.drain, el);
       }
       continue;
     }
     if (a.kind !== 'attack' && a.kind !== 'skill') continue;
     const foes = alive(fighters, f.side === 'party' ? 'foe' : 'party');
     if (!foes.length) break;
+    // 💥 A player's element skill (mana). Short of mana (the server checks first): a plain attack.
+    const el = a.kind === 'skill' ? skillOf(f) : undefined;
+    if (el && !paid.has(f.id) && f.mana! >= el.skill.mana) {
+      f.mana! -= el.skill.mana;
+      paid.add(f.id);
+    }
+    if (el && paid.has(f.id)) {
+      const sk = el.skill;
+      const power = (sk.power ?? 1) * (1 + (f.skillUp ?? 0));
+      const crit = Math.min(0.9, (f.crit ?? pc.crit) + (sk.crit ?? 0));
+      const targets = sk.all ? foes : [sk.random ? foes[Math.floor(rand() * foes.length)] : (foes.find((x) => x.id === a.target) ?? foes[0])];
+      if (sk.all) events.push({ kind: 'cast', actor: f.id, element: el.id, color: el.color, mana: f.mana, text: `${f.name} uses ${el.icon} ${sk.name}!` });
+      let dealt = 0;
+      for (const t of targets) {
+        const r = damage(cfg, f.atk * (f.buff ?? 1), t.def * (1 - (sk.pierce ?? 0)), power, rand, crit);
+        let dmg = cut(t, r.dmg);
+        const blocked = !!t.block && rand() < t.block;
+        if (blocked) dmg = Math.max(1, Math.round(dmg / 2));
+        t.hp = Math.max(0, t.hp - dmg);
+        dealt += dmg;
+        const tail = `${r.crit ? ' (critical!)' : ''}${blocked ? ' (blocked!)' : ''}`;
+        events.push({
+          kind: 'hit', actor: f.id, target: t.id, dmg, crit: r.crit, skill: true, blocked, hp: t.hp, element: el.id, color: el.color, aoe: sk.all || undefined, mana: f.mana,
+          text: sk.all ? `${el.icon} ${t.name} −${dmg}${tail}` : `${f.name} uses ${el.icon} ${sk.name}! ${t.name} −${dmg}${tail}`,
+        });
+        ignite(t, dmg, sk.burn, sk.burnRounds);
+        faint(t);
+      }
+      drink(f, dealt, sk.drain, el);
+      continue;
+    }
     const target = foes.find((x) => x.id === a.target) ?? foes[0];
-    const skill = a.kind === 'skill' && f.focus >= pc.skillCost;
+    // Monsters (and fighters who keep no mana) use focus for their skill.
+    const skill = f.mana === undefined && a.kind === 'skill' && f.focus >= pc.skillCost;
     if (skill) f.focus -= pc.skillCost;
     const r = damage(cfg, f.atk * (f.buff ?? 1), target.def, skill ? pc.skillPower * (1 + (f.skillUp ?? 0)) : 1, rand, f.side === 'party' ? (f.crit ?? pc.crit) : pc.crit / 2);
-    let dmg = guarding.has(target.id) ? Math.max(1, Math.round(r.dmg * pc.guardCut)) : r.dmg;
+    let dmg = cut(target, r.dmg);
     // 🛡️ A shield sometimes takes half of it.
     const blocked = !!target.block && rand() < target.block;
     if (blocked) dmg = Math.max(1, Math.round(dmg / 2));
     target.hp = Math.max(0, target.hp - dmg);
     const how = skill ? `uses ${f.move || 'a skill'}` : f.side === 'foe' ? `uses ${f.move}` : 'attacks';
     events.push({ kind: 'hit', actor: f.id, target: target.id, dmg, crit: r.crit, skill, blocked, hp: target.hp, text: `${f.name} ${how}! ${target.name} −${dmg}${r.crit ? ' (critical!)' : ''}${blocked ? ' (blocked!)' : ''}` });
-    if (target.hp <= 0) {
-      target.out = true;
-      events.push({ kind: 'faint', actor: target.id, text: target.side === 'foe' ? `${target.name} is defeated!` : `${target.name} fainted!` });
-    }
+    faint(target);
   }
-  // Focus builds up each round.
-  for (const f of fighters) if (!f.out) f.focus = Math.min(pc.focusMax, f.focus + 1);
+  // 🔥 Burns tick.
+  const fire = labElement(cfg, 'api');
+  for (const t of fighters) {
+    if (t.out || !t.burn) continue;
+    t.hp = Math.max(0, t.hp - t.burn.dmg);
+    events.push({ kind: 'hit', actor: t.id, target: t.id, dmg: t.burn.dmg, burn: true, aoe: true, hp: t.hp, element: fire.id, color: fire.color, text: `🔥 ${t.name} burns! −${t.burn.dmg}` });
+    t.burn.left--;
+    if (t.burn.left <= 0) t.burn = undefined;
+    faint(t);
+  }
+  // Focus builds up each round, and a little 🔷 mana comes back.
+  for (const f of fighters) {
+    if (f.out) continue;
+    f.focus = Math.min(pc.focusMax, f.focus + 1);
+    if (f.mana !== undefined && f.maxMana !== undefined) f.mana = Math.min(f.maxMana, f.mana + pc.mana.perRound);
+  }
   const foesLeft = alive(fighters, 'foe').length;
   const partyLeft = alive(fighters, 'party').length;
   let outcome: LabOutcome = null;

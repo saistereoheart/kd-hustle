@@ -6,6 +6,7 @@ import { closePanel, openPanel } from '../panel';
 import { coinIcon } from './labHud';
 import { openLabBag } from './labBag';
 import { openLabParty } from './labParty';
+import { startWarp } from './warp';
 
 export function openLabPanel(app: App) {
   const lc = app.cfg.lab;
@@ -17,10 +18,15 @@ export function openLabPanel(app: App) {
     const atEntrance = s.save.floor === 0 && s.save.room === labFloor(lc, 0).start;
     const enter = (at: 'save' | 'entrance') => {
       if (app.interior || app.home) return void toast('Step outside first.', 'bad');
+      // 🌀 The warp starts at once and covers the switch (it waits for the server's answer).
+      const warp = startWarp();
       app.socket?.timeout(6000).emit('lab:enter', { at }, (err, res) => {
-        if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        if (err || !res.ok) {
+          warp.cancel();
+          return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
+        }
         closePanel();
-        app.enterLab(res.view, res.battle);
+        warp.done(() => app.enterLab(res.view, res.battle));
       });
     };
     const main = el('button', { class: 'btn primary', type: 'button', 'data-action': 'lab-enter' }, atEntrance ? '▶ Enter the labyrinth' : `▶ Continue at your rest chamber (B${s.save.floor + 1} · ${saveFloor.name})`);
@@ -36,7 +42,7 @@ export function openLabPanel(app: App) {
       el('div', { class: 'lab-stats' },
         el('div', {}, coinIcon(), el('b', {}, ` ${s.coins}`), el('span', { class: 'muted small' }, ' Syiling Purba (only spent down there)')),
         el('div', {}, el('b', {}, `B${s.deepest + 1}`), el('span', { class: 'muted small' }, ` deepest of ${lc.floors.length} floors`)),
-        el('div', {}, el('b', {}, `❤️ ${s.hp}/${s.maxHp}`), el('span', { class: 'muted small' }, ' HP down there')),
+        el('div', {}, el('b', {}, `❤️ ${s.hp}/${s.maxHp} · 🔷 ${s.mana}/${s.maxMana}`), el('span', { class: 'muted small' }, ' HP · mana down there')),
         el('div', { title: 'Teman stay out of the fights down there. Your lead Teman (first in your team) gives a small boost by rarity, tier and variant.' }, el('b', {}, `🐾 +${(s.boost * 100).toFixed(1)}%`), el('span', { class: 'muted small' }, ' lead Teman boost (ATK, DEF, HP)')),
       ),
       el('div', { class: 'lab-stats' },

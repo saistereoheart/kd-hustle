@@ -1,6 +1,20 @@
 // 🗝️ Labirin Purba: balance (shared/config/labyrinth.json). See docs/LABYRINTH.md.
 import { z } from 'zod';
 
+/** What a 💥 skill or 📜 ultimate does (all optional; see battle.ts). */
+const labEffect = {
+  /** Damage × (like a hit), and the share of the target's DEF it ignores. */
+  power: z.number().min(0).optional(), pierce: z.number().min(0).max(1).optional(),
+  /** Heals every standing friend this share of their max HP. */
+  heal: z.number().min(0).max(1).optional(),
+  /** 🔥 Sets it burning: this share of the hit again at the end of each of the next `burnRounds` rounds. */
+  burn: z.number().min(0).max(2).optional(), burnRounds: z.number().int().min(1).max(5).optional(),
+  /** 💧 Heals you this share of the damage dealt. */
+  drain: z.number().min(0).max(1).optional(),
+  /** ⚡ Extra critical-hit chance. */
+  crit: z.number().min(0).max(0.5).optional(),
+};
+
 export const labConfigSchema = z.object({
   name: z.string(),
   /** Floors, top to bottom. Each one's layout comes from its own seed: never change a seed (it
@@ -48,6 +62,10 @@ export const labConfigSchema = z.object({
     regenPer10s: z.number().min(0).max(1),
     /** 🔥 Sitting by the entrance hall's campfire: +`hp` HP every `everySec` seconds (on top of the slow regen), within `reach` tiles. */
     campfire: z.object({ hp: z.number().min(0), everySec: z.number().positive(), reach: z.number().positive() }).default({ hp: 1, everySec: 3, reach: 2.2 }),
+    /** 🔷 Mana for 💥 skills: `max` (skills can raise it), +`perRound` each fight round, this share of max
+     *  back every 10 s out of a fight, and +`campfire` every campfire tick by the hall's fire. It carries
+     *  over between fights like HP (rest or fall: full again). */
+    mana: z.object({ max: z.number().positive(), perRound: z.number().min(0), regenPer10s: z.number().min(0).max(1), campfire: z.number().min(0) }).default({ max: 20, perRound: 1, regenPer10s: 0.05, campfire: 1 }),
   }),
   battle: z.object({
     /** Seconds to pick (then you ⚔️ Attack). */
@@ -131,6 +149,8 @@ export const labConfigSchema = z.object({
       atkBuff: z.number().min(0).max(2).optional(),
       /** Out of a fight: back to town from anywhere. */
       home: z.boolean().optional(),
+      /** 🔷 Gives back this share of max mana. */
+      mana: z.number().min(0).max(1).optional(),
     })),
   }),
   /** 📈 Labirin XP (from fights) → levels → skill points (Mata Ilmu) for the skills below. Only counts down here. */
@@ -154,6 +174,8 @@ export const labConfigSchema = z.object({
     spd: z.number().min(0).optional(), crit: z.number().min(0).max(0.1).optional(),
     skillPower: z.number().min(0).optional(), spellPower: z.number().min(0).optional(),
     regen: z.number().min(0).optional(), coins: z.number().min(0).optional(),
+    /** +share of max 🔷 mana. */
+    mana: z.number().min(0).optional(),
   })).default([]),
   /** 📜 Spell books: each gives an ultimate (one book worn at a time) that hits every monster (or heals
    *  the whole party). It costs `focus` focus (a full bar). Sold by the merchant, or won at the tavern's
@@ -167,16 +189,37 @@ export const labConfigSchema = z.object({
     }),
     list: z.array(z.object({
       id: z.string(), name: z.string(), icon: z.string(), color: z.string(), desc: z.string(), move: z.string(),
-      /** Damage to every monster (× like a hit), and the share of their DEF it ignores. */
-      power: z.number().min(0).optional(), pierce: z.number().min(0).max(1).optional(),
-      /** Heals every standing friend this share of their max HP. */
-      heal: z.number().min(0).max(1).optional(),
+      /** The element it powers up: with that element's skill equipped, this replaces its basic ultimate. */
+      element: z.string().optional(),
+      /** On every monster (or, for `heal`, every friend). */
+      ...labEffect,
       price: z.number().int().min(0), minFloor: z.number().int().min(0),
       /** Weight in the tavern roll. */
       weight: z.number().min(0),
       rollOnly: z.boolean().optional(),
     })).min(1),
   }).default({ focus: 3, roll: { price: 40, bookChance: 0.3 }, list: [{ id: 'kitab_api', name: 'Kitab Api Pelita', icon: '🔥', color: '#ff922b', desc: 'Fire on every monster.', move: 'Api Pelita', power: 1.2, price: 450, minFloor: 0, weight: 1 }] }),
+  /** 🔥💧⚡🌪️🪨 Elements: each has a free basic 💥 skill (one equipped at a time, change it whenever you like;
+   *  it costs mana) and a basic 📜 ultimate in the same style (a spell book of that element replaces it
+   *  with a stronger one). Pros and cons differ; none is best at everything. */
+  elements: z.array(z.object({
+    id: z.string(), name: z.string(), icon: z.string(), color: z.string(),
+    skill: z.object({
+      name: z.string(), desc: z.string(),
+      /** 🔷 Mana it costs. */
+      mana: z.number().int().min(0),
+      ...labEffect,
+      /** Hits every monster (instead of one). */
+      all: z.boolean().optional(),
+      /** Acts before everyone else this round / after everyone else. */
+      first: z.boolean().optional(), last: z.boolean().optional(),
+      /** Hits a random monster (you can't aim it). */
+      random: z.boolean().optional(),
+      /** You take this share less damage for the whole round (it starts at once, like 🛡️ Guard). */
+      shield: z.number().min(0).max(0.9).optional(),
+    }),
+    ultimate: z.object({ move: z.string(), desc: z.string(), ...labEffect }),
+  })).min(1).default([{ id: 'api', name: 'Api', icon: '🔥', color: '#ff922b', skill: { name: 'Percikan Api', desc: 'A burst of fire.', mana: 8, power: 1.5 }, ultimate: { move: 'Bara Api', desc: 'Embers on every monster.', power: 0.75 } }]),
   /** 👹 Floor bosses (one per floor, in its stairs room). They grow with the floor like monsters do
    *  (× scale^floor); more players make them tougher (HP × (1 + partyHp × extra players)) and from
    *  floor `minionsFrom` (0-based) they bring a minion (one more per extra player). */

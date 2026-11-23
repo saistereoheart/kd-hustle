@@ -60,10 +60,17 @@ export interface LabSelf {
   xpNeed: number;
   points: number;
   skills: Record<string, number>;
-  /** 📜 Spell books owned, the one worn (its ultimate), and whether today's tavern roll is used. */
+  /** 📜 Spell books owned, the one powering your ultimate now (null: the element's basic one), and
+   *  whether today's tavern roll is used. */
   books: string[];
   book: string | null;
   rolled: boolean;
+  /** 🔷 Mana down here (it carries over between fights, like HP). */
+  mana: number;
+  maxMana: number;
+  /** 🔥 The element whose 💥 skill is equipped, and your 📜 ultimate (a book id, or `ult_<element>`). */
+  element: string;
+  ultimate: string;
 }
 
 /** The room you're in, and what's left in it for you. */
@@ -145,8 +152,10 @@ export const LAB_C2S = {
   labAct: z.object({ kind: z.enum(['attack', 'skill', 'ultimate', 'guard', 'run', 'item']), target: z.string().max(8).optional(), item: z.string().max(32).optional() }),
   /** 📖 Learn one more rank of a skill (a skill point). */
   labSkill: z.object({ id: z.string().max(32) }),
-  /** 📜 Wear a spell book you own (null: none). */
+  /** 📜 Use a spell book you own (switches to its element; null: nothing). */
   labBook: z.object({ id: z.string().max(32).nullable() }),
+  /** 🔥 Equip an element's 💥 skill (any time, even mid-fight). */
+  labElement: z.object({ id: z.string().max(16) }),
   /** 🛒 At the merchant: buy gear (n = 1) or potions. */
   labBuy: z.object({ id: z.string().max(32), n: z.number().int().min(1).max(20).default(1) }),
   /** ⚔️ Wear a piece you own (or take a slot off: id null). Not in a fight. */
