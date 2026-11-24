@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.43.0)_
+_Last updated: 2026-11-24 (v1.44.0)_
 
-**Now at v1.43.0 (local commits; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.44.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 476 unit tests (2026-11-24, v1.43.0) |
+| `npm test` (Vitest) | ✅ 476 unit tests (2026-11-24, v1.44.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -53,6 +53,21 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 💰 Labirin rewards pop up; found gear in its slot (2026-11-24, your request, v1.44.0)
+- Server returns structured rewards next to the text: `LabLoot` { coins, xp, items: { icon, name, color, sub,
+  big } } (`shared/src/lab/view.ts`). `LabSystem.won` / `wonWorld` (`loot`), `use()` for chest, treasure,
+  crate, secret and key; `LabBattleEnd.loot`; `lab:use` ack `loot`. `addItem` now returns the item.
+- Client `client/src/ui/lab/lootPop.ts` `showLabLoot`: centred card (on `document.body`, over the fight
+  screen), coins count up with 16 coin bits flying, item cards pop in one by one; rare ones glow (CSS
+  `.lab-loot*`). Doesn't block input; auto-closes (2.2 s + 0.7 s per item, +1.5 s if rare); tap closes.
+  Used by `LabBattleUi.finish` (adds a level-up card) and `LabScene` `lab:use`. HUD coins jump (`.gain`).
+- 🎒 Bag → ⚔️ Gear: per slot, found items and bought pieces together, strongest first ((tier + 1) × mult);
+  the separate Found gear list is gone. Loadout slots open the bag scrolled to that slot.
+- Perf: a DOM pop-up for a few seconds (16 small animated coins, a glow), no canvas work: no FPS risk.
+- Unverified on screen.
 
 ---
 

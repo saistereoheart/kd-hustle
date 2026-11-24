@@ -106,6 +106,7 @@ describe('Labirin Purba (server)', () => {
     walkTo(s, [L.spot.chest[0], L.spot.chest[1] + 1]);
     const r = s.lab.use(s.p, 'chest');
     expect(r.text).toMatch(/Syiling/);
+    expect(r.loot?.coins).toBe(s.lab.self(s.p).carried);
     expect(s.lab.self(s.p).carried).toBeGreaterThan(0);
     expect(s.lab.self(s.p).coins).toBe(0);
     expect(() => s.lab.use(s.p, 'chest')).toThrow(/tomorrow/);
@@ -550,6 +551,13 @@ describe('Labirin loot and classes (feedback #24)', () => {
     const before = lab.stats(p).atk;
     const got = lab.won(p, 2, 3, 10, false, false, 5, 3);
     expect(got.drops.some((d) => d.startsWith('💎'))).toBe(true);
+    // 💰 The reward pop-up gets it all: Syiling, XP, the 💎 and the item in its tier colour.
+    expect(got.loot.coins).toBe(got.coins);
+    expect(got.loot.xp).toBe(5);
+    expect(got.loot.items.some((x) => x.icon === '💎')).toBe(true);
+    const found = got.loot.items.find((x) => x.icon !== '💎')!;
+    expect(found.color).toMatch(/^#/);
+    expect(found.sub).toMatch(/Gear/);
     const st = lab.state(p);
     expect(st.items?.length).toBe(1);
     const it = st.items![0];

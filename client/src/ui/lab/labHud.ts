@@ -23,6 +23,7 @@ export class LabHud {
   private root: HTMLElement;
   private title: HTMLElement;
   private coins: HTMLElement;
+  private lastWorth: number | null = null;
   /** ❤️ / 🔷 bars: right above the hotbar, as wide as it. */
   private hp: HTMLElement;
   private mini: HTMLCanvasElement;
@@ -133,6 +134,14 @@ export class LabHud {
 
   /** Coins and HP (after a fight, a chest...). */
   updateSelf(self: LabRoomView['self']) {
+    // 💰 More Syiling or 💎 than a moment ago: the counter jumps.
+    const worth = self.coins + self.carried + (self.diamonds ?? 0) * 1000;
+    if (this.lastWorth !== null && worth > this.lastWorth) {
+      this.coins.classList.remove('gain');
+      void this.coins.offsetWidth; // restart the animation
+      this.coins.classList.add('gain');
+    }
+    this.lastWorth = worth;
     if (this.view) this.view = { ...this.view, self };
     this.loadout.update(self);
     this.coins.replaceChildren(coinIcon(), ` ${self.coins}${self.carried ? ` (+${self.carried} carried)` : ''}`, self.diamonds ? el('span', { class: 'lab-diamonds', title: 'Diamonds: class rolls (🎭 in your bag)' }, ` 💎 ${self.diamonds}`) : '');

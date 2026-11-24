@@ -1948,3 +1948,41 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 .stall-panel .stall-main > * { flex-shrink: 0; }
 .stall-panel .stall-main > .stall-queue { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; margin-bottom: 8px; padding-right: 2px; }
 .stall-panel .stall-main > .hint { margin: 6px 0 0; }
+
+/* 💰 Labirin reward pop-up (ui/lab/lootPop.ts): big in the middle, doesn't block walking; tap to close. */
+.lab-loot { position: fixed; inset: 0; z-index: 8000; display: grid; place-items: center; pointer-events: none; padding: 16px; }
+.lab-loot-card {
+  pointer-events: auto; cursor: pointer; min-width: min(320px, calc(100vw - 32px)); max-width: min(440px, calc(100vw - 32px));
+  max-height: 80vh; overflow-y: auto; padding: 14px 16px; border-radius: 16px; text-align: center; color: #fff;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 212, 59, 0.28), rgba(14, 16, 28, 0.94) 65%);
+  border: 2px solid rgba(255, 212, 59, 0.75); box-shadow: 0 0 40px rgba(255, 212, 59, 0.35), 0 12px 30px rgba(0, 0, 0, 0.6);
+  animation: lab-loot-in 0.42s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.lab-loot-card.rare { border-color: #da77f2; box-shadow: 0 0 60px rgba(218, 119, 242, 0.55), 0 12px 30px rgba(0, 0, 0, 0.6); }
+.lab-loot.out .lab-loot-card { animation: lab-loot-out 0.26s ease-in forwards; }
+.lab-loot-title { font-weight: 900; font-size: 18px; letter-spacing: 0.5px; margin-bottom: 6px; color: #ffe066; text-shadow: 0 2px 0 #000; }
+.lab-loot-coins { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 30px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 0 #7a4b00, 0 0 18px rgba(255, 212, 59, 0.7); }
+.lab-loot-coins > .lab-coin { width: 34px; height: 34px; animation: lab-loot-spin 0.9s ease-out; }
+.lab-loot-coins > span { font-size: 15px; font-weight: 700; color: #fff3bf; text-shadow: none; }
+.lab-loot-bit { position: absolute; left: 50%; top: 50%; width: 16px !important; height: 16px !important; pointer-events: none; animation: lab-loot-fly 1s cubic-bezier(.2, .7, .3, 1) forwards; }
+.lab-loot-xp { margin-top: 2px; font-weight: 800; color: #b2f2bb; }
+.lab-loot-item {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 10px; border-radius: 12px; text-align: left;
+  background: rgba(255, 255, 255, 0.07); border: 2px solid var(--tier, rgba(255, 255, 255, 0.3));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tier, #fff) 45%, transparent); animation: lab-loot-pop 0.4s cubic-bezier(.2, 1.5, .4, 1) both;
+}
+.lab-loot-item.big { box-shadow: 0 0 26px var(--tier, #da77f2); animation: lab-loot-pop 0.45s cubic-bezier(.2, 1.5, .4, 1) both, lab-loot-glow 1.2s ease-in-out 0.6s infinite alternate; }
+.lab-loot-icon { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6)); }
+.lab-loot-text { display: flex; flex-direction: column; min-width: 0; }
+.lab-loot-text b { color: var(--tier, #fff); font-size: 15px; }
+.lab-loot-text small { color: rgba(255, 255, 255, 0.75); font-size: 12px; }
+@keyframes lab-loot-in { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes lab-loot-out { to { transform: scale(0.85) translateY(-20px); opacity: 0; } }
+@keyframes lab-loot-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes lab-loot-glow { to { box-shadow: 0 0 40px var(--tier, #da77f2); } }
+@keyframes lab-loot-spin { from { transform: rotateY(0) scale(1.6); } to { transform: rotateY(720deg) scale(1); } }
+@keyframes lab-loot-fly { from { transform: translate(-50%, -50%); opacity: 1; } to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))); opacity: 0; } }
+/* The coin counter at the top jumps when Syiling or 💎 come in. */
+.lab-hud .lab-coins.gain { animation: lab-coins-gain 0.9s ease-out; }
+@keyframes lab-coins-gain { 0% { transform: scale(1); } 25% { transform: scale(1.35); color: #fff; text-shadow: 0 0 14px #ffd43b; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .lab-loot-card, .lab-loot-item, .lab-loot-bit, .lab-loot-coins > .lab-coin { animation: none !important; } }

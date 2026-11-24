@@ -3,8 +3,8 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labMove, labSkill, labFloor, labGear, labLevel, labPointsFree, labPotion, labStats, labUltimate, treeBlock, rollSpellBook, roomLayout, seenAdd,
-  type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
+  LAB_OPPOSITE, dayKey, weekKey, classMods, gearLine, itemMult, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labMove, labSkill, labFloor, labGear, labLevel, labPointsFree, labPotion, labStats, labUltimate, treeBlock, rollSpellBook, roomLayout, seenAdd,
+  type LabConfig, type LabDir, type LabFloor, type LabLoot, type LabLootItem, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -427,7 +427,7 @@ export class LabSystem {
 
   /** Beat the group here: Syiling (carried) and the room stays quiet for a while. Beat the boss:
    *  the stairs down open for good. */
-  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false, xp = 0, monsters = 0): { coins: number; xp: number; levelUp?: number; drops: string[] } {
+  won(p: OnlinePlayer, floor: number, room: number, coins: number, boss = false, ambush = false, xp = 0, monsters = 0): { coins: number; xp: number; levelUp?: number; drops: string[]; loot: LabLoot } {
     const s = this.state(p);
     if (boss) {
       if (!s.bosses.includes(floor)) s.bosses.push(floor);
@@ -436,35 +436,57 @@ export class LabSystem {
     s.carried += got;
     // 🎁 Loot: 💎 diamonds, maybe a gear drop, and (floor bosses) the limited class.
     const drops: string[] = [];
+    const items: LabLootItem[] = [];
     if (monsters > 0) {
       const loot = rollLoot(this.cfg, floor, monsters, boss, this.rand);
-      if (loot.diamonds) (s.diamonds = (s.diamonds ?? 0) + loot.diamonds), drops.push(`💎 +${loot.diamonds}`);
-      if (loot.item) drops.push(`🎁 ${this.addItem(s, loot.item)}`);
-      if (boss) drops.push(...this.classDrop(s, 'boss'));
+      if (loot.diamonds) {
+        s.diamonds = (s.diamonds ?? 0) + loot.diamonds;
+        drops.push(`💎 +${loot.diamonds}`);
+        items.push(this.diamondLoot(loot.diamonds));
+      }
+      if (loot.item) {
+        const it = this.addItem(s, loot.item);
+        drops.push(`🎁 ${itemName(this.cfg, it)}`);
+        items.push(this.itemLoot(it));
+      }
+      if (boss) drops.push(...this.classDrop(s, 'boss', items));
     }
     // 📈 XP: a new level brings a skill point (and tops up the HP the new level's skills might add later).
     const before = labLevel(this.cfg, s.xp).level;
     s.xp += xp;
     const after = labLevel(this.cfg, s.xp).level;
     this.save(p);
-    return { coins: got, xp, levelUp: after > before ? after : undefined, drops };
+    return { coins: got, xp, levelUp: after > before ? after : undefined, drops, loot: { coins: got, xp: xp || undefined, items } };
   }
 
   // ---------------------------------------------------------------- 🎁 loot, 💎 diamonds, 🎭 classes
-  /** Into the bag; its name. */
-  private addItem(s: LabSave, it: Omit<LabItem, 'uid'>): string {
+  /** Into the bag (it goes in its slot's list in ⚔️ Gear). */
+  private addItem(s: LabSave, it: Omit<LabItem, 'uid'>): LabItem {
     s.items ??= [];
     s.nextUid = (s.nextUid ?? 0) + 1;
-    s.items.push({ ...it, uid: s.nextUid });
-    return itemName(this.cfg, it);
+    const made = { ...it, uid: s.nextUid };
+    s.items.push(made);
+    return made;
+  }
+
+  /** 🎁 A dropped item for the reward pop-up: its tier colour, stats, and fanfare if it's a good one. */
+  private itemLoot(it: Pick<LabItem, 'gear' | 'grade' | 'variant'>): LabLootItem {
+    const g = labGear(this.cfg, it.gear);
+    const m = itemMult(this.cfg, it);
+    return { icon: g?.icon ?? '🎁', name: itemName(this.cfg, it), color: g?.color, sub: g ? `${gearLine(g)} ×${m.toFixed(2)} · in ⚔️ Gear` : undefined, big: it.variant !== 'normal' || it.grade === 'A' || it.grade === 'S' };
+  }
+
+  private diamondLoot(n: number): LabLootItem {
+    return { icon: '💎', name: `+${n} diamond${n === 1 ? '' : 's'}`, color: '#74c0fc' };
   }
 
   /** A limited class drop (if lucky and not owned yet). */
-  private classDrop(s: LabSave, from: 'boss' | 'worldBoss'): string[] {
+  private classDrop(s: LabSave, from: 'boss' | 'worldBoss', items?: LabLootItem[]): string[] {
     const c = this.cfg.classes.find((x) => x.source === 'drop' && x.from === from);
     const chance = from === 'boss' ? this.cfg.loot.classDrop.boss : this.cfg.loot.classDrop.worldBoss;
     if (!c || (s.classes ?? []).includes(c.id) || this.rand() >= chance) return [];
     (s.classes ??= []).push(c.id);
+    items?.push({ icon: c.icon, name: `Class: ${c.name}`, color: '#da77f2', sub: c.desc, big: true });
     return [`🎭 Class: ${c.icon} ${c.name}!`];
   }
 
@@ -569,14 +591,16 @@ export class LabSystem {
   }
 
   /** Beat the world boss: Syiling + XP, and the rare mythic drops (each rolled for this player). */
-  wonWorld(p: OnlinePlayer): { coins: number; xp: number; levelUp?: number; drops: string[] } {
+  wonWorld(p: OnlinePlayer): { coins: number; xp: number; levelUp?: number; drops: string[]; loot: LabLoot } {
     const w = this.cfg.worldBoss!;
     const s = this.state(p);
     const got = this.won(p, 0, -1, w.coins, false, true, w.xp);
     const drops: string[] = [];
+    const items = got.loot.items;
     s.diamonds = (s.diamonds ?? 0) + this.cfg.loot.diamond.worldBoss;
     drops.push(`💎 +${this.cfg.loot.diamond.worldBoss}`);
-    drops.push(...this.classDrop(s, 'worldBoss'));
+    items.push(this.diamondLoot(this.cfg.loot.diamond.worldBoss));
+    drops.push(...this.classDrop(s, 'worldBoss', items));
     // A 🐲 set piece: a random slot of the drop-only tier (one you don't have yet if you can).
     if (this.rand() < w.setChance) {
       const pieces = this.cfg.gear.slots.map((sl) => `${sl.id}_${w.set}`).filter((id) => labGear(this.cfg, id));
@@ -592,10 +616,12 @@ export class LabSystem {
         if (!cur || g.tier > cur.tier) s.gear[g.slot] = id;
         this.maxHpChanged(p, before);
         drops.push(`🐲 ${g.icon} ${g.name}`);
+        items.push({ icon: g.icon, name: g.name, color: g.color, sub: `${gearLine(g)} · 🐲 mythic set`, big: true });
       } else if (g) {
         // Already own every piece: it melts into Syiling instead.
         s.carried += w.coins;
         drops.push(`🐲 ${g.name} (a spare: +${w.coins} Syiling)`);
+        got.loot.coins = (got.loot.coins ?? 0) + w.coins;
       }
     }
     // 📜 The boss skill (a book).
@@ -604,10 +630,11 @@ export class LabSystem {
       if (book && !s.books.includes(book.id)) {
         s.books.push(book.id);
         drops.push(`📜 ${book.icon} ${book.name}`);
+        items.push({ icon: book.icon, name: book.name, color: book.color, sub: book.desc, big: true });
       }
     }
     this.save(p);
-    return { ...got, drops };
+    return { ...got, drops, loot: got.loot };
   }
 
   // ---------------------------------------------------------------- 📖 skills and 📜 spell books
@@ -897,7 +924,7 @@ export class LabSystem {
   }
 
   // ---------------------------------------------------------------- using things
-  use(p: OnlinePlayer, what: LabUse): { text: string; view?: LabRoomView; left?: boolean } {
+  use(p: OnlinePlayer, what: LabUse): { text: string; view?: LabRoomView; left?: boolean; loot?: LabLoot } {
     const pos = this.at(p);
     const f = this.floor(pos.floor);
     const room = f.rooms[pos.room];
@@ -913,7 +940,7 @@ export class LabSystem {
         s.looted.push(k);
         s.carried += coins;
         this.save(p);
-        return { text: `💰 Treasure! +${coins} Syiling Purba`, view: this.view(p) };
+        return { text: `💰 Treasure! +${coins} Syiling Purba`, view: this.view(p), loot: { coins, items: [] } };
       }
       if (!room.chest) throw new GameError('No chest here.');
       if (!this.near(pos, L.spot.chest)) throw new GameError('Walk up to the chest.');
@@ -923,7 +950,7 @@ export class LabSystem {
       s.chests[k] = today;
       s.carried += coins;
       this.save(p);
-      return { text: `📦 +${coins} Syiling Purba`, view: this.view(p) };
+      return { text: `📦 +${coins} Syiling Purba`, view: this.view(p), loot: { coins, items: [] } };
     }
     if (what === 'key') {
       if (room.key === undefined) throw new GameError('No key here.');
@@ -932,7 +959,7 @@ export class LabSystem {
       if (s.keys.includes(k) || s.used.includes(k)) throw new GameError('You already took this key.');
       s.keys.push(k);
       this.save(p);
-      return { text: '🗝️ A key! It opens a locked door somewhere on this floor.', view: this.view(p) };
+      return { text: '🗝️ A key! It opens a locked door somewhere on this floor.', view: this.view(p), loot: { items: [{ icon: '🗝️', name: 'A key', color: '#ffd43b', sub: 'It opens a locked door on this floor' }] } };
     }
     if (what === 'rest') {
       if (room.kind !== 'rest' && !(pos.floor === 0 && room.kind === 'start')) throw new GameError('No campfire here.');
@@ -985,24 +1012,28 @@ export class LabSystem {
       s.crates[k] = this.clock();
       const r = this.rand();
       let text = '📦 Smash! Nothing inside but dust.';
+      let loot: LabLoot | undefined;
       if (r < cr.potionChance && cr.potions.length) {
         const id = cr.potions[Math.floor(this.rand() * cr.potions.length)];
         const pot = labPotion(this.cfg, id);
         if (pot && (s.potions[id] ?? 0) < this.cfg.potions.max) {
           s.potions[id] = (s.potions[id] ?? 0) + 1;
           text = `📦 Smash! A ${pot.icon} ${pot.name} was inside.`;
+          loot = { items: [{ icon: pot.icon, name: pot.name, color: '#69db7c', sub: pot.desc }] };
         } else {
           const coins = Math.max(1, Math.round(this.coins(pos.floor, cr.coinMult)));
           s.carried += coins;
           text = `📦 Smash! +${coins} Syiling Purba`;
+          loot = { coins, items: [] };
         }
       } else if (r < cr.potionChance + cr.coinChance) {
         const coins = Math.max(1, Math.round(this.coins(pos.floor, cr.coinMult)));
         s.carried += coins;
         text = `📦 Smash! +${coins} Syiling Purba`;
+        loot = { coins, items: [] };
       }
       this.save(p);
-      return { text, view: this.view(p) };
+      return { text, view: this.view(p), loot };
     }
     if (what === 'secret') {
       const sec = L.props.find((x) => x.kind === 'secret');
@@ -1014,7 +1045,7 @@ export class LabSystem {
       const coins = this.coins(pos.floor, this.cfg.crates.secretMult);
       s.carried += coins;
       this.save(p);
-      return { text: `🪨 The cracked rock gives way: a hidden stash! +${coins} Syiling Purba`, view: this.view(p) };
+      return { text: `🪨 The cracked rock gives way: a hidden stash! +${coins} Syiling Purba`, view: this.view(p), loot: { coins, items: [] } };
     }
     // exit: out to town (entrance hall or a rest chamber)
     this.leave(p);

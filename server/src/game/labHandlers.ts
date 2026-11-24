@@ -181,7 +181,7 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       moved(me, from);
       if (r.view && keyOf(me) !== from) setImmediate(() => encounter(me));
       if (r.left) setInside(me, false);
-      return { text: r.text, view: r.view ? withOthers(me, r.view) : undefined, self: lab.self(me), left: r.left };
+      return { text: r.text, view: r.view ? withOthers(me, r.view) : undefined, self: lab.self(me), left: r.left, loot: r.loot };
     });
     handle(socket, 'lab:act', LAB_C2S.labAct, ({ kind, target, item }) => {
       if (kind === 'item') {

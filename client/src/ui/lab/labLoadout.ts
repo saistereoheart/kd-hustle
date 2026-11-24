@@ -64,7 +64,7 @@ export class LabLoadout {
         el('span', { class: 'lab-slot-icon' }, shape(slot, g ? g.color : null)),
         el('span', { class: 'lab-slot-text' }, el('b', {}, g ? name! : NAMES[slot]), el('small', {}, g ? line : 'empty')),
       );
-      b.addEventListener('click', () => openLabBag(this.app, 'gear'));
+      b.addEventListener('click', () => openLabBag(this.app, 'gear', slot));
       return b;
     });
     const d = s.drink ? cfg.tavern.drinks.find((x) => x.id === s.drink!.id) : undefined;

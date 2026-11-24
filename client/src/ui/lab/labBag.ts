@@ -12,7 +12,8 @@ type Tab = 'shop' | 'gear' | 'potions' | 'skills' | 'books' | 'elements' | 'clas
 
 const SLOT_LABEL: Record<LabSlot, string> = { weapon: '🗡️ Weapon', shield: '🛡️ Shield', armour: '🥋 Armour', charm: '📿 Charm' };
 
-export function openLabBag(app: App, start: Tab = 'gear') {
+/** `focus`: a gear slot to scroll to (tapping a loadout slot). */
+export function openLabBag(app: App, start: Tab = 'gear', focus?: LabSlot) {
   const lc = app.cfg.lab;
   const shop = start === 'shop';
   const panel = openPanel(shop ? `🛒 ${lc.merchant.name}` : '🎒 Labirin bag', { wide: true, testId: 'lab-bag' });
@@ -393,18 +394,15 @@ export function openLabBag(app: App, start: Tab = 'gear') {
         el('div', { class: 'lab-bag-grid' }, ...groups),
       );
     } else if (tab === 'gear') {
-      const groups = LAB_SLOTS.map((slot) => {
-        const mine = list.filter((g) => g.slot === slot && s.owned.includes(g.id));
-        return el('div', { class: 'lab-bag-group' }, el('h5', {}, SLOT_LABEL[slot]),
-          ...(mine.length ? mine.map((g) => gearRow(s, g, 'gear')) : [el('p', { class: 'muted small' }, `Nothing yet. ${lc.merchant.name} sells it.`)]));
-      });
-      // 🎁 Gear found on monsters: wear it or scrap it for 💎.
-      const found = [...s.items].sort((a, b) => (labGear(lc, b.gear)?.tier ?? 0) - (labGear(lc, a.gear)?.tier ?? 0) || itemMult(lc, b) - itemMult(lc, a)).map((it) => {
+      // Each slot lists everything you have for it: 🎁 gear found on monsters (its grade and variant
+      // multiply the stats) and pieces bought from the merchant, the strongest first. Wear one; scrap
+      // spare found pieces for 💎.
+      const foundRow = (it: (typeof s.items)[number]) => {
         const g = labGear(lc, it.gear);
         const worn = s.gear[g?.slot ?? 'weapon'] === `#${it.uid}`;
-        const name = el('b', {}, itemName(lc, it));
+        const name = el('b', {}, `🎁 ${itemName(lc, it)}`);
         if (g) name.style.color = g.color;
-        const wear = el('button', { class: 'btn small', type: 'button', 'data-item': String(it.uid) }, worn ? 'Take off' : 'Wear') as HTMLButtonElement;
+        const wear = el('button', { class: `btn small${worn ? '' : ' primary'}`, type: 'button', 'data-item': String(it.uid) }, worn ? 'Take off' : 'Wear') as HTMLButtonElement;
         wear.disabled = busy || !g;
         wear.addEventListener('click', () => g && equip(g.slot, worn ? null : `#${it.uid}`));
         const scrap = el('button', { class: 'btn small', type: 'button', 'data-scrap': String(it.uid) }, `♻️ ${itemScrap(lc, it)} 💎`) as HTMLButtonElement;
@@ -413,16 +411,22 @@ export function openLabBag(app: App, start: Tab = 'gear') {
         scrap.addEventListener('click', () => confirm(`Scrap ${itemName(lc, it)} for ${itemScrap(lc, it)} 💎?`) && call('lab:scrap', { uid: it.uid }, sfx.coin));
         return el('div', { class: `lab-bag-row${worn ? ' worn' : ''}${it.variant !== 'normal' ? ' variant' : ''}` },
           el('span', { class: 'lab-bag-icon' }, g?.icon ?? '🎁'),
-          el('span', { class: 'lab-bag-info' }, name, el('small', { class: 'muted' }, g ? `${gearLine(g)} ×${itemMult(lc, it).toFixed(2)}` : '')),
+          el('span', { class: 'lab-bag-info' }, name, el('small', { class: 'muted' }, g ? `${gearLine(g)} ×${itemMult(lc, it).toFixed(2)} · found` : '')),
           el('span', { class: 'lab-bag-btns' }, wear, scrap));
+      };
+      /** How strong a piece is, to put the best first (its tier × its grade and variant). */
+      const power = (tier: number, mult: number) => (tier + 1) * mult;
+      const groups = LAB_SLOTS.map((slot) => {
+        const rows: Array<{ p: number; row: HTMLElement }> = [
+          ...s.items.filter((it) => labGear(lc, it.gear)?.slot === slot).map((it) => ({ p: power(labGear(lc, it.gear)?.tier ?? 0, itemMult(lc, it)), row: foundRow(it) })),
+          ...list.filter((g) => g.slot === slot && s.owned.includes(g.id)).map((g) => ({ p: power(g.tier, 1), row: gearRow(s, g, 'gear') })),
+        ].sort((x, y) => y.p - x.p);
+        return el('div', { class: 'lab-bag-group', 'data-slot-group': slot }, el('h5', {}, `${SLOT_LABEL[slot]}${rows.length ? ` (${rows.length})` : ''}`),
+          ...(rows.length ? rows.map((r) => r.row) : [el('p', { class: 'muted small' }, `Nothing yet. ${lc.merchant.name} sells it, and monsters sometimes drop it.`)]));
       });
       content.replaceChildren(
-        el('p', { class: 'muted small' }, `Your town gear stays outside: down here only Labirin gear counts. Buy it from ${lc.merchant.name} in the entrance hall or a rest chamber.`),
+        el('p', { class: 'muted small' }, `Your town gear stays outside: down here only Labirin gear counts. Each slot holds what you've bought from ${lc.merchant.name} and 🎁 what monsters dropped (a grade D to S and a variant make it stronger). Scrap spare finds for 💎.`),
         el('div', { class: 'lab-bag-grid' }, ...groups),
-        el('h5', {}, `🎁 Found gear (${s.items.length})`),
-        found.length
-          ? el('div', { class: 'lab-bag-grid' }, ...found)
-          : el('p', { class: 'muted small' }, 'Monsters sometimes drop gear: a grade (D to S) and a variant (Shiny, Golden, Rainbow) make it stronger than the shop piece. Scrap spares for 💎.'),
       );
     } else {
       const rows = lc.potions.list.map((p) => {
@@ -458,5 +462,6 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     if (err || !res.ok) return void content.replaceChildren(el('p', { class: 'muted' }, 'No response.'));
     self = res.self;
     render();
+    if (focus) content.querySelector(`[data-slot-group="${focus}"]`)?.scrollIntoView({ block: 'start' });
   });
 }

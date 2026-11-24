@@ -20,6 +20,7 @@ import { memoryBudget } from '../perf/memory';
 import { openLabBag } from '../ui/lab/labBag';
 import { openLabTavern } from '../ui/lab/labTavern';
 import { startWarp } from '../ui/lab/warp';
+import { showLabLoot } from '../ui/lab/lootPop';
 
 interface Sample {
   t: number;
@@ -717,7 +718,10 @@ export class LabScene extends Phaser.Scene {
         warp?.cancel();
         return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       }
-      sfx.coin();
+      // 💰 Something found: show it big (coins counting up, the thing in its colour).
+      const titles: Partial<Record<string, string>> = { chest: '📦 Found!', crate: '📦 Smash!', secret: '🪨 A hidden stash!', key: '🗝️ A key!' };
+      if (res.loot) showLabLoot(res.loot, res.text.startsWith('💰') ? '💰 Treasure!' : (titles[f.use] ?? ''));
+      else sfx.coin();
       labSay(res.text, 'good', 3200);
       if (res.left) {
         if (warp) return void warp.done(() => this.app.exitLab(res.self));

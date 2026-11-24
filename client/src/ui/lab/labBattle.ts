@@ -14,6 +14,7 @@ import { starName } from '../stars';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
 import { statBar } from './statBar';
+import { showLabLoot } from './lootPop';
 import type { Stage2DFighter } from './battle2d/stage2d';
 
 /** What both fight stages (pixel and 3D) can do. */
@@ -336,7 +337,12 @@ export class LabBattleUi {
       : end.outcome === 'fled' ? '🏃 You got away, back to the last room.'
       : `💫 You fell… ${end.lost ? `Lost ${end.lost} carried Syiling. ` : ''}You wake at your rest chamber.`;
     this.say(text);
-    if (end.outcome === 'win') sfx.coin();
+    if (end.outcome === 'win') {
+      // 💰 What you won, big in the middle (the line above stays for the details).
+      const title = this.view.world ? '🐲 World boss down!' : this.view.boss ? '👹 Boss beaten!' : '🏆 Victory!';
+      if (end.loot) showLabLoot({ ...end.loot, items: [...end.loot.items, ...(end.levelUp ? [{ icon: '⬆️', name: `Labirin level ${end.levelUp}!`, color: '#b2f2bb', sub: 'A new skill point (🎒 Bag → 🌳)' }] : [])] }, title);
+      else sfx.coin();
+    }
     const ok = el('button', { class: 'btn primary', type: 'button', 'data-action': 'lb-continue' }, 'Continue');
     ok.addEventListener('click', () => this.app.labBattleDone(room));
     this.actions.replaceChildren(ok);

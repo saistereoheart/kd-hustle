@@ -150,8 +150,25 @@ export interface LabBattleView {
   world?: boolean;
 }
 
+/** 🎁 One thing you just got (shown big: its icon, name, tier colour). `big`: a rare one (extra fanfare). */
+export interface LabLootItem {
+  icon: string;
+  name: string;
+  color?: string;
+  sub?: string;
+  big?: boolean;
+}
+/** 💰 What you just got, for the reward pop-up: Syiling, XP and things. */
+export interface LabLoot {
+  coins?: number;
+  xp?: number;
+  items: LabLootItem[];
+}
+
 /** How a battle ended for one player. */
 export interface LabBattleEnd {
+  /** 💰 What you won, to show big (Syiling, XP, drops). */
+  loot?: LabLoot;
   outcome: Exclude<LabOutcome, null>;
   /** Syiling won (carried). */
   coins: number;

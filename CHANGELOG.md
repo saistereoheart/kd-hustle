@@ -2,6 +2,17 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.44.0 (2026-11-24): 💰 Labirin rewards you can't miss; found gear in its slot
+- **Everything you get in the Labirin pops up big** in the middle of the screen: the Syiling counting up with
+  coins bursting out, the XP, and each thing as a card in its tier's colour (💎 diamonds, 🎁 dropped gear with
+  its stats, a 🎭 class, a potion, a key, a level up). Rare finds (Tier A/S, a variant, a class, a mythic
+  piece) glow and get a bigger sound. It shows after a won fight, a chest, a treasure room, a smashed crate, a
+  secret stash and a key. It doesn't stop you walking; tap it to close it sooner.
+- The coin counter at the top jumps whenever Syiling or 💎 come in.
+- **Found gear goes in its slot:** 🎒 Bag → ⚔️ Gear lists each slot (weapon, shield, armour, charm) with
+  everything you have for it, found pieces and bought ones together, the strongest first. No separate "Found
+  gear" list any more. Tapping a slot in your loadout opens the bag at that slot.
+
 ## 1.43.0 (2026-11-24): ✨ furniture tier and variant count
 - **Placed furniture now benefits from its tier and variants**, like gear does. A better piece:
   - counts for more **comfort and style** and is **rarer** in the star rating;

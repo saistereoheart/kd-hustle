@@ -225,12 +225,12 @@ export class LabBattles {
       } else if (outcome === 'win' && b.world) {
         this.lab.setHp(p, f.out ? 1 : f.hp);
         const got = this.lab.wonWorld(p);
-        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops };
+        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops, loot: got.loot };
       } else if (outcome === 'win') {
         const foes = b.fighters.filter((x) => x.side === 'foe');
         this.lab.setHp(p, f.out ? 1 : f.hp);
         const got = this.lab.won(p, b.floor, b.room, groupCoins(this.cfg, b.floor, foes), b.boss, b.ambush, groupXp(this.cfg, b.floor, foes), foes.length);
-        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops.length ? got.drops : undefined };
+        end = { outcome: 'win', coins: got.coins, lost: 0, xp: got.xp, levelUp: got.levelUp, drops: got.drops.length ? got.drops : undefined, loot: got.loot };
       } else {
         end = { outcome: 'wipe', coins: 0, lost: 0 };
       }
