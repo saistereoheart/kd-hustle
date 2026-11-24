@@ -15,6 +15,9 @@ export interface RatingCfg {
   properties: PropertiesConfig;
   /** Item id → rarity index (0 common, 1 uncommon, 2 rare...). */
   rarityIndex: (item: string) => number;
+  /** ✨ A placed piece's quality by its inventory id: its tier × variant multiplier (1 = a plain tier D;
+   *  see `furnitureQuality`). Missing, or an unknown id: 1. */
+  quality?: (iid: number) => number;
 }
 
 export interface Factors {
@@ -44,6 +47,9 @@ export interface Rating {
   misplaced: Array<{ iid: number; item: string; want: RoomKind[] }>;
   /** How complete each room is. */
   rooms: RoomStatus[];
+  /** ✨ The furniture's average quality (1 = all plain tier D) and the pay rise it gives (0.12 = +12%). */
+  quality: number;
+  payBonus: number;
 }
 
 /** What the rating needs from a layout, so "what if I add X" is cheap to try. */
@@ -56,26 +62,33 @@ interface Agg {
   amenities: Set<string>;
   essentials: Set<string>;
   covered: number;
+  /** Sum of the pieces' quality (for the pay rise). */
+  qSum: number;
 }
 
 export function footprint(p: Pick<FurniturePiece, 'w' | 'h'>, rot: number): [number, number] {
   return rot % 2 ? [p.h, p.w] : [p.w, p.h];
 }
 
-function aggregate(cfg: RatingCfg, placed: Array<Pick<Placed, 'item' | 'rot'>>): Agg {
-  const a: Agg = { comfort: 0, styleSum: 0, n: 0, themes: {}, raritySum: 0, amenities: new Set(), essentials: new Set(), covered: 0 };
-  for (const pl of placed) addPiece(cfg, a, pl.item);
+function aggregate(cfg: RatingCfg, placed: Array<Pick<Placed, 'item'> & { iid?: number }>): Agg {
+  const a: Agg = { comfort: 0, styleSum: 0, n: 0, themes: {}, raritySum: 0, amenities: new Set(), essentials: new Set(), covered: 0, qSum: 0 };
+  for (const pl of placed) addPiece(cfg, a, pl.item, pl.iid !== undefined && pl.iid >= 0 ? (cfg.quality?.(pl.iid) ?? 1) : 1);
   return a;
 }
 
-function addPiece(cfg: RatingCfg, a: Agg, item: string) {
+/** `q`: the piece's quality (its tier × variant; 1 = plain tier D). */
+function addPiece(cfg: RatingCfg, a: Agg, item: string, q = 1) {
   const p = cfg.furniture.pieces[item];
   if (!p) return;
+  const k = cfg.properties.furnitureQuality;
+  const extra = Math.max(0, q - 1);
+  const boost = 1 + k.comfortStyle * extra;
   a.n++;
-  a.comfort += p.comfort;
-  a.styleSum += p.style;
+  a.qSum += Math.max(1, q);
+  a.comfort += p.comfort * boost;
+  a.styleSum += p.style * boost;
   if (p.theme) a.themes[p.theme] = (a.themes[p.theme] ?? 0) + 1;
-  a.raritySum += cfg.rarityIndex(item);
+  a.raritySum += cfg.rarityIndex(item) + k.rarity * extra;
   if (p.amenity) a.amenities.add(p.amenity);
   if (p.essential) a.essentials.add(p.essential);
   if (!p.floor && !p.wall) a.covered += p.w * p.h;
@@ -114,7 +127,11 @@ function score(cfg: RatingCfg, unit: { w: number; h: number; type?: string }, a:
   let stars = 0.5 + 4.5 * total;
   if (missing.length) stars = Math.min(stars - r.missingPenalty * missing.length, r.missingCap - r.missingCapStep * (missing.length - 1));
   stars = Math.max(cfg.properties.airbnb.minStars, Math.round(stars * 10) / 10);
-  return { stars, score: total, factors, missing, fill };
+  // ✨ Better furniture (tier, variants) also pays more.
+  const fq = cfg.properties.furnitureQuality;
+  const quality = a.n ? a.qSum / a.n : 1;
+  const payBonus = Math.min(fq.payCap, fq.pay * Math.max(0, quality - 1));
+  return { stars, score: total, factors, missing, fill, quality: Math.round(quality * 100) / 100, payBonus: Math.round(payBonus * 1000) / 1000 };
 }
 
 /** The unit's floor plan: rooms for a known home type, else one open room. */

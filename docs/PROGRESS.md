@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.42.1)_
+_Last updated: 2026-11-24 (v1.43.0)_
 
-**Now at v1.42.1 (local commits; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.43.0 (local commits; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 472 unit tests (2026-11-24, v1.42.0) |
+| `npm test` (Vitest) | ✅ 476 unit tests (2026-11-24, v1.43.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -53,6 +53,20 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## ✨ Furniture tier and variant in the rating and pay (2026-11-24, your request, v1.43.0)
+- A piece's quality q = `buffMult(grades, grade, variant)` (the gear buff multiplier: D 1, A 2, S 3, each
+  variant adds; S with all three 8.55). `properties.json` → `furnitureQuality`: comfort and style × (1 + 0.12 ×
+  (q − 1)), rarity + 0.3 × (q − 1) levels; pay × (1 + min(0.5, 0.06 × (avg q − 1))).
+- `RatingCfg.quality(iid)`; `Rating.quality` / `payBonus`. Server: `PropertySystem.looks` (iid → q) is
+  built from every owner's inventory at start, updated on `setLayout` and after `inv:reroll`
+  (`noteLook`). Pay: rent, Airbnb checkout, `shopMult`. Client: decorate uses your inventory for q, groups
+  pieces by tier (best first), shows the bonus; 📱 Properties and the shop bar show it.
+- Measured (studio, essentials only): D 1.9★, S 2.1★, S Rainbow 2.5★, S all 2.8★; pay +0 / +12 / +30 / +45%.
+  Tunable in `furnitureQuality` if it feels too small or too big.
+- Unverified on screen.
 
 ---
 

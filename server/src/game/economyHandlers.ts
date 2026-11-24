@@ -544,6 +544,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       pity[what] = r.improved ? 0 : pity[what] + 1;
       repos.playerData.save(me.id, 'reroll', pity);
       if (r.cosmeticsChanged) broadcastCosmetics(me);
+      propSys.noteLook(r.item); // ✨ a placed piece's new tier / variant counts at once
       pushWallet(me, 0, 'reroll');
       return { item: r.item, improved: r.improved, shards: me.shards, rolled: r.rolled, forced: r.forced, pity };
     });

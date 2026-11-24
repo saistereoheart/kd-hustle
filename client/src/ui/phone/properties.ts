@@ -42,8 +42,12 @@ export function renderProperties({ app, rerender }: PhoneCtx): HTMLElement[] {
       set.addEventListener('click', () => send('prop:prices', { unit: s.unit, [key]: Math.round(Number(inp.value) * 100) }, 'Price updated.'));
       return el('div', { class: 'setting-row' }, el('span', {}, `${label} (fair ${formatMoney(Math.round(fairSen * 0.9))}–${formatMoney(Math.round(fairSen * 1.1))})`), el('span', {}, 'RM ', inp, set));
     };
+    // ✨ Better furniture (tier, variants) pays more rent and Airbnb income.
+    const furnBonus = () => (s.rating.payBonus > 0 ? el('div', { class: 'muted small', title: 'The average tier and variant of the furniture placed here' }, `✨ Furniture quality ×${s.rating.quality.toFixed(2)}: +${(s.rating.payBonus * 100).toFixed(1)}% income`) : null);
     if (s.mode === 'rent') {
       lines.push(priceInput('Rent per day', s.rentSen, s.fairRentSen, 'rentSen'));
+      const fb = furnBonus();
+      if (fb) lines.push(fb);
       if (s.tenant) {
         const def = app.cfg.properties.rent.tenants.find((x) => x.id === s.tenant!.kind);
         const fee = Math.round(s.rentSen * app.cfg.properties.rent.evictFeeDays);
@@ -76,6 +80,8 @@ export function renderProperties({ app, rerender }: PhoneCtx): HTMLElement[] {
       lines.push(el('div', { class: 'deco-stars small-stars' }, `${s.rating.stars.toFixed(1)}★ ${s.superhost ? '🏅 Superhost' : ''}`));
       if (s.rating.missing.length) lines.push(el('div', { class: 'deco-missing' }, `Missing essentials: ${s.rating.missing.join(', ')}`));
       lines.push(priceInput('Per night', s.nightSen, s.fairNightSen, 'nightSen'));
+      const fb = furnBonus();
+      if (fb) lines.push(fb);
       lines.push(el('div', {}, s.guest ? `🧳 Guest staying${s.guest.vip ? ' (VIP!)' : ''} · pays ${formatMoney(s.guest.paySen)}` : '🛎️ Waiting for a booking'));
       lines.push(el('div', { class: 'muted small' }, `Cleanliness ${Math.round(s.cleanliness)}% · ${s.fiveStars} five-star reviews`));
       if (s.suggestions[0]) lines.push(el('div', { class: 'deco-sugg' }, `💡 ${s.suggestions[0].text} → ${s.suggestions[0].gain > 0 ? `+${s.suggestions[0].gain.toFixed(1)}★` : 'a small boost'}`));

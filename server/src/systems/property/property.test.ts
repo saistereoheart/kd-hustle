@@ -219,6 +219,30 @@ describe('Property skills', () => {
 });
 
 describe('Airbnb', () => {
+  it('✨ placed pieces: tier and variant raise the rating and the pay, live after a reroll and after a restart', () => {
+    const s = setup();
+    s.goTo(s.studio);
+    s.props.buy(s.p, s.studio.id);
+    const [bed] = give(s, ['basic_bed']);
+    s.props.setLayout(s.p, s.studio.id, [{ iid: bed.iid, item: 'basic_bed', x: 0, y: 1, rot: 0 }]);
+    const plain = s.props.selfOf(s.p)[0].rating;
+    expect(plain).toMatchObject({ quality: 1, payBonus: 0 });
+    // A reroll makes it Tier S Golden: it counts at once.
+    s.repos.inventory.setLook(s.p.id, bed.iid, 'S', 'golden');
+    const inv = s.p.inventory.find((i) => i.iid === bed.iid)!;
+    inv.grade = 'S';
+    inv.variant = 'golden';
+    s.props.noteLook(inv);
+    const better = s.props.selfOf(s.p)[0].rating;
+    expect(better.quality).toBeGreaterThan(1);
+    expect(better.payBonus).toBeGreaterThan(0);
+    expect(better.factors.rarity).toBeGreaterThan(plain.factors.rarity);
+    expect(better.factors.comfort).toBeGreaterThan(plain.factors.comfort);
+    // A restart reads the tiers back from the inventory.
+    const again = new PropertySystem(cfg, s.repos, s.econ, s.world, seeded(3), { publicChanged: () => {}, selfChanged: () => {}, wallet: () => {}, event: () => {} }, s.now);
+    expect(again.ratingOf(again.ownedBy(s.p)[0]).payBonus).toBe(better.payBonus);
+  });
+
   it('only furniture you own and is free can be placed; placed pieces can\'t be pawned', () => {
     const s = setup();
     s.goTo(s.studio);

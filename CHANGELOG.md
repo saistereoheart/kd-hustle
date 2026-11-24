@@ -2,6 +2,17 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.43.0 (2026-11-24): ✨ furniture tier and variant count
+- **Placed furniture now benefits from its tier and variants**, like gear does. A better piece:
+  - counts for more **comfort and style** and is **rarer** in the star rating;
+  - raises the place's **income**: rent, Airbnb stays and shop business pay more, by the furniture's
+    average quality (Tier A +6%, Tier S +12%, S Rainbow +30%, up to +50%).
+- On a basic studio with just the essentials: plain D 1.9★, Tier S 2.1★, S Rainbow 2.5★, S with all three
+  variants 2.8★. A fully furnished place gains more.
+- **Decorate** shows "✨ Furniture quality ×… → +…% income", and the furniture list keeps tiers apart (Tier S
+  Golden Sofa ✨×4.80) with the best first. 📱 Properties and the shop's star bar show the bonus too.
+- A rerolled piece that's already placed counts at once.
+
 ## 1.42.1 (2026-11-24): ⏭ skip the reroll reel from the Roll button
 - **Tier and variant rerolls:** while the reel spins, the 🎲 Roll button turns into **⏭ Skip**, in the same spot.
   Click once to roll, again to land it at once, again to roll: no moving the mouse between them.

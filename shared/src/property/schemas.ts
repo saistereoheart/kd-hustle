@@ -144,6 +144,12 @@ export const propertiesConfigSchema = z.object({
     cleanMs: z.number().int().positive(),
     reviews: z.record(z.string(), z.array(z.string()).min(1)),
   }),
+  /** ✨ A placed piece's tier and variant (its quality q = the gear buff multiplier: D plain 1, S 3, each
+   *  variant adds; all three on an S = 8.55). Per piece: comfort and style × (1 + comfortStyle × (q − 1)),
+   *  and it counts `rarity` × (q − 1) rarity levels higher. The place's average q pays more:
+   *  income × (1 + min(payCap, pay × (avg q − 1))) on rent, Airbnb stays and shop business. */
+  furnitureQuality: z.object({ comfortStyle: z.number().min(0), rarity: z.number().min(0), pay: z.number().min(0), payCap: z.number().min(0) })
+    .default({ comfortStyle: 0.12, rarity: 0.3, pay: 0.06, payCap: 0.5 }),
   rating: z.object({
     comfortPerM2: z.number().positive(),
     /** [pieces of one theme, style score] steps, e.g. 3 → 0.4, 5 → 0.7, 8 → 1. */

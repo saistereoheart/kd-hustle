@@ -7,7 +7,7 @@
 // the offline cap, at the offline efficiency) and gets a "while you were away" summary.
 import {
   shopFrontTop,
-  bookingChance, buildListings, planForType, starterShopSets, STARTER_CHAIR, STARTER_TABLE, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
+  bookingChance, buffMult, buildListings, planForType, starterShopSets, STARTER_CHAIR, STARTER_TABLE, fairNightSen, fairRentSen, formatMoney, gameTime, layoutProblem, rateUnit, suggestions, tenantHappiness,
   type Placed, type PropertyMode, type PropPublic, type RandInt, type Rating, type RatingCfg, type Unit, type ShopView } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
@@ -104,12 +104,28 @@ export class PropertySystem {
     this.units = buildListings(cfg.map, cfg.properties);
     for (const u of this.units) this.byUnit.set(u.id, u);
     const tiers = cfg.rarities.tiers.map((t) => t.id);
-    this.rating = { furniture: cfg.furniture, properties: cfg.properties, rarityIndex: (id) => Math.max(0, tiers.indexOf(cfg.itemById.get(id)?.rarity ?? 'common')) };
-    for (const r of repos.properties.all()) {
+    this.rating = {
+      furniture: cfg.furniture, properties: cfg.properties, rarityIndex: (id) => Math.max(0, tiers.indexOf(cfg.itemById.get(id)?.rarity ?? 'common')),
+      quality: (iid) => this.looks.get(iid) ?? 1,
+    };
+    const rows = repos.properties.all();
+    // ✨ Every owner's furniture tier and variant (placed pieces rate and pay better with them).
+    for (const owner of new Set(rows.map((r) => r.owner))) for (const i of repos.inventory.list(owner)) this.noteLook(i);
+    for (const r of rows) {
       if (r.unit.endsWith(SHOP_SUFFIX)) this.shopListing(r.unit, r.type); // a shop floor (not a home for sale)
       if (!this.byUnit.has(r.unit)) continue; // the map changed and the building is gone
       this.props.set(r.unit, this.hydrate(r.unit, r.owner, r.ownerName, r.type, r.data));
     }
+  }
+
+  /** ✨ Furniture quality by inventory id (tier × variant: the gear buff multiplier). Kept current when a
+   *  layout is saved and when a piece is rerolled. */
+  private looks = new Map<number, number>();
+  noteLook(i: { iid: number; itemId: string; grade?: string; variant: string }) {
+    if (!this.cfg.furniture.pieces[i.itemId]) return;
+    const q = buffMult(this.cfg.prog.grades, i.grade, i.variant);
+    if (q > 1) this.looks.set(i.iid, q);
+    else this.looks.delete(i.iid);
   }
 
   private hydrate(unit: string, owner: number, ownerName: string, type: string, d: Record<string, unknown>): PropState {
@@ -255,7 +271,8 @@ export class PropertySystem {
     const s = this.props.get(building + SHOP_SUFFIX);
     if (!s) return 1;
     const c = this.cfg.properties.shop;
-    return c.multBase + c.multPerStar * this.ratingOf(s).stars;
+    const r = this.ratingOf(s);
+    return (c.multBase + c.multPerStar * r.stars) * (1 + r.payBonus); // ✨ better furniture, more business
   }
 
   /** Customers came through: the floor gets dirtier, and now and then one leaves a review. */
@@ -502,6 +519,7 @@ export class PropertySystem {
       const inst = p.inventory.find((i) => i.iid === pl.iid);
       if (!inst || inst.itemId !== pl.item) throw new GameError("You don't own one of those pieces any more.");
       if (elsewhere.has(pl.iid)) throw new GameError('That piece is already in another of your homes.');
+      this.noteLook(inst);
     }
     const problem = layoutProblem(this.rating, { w: t.w, h: t.h, type: s.type, frontTop: this.frontTop(s.unit) }, layout);
     if (problem) throw new GameError(problem);
@@ -684,7 +702,7 @@ export class PropertySystem {
       if (this.chance(lateChance)) s.tenant.owed = dueSen;
       else {
         const cut = s.manager ? 1 - pc.costs.managerCut : 1;
-        pay('rent', dueSen * cut * eff * pm.rent, 'property-rent'); // + Prime Landlord, Passive Income
+        pay('rent', dueSen * cut * eff * pm.rent * (1 + rating.payBonus), 'property-rent'); // + Prime Landlord, Passive Income, ✨ furniture
         s.tenant.owed = 0;
       }
       if (happy < pc.rent.moveOutBelowHappiness && this.chance(pc.rent.moveOutChancePerDay)) {
@@ -697,7 +715,7 @@ export class PropertySystem {
       if (s.guest && day >= s.guest.until) {
         const g = s.guest;
         s.guest = null;
-        let paid = g.paySen * eff * pm.airbnb; // + Five-Star Host, Passive Income
+        let paid = g.paySen * eff * pm.airbnb * (1 + rating.payBonus); // + Five-Star Host, Passive Income, ✨ furniture
         if (s.superhost) paid *= 1 + a.superhostBonus;
         if (this.chance(a.tipChance)) paid *= 1.15;
         pay('airbnb', paid, 'property-airbnb');

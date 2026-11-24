@@ -6,7 +6,7 @@
 // the server), then Save. From here you can also clean the unit (Airbnb) and fix requests.
 import Phaser from 'phaser';
 import {
-  formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomStatus, roomSuits, suggestions, wallBetween,
+  buffMult, formatMoney, layoutProblem, planForType, rateUnit, roomIndex, roomKindsFor, roomNames, roomStatus, roomSuits, suggestions, wallBetween,
   type FloorPlan, type Placed, type PropSelf, type ShopView, type RatingCfg, type RoomKind,
   shopFrontTop,
 } from '@kh/shared';
@@ -118,7 +118,14 @@ export class HomeScene extends Phaser.Scene {
 
   private ratingCfg(): RatingCfg {
     const tiers = this.app.cfg.rarities.tiers.map((t) => t.id);
-    return { furniture: this.app.cfg.furniture, properties: this.app.cfg.properties, rarityIndex: (id) => Math.max(0, tiers.indexOf(this.app.items.get(id)?.rarity ?? 'common')) };
+    // ✨ Your pieces' tier and variant (the server rates with the same numbers).
+    const q = new Map(this.app.store.inventory.map((i) => [i.iid, this.quality(i)]));
+    return { furniture: this.app.cfg.furniture, properties: this.app.cfg.properties, rarityIndex: (id) => Math.max(0, tiers.indexOf(this.app.items.get(id)?.rarity ?? 'common')), quality: (iid) => q.get(iid) ?? 1 };
+  }
+
+  /** ✨ A piece's quality: its tier × variant multiplier (1 = a plain tier D). */
+  private quality(i: { grade?: string; variant: string }): number {
+    return buffMult(this.app.cfg.grades, i.grade, i.variant);
   }
 
   private unit() {
@@ -894,9 +901,9 @@ export class HomeScene extends Phaser.Scene {
     if (s.mode === 'shop') {
       // 🏪 Its stars bring customers; a cleaner keeps it spotless (daily fee).
       const c = this.app.cfg.properties.shop;
-      const mult = c.multBase + c.multPerStar * s.rating.stars;
+      const mult = (c.multBase + c.multPerStar * s.rating.stars) * (1 + s.rating.payBonus); // ✨ furniture quality too (as the server)
       const need = s.rating.missing.length ? ` · needs ${s.rating.missing.join(', ')}` : '';
-      tools.unshift(el('span', { class: 'shop-stars', title: 'Customers / income ×' }, `★ ${s.rating.stars.toFixed(1)} · ${mult >= 1 ? '+' : '−'}${Math.abs(Math.round((mult - 1) * 100))}% customers${need}`));
+      tools.unshift(el('span', { class: 'shop-stars', title: `Customers / income ×${s.rating.payBonus > 0 ? ` (✨ +${(s.rating.payBonus * 100).toFixed(1)}% from furniture quality)` : ''}` }, `★ ${s.rating.stars.toFixed(1)} · ${mult >= 1 ? '+' : '−'}${Math.abs(Math.round((mult - 1) * 100))}% customers${need}`));
       tools.push(btn(s.cleaner ? '🧹 Cleaner: on' : `🧹 Hire a cleaner (${formatMoney(c.cleanerPerDaySen)}/day)`, () => this.toggleCleaner(), s.cleaner ? 'btn primary' : 'btn'));
       if (s.reviews.length) {
         const last = s.reviews[s.reviews.length - 1];
@@ -920,19 +927,20 @@ export class HomeScene extends Phaser.Scene {
       (b.firstChild as HTMLElement).style.width = `${Math.round(v * 100)}%`;
       return el('div', { class: 'factor' }, el('span', {}, label), b);
     };
-    const counts = new Map<string, { item: string; variant: string; iids: number[] }>();
+    // Grouped by item, variant and tier (a better tier rates and pays more), the best first.
+    const counts = new Map<string, { item: string; variant: string; grade: string; q: number; iids: number[] }>();
     for (const i of free) {
-      const key = `${i.itemId}|${i.variant}`;
-      const c = counts.get(key) ?? { item: i.itemId, variant: i.variant || 'normal', iids: [] };
+      const key = `${i.itemId}|${i.variant}|${i.grade ?? 'D'}`;
+      const c = counts.get(key) ?? { item: i.itemId, variant: i.variant || 'normal', grade: i.grade ?? 'D', q: this.quality(i), iids: [] };
       c.iids.push(i.iid);
       counts.set(key, c);
     }
     const vName = (v: string) => v.split(',').filter((x) => x && x !== 'normal').map((x) => this.app.cfg.rarities.variants.find((r) => r.id === x)?.name ?? x).join(' ');
-    const pieces = [...counts.values()].map((c) => {
+    const pieces = [...counts.values()].sort((a, b) => a.item.localeCompare(b.item) || b.q - a.q).map((c) => {
       const def = this.app.items.get(c.item);
       const fp = furniturePiece(c.item);
       const vn = vName(c.variant);
-      const name = `${vn ? `${vn} ` : ''}${def?.name ?? c.item}`;
+      const name = `${c.grade !== 'D' ? `Tier ${c.grade} ` : ''}${vn ? `${vn} ` : ''}${def?.name ?? c.item}${c.q > 1 ? ` ✨×${c.q.toFixed(2)}` : ''}`;
       const b = el('button', { class: `deco-piece${this.hand && c.iids.includes(this.hand.iid) ? ' active' : ''}${vn ? ' variant' : ''}`, type: 'button', 'data-piece': c.item, 'data-variant': c.variant, title: name }, el('img', { src: def ? iconUrl(def, c.variant, 48) : '', alt: '' }), el('span', {}, `${name}${c.iids.length > 1 ? ` ×${c.iids.length}` : ''}`), el('small', { class: 'muted' }, fp ? `${fp.w}×${fp.h} m${fp.wall ? ' · wall' : fp.floor ? ' · floor' : ''}` : ''));
       b.addEventListener('click', () => {
         this.hand = { iid: c.iids[0], item: c.item, rot: 0, manual: false };
@@ -951,6 +959,8 @@ export class HomeScene extends Phaser.Scene {
     const stats = el('div', { class: 'deco-stats' },
       el('div', { class: 'deco-stars', 'data-testid': 'deco-stars' }, `${'★'.repeat(Math.floor(r.stars))}${r.stars % 1 >= 0.5 ? '½' : ''} ${r.stars.toFixed(1)}`),
       ...(r.missing.length ? [el('div', { class: 'deco-missing' }, `Missing: ${r.missing.join(', ')} (caps the stars)`)] : []),
+      el('div', { class: 'muted small deco-quality', title: 'Tier and variants make a piece count for more comfort, style and rarity, and the average pays more rent, Airbnb and shop income.' },
+        r.quality > 1 ? `✨ Furniture quality ×${r.quality.toFixed(2)} → +${(r.payBonus * 100).toFixed(1)}% income` : '✨ Higher-tier and variant pieces rate higher and raise your income.'),
       ...(bad.length ? [el('div', { class: 'deco-missing' }, `⚠️ ${bad.length} piece${bad.length > 1 ? 's' : ''} outlined in red: ${bad.length > 1 ? 'they' : 'it'} cross a wall or block a doorway. Pick ${bad.length > 1 ? 'them' : 'it'} up and move ${bad.length > 1 ? 'them' : 'it'} before saving.`)] : []),
       bar('Comfort', r.factors.comfort), bar('Style & theme', r.factors.style), bar('Rarity', r.factors.rarity),
       bar('Amenities', r.factors.amenities), bar('Cleanliness', r.factors.clean), bar(r.blocked ? 'Space (walkway blocked!)' : 'Space', r.factors.space),

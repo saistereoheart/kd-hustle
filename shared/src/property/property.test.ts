@@ -28,6 +28,51 @@ function essentials(): Placed[] {
   return [at('basic_bed', 0, 1), at('toilet', 6, 1), at('shower', 6, 2), at('kitchenette', 3, 1), at('aircond', 2, 0), at('wifi_router', 0, 0)];
 }
 
+describe('✨ furniture tier and variant (quality)', () => {
+  const layout = () => {
+    iid = 1000;
+    return essentials();
+  };
+  const withQ = (q: number): RatingCfg => ({ ...cfg, quality: () => q });
+
+  it('plain pieces rate exactly as before, with no pay rise', () => {
+    const plain = rateUnit(cfg, studio, layout(), 100);
+    const d = rateUnit(withQ(1), studio, layout(), 100);
+    expect(d.stars).toBe(plain.stars);
+    expect(d.factors).toEqual(plain.factors);
+    expect(d).toMatchObject({ quality: 1, payBonus: 0 });
+  });
+
+  it('a better tier / more variants: more comfort, style and rarity, more stars, and a capped pay rise', () => {
+    const d = rateUnit(withQ(1), studio, layout(), 100);
+    const a = rateUnit(withQ(2), studio, layout(), 100); // tier A
+    const s = rateUnit(withQ(3), studio, layout(), 100); // tier S
+    const top = rateUnit(withQ(8.55), studio, layout(), 100); // S with every variant
+    expect(a.factors.rarity).toBeGreaterThan(d.factors.rarity);
+    expect(s.factors.comfort).toBeGreaterThanOrEqual(a.factors.comfort);
+    expect(s.factors.style).toBeGreaterThan(d.factors.style);
+    expect(a.stars).toBeGreaterThan(d.stars);
+    expect(s.stars).toBeGreaterThan(a.stars);
+    const fq = properties.furnitureQuality;
+    expect(a.payBonus).toBeCloseTo(fq.pay * 1, 5);
+    expect(s.payBonus).toBeCloseTo(fq.pay * 2, 5);
+    expect(top.payBonus).toBe(Math.min(fq.payCap, Math.round(fq.pay * 7.55 * 1000) / 1000));
+    expect(top.payBonus).toBeLessThanOrEqual(fq.payCap);
+    // It doesn't lift a place over a missing essential.
+    const noBed = layout().filter((p) => p.item !== 'basic_bed');
+    expect(rateUnit(withQ(8.55), studio, noBed, 100).stars).toBeLessThanOrEqual(properties.rating.missingCap);
+  });
+
+  it('the pay rise follows the average piece (one great piece in a full flat counts a little)', () => {
+    const l = layout();
+    const best = l[0].iid;
+    const one = rateUnit({ ...cfg, quality: (i) => (i === best ? 3 : 1) }, studio, l, 100);
+    expect(one.quality).toBeCloseTo(1 + 2 / l.filter((p) => furniture.pieces[p.item]).length, 2);
+    expect(one.payBonus).toBeGreaterThan(0);
+    expect(one.payBonus).toBeLessThan(rateUnit(withQ(3), studio, l, 100).payBonus);
+  });
+});
+
 describe('furniture config', () => {
   it('every piece is an item of type furniture, and store prices beat the pawn value', () => {
     const items = new Map((itemsJson as { items: Array<{ id: string; type: string; valueSen?: number }> }).items.map((i) => [i.id, i]));
