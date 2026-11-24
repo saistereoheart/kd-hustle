@@ -2,10 +2,23 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.46.0 (2026-11-24): 🧪 better potions, potions from crates, chef caps by rarity
+- **Fix: a potion's tier and variants did nothing.** Now a better potion is stronger and lasts longer (and a
+  Perfect Cook Token gives more uses). A Striva Luck Potion: about ×3.9 luck for 17 min (a plain one: ×2 for 10
+  min). Drinking the same potion again adds time at the stronger of the two. The bag shows what each copy does.
+- **Crates can give a bonus potion** on top of the item (the item odds don't change): 5% from the Capsule
+  Machine up to 15% from the Tan Sri Diamond Vault; none from the Chef Search or the Teman egg. It rolls a tier
+  like any item, shows on the reveal, and goes straight into your bag.
+- **Chefs and cashiers:** back to the old caps up to Legendary (a Striva Legendary with Chef Academy +100% shows
+  🔥 200% · 😋 300% · 😊 200% as before), and a rarer one may go higher: Mythic caps ×1.15 (230% · 345% · 230%),
+  Divine ×1.3, Secret ×1.45. A Mythic chef's extra flavour also lifts the stall's price cap. Gear keeps the
+  gentle soft caps from 1.45.0.
+
 ## 1.45.0 (2026-11-24): 🌈 STRIVA, and rarer always means stronger
 - **STRIVA** is the name for an item at Tier S with all three variants (Shiny + Golden + Rainbow). Instead of
   "S" and "Shiny + Golden + Rainbow" it now shows one word, **STRIVA**, in flowing rainbow colours: on item
   cards, in the bag (details and the worn lists), the Item Index, the roll reveal, the forge and decorate.
+- (Chefs and cashiers changed again in 1.46.0: hard caps by rarity.)
 - **Fix: a Striva Grandmaster Teh (mythic) had the same stats as a Striva Sambal Sultan (legendary).** Both
   went past the stat caps, and the caps cut every stat to the same number. The same happened to legendary and
   mythic cashiers, and to divine and secret gear. Caps are now soft: a stat counts in full up to 75% of its

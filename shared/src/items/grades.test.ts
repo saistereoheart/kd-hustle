@@ -53,9 +53,9 @@ describe('gear buffs', () => {
     const many = Array.from({ length: 8 }, () => ({ type: 'hat', rarity: 'secret', grade: 'S', variant: 'shiny+golden+rainbow' }));
     expect(gearBonuses(cfg, many).luck).toBeCloseTo(cfg.buffs.caps.luck, 3);
     expect(gearBonuses(cfg, many).luck).toBeLessThanOrEqual(cfg.buffs.caps.luck);
+    // Cashiers: a hard cap, a bit higher for a Mythic.
     const kira = cashierStats(cfg, { id: 'cashier_kira_laju', rarity: 'mythic', grade: 'S', variant: 'shiny+golden+rainbow' }, 1);
-    expect(kira.tips).toBeCloseTo(cfg.buffs.caps.tips, 3);
-    expect(kira.tips).toBeLessThanOrEqual(cfg.buffs.caps.tips);
+    expect(kira.tips).toBeCloseTo(cfg.buffs.caps.tips * cfg.buffs.rarityCapMult.mythic, 6);
   });
 
   it('chefs use their own, stronger table', () => {

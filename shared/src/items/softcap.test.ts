@@ -51,11 +51,22 @@ describe('soft caps: a rarer piece always shows more (no two rarities stuck at t
     });
   }
 
-  it('Striva Grandmaster Teh (mythic) and Sambal Sultan (legendary) differ, and the mythic is stronger overall', () => {
-    const teh = chefStats(g, { id: 'chef_grandmaster_teh', rarity: 'mythic', ...STRIVA });
-    const sultan = chefStats(g, { id: 'chef_sambal_sultan', rarity: 'legendary', ...STRIVA });
-    expect(teh).not.toEqual(sultan);
-    expect(sum(teh)).toBeGreaterThan(sum(sultan));
+  it('Striva + Chef Academy +100%: Legendary keeps 200/300/200, Mythic a step above (230/345/230), Epic below', () => {
+    const teh = chefStats(g, { id: 'chef_grandmaster_teh', rarity: 'mythic', ...STRIVA }, 1);
+    const sultan = chefStats(g, { id: 'chef_sambal_sultan', rarity: 'legendary', ...STRIVA }, 1);
+    const rashid = chefStats(g, { id: 'chef_tuan_rashid', rarity: 'epic', ...STRIVA }, 1);
+    const pct = (o: Record<string, number>) => Object.values(o).map((v) => Math.round(v * 100));
+    expect(pct(sultan)).toEqual([200, 300, 200]);
+    expect(pct(teh)).toEqual([230, 345, 230]);
+    for (const k of ['speed', 'flavour', 'charm'] as const) {
+      expect(teh[k]).toBeGreaterThan(sultan[k]);
+      expect(sultan[k]).toBeGreaterThanOrEqual(rashid[k]);
+    }
+    // Cashiers the same way.
+    const kira = cashierStats(g, { id: 'cashier_kira_laju', rarity: 'mythic', ...STRIVA }, 1);
+    const wong = cashierStats(g, { id: 'cashier_tauke_wong', rarity: 'legendary', ...STRIVA }, 1);
+    expect(kira.tips).toBeGreaterThan(wong.tips);
+    expect(kira.patience).toBeGreaterThan(wong.patience);
   });
 
   it('gear: one Striva piece per rarity gives a bigger buff than the rarity below, for every stat', () => {

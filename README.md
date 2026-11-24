@@ -7,7 +7,7 @@ send your Teman into a cave, and flex on everyone.
 
 **GitHub:** https://github.com/saistereoheart/kd-hustle
 
-**Version 1.45.0.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built (1.0.0), plus many rounds of
+**Version 1.46.0.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built (1.0.0), plus many rounds of
 player feedback since. See [Version history](#version-history) below and the full [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's in the game
@@ -191,6 +191,7 @@ The detailed working log (decisions, measurements, test notes) is in [`docs/PROG
 | 1.42.1–1.43.0 | 2026-11-24 | Skip on the reroll button; furniture tier and variant raise the rating and the income |
 | 1.44.0 | 2026-11-24 | Big Labirin reward pop-ups (coins, drops); found gear sits in its slot |
 | 1.44.1–1.45.0 | 2026-11-24 | Crate "found" count fix; 🌈 STRIVA label; soft caps so rarer pieces always show more |
+| 1.46.0 | 2026-11-24 | Potion tier and variants count; bonus potions from crates; chef / cashier caps by rarity |
 | 1.42.0 | 2026-11-24 | More Labirin skills for every element, a 👊 Fizikal element, floor bosses teach their own skill; triple-variant scrap fix |
 
 ## Map data

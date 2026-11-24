@@ -29,6 +29,9 @@ export const gradesConfigSchema = z.object({
      *  more slowly towards the cap (never past it). So a stronger piece always shows more: before, every
      *  piece past a cap stopped dead at the same number (a Striva legendary chef = a Striva mythic). */
     softCapKnee: z.number().min(0).max(1).default(0.75),
+    /** Chefs and cashiers: hard caps as they always were up to Legendary; a rarer one's caps are this much
+     *  higher (Mythic ×1.15: a Striva Mythic chef shows a bit more than a Striva Legendary's 200/300/200). */
+    rarityCapMult: z.record(z.string(), z.number().positive()).default({ mythic: 1.15, divine: 1.3, secret: 1.45 }),
     /** 🧪 Potions with a tier and variants: with q = the buff multiplier (1 plain D … 8.55 Striva), the
      *  bonus part of the effect × (1 + power × (q − 1)), the time and charges × (1 + duration × (q − 1)). */
     potion: z.object({ power: z.number().min(0), duration: z.number().min(0) }).default({ power: 0.25, duration: 0.1 }),
@@ -103,6 +106,11 @@ export function buffCap(cfg: GradesConfig, stat: string): number {
   return cfg.buffs.caps[stat] ?? Infinity;
 }
 
+/** How much higher a chef / cashier of this rarity may go than the stat's cap (1 up to Legendary). */
+export function rarityCapMult(cfg: GradesConfig, rarity: string | undefined): number {
+  return (rarity && cfg.buffs.rarityCapMult[rarity]) || 1;
+}
+
 /** A value under its soft cap: in full up to knee × cap, then easing towards the cap (always rising). */
 export function softCap(cfg: GradesConfig, stat: string, v: number): number {
   const cap = buffCap(cfg, stat);
@@ -160,10 +168,11 @@ const EVEN_PROFILE: ChefStats = { speed: 0.8, flavour: 0.8, charm: 0.4 };
 export function chefStats(cfg: GradesConfig, chef: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): ChefStats {
   const base = (cfg.buffs.chefByRarity[chef.rarity] ?? 0) * buffMult(cfg, chef.grade, chef.variant) * (1 + boost);
   const prof = cfg.buffs.chefProfiles[chef.id] ?? EVEN_PROFILE;
+  const k = rarityCapMult(cfg, chef.rarity);
   return {
-    speed: softCap(cfg, 'chefSpeed', base * prof.speed),
-    flavour: softCap(cfg, 'chefFlavour', base * prof.flavour),
-    charm: softCap(cfg, 'chefCharm', base * prof.charm),
+    speed: Math.min(buffCap(cfg, 'chefSpeed') * k, base * prof.speed),
+    flavour: Math.min(buffCap(cfg, 'chefFlavour') * k, base * prof.flavour),
+    charm: Math.min(buffCap(cfg, 'chefCharm') * k, base * prof.charm),
   };
 }
 
@@ -179,7 +188,8 @@ export const CASHIER_STAT_INFO: Record<CashierStat, { icon: string; name: string
 export function cashierStats(cfg: GradesConfig, c: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): CashierStats {
   const base = (cfg.buffs.cashierByRarity[c.rarity] ?? 0) * buffMult(cfg, c.grade, c.variant) * (1 + boost);
   const prof = cfg.buffs.cashierProfiles[c.id] ?? { tips: 1, patience: 0.5 };
-  return { tips: softCap(cfg, 'tips', base * prof.tips), patience: softCap(cfg, 'patience', base * prof.patience) };
+  const k = rarityCapMult(cfg, c.rarity);
+  return { tips: Math.min(buffCap(cfg, 'tips') * k, base * prof.tips), patience: Math.min(buffCap(cfg, 'patience') * k, base * prof.patience) };
 }
 
 /** All equipped items' buffs added up per stat (the head chef / cashier are handled separately). */

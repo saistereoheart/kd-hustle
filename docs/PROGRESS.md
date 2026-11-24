@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.45.0)_
+_Last updated: 2026-11-24 (v1.46.0)_
 
-**Now at v1.45.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.46.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 482 unit tests (2026-11-24, v1.45.0) |
+| `npm test` (Vitest) | ✅ 484 unit tests (2026-11-24, v1.46.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -53,6 +53,19 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🧪 Potion quality, bonus potions, chef caps by rarity (2026-11-24, your requests, v1.46.0)
+- `potionPower` (`shared/src/items/grades.ts`, `grades.json` → `buffs.potion` power 0.25 / duration 0.1):
+  used by `Progression.useItem` (timed buffs: mult + time; Perfect Cook Token: charges). Same potion again
+  extends at the stronger mult. Bag details show this copy's effect.
+- `crates.json` → `potions` { chance, items: weights } per crate; `Gacha.bonusPotion`; `RollResult.bonus`;
+  client `ui/rollItems.ts` adds bonus items; the reveal shows "🧪 Bonus potion".
+- Your call on chefs: `chefStats` / `cashierStats` use hard caps × `buffs.rarityCapMult` (mythic 1.15, divine
+  1.3, secret 1.45; 1 up to legendary). Striva + Chef Academy +100%: Sambal Sultan 200/300/200 (as before),
+  Grandmaster Teh 230/345/230. The stall's gear + chef flavour cap uses the chef's rarity too.
+- Still to do from this request: the public-building interiors and potion shops (in progress).
 
 ---
 

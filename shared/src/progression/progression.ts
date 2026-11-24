@@ -1,4 +1,4 @@
-import { cashierStats, chefStats, gearBonuses, gradeMult, type CashierStats, type ChefStats, type GradesConfig } from '../items/grades';
+import { cashierStats, chefStats, gearBonuses, gradeMult, type CashierStats, type ChefStats, type GradesConfig, rarityCapMult } from '../items/grades';
 // Progression maths (Phase 3), shared by the server (which owns the real numbers) and the client
 // (which shows progress bars, live odds and the next goal). Pure functions only.
 //
@@ -261,7 +261,7 @@ export function computeMods(
       // Your chef: + stall prices and faster cooks.
       // Rebirth's cash multiplier multiplies on top: (1 + bonuses) × rebirth − 1.
       // (Gear + the chef's flavour together are capped, like every gear stat.)
-      dishPrice: (1 + sv('dishPrice') + Math.min(cfg.grades?.buffs.caps.dishPrice ?? Infinity, (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0))) * rb.income - 1,
+      dishPrice: (1 + sv('dishPrice') + Math.min((cfg.grades?.buffs.caps.dishPrice ?? Infinity) * (cfg.grades && chefItem ? rarityCapMult(cfg.grades, chefItem.rarity) : 1), (gear.dishPrice ?? 0) + (chef?.stats.flavour ?? 0))) * rb.income - 1,
       customers: sv('customers') + (chef?.stats.charm ?? 0),
       wages: sv('wages'),
       customerBuff: buffs('customers').reduce((a, b) => a * b.mult, 1),
