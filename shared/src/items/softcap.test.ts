@@ -69,3 +69,18 @@ describe('soft caps: a rarer piece always shows more (no two rarities stuck at t
     }
   });
 });
+
+describe('🧪 potions: tier and variants make them stronger', () => {
+  it('a plain tier D potion is as before; better ones are stronger, last longer, give more charges', async () => {
+    const { potionPower } = await import('./grades');
+    const luck = { mult: 2, durationSec: 600 };
+    expect(potionPower(g, luck, 'D', 'normal')).toMatchObject({ mult: 2, durationSec: 600 });
+    const a = potionPower(g, luck, 'A', 'normal');
+    const top = potionPower(g, luck, 'S', 'shiny+golden+rainbow');
+    expect(a.mult).toBeGreaterThan(2);
+    expect(top.mult).toBeGreaterThan(a.mult);
+    expect(top.durationSec!).toBeGreaterThan(a.durationSec!);
+    expect(top.mult).toBeLessThan(5); // gentler than gear: a Striva Luck Potion isn't a Mega Luck Potion ×4
+    expect(potionPower(g, { mult: 1, charges: 10 }, 'S', 'normal').charges).toBeGreaterThan(10);
+  });
+});

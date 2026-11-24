@@ -29,6 +29,9 @@ export const gradesConfigSchema = z.object({
      *  more slowly towards the cap (never past it). So a stronger piece always shows more: before, every
      *  piece past a cap stopped dead at the same number (a Striva legendary chef = a Striva mythic). */
     softCapKnee: z.number().min(0).max(1).default(0.75),
+    /** 🧪 Potions with a tier and variants: with q = the buff multiplier (1 plain D … 8.55 Striva), the
+     *  bonus part of the effect × (1 + power × (q − 1)), the time and charges × (1 + duration × (q − 1)). */
+    potion: z.object({ power: z.number().min(0), duration: z.number().min(0) }).default({ power: 0.25, duration: 0.1 }),
     /** Each chef's strengths: how much of their buff goes to each stall stat (missing = even). */
     /** Cashiers (kopitiam): their base buff by rarity, split by profile into Tips and Patience. */
     cashierByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
@@ -108,6 +111,21 @@ export function softCap(cfg: GradesConfig, stat: string, v: number): number {
   if (v <= knee) return v;
   const room = cap - knee;
   return room > 0 ? knee + room * (1 - Math.exp(-(v - knee) / room)) : cap;
+}
+
+/** 🧪 What a potion of this tier and variant does: its multiplier (the bonus part grows), time and charges. */
+export function potionPower(cfg: GradesConfig, effect: { mult: number; durationSec?: number; charges?: number }, grade: string | undefined, variant: string | undefined): { mult: number; durationSec?: number; charges?: number; q: number } {
+  const q = buffMult(cfg, grade, variant ?? 'normal');
+  const k = cfg.buffs.potion;
+  const extra = Math.max(0, q - 1);
+  const mult = Math.round((1 + (effect.mult - 1) * (1 + k.power * extra)) * 100) / 100;
+  const longer = 1 + k.duration * extra;
+  return {
+    q,
+    mult,
+    durationSec: effect.durationSec !== undefined ? Math.round(effect.durationSec * longer) : undefined,
+    charges: effect.charges !== undefined ? Math.round(effect.charges * longer) : undefined,
+  };
 }
 
 /** 🌈 STRIVA: the top tier with every special variant (S + Shiny + Golden + Rainbow). */

@@ -1,6 +1,6 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
 import { striva, strivaTag } from './striva';
-import { improveBest, variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
+import { potionPower, improveBest, variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
 
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
 import type { App } from '../app';
@@ -258,6 +258,14 @@ export function openInventoryPanel(app: App, startTab = 0) {
             ? el('div', { class: 'muted' }, `${tier.name} · `, strivaTag(), ` (×${gradeMult(gcfg, s.grade)} · ${variantLabel(rar.variants, s.variant)})${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`)
             : el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${variantLabel(rar.variants, s.variant)}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
           def.desc ? el('p', {}, def.desc) : null,
+          // 🧪 A potion of a better tier / with variants: what this one really does.
+          (() => {
+            if (!def.effect) return null;
+            const pw = potionPower(gcfg, def.effect, s.grade, s.variant);
+            if (pw.q <= 1) return null;
+            const what = pw.charges !== undefined ? `${pw.charges} uses` : `×${pw.mult} for ${Math.round((pw.durationSec ?? 0) / 60)} min`;
+            return el('div', { class: 'item-buff' }, `🧪 This one (its tier and variants): ${what} (a plain one: ${def.effect.charges !== undefined ? `${def.effect.charges} uses` : `×${def.effect.mult} for ${Math.round((def.effect.durationSec ?? 0) / 60)} min`})`);
+          })(),
           def.type === 'cashier'
             ? el('div', { class: 'item-buff' }, `As kopitiam cashier: ${CASHIER_STATS.map((k) => { const v = cashierStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().cashier?.boost ?? app.mods().chef?.boost ?? 0)[k]; return `${CASHIER_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CASHIER_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
             : def.type === 'chef'

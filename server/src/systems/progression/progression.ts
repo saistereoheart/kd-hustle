@@ -14,8 +14,7 @@ import {
   gearOf, loginStatus, manifestRateSen, pickQuests, questProgress, skillCostSen, skillLevel, skillLockReason, stageDef,
   stageForNetWorth, formatMoney, weekKey,
   type ActiveBuff, type BuffKind, type CrateDef, type InventoryItem, type Mods, type ProgressEvent, type ProgressState,
-  type RandInt, type Reward, type Announcement, type RollResult, type ItemDef,
-} from '@kh/shared';
+  type RandInt, type Reward, type Announcement, type RollResult, type ItemDef, potionPower } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { ProgressRecord, Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -283,7 +282,9 @@ export class ProgressionSystem {
     if (!def.effect.durationSec) {
       // Not a timed buff (e.g. Perfect Cook Token): the owning system applies it.
       if (!this.hooks.useSpecial) throw new GameError(`${def.name} can't be used yet.`);
-      this.hooks.useSpecial(p, def); // throws if it can't be used right now
+      // 🧪 Its tier and variants give more charges.
+      const pw = potionPower(this.cfg.prog.grades, def.effect, inst.grade, inst.variant);
+      this.hooks.useSpecial(p, { ...def, effect: { ...def.effect, charges: pw.charges ?? def.effect.charges } }); // throws if it can't be used right now
       const changed = this.econ.run(p, () => {
         this.econ.remove(p, iid);
         const c = this.econ.refreshCosmetics(p);
@@ -296,7 +297,9 @@ export class ProgressionSystem {
       return { removed: iid, cosmeticsChanged: changed };
     }
     const now = this.clock();
-    const durMs = Math.round(def.effect.durationSec * 1000 * this.mods(p).potionDuration);
+    // 🧪 Its tier and variants make it stronger and last longer.
+    const pw = potionPower(this.cfg.prog.grades, def.effect, inst.grade, inst.variant);
+    const durMs = Math.round((pw.durationSec ?? def.effect.durationSec) * 1000 * this.mods(p).potionDuration);
     const capMs = this.cfg.economy.potionMaxStackMin * 60_000;
     const existing = p.prog.buffs.find((b) => b.item === def.id && b.until > now);
     if (existing && existing.until - now + durMs > capMs) throw new GameError(`You can stack ${def.name} up to ${this.cfg.economy.potionMaxStackMin} minutes.`);
@@ -307,8 +310,11 @@ export class ProgressionSystem {
       return changed;
     });
     p.prog.buffs = p.prog.buffs.filter((b) => b.until > now);
-    if (existing) existing.until += durMs;
-    else p.prog.buffs.push({ item: def.id, kind: def.effect.buff, mult: def.effect.mult, until: now + durMs });
+    // The same potion again: more time, at the stronger of the two (two copies never multiply).
+    if (existing) {
+      existing.until += durMs;
+      existing.mult = Math.max(existing.mult, pw.mult);
+    } else p.prog.buffs.push({ item: def.id, kind: def.effect.buff, mult: pw.mult, until: now + durMs });
     this.bump(p, 'potionsUsed');
     this.addXp(p, this.cfg.levels.xp.potionUse);
     this.check(p);
