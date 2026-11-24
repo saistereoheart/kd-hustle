@@ -3,6 +3,7 @@
 import { formatMoney, gradeDef, gradeMult, itemValueSen, minNextBid, type MarketListing } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { starName } from '../stars';
 import { itemCard } from '../panel';
 import { sfx } from '../sound';
@@ -84,7 +85,7 @@ export function renderMarket({ app, rerender }: PhoneCtx): HTMLElement[] {
       app.store.emit();
     });
   }
-  const tabs = el('div', { class: 'branch-tabs' });
+  const tabs = tabStrip();
   for (const [id, name] of [['browse', '🛍️ Browse'], ['sell', '🏷️ Sell'], ['mine', '📋 Mine']] as const) {
     const b = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-mtab': id }, name);
     b.addEventListener('click', () => {

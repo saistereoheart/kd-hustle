@@ -4,6 +4,7 @@
 import { creditBand, formatMoney, type BankView, type Loan } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
 
@@ -78,7 +79,7 @@ function bankTab(app: App, b: BankView): HTMLElement[] {
   if (bankLoans.length) out.push(el('h4', { class: 'phone-section' }, 'Your loans'), ...bankLoans.map((l) => loanCard(app, l, b)));
   // New loan.
   out.push(el('h4', { class: 'phone-section' }, `New loan (${bankLoans.length}/${lc.bank.maxLoans})`));
-  const kinds = el('div', { class: 'branch-tabs' });
+  const kinds = tabStrip();
   for (const k of ['personal', 'business', 'property'] as const) {
     const t = lc.bank.types[k];
     const btn = el('button', { class: `branch-tab${kind === k ? ' active' : ''}`, type: 'button', 'data-loankind': k }, `${t.icon} ${t.name}`);
@@ -173,7 +174,7 @@ function ahLongTab(app: App, b: BankView): HTMLElement[] {
 
 export function renderBank({ app, rerender }: PhoneCtx): HTMLElement[] {
   const b = app.store.bank;
-  const tabsEl = el('div', { class: 'branch-tabs' });
+  const tabsEl = tabStrip();
   for (const [id, name] of [['bank', `🏦 ${app.cfg.loans.bank.name}`], ['ahlong', '🦈 Ah Long']] as const) {
     const btn = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-banktab': id }, name);
     btn.addEventListener('click', () => {

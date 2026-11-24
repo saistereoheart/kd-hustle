@@ -4,6 +4,7 @@ import { randomAppearance, type Appearance, type CharacterConfig } from '@kh/sha
 import type { Pose, View } from '../character/draw';
 import { poseForFrame, renderPreview } from '../character/sheet';
 import { el, uiRoot } from './dom';
+import { tabStrip } from './tabStrip';
 
 type Opt = { id: string; name: string };
 
@@ -38,7 +39,7 @@ export function showCreator(cfg: CharacterConfig, initial: Appearance, opts: Cre
   const save = el('button', { class: 'btn primary', type: 'button', 'data-action': 'save' }, opts.saveLabel);
   const cancel = opts.onCancel ? el('button', { class: 'btn', type: 'button' }, 'Cancel') : null;
   const body = el('div', { class: 'cat-body' });
-  const tabsBox = el('div', { class: 'cat-tabs' });
+  const tabsBox = tabStrip('cat-tabs');
 
   // --- builders for option groups ------------------------------------------------
   const set = <K extends keyof Appearance>(k: K, v: Appearance[K]) => {

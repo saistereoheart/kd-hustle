@@ -6,6 +6,7 @@ import {
 } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { sfx } from '../sound';
 import { byRarity } from '../itemSort';
 import { hoursText, stars } from '../stall/stallPanel';
@@ -56,7 +57,7 @@ export function renderBusiness({ app, rerender }: PhoneCtx): HTMLElement[] {
   }
   const t = tierDef(cfg, st.tier);
   const pub = app.store.stalls.get(st.plot);
-  const tabsEl = el('div', { class: 'branch-tabs' });
+  const tabsEl = tabStrip();
   for (const [id, name] of [['overview', '🏪 Stall'], ['stock', '📦 Stock'], ['staff', '🧑‍🍳 Staff'], ['chef', '👨‍🍳 Chef & cashier'], ['upgrades', '⬆️ Upgrades'], ['menu', '📜 Menu']]) {
     const b = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-btab': id }, name);
     b.addEventListener('click', () => {

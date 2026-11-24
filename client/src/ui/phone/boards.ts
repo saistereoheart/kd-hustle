@@ -2,6 +2,7 @@
 import { formatMoney, LEADERBOARDS, type BoardEntry, type BoardId } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { starName } from '../stars';
 import type { PhoneCtx } from './phone';
 
@@ -28,7 +29,7 @@ export function renderBoards({ app, rerender }: PhoneCtx): HTMLElement[] {
       rerender();
     });
   }
-  const tabs = el('div', { class: 'branch-tabs' });
+  const tabs = tabStrip();
   for (const b of LEADERBOARDS) {
     const t = el('button', { class: `branch-tab${b.id === board ? ' active' : ''}`, type: 'button', 'data-board': b.id }, `${b.icon} ${b.name}`);
     t.addEventListener('click', () => {

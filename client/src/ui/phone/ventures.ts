@@ -6,6 +6,7 @@ import {
 } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { sfx } from '../sound';
 import { openCheckout } from '../checkout';
 import { openRush } from '../rush';
@@ -186,7 +187,7 @@ function shopView(app: App): HTMLElement[] {
 
 export function renderVentures({ app, rerender }: PhoneCtx): HTMLElement[] {
   const now = app.store.serverNow();
-  const tabsEl = el('div', { class: 'branch-tabs' });
+  const tabsEl = tabStrip();
   for (const [id, name] of [['biz', '🏢 Businesses'], ['shop', `${app.cfg.businesses.retail.icon} Shop`]] as const) {
     const b = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-vtab': id }, name);
     b.addEventListener('click', () => {

@@ -4,6 +4,7 @@
 import { formatMoney, gradeDef, gradeMult, itemValueSen, type Listing } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { starName } from '../stars';
 import { itemCard } from '../panel';
 import { sfx } from '../sound';
@@ -133,7 +134,7 @@ function mine(app: App, rerender: () => void): HTMLElement[] {
 }
 
 export function renderBoutique({ app, rerender }: PhoneCtx): HTMLElement[] {
-  const tabsEl = el('div', { class: 'branch-tabs' });
+  const tabsEl = tabStrip();
   for (const [id, name] of [['browse', '🛍️ Browse'], ['mine', `${app.cfg.businesses.boutique.icon} My ${app.cfg.businesses.boutique.name}`]] as const) {
     const b = el('button', { class: `branch-tab${tab === id ? ' active' : ''}`, type: 'button', 'data-bqtab': id }, name);
     b.addEventListener('click', () => {

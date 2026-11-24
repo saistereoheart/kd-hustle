@@ -2,6 +2,7 @@
 // (base × growth^level, from upgrades.json); some skills need a player level or wealth stage.
 import { formatMoney, skillCostSen, skillLevel, skillLockReason, type SkillDef } from '@kh/shared';
 import { el, toast } from '../dom';
+import { tabStrip } from '../tabStrip';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
 
@@ -39,7 +40,7 @@ export function renderSkills({ app, rerender }: PhoneCtx): HTMLElement[] {
   const cfg = app.cfg.upgrades;
   const st = app.store;
   const pr = st.progress;
-  const tabsEl = el('div', { class: 'branch-tabs' });
+  const tabsEl = tabStrip();
   for (const b of cfg.branches) {
     const t = el('button', { class: `branch-tab${b.id === branch ? ' active' : ''}${b.comingSoon ? ' soon' : ''}`, type: 'button', 'data-branch': b.id }, `${b.icon} ${b.name}`);
     t.addEventListener('click', () => {

@@ -40,7 +40,7 @@ export function openStallPanel(app: App, plotId: string) {
   const pub = () => app.store.stalls.get(plotId);
   const mine = () => pub()?.owner === myId;
   const tier = tierDef(app.cfg.stalls, plot.tier);
-  const panel = openPanel(`${tier.icon} ${tier.name}`, { testId: 'stall-panel' });
+  const panel = openPanel(`${tier.icon} ${tier.name}`, { testId: 'stall-panel', cls: 'stall-panel' });
   // Your stock: its own box beside the stall window (a strip above it on a phone). Only for
   // your own stall.
   const rail = el('div', { class: 'stall-stock-rail', 'data-testid': 'stall-stock' });

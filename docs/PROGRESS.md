@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.41.0)_
+_Last updated: 2026-11-24 (v1.41.1)_
 
-**Now at v1.41.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.41.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.0) |
+| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.1) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -50,6 +50,18 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🧭 Stall buttons stay at the bottom; tab arrows; slim scrollbars (2026-11-24, your request, v1.41.1)
+- **Your stall window** fills its full height: status on top, the orders scroll in the middle, and Cook the next
+  order / Close the stall / Stock, staff, upgrades (and the hint) stay at the bottom (`.stall-panel` CSS).
+  Checked at 1366×800 and 390×844 with 14 orders.
+- **Tab rows that scroll sideways** (Business, Skills, Bank, Market, Butik, Boards, Ventures, the character
+  creator): no scrollbar; ‹ and › arrows at the ends, shown only when there's more that way; a tap scrolls
+  most of a row (`client/src/ui/tabStrip.ts`, `tabStrip()`).
+- **Every scroll area:** no track and no arrow buttons, only a thin bar showing where you are (global CSS).
+  Not visible in headless screenshots, so check it on your screen.
 
 ---
 
