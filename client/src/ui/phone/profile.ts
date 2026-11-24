@@ -1,5 +1,6 @@
 // HustlePhone → Profile: level + XP, the wealth stage ladder (net worth), where your luck comes
 // from, active potions and lifetime stats.
+import { buffName } from '../buffName';
 import { formatMoney, levelInfo } from '@kh/shared';
 import { el } from '../dom';
 import { starName } from '../stars';
@@ -52,7 +53,7 @@ export function renderProfile({ app }: PhoneCtx): HTMLElement[] {
   const buffs = app.store.buffs().map((b) => {
     const def = app.items.get(b.item);
     const s = Math.ceil(b.leftMs / 1000);
-    return el('li', {}, `${def?.name ?? b.item} (${b.mult}× ${b.kind === 'jobPay' ? 'job pay' : b.kind === 'passive' ? 'passive income' : b.kind}): ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} left`);
+    return el('li', {}, `${def?.name ?? buffName(app, b.item).name} (${b.mult}× ${b.kind === 'jobPay' ? 'job pay' : b.kind === 'passive' ? 'passive income' : b.kind}): ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} left`);
   });
 
   const stats = el('div', { class: 'stat-grid' });

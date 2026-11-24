@@ -2005,3 +2005,12 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 
 /* 🧪 A bonus potion with a roll (ui/reel.ts). */
 .reveal-bonus { margin-top: 6px; font-weight: 800; color: #b2f2bb; text-shadow: 0 1px 0 #000; animation: lab-loot-pop 0.45s cubic-bezier(.2, 1.5, .4, 1) both; }
+
+/* 🏬 Designed interiors: sign / notice text, food menus, the mall directory (ui/interiorPanels.ts). */
+.prop-info p { margin: 0 0 6px; }
+.food-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.food-icon { font-size: 26px; }
+.food-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.dir-group h4 { margin: 10px 0 4px; }
+.dir-row { padding: 3px 0; }
+.dir-sale { color: #ff8787; font-weight: 700; }

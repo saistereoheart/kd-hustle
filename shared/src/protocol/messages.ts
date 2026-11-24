@@ -153,6 +153,8 @@ export const C2S = {
   stack: z.object({ itemId: z.string().max(40), variant: z.string().max(40), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
   /** Merge N copies of an item at one tier into one at the next tier. */
   invMerge: z.object({ iids: z.array(z.number().int().positive()).min(2).max(10) }),
+  /** 🍔 Buy food / a drink at a mall shop lot (you must be inside that mall). */
+  mallEat: z.object({ lot: z.string().max(40), item: z.string().max(40) }),
   /** ⚒️ Merge all: every full set of the chosen items, tier by tier, up to tier `upTo`. */
   invMergeAll: z.object({ items: z.array(z.string().max(40)).min(1).max(1000), upTo: z.string().max(2) }),
   /** ♻️ Scrap all: the chosen items at or below tier `maxGrade` (optionally not ones with variants). */
@@ -702,6 +704,10 @@ export interface ClientToServerEvents {
   /** 🎡 The welcome-back wheel: which segment (economy.offline.spin) it landed on, the extra paid and the new total. */
   'welcome:spin': (ack: Ack<Result<{ bonusSen: number; index: number; mult: number; totalSen: number }>>) => void;
   /** `announce`: your big rolls' banners, for you to show the moment each one is revealed. */
+  /** 🍔 Food or a drink at a mall shop lot: RM, a little XP, maybe a small timed buff. */
+  'mall:eat': (msg: { lot: string; item: string }, ack: Ack<Result<{ walletSen: number; text: string }>>) => void;
+  /** 🍢 The supermarket's free sample: a little XP, once in a while. */
+  'mall:sample': (ack: Ack<Result<{ text: string; xp: number }>>) => void;
   'crate:roll': (msg: { crateId: string; count: 1 | 5 | 10 }, ack: Ack<Result<{ results: RollResult[]; walletSen: number; pity: PityState; pageReward?: { crateId: string; sen: number }; announce?: Announcement[] }>>) => void;
   'inv:equip': (msg: { iid: number }, ack: Ack<SimpleResult>) => void;
   'inv:merge': (msg: { iids: number[] }, ack: Ack<Result<{ removed: number[]; item: InventoryItem; bonus: string | null }>>) => void;

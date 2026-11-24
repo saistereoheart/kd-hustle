@@ -2,6 +2,26 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.47.0 (2026-11-24): 🏬 real-life shop and mall interiors, potion shops
+- **Kedai Pajak Untung** is laid out like a real pawn shop: Ah Seng behind the counter and its grille (the safe
+  and "KAMI BELI EMAS" behind him), glass cases of jewellery, watches, phones and odds and ends down both walls,
+  the 📈 gold price board, the 🔖 auction notice and the 🎟️ ticket machine by the door. Everything can be looked at.
+- **The capsule shop** (Kedai Runcit Pak Abu): the big Capsule Machine in front, rows of small gacha machines
+  down both walls (each a different series), the change machine, a ✨ rare-pulls display and a 🆕 poster
+  (both show the machine's rarest prizes and odds), a capsule recycling bin, and Pak Abu at his counter.
+- **Malls** (The Strand, Piramid Mall and the others) have shop lots round the walls, each with its own sign:
+  - 🍔🍛🍗🧋☕🍧 food and drinks: buy something for a little XP, and some give a small boost for 10 minutes;
+  - 🧪 **Ramuan Ajaib, the potion shop**: every potion for 💎 shards;
+  - shops to look round, with 🔖 SALE banners.
+
+  In the middle: the fountain, the mall's own counters (Strand Premium Crate, Mall Mystery Box), escalators,
+  kiosks, 🎈 Abang Belon (a free balloon), and the info counter and 🗺️ directory by the way in.
+- **Supermarkets** (Gergasi Hypermarket, and Piramid Mall's own supermarket wing): numbered aisles with price
+  tags, 🧊 freezers, the 🥩 butcher (Pak Daging), 🐟 fish and 🥐 bakery counters, fruit and veg, checkouts with a
+  cashier, trolleys, and 🍢 Kak Rasa's free food sample (a little XP, once every 10 minutes).
+- Each mall picks its own mix of shop lots. Every layout fits whichever door you come in by, and a test walks
+  each one from the door to make sure everything can be reached.
+
 ## 1.46.0 (2026-11-24): 🧪 better potions, potions from crates, chef caps by rarity
 - **Fix: a potion's tier and variants did nothing.** Now a better potion is stronger and lasts longer (and a
   Perfect Cook Token gives more uses). A Striva Luck Potion: about ×3.9 luck for 17 min (a plain one: ×2 for 10

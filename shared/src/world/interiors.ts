@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { hexColor } from '../config/schemas';
 import type { BuiltBuilding, BuiltMap } from '../map/build';
+import { interiorContentSchema } from './interiorPlans';
 
 export const FURNITURE = [
   'shelf', 'fridge', 'plant', 'glasscase', 'safe', 'hose', 'buckets', 'tyres', 'trolleys', 'fountain', 'bench', 'kiosk',
@@ -28,6 +29,10 @@ export const roomStyleSchema = z.object({
   greeting: z.string(),
   /** Doorway width in tiles (default 1.7; a kopitiam has a small entrance). */
   doorTiles: z.number().positive().optional(),
+  /** 🏬 A designed layout (shared/src/world/interiorPlans.ts) instead of furniture on a grid. */
+  plan: z.enum(['pawn', 'capsule', 'mall', 'market']).optional(),
+  /** A mall with a supermarket wing (aisles, frozen, butcher...). */
+  grocery: z.boolean().optional(),
 });
 export type RoomStyle = z.infer<typeof roomStyleSchema>;
 
@@ -43,6 +48,8 @@ export const interiorsConfigSchema = z
     byKind: z.record(z.string(), z.string()),
     byBuilding: z.record(z.string(), z.string()),
     styles: z.record(z.string(), roomStyleSchema),
+    /** What's in the designed rooms: shop lots and menus, signs, notices, aisles. */
+    content: interiorContentSchema,
   })
   .superRefine((c, ctx) => {
     for (const [k, s] of [...Object.entries(c.byKind), ...Object.entries(c.byBuilding)])

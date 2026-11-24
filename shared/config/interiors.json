@@ -1,7 +1,22 @@
 {
   "enterRadiusTiles": 1.6,
-  "sizing": { "metersPerRoomTile": 1.6, "maxW": 46, "maxH": 32 },
-  "lockedKinds": ["terrace", "semid", "bungalow", "flat", "condo", "parking", "construction", "roof", "school", "religious"],
+  "sizing": {
+    "metersPerRoomTile": 1.6,
+    "maxW": 46,
+    "maxH": 32
+  },
+  "lockedKinds": [
+    "terrace",
+    "semid",
+    "bungalow",
+    "flat",
+    "condo",
+    "parking",
+    "construction",
+    "roof",
+    "school",
+    "religious"
+  ],
   "lockedMessage": "🔒 Private. You can't go in here (homes become buyable later).",
   "byKind": {
     "shoplot": "vacant",
@@ -20,131 +35,930 @@
   },
   "byBuilding": {
     "w1275938587": "pawn",
-    "w1275938577": "carwash"
+    "w1275938577": "carwash",
+    "w1275938588": "capsule",
+    "w366614398": "mall_grocery"
   },
   "styles": {
     "kopitiam": {
       "label": "Kopitiam",
-      "w": 10, "h": 7,
-      "floor": "#f1f3f5", "floor2": "#d3f9d8", "wall": "#2b8a3e", "trim": "#1b5e20",
-      "furniture": ["table", "table", "fridge", "plant", "boxes"],
-      "fill": ["table"],
+      "w": 10,
+      "h": 7,
+      "floor": "#f1f3f5",
+      "floor2": "#d3f9d8",
+      "wall": "#2b8a3e",
+      "trim": "#1b5e20",
+      "furniture": [
+        "table",
+        "table",
+        "fridge",
+        "plant",
+        "boxes"
+      ],
+      "fill": [
+        "table"
+      ],
       "keeper": "Cashier",
       "greeting": "Welcome! Order at the counter, pay at the till.",
       "doorTiles": 1.15
     },
     "vacant": {
       "label": "Empty shoplot",
-      "w": 10, "h": 7,
-      "floor": "#d9d4ca", "floor2": "#cfc9bd", "wall": "#e9e4da", "trim": "#b9b2a4",
-      "furniture": ["boxes", "ladder", "sign"],
+      "w": 10,
+      "h": 7,
+      "floor": "#d9d4ca",
+      "floor2": "#cfc9bd",
+      "wall": "#e9e4da",
+      "trim": "#b9b2a4",
+      "furniture": [
+        "boxes",
+        "ladder",
+        "sign"
+      ],
       "keeper": null,
       "greeting": "An empty unit. Renting shoplots comes later."
     },
     "shop": {
       "label": "Kedai runcit",
-      "w": 12, "h": 8,
-      "floor": "#e9dcc9", "floor2": "#dfcfb7", "wall": "#81b29a", "trim": "#5c8a74",
-      "furniture": ["shelf", "shelf", "fridge", "plant"],
-      "fill": ["shelf"],
+      "w": 12,
+      "h": 8,
+      "floor": "#e9dcc9",
+      "floor2": "#dfcfb7",
+      "wall": "#81b29a",
+      "trim": "#5c8a74",
+      "furniture": [
+        "shelf",
+        "shelf",
+        "fridge",
+        "plant"
+      ],
+      "fill": [
+        "shelf"
+      ],
       "keeper": "Pak Abu",
       "greeting": "Selamat datang! Try your luck at the capsule machine."
     },
     "pawn": {
       "label": "Pawn shop",
-      "w": 11, "h": 8,
-      "floor": "#3f3a36", "floor2": "#48423d", "wall": "#7a5c3c", "trim": "#4f3a24",
-      "furniture": ["glasscase", "glasscase", "safe", "plant"],
+      "w": 11,
+      "h": 8,
+      "floor": "#3f3a36",
+      "floor2": "#48423d",
+      "wall": "#7a5c3c",
+      "trim": "#4f3a24",
+      "furniture": [
+        "glasscase",
+        "glasscase",
+        "safe",
+        "plant"
+      ],
       "keeper": "Ah Seng",
-      "greeting": "Sell me your junk. Fair price, I promise lah."
+      "greeting": "Sell me your junk. Fair price, I promise lah.",
+      "plan": "pawn"
     },
     "carwash": {
       "label": "Car wash bay",
-      "w": 14, "h": 9,
-      "floor": "#ced4da", "floor2": "#bfc6cd", "wall": "#1c7ed6", "trim": "#1864ab",
-      "furniture": ["hose", "buckets", "tyres"],
+      "w": 14,
+      "h": 9,
+      "floor": "#ced4da",
+      "floor2": "#bfc6cd",
+      "wall": "#1c7ed6",
+      "trim": "#1864ab",
+      "furniture": [
+        "hose",
+        "buckets",
+        "tyres"
+      ],
       "keeper": "Boss Kilat",
       "greeting": "Cars waiting! Grab a sponge, I pay per car."
     },
     "market": {
       "label": "Hypermarket",
-      "w": 18, "h": 11,
-      "floor": "#f1f3f5", "floor2": "#e9ecef", "wall": "#d62828", "trim": "#9d0208",
-      "furniture": ["shelf", "shelf", "shelf", "shelf", "fridge", "fridge", "trolleys"],
-      "fill": ["shelf", "shelf", "fridge", "shelf"],
+      "w": 18,
+      "h": 11,
+      "floor": "#f1f3f5",
+      "floor2": "#e9ecef",
+      "wall": "#d62828",
+      "trim": "#9d0208",
+      "furniture": [
+        "shelf",
+        "shelf",
+        "shelf",
+        "shelf",
+        "fridge",
+        "fridge",
+        "trolleys"
+      ],
+      "fill": [
+        "shelf",
+        "shelf",
+        "fridge",
+        "shelf"
+      ],
       "keeper": "Cashier",
-      "greeting": "Stock up for your stall here. Delivery costs extra!"
+      "greeting": "Stock up for your stall here. Delivery costs extra!",
+      "plan": "market"
     },
     "mall": {
       "label": "Mall atrium",
-      "w": 18, "h": 11,
-      "floor": "#f3e9d8", "floor2": "#eadcc4", "wall": "#e8cfa0", "trim": "#b08d57",
-      "furniture": ["fountain", "plant", "plant", "bench", "bench", "kiosk"],
-      "fill": ["kiosk", "bench", "plant", "fountain", "bench"],
+      "w": 18,
+      "h": 11,
+      "floor": "#f3e9d8",
+      "floor2": "#eadcc4",
+      "wall": "#e8cfa0",
+      "trim": "#b08d57",
+      "furniture": [
+        "fountain",
+        "plant",
+        "plant",
+        "bench",
+        "bench",
+        "kiosk"
+      ],
+      "fill": [
+        "kiosk",
+        "bench",
+        "plant",
+        "fountain",
+        "bench"
+      ],
       "keeper": "Info counter",
-      "greeting": "Welcome! The Mystery Box counter is right here."
+      "greeting": "Welcome! The Mystery Box counter is right here.",
+      "plan": "mall"
     },
     "bank": {
       "label": "Bank hall",
-      "w": 14, "h": 9,
-      "floor": "#dee2e6", "floor2": "#d0d5da", "wall": "#1d3557", "trim": "#0b1d33",
-      "furniture": ["atm", "atm", "sofa", "plant"],
-      "fill": ["sofa", "plant"],
+      "w": 14,
+      "h": 9,
+      "floor": "#dee2e6",
+      "floor2": "#d0d5da",
+      "wall": "#1d3557",
+      "trim": "#0b1d33",
+      "furniture": [
+        "atm",
+        "atm",
+        "sofa",
+        "plant"
+      ],
+      "fill": [
+        "sofa",
+        "plant"
+      ],
       "keeper": "Teller",
       "greeting": "Loans and savings open soon. For now, enjoy the aircon."
     },
     "casino": {
       "label": "Casino floor",
-      "w": 18, "h": 11,
-      "floor": "#5a189a", "floor2": "#4c1585", "wall": "#240046", "trim": "#ffd43b",
-      "furniture": ["slot", "slot", "slot", "slot", "table", "table"],
-      "fill": ["slot", "slot", "table"],
+      "w": 18,
+      "h": 11,
+      "floor": "#5a189a",
+      "floor2": "#4c1585",
+      "wall": "#240046",
+      "trim": "#ffd43b",
+      "furniture": [
+        "slot",
+        "slot",
+        "slot",
+        "slot",
+        "table",
+        "table"
+      ],
+      "fill": [
+        "slot",
+        "slot",
+        "table"
+      ],
       "keeper": "Croupier",
       "greeting": "Welcome to the Lucky Strand! Bets are limited by your wealth stage. Play responsibly lah."
     },
     "office": {
       "label": "Lobby",
-      "w": 14, "h": 9,
-      "floor": "#e6eef3", "floor2": "#dbe5ec", "wall": "#7fa7c9", "trim": "#4d7799",
-      "furniture": ["sofa", "plant", "plant", "desk"],
-      "fill": ["desk", "plant"],
+      "w": 14,
+      "h": 9,
+      "floor": "#e6eef3",
+      "floor2": "#dbe5ec",
+      "wall": "#7fa7c9",
+      "trim": "#4d7799",
+      "furniture": [
+        "sofa",
+        "plant",
+        "plant",
+        "desk"
+      ],
+      "fill": [
+        "desk",
+        "plant"
+      ],
       "keeper": "Receptionist",
       "greeting": "Office space for rent later. Visitors, please sign in."
     },
     "clinic": {
       "label": "Clinic",
-      "w": 14, "h": 9,
-      "floor": "#f8f9fa", "floor2": "#eef0f2", "wall": "#a5d8ff", "trim": "#4dabf7",
-      "furniture": ["bench", "bench", "plant", "desk"],
-      "fill": ["bench"],
+      "w": 14,
+      "h": 9,
+      "floor": "#f8f9fa",
+      "floor2": "#eef0f2",
+      "wall": "#a5d8ff",
+      "trim": "#4dabf7",
+      "furniture": [
+        "bench",
+        "bench",
+        "plant",
+        "desk"
+      ],
+      "fill": [
+        "bench"
+      ],
       "keeper": "Nurse",
       "greeting": "Feeling unlucky? Rest here a while."
     },
     "station": {
       "label": "Station concourse",
-      "w": 16, "h": 9,
-      "floor": "#ced4da", "floor2": "#c3c9cf", "wall": "#868e96", "trim": "#495057",
-      "furniture": ["gate", "gate", "bench", "kiosk"],
-      "fill": ["gate", "bench"],
+      "w": 16,
+      "h": 9,
+      "floor": "#ced4da",
+      "floor2": "#c3c9cf",
+      "wall": "#868e96",
+      "trim": "#495057",
+      "furniture": [
+        "gate",
+        "gate",
+        "bench",
+        "kiosk"
+      ],
+      "fill": [
+        "gate",
+        "bench"
+      ],
       "keeper": "Station staff",
       "greeting": "Trains aren't running yet. Book a Ronda ride from your phone!"
     },
     "lounge": {
       "label": "Clubhouse",
-      "w": 14, "h": 9,
-      "floor": "#c9a96e", "floor2": "#bf9d60", "wall": "#386641", "trim": "#264d2f",
-      "furniture": ["sofa", "table", "plant", "tv"],
+      "w": 14,
+      "h": 9,
+      "floor": "#c9a96e",
+      "floor2": "#bf9d60",
+      "wall": "#386641",
+      "trim": "#264d2f",
+      "furniture": [
+        "sofa",
+        "table",
+        "plant",
+        "tv"
+      ],
       "keeper": null,
       "greeting": "Members only... but nobody's checking."
     },
     "furniture": {
       "label": "Furniture showroom",
-      "w": 16, "h": 10,
-      "floor": "#f1e3c6", "floor2": "#e7d6b4", "wall": "#1d4ed8", "trim": "#facc15",
-      "furniture": ["sofa", "sofa", "table", "bed", "plant"],
-      "fill": ["sofa", "bed", "table"],
+      "w": 16,
+      "h": 10,
+      "floor": "#f1e3c6",
+      "floor2": "#e7d6b4",
+      "wall": "#1d4ed8",
+      "trim": "#facc15",
+      "furniture": [
+        "sofa",
+        "sofa",
+        "table",
+        "bed",
+        "plant"
+      ],
+      "fill": [
+        "sofa",
+        "bed",
+        "table"
+      ],
       "keeper": "Sales",
       "greeting": "Decorating your Airbnb comes later. Browse for now!"
+    },
+    "capsule": {
+      "label": "Capsule shop",
+      "w": 12,
+      "h": 8,
+      "floor": "#fff0f6",
+      "floor2": "#ffdeeb",
+      "wall": "#e64980",
+      "trim": "#a61e4d",
+      "furniture": [
+        "plant"
+      ],
+      "keeper": "Pak Abu",
+      "greeting": "Selamat datang! The big Capsule Machine has the real prizes.",
+      "plan": "capsule"
+    },
+    "mall_grocery": {
+      "label": "Mall with a supermarket",
+      "w": 18,
+      "h": 11,
+      "floor": "#f3e9d8",
+      "floor2": "#eadcc4",
+      "wall": "#e8cfa0",
+      "trim": "#b08d57",
+      "furniture": [
+        "fountain",
+        "plant",
+        "plant",
+        "bench",
+        "bench",
+        "kiosk"
+      ],
+      "fill": [
+        "kiosk",
+        "bench",
+        "plant",
+        "fountain",
+        "bench"
+      ],
+      "keeper": "Info counter",
+      "greeting": "Welcome! Shops, food and a supermarket, all under one roof.",
+      "plan": "mall",
+      "grocery": true
+    }
+  },
+  "content": {
+    "lots": [
+      {
+        "id": "burger_kaw",
+        "name": "Burger Kaw",
+        "icon": "🍔",
+        "color": "#e8590c",
+        "kind": "food",
+        "menu": [
+          {
+            "id": "burger_ayam",
+            "name": "Burger Ayam",
+            "icon": "🍔",
+            "priceSen": 900,
+            "xp": 8
+          },
+          {
+            "id": "burger_special",
+            "name": "Burger Daging Special",
+            "icon": "🍔",
+            "priceSen": 1600,
+            "xp": 12,
+            "buff": {
+              "kind": "jobPay",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          }
+        ]
+      },
+      {
+        "id": "nasi_kandar",
+        "name": "Nasi Kandar Pak Raju",
+        "icon": "🍛",
+        "color": "#f08c00",
+        "kind": "food",
+        "menu": [
+          {
+            "id": "nasi_kandar_ayam",
+            "name": "Nasi Kandar Ayam",
+            "icon": "🍛",
+            "priceSen": 1300,
+            "xp": 10,
+            "buff": {
+              "kind": "staffSpeed",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          },
+          {
+            "id": "roti_telur",
+            "name": "Roti Telur",
+            "icon": "🫓",
+            "priceSen": 400,
+            "xp": 4
+          }
+        ]
+      },
+      {
+        "id": "ayam_rangup",
+        "name": "Ayam Goreng Rangup",
+        "icon": "🍗",
+        "color": "#c92a2a",
+        "kind": "food",
+        "menu": [
+          {
+            "id": "ayam_2",
+            "name": "Ayam 2 Ketul + Nasi",
+            "icon": "🍗",
+            "priceSen": 1400,
+            "xp": 10,
+            "buff": {
+              "kind": "customers",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          },
+          {
+            "id": "kentang",
+            "name": "Kentang Goreng",
+            "icon": "🍟",
+            "priceSen": 500,
+            "xp": 4
+          }
+        ]
+      },
+      {
+        "id": "kek_roti",
+        "name": "Kek & Roti Manis",
+        "icon": "🍰",
+        "color": "#f783ac",
+        "kind": "food",
+        "menu": [
+          {
+            "id": "kek_pandan",
+            "name": "Kek Pandan",
+            "icon": "🍰",
+            "priceSen": 600,
+            "xp": 6
+          },
+          {
+            "id": "roti_kaya",
+            "name": "Roti Kaya Bakar",
+            "icon": "🍞",
+            "priceSen": 450,
+            "xp": 5,
+            "buff": {
+              "kind": "xp",
+              "mult": 1.05,
+              "durationSec": 600
+            }
+          }
+        ]
+      },
+      {
+        "id": "boba_bos",
+        "name": "Boba Bos",
+        "icon": "🧋",
+        "color": "#9c36b5",
+        "kind": "drink",
+        "menu": [
+          {
+            "id": "boba_gula",
+            "name": "Brown Sugar Boba",
+            "icon": "🧋",
+            "priceSen": 1100,
+            "xp": 8,
+            "buff": {
+              "kind": "xp",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          },
+          {
+            "id": "boba_matcha",
+            "name": "Matcha Boba",
+            "icon": "🧋",
+            "priceSen": 1200,
+            "xp": 8,
+            "buff": {
+              "kind": "xp",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          }
+        ]
+      },
+      {
+        "id": "kopi_mesra",
+        "name": "Kopi Mesra",
+        "icon": "☕",
+        "color": "#7a4a2a",
+        "kind": "drink",
+        "menu": [
+          {
+            "id": "kopi_o",
+            "name": "Kopi O",
+            "icon": "☕",
+            "priceSen": 400,
+            "xp": 4
+          },
+          {
+            "id": "teh_tarik",
+            "name": "Teh Tarik",
+            "icon": "🍵",
+            "priceSen": 500,
+            "xp": 5,
+            "buff": {
+              "kind": "jobPay",
+              "mult": 1.05,
+              "durationSec": 600
+            }
+          }
+        ]
+      },
+      {
+        "id": "ais_kacang",
+        "name": "Ais Kacang Express",
+        "icon": "🍧",
+        "color": "#1098ad",
+        "kind": "drink",
+        "menu": [
+          {
+            "id": "abc",
+            "name": "ABC Special",
+            "icon": "🍧",
+            "priceSen": 800,
+            "xp": 6,
+            "buff": {
+              "kind": "passive",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          },
+          {
+            "id": "cendol",
+            "name": "Cendol Durian",
+            "icon": "🍨",
+            "priceSen": 900,
+            "xp": 6,
+            "buff": {
+              "kind": "passive",
+              "mult": 1.1,
+              "durationSec": 600
+            }
+          }
+        ]
+      },
+      {
+        "id": "ramuan",
+        "name": "Ramuan Ajaib",
+        "icon": "🧪",
+        "color": "#7048e8",
+        "kind": "potion",
+        "lines": [
+          "Potions for 💎 shards: luck, XP, income and more."
+        ]
+      },
+      {
+        "id": "fesyen",
+        "name": "Fesyen Kita",
+        "icon": "👗",
+        "color": "#e64980",
+        "kind": "retail",
+        "sale": "SALE 50%",
+        "lines": [
+          "Baju kurung, jeans and tudung: half price this week!",
+          "The fitting room has a queue. Of course it does."
+        ]
+      },
+      {
+        "id": "telefon",
+        "name": "Kedai Telefon Pintar",
+        "icon": "📱",
+        "color": "#1c7ed6",
+        "kind": "retail",
+        "sale": "Trade-in deals",
+        "lines": [
+          "Screen protector \"free\" with every case (RM 49).",
+          "The phone you have is fine. Probably."
+        ]
+      },
+      {
+        "id": "buku",
+        "name": "Buku & Alat Tulis",
+        "icon": "📚",
+        "color": "#2f9e44",
+        "kind": "retail",
+        "lines": [
+          "Bestsellers, comics and school stationery.",
+          "Smells like new books."
+        ]
+      },
+      {
+        "id": "kasut",
+        "name": "Kasut Laju",
+        "icon": "👟",
+        "color": "#495057",
+        "kind": "retail",
+        "sale": "Buy 1 Free 1",
+        "lines": [
+          "Running shoes, sliders and school shoes.",
+          "Buy 1, get the second one free (the cheaper one, naturally)."
+        ]
+      },
+      {
+        "id": "mainan",
+        "name": "Mainan Ceria",
+        "icon": "🧸",
+        "color": "#fab005",
+        "kind": "retail",
+        "sale": "Clearance",
+        "lines": [
+          "Toys, board games and remote-control cars.",
+          "A kid is negotiating with their parent. The kid is winning."
+        ]
+      },
+      {
+        "id": "optik",
+        "name": "Optik Jelas",
+        "icon": "👓",
+        "color": "#15aabf",
+        "kind": "retail",
+        "lines": [
+          "Free eye test today!",
+          "Read the bottom line: K D H U S T L E."
+        ]
+      },
+      {
+        "id": "elektrik",
+        "name": "Elektrik Murah",
+        "icon": "📺",
+        "color": "#364fc7",
+        "kind": "retail",
+        "sale": "Mega Sale",
+        "lines": [
+          "TVs, rice cookers and air fryers.",
+          "Every TV is showing the same nature documentary."
+        ]
+      }
+    ],
+    "pawn": {
+      "goldBoard": {
+        "title": "📈 Harga Emas Hari Ini",
+        "lines": [
+          "Gold 999: RM 389 / g · Gold 916: RM 362 / g (buy-back today).",
+          "Sell your items at the counter: Ah Seng pays part of what they're worth.",
+          "💎 The Shard Shop tab sells potions and items you've discovered.",
+          "♻️ Scrap spares for shards there too."
+        ]
+      },
+      "cases": [
+        {
+          "title": "💍 Jewellery case",
+          "lines": [
+            "Gold chain, 916: RM 2,400",
+            "Jade bangle: RM 980",
+            "Pearl earrings: RM 450",
+            "All pre-loved, all \"very good condition\"."
+          ]
+        },
+        {
+          "title": "⌚ Watches case",
+          "lines": [
+            "Swiss-looking watch: RM 1,200",
+            "Diver's watch (never been diving): RM 600",
+            "Pocket watch, still ticking: RM 300"
+          ]
+        },
+        {
+          "title": "📱 Phones & gadgets",
+          "lines": [
+            "Last year's flagship: RM 1,100",
+            "Game console, two controllers: RM 850",
+            "Earbuds, one missing: RM 40"
+          ]
+        },
+        {
+          "title": "🎸 Odds & ends",
+          "lines": [
+            "Electric guitar: RM 700",
+            "Antique tiffin carrier: RM 120",
+            "A trophy: \"World's Best Uncle\""
+          ]
+        }
+      ],
+      "notice": {
+        "title": "🔖 Barang Lelong (auction)",
+        "lines": [
+          "Unredeemed items go to auction every month.",
+          "This month: watches, a gold chain and a karaoke set.",
+          "Want to sell instead? Ah Seng is at the counter."
+        ]
+      },
+      "ticket": {
+        "title": "🎟️ Ambil nombor",
+        "lines": [
+          "Your number: A027. Now serving: A026.",
+          "You're next. (There's nobody else here.)"
+        ]
+      }
+    },
+    "capsule": {
+      "series": [
+        "Kopi Keychains",
+        "Mini Durians",
+        "Kucing Comel",
+        "Food Magnets",
+        "Tiny Trishaws",
+        "Wau Kites",
+        "Ketupat Charms",
+        "Mamak Figures",
+        "Rubber Ducks",
+        "Pocket Robots"
+      ],
+      "changer": {
+        "title": "💱 Change machine",
+        "lines": [
+          "Notes in, coins out. Clink, clink, clink!",
+          "The real Capsule Machine takes your RM straight from your wallet."
+        ]
+      },
+      "bin": {
+        "title": "♻️ Capsule recycling",
+        "lines": [
+          "Drop your empty capsules here.",
+          "Somebody has been collecting the shells. They're making a castle."
+        ]
+      },
+      "keeperLines": [
+        "Selamat datang! The big machine has the real prizes.",
+        "Feeling lucky? Potions help, you know.",
+        "Sold out on the small ones, sorry. Restock Monday."
+      ]
+    },
+    "mall": {
+      "escalator": {
+        "title": "🛗 Escalator",
+        "lines": [
+          "Level 2: cinema, arcade and the food court extension.",
+          "Opening soon. The escalator is \"under maintenance\" (it's always under maintenance)."
+        ]
+      },
+      "kiosks": [
+        {
+          "title": "📱 Phone accessories kiosk",
+          "lines": [
+            "Cases, cables and screen protectors.",
+            "\"Boss, tengok dulu!\""
+          ]
+        },
+        {
+          "title": "🍭 Gula-gula kapas",
+          "lines": [
+            "Candy floss, made fresh. Pink or blue?",
+            "It's mostly air. Delicious air."
+          ]
+        }
+      ],
+      "infoLines": [
+        "Welcome! Food, shops and potions, all here. The directory has the list.",
+        "Lost a child? Lost a phone? Lost your way? We can help.",
+        "Free Wi-Fi: KDHustle_Guest. Password: hustle123."
+      ],
+      "balloonLines": [
+        "Belon percuma! One for you.",
+        "Red, blue or yellow? Here, take two... ok, one.",
+        "Hold it tight, don't let it fly away!"
+      ]
+    },
+    "grocery": {
+      "aisles": [
+        {
+          "title": "Snacks & biscuits",
+          "lines": [
+            "Keropok ikan: RM 2.50",
+            "Cream crackers: RM 4.20",
+            "Chocolate bar: RM 3.90",
+            "🔖 Buy 2 free 1 on keropok!"
+          ]
+        },
+        {
+          "title": "Drinks",
+          "lines": [
+            "Mineral water 1.5 L: RM 1.80",
+            "Teh botol: RM 2.30",
+            "Kopi 3-in-1 (30): RM 12.90"
+          ]
+        },
+        {
+          "title": "Rice & noodles",
+          "lines": [
+            "Beras wangi 5 kg: RM 22.90",
+            "Mee kuning: RM 2.60",
+            "Bihun: RM 2.10"
+          ]
+        },
+        {
+          "title": "Cooking",
+          "lines": [
+            "Minyak masak 5 kg: RM 31.90",
+            "Sambal paste: RM 5.50",
+            "Santan: RM 2.40",
+            "Everything your stall needs (stock up in 📱 Business)."
+          ]
+        },
+        {
+          "title": "Household",
+          "lines": [
+            "Detergent: RM 18.90",
+            "Kitchen roll: RM 6.50",
+            "Mop with a squeezy bucket: RM 39.00"
+          ]
+        },
+        {
+          "title": "Toiletries",
+          "lines": [
+            "Shampoo: RM 15.90",
+            "Toothpaste: RM 6.90",
+            "Bedak sejuk: RM 3.50"
+          ]
+        }
+      ],
+      "frozen": [
+        {
+          "title": "🧊 Frozen: ready meals",
+          "lines": [
+            "Nuggets 1 kg: RM 12.90",
+            "Frozen paratha (20): RM 9.90",
+            "Dim sum pack: RM 11.50"
+          ]
+        },
+        {
+          "title": "🧊 Frozen: ice cream",
+          "lines": [
+            "Ice cream tub: RM 15.90",
+            "Potong ice cream (6): RM 7.50",
+            "Mochi ice cream: RM 9.90"
+          ]
+        },
+        {
+          "title": "🧊 Frozen: seafood",
+          "lines": [
+            "Prawns 500 g: RM 18.90",
+            "Fish fillet: RM 14.50",
+            "Squid rings: RM 10.90"
+          ]
+        }
+      ],
+      "butcher": {
+        "title": "🥩 Butcher",
+        "lines": [
+          "Daging lembu: RM 42 / kg",
+          "Ayam segar: RM 9.90 / kg",
+          "Daging kambing: RM 55 / kg",
+          "Cut to order: just ask Pak Daging."
+        ]
+      },
+      "fish": {
+        "title": "🐟 Fresh fish",
+        "lines": [
+          "Ikan kembung: RM 14 / kg",
+          "Udang: RM 38 / kg",
+          "Sotong: RM 26 / kg",
+          "Cleaned for free."
+        ]
+      },
+      "bakery": {
+        "title": "🥐 Bakery",
+        "lines": [
+          "Roti sosej: RM 2.20",
+          "Bun kaya: RM 1.80",
+          "Fresh loaf: RM 4.50",
+          "Fresh out of the oven at 8 am and 4 pm."
+        ]
+      },
+      "produce": [
+        {
+          "title": "🍌 Fruit",
+          "lines": [
+            "Pisang: RM 4.90 / sikat",
+            "Durian (in season): RM 28 / kg",
+            "Betik: RM 3.50"
+          ]
+        },
+        {
+          "title": "🥬 Vegetables",
+          "lines": [
+            "Kangkung: RM 1.50",
+            "Cili padi: RM 2.00 / 100 g",
+            "Bawang: RM 4.90 / kg"
+          ]
+        },
+        {
+          "title": "🥚 Eggs & tofu",
+          "lines": [
+            "Telur gred A (30): RM 13.90",
+            "Tauhu: RM 1.80"
+          ]
+        }
+      ],
+      "checkout": {
+        "title": "🧾 Checkout",
+        "lines": [
+          "Bags are 20 sen each. Bring your own!",
+          "Member card? Points double on Wednesdays."
+        ]
+      },
+      "butcherLines": [
+        "Daging segar hari ini!",
+        "Ayam baru sampai pagi tadi.",
+        "Nak potong macam mana?"
+      ],
+      "sampleLines": [
+        "Cuba sikit! Free sample!",
+        "Sedap kan? One more tomorrow.",
+        "Rasa dulu, baru beli."
+      ]
+    },
+    "sample": {
+      "xp": 15,
+      "cooldownSec": 600
     }
   }
 }

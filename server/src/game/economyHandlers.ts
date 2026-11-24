@@ -4,8 +4,7 @@ import crypto from 'node:crypto';
 // and lets the systems do the (transactional) work.
 import { variantLabel, petLook, temanBoost, furnitureOnlineFee,
   C2S, collides, setBoxes, stallFootprint, formatMoney, formatOneIn, gameTime, formatClock, HOTBAR_SLOTS, stageForNetWorth, netWorthSen, stageDef, totalXpForLevel, dayKey,
-  type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid, type RerollPity
-} from '@kh/shared';
+  type Announcement, type EquipSlot, type HotbarRef, type MovementConfig, type CollisionGrid, type RerollPity, roomStyleOf, roomSize, mallLots, mallLotCount } from '@kh/shared';
 import type { Socket } from 'socket.io';
 import { RateLimiter } from '../auth/rateLimit';
 import type { ServerConfig } from '../config/loadConfig';
@@ -496,7 +495,51 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
     for (const p of world.players.values()) if (p.hasCharacter && p.prog && p.prog.quests.day !== today) prog.check(p);
   }, 60_000);
 
+  /** 🏬 The designed room the player is inside (its building and style), or null. */
+  const insideRoom = (p: OnlinePlayer) => {
+    if (!p.interior) return null;
+    const b = cfg.map.buildings.find((x) => x.id === p.interior);
+    const sid = b ? roomStyleOf(cfg.interiors, b) : null;
+    return b && sid ? { b, style: cfg.interiors.styles[sid] } : null;
+  };
+  /** Last free sample per player (in memory: a restart just lets you have one more). */
+  const sampleAt = new Map<number, number>();
+
   function register(socket: AnySocket, me: OnlinePlayer) {
+    // --- 🏬 mall food lots and the supermarket's free sample ----------------------------------
+    handle(socket, 'mall:eat', C2S.mallEat, ({ lot, item }) => {
+      const room = insideRoom(me);
+      if (!room || room.style.plan !== 'mall') throw new GameError('Food and drinks are sold inside the malls.');
+      const content = cfg.interiors.content;
+      // This mall's lots (whichever door you came in by, the mix is the same building's).
+      const size = roomSize(cfg.interiors, room.style, room.b, cfg.map.metersPerTile);
+      const here = new Set((['top', 'bottom', 'left', 'right'] as const).flatMap((s) => mallLots(content, room.b.id, mallLotCount(size.w, size.h, s, !!room.style.grocery)).map((l) => l.id)));
+      const l = content.lots.find((x) => x.id === lot);
+      if (!l || !here.has(lot)) throw new GameError("That shop isn't in this mall.");
+      const m = l.menu.find((x) => x.id === item);
+      if (!m) throw new GameError("That's not on the menu.");
+      if (me.walletSen < m.priceSen) throw new GameError(`That's ${formatMoney(m.priceSen)}.`);
+      econ.run(me, () => econ.change(me, -m.priceSen, 0, 'mall-food', `${lot}:${item}`));
+      pushWallet(me, -m.priceSen, 'mall-food');
+      if (m.xp) prog.addXp(me, m.xp);
+      if (m.buff) prog.addBuff(me, `food:${l.id}:${m.id}`, m.buff.kind, m.buff.mult, m.buff.durationSec);
+      else prog.check(me);
+      const buffText = m.buff ? ` · ${m.buff.mult}× ${m.buff.kind === 'jobPay' ? 'job pay' : m.buff.kind === 'passive' ? 'passive income' : m.buff.kind === 'staffSpeed' ? 'cook speed' : m.buff.kind} for ${Math.round(m.buff.durationSec / 60)} min` : '';
+      return { walletSen: me.walletSen, text: `${m.icon} ${m.name}: sedap!${m.xp ? ` +${m.xp} XP` : ''}${buffText}` };
+    });
+    handle(socket, 'mall:sample', null, () => {
+      const room = insideRoom(me);
+      if (!room || !(room.style.plan === 'market' || room.style.grocery)) throw new GameError('Free samples are in the supermarket.');
+      const s = cfg.interiors.content.sample;
+      const now = Date.now();
+      const last = sampleAt.get(me.id) ?? 0;
+      if (now - last < s.cooldownSec * 1000) throw new GameError(`"Eh, you just had one! Come back in ${Math.ceil((s.cooldownSec * 1000 - (now - last)) / 60_000)} min."`);
+      sampleAt.set(me.id, now);
+      prog.addXp(me, s.xp);
+      prog.check(me);
+      return { text: `🍢 Free sample: sedap! +${s.xp} XP`, xp: s.xp };
+    });
+
     // --- crates -------------------------------------------------------------------------
     handle(socket, 'crate:roll', C2S.crateRoll, ({ crateId, count, remote }) => {
       if (!me.hasCharacter) throw new GameError('Create your character first.');

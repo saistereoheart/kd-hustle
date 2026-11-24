@@ -1,5 +1,6 @@
 // Under the top-left pill (spec §1, §16): the next-goal tracker, the daily reward + quest chips,
 // the luck readout and active potion timers. Ticks once a second so timers count down.
+import { buffName } from './buffName';
 import { conditionProgress, dayPhase, formatClock, formatMoney, formatMoneyExact, gameTime, nextStage, questProgress, rushHour, type CondProgress } from '@kh/shared';
 import type { App } from '../app';
 import { el, uiRoot } from './dom';
@@ -137,7 +138,8 @@ export class ProgressHud {
       const def = app.items.get(b.item);
       const icon = b.kind === 'luck' ? '🍀' : b.kind === 'xp' ? '📚' : b.kind === 'passive' ? '📈' : '☕';
       chip(`buff buff-${b.kind}`, `${icon} ${b.mult}× ${mmss(b.leftMs)}`, () => app.openPhone('profile'));
-      chips[chips.length - 1].title = def ? `${def.name}: ${def.desc ?? ''}` : b.item;
+      const bn = buffName(app, b.item);
+      chips[chips.length - 1].title = def ? `${def.name}: ${def.desc ?? ''}` : `${bn.name}${bn.desc ? `: ${bn.desc}` : ''}`;
     }
     const luck = app.mods().luck;
     // Narrow phones have no room for luck in the pill: show it here while it's boosted.

@@ -187,6 +187,29 @@ describe('potions', () => {
     expect(() => s.prog.useItem(s.p, givePotion(s, 'rubber_duck').iid)).toThrow(/can't be used/);
   });
 
+  it('🧪 a better tier / variant potion is stronger and lasts longer; drinking a weaker one after keeps the stronger', () => {
+    const s = setup();
+    const top = s.econ.run(s.p, () => s.econ.grant(s.p, 'luck_potion', 'shiny+golden+rainbow', null, 'S')).item;
+    s.prog.useItem(s.p, top.iid);
+    const luck = s.prog.mods(s.p).luck;
+    expect(luck).toBeGreaterThan(3);
+    expect(s.p.prog.buffs[0].until - at(17)).toBeGreaterThan(600_000);
+    s.prog.useItem(s.p, givePotion(s, 'luck_potion').iid);
+    expect(s.p.prog.buffs).toHaveLength(1);
+    expect(s.prog.mods(s.p).luck).toBeCloseTo(luck);
+  });
+
+  it('🍔 mall food buffs: stack time like a potion, at the stronger mult, up to the limit', () => {
+    const s = setup();
+    s.prog.addBuff(s.p, 'food:boba_bos:boba_gula', 'xp', 1.1, 600);
+    s.prog.addBuff(s.p, 'food:boba_bos:boba_gula', 'xp', 1.05, 600);
+    expect(s.p.prog.buffs).toHaveLength(1);
+    expect(s.p.prog.buffs[0]).toMatchObject({ kind: 'xp', mult: 1.1 });
+    expect(s.p.prog.buffs[0].until - at(17)).toBe(2 * 600_000);
+    for (let i = 0; i < 20; i++) s.prog.addBuff(s.p, 'food:boba_bos:boba_gula', 'xp', 1.1, 600);
+    expect(s.p.prog.buffs[0].until - at(17)).toBe(60 * 60_000);
+  });
+
   it('buff timers pause while offline (saved as time left)', () => {
     const s = setup();
     s.prog.useItem(s.p, givePotion(s, 'xp_booster').iid);

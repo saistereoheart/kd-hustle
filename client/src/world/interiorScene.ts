@@ -6,7 +6,11 @@
 // side as the door you came in by (come in from the north, you appear at the top). The counters
 // and machines stand in the middle of the room on a glowing spot.
 import Phaser from 'phaser';
-import { doorSide, formatMoney, randomAppearance, roomSize, type BuiltBuilding, type BuiltMap, type Furniture, type RoomStyle } from '@kh/shared';
+import { doorSide, formatMoney, mallLotCount, mallLots, planInterior, randomAppearance, roomSize, type BuiltBuilding, type BuiltMap, type Furniture, type MallLot, type Plan, type PlanAct, type PlanProp, type RoomStyle } from '@kh/shared';
+import { crowdLook } from '../character/crowd';
+import { openCratePrizes, openDirectory, openFood, openInfo, openPotionShop } from '../ui/interiorPanels';
+import { sfx } from '../ui/sound';
+import { drawBalloons, drawProp } from './propArt';
 import type { App } from '../app';
 import { toast } from '../ui/dom';
 import { loadPrefs } from '../ui/settings';
@@ -29,6 +33,13 @@ interface Station {
   y: number;
   /** Its footprint (you can use it from any side). */
   rect: Rect;
+}
+/** 🏬 Something usable in a designed room: a sign, a shop lot, a shelf, a person. */
+interface Spot {
+  rect: Rect;
+  prompt: string;
+  act: PlanAct | { kind: 'say'; lines: string[] };
+  npc?: Avatar;
 }
 
 /** Small deterministic PRNG so a building's shopkeeper looks the same every visit. */
@@ -71,6 +82,12 @@ export class InteriorScene extends Phaser.Scene {
   /** Kept clear of furniture: the counters and the walk from the door to them. */
   private keepClear: Rect | null = null;
   private extra = new Map<string, () => void>();
+  /** 🏬 Designed rooms: usable props and people, the staff, this mall's shop lots, your balloon. */
+  private spots: Spot[] = [];
+  private nearSpot: Spot | null = null;
+  private npcs: Avatar[] = [];
+  private lots: MallLot[] = [];
+  private balloon = false;
   private extraIts: Interactable[] = [];
   private doorHalf = DOOR_HALF;
 
@@ -100,6 +117,11 @@ export class InteriorScene extends Phaser.Scene {
     this.keepClear = null;
     this.others = new Map();
     this.leaving = false;
+    this.spots = [];
+    this.nearSpot = null;
+    this.npcs = [];
+    this.lots = [];
+    this.balloon = false;
   }
 
   private roomKey = '';
@@ -137,10 +159,9 @@ export class InteriorScene extends Phaser.Scene {
     // A narrow room (a long shoplot) stacks the stations down the middle instead.
     const rowW = sizes.reduce((a, [w]) => a + w, 0) * T + (its.length - 1) * 2.2 * T;
     const vertical = its.length > 1 && rowW > W - T;
-    its.forEach((it, i) => {
-      const cx = vertical ? W / 2 : sx0 + i * gap;
-      const [sw, sh] = sizes[i];
-      const cy = vertical ? 2 * T + ((H - 2 * T) * (i + 1)) / (its.length + 1) : cyMid;
+    // 🏬 A designed room (pawn shop, capsule shop, mall, supermarket) plans where everything goes.
+    const plan = s.plan ? this.makePlan(its, sizes) : null;
+    const placeStation = (it: Interactable, cx: number, cy: number, sw: number, sh: number) => {
       const w = sw * T, h = sh * T;
       // the highlight on the floor, a pulsing ring and a soft glow
       bakedPiece(this, `hl_${Math.round(w)}x${Math.round(h)}_${glowCol}`, { w: w + 4 * T, h: h + 4 * T, padL: w / 2 + 2 * T, padT: h / 2 + 2 * T }, cx, cy, (g, x, y) => drawHighlight(g, x, y, w, h, glowCol)).setDepth(-4);
@@ -163,12 +184,24 @@ export class InteriorScene extends Phaser.Scene {
       const arrow = this.add.text(cx, label.y - label.height - 2, '▼', { fontSize: '20px', color: '#ffd43b', stroke: '#11131f', strokeThickness: 4, resolution: 3 }).setOrigin(0.5, 1).setDepth(999_000);
       this.tweens.add({ targets: arrow, y: arrow.y - 7, duration: 450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.stations.push({ it, x: cx, y: cy + h / 2 + T * 0.6, rect: { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 } });
-    });
-    if (this.stations.length) {
+    };
+    if (plan) {
+      for (const ps of plan.stations) {
+        const i = its.findIndex((x) => x.id === ps.id);
+        if (i >= 0) placeStation(its[i], ps.x * T, ps.y * T, sizes[i][0], sizes[i][1]);
+      }
+    } else
+      its.forEach((it, i) => {
+        const cx = vertical ? W / 2 : sx0 + i * gap;
+        const cy = vertical ? 2 * T + ((H - 2 * T) * (i + 1)) / (its.length + 1) : cyMid;
+        placeStation(it, cx, cy, sizes[i][0], sizes[i][1]);
+      });
+    if (this.stations.length && !plan) {
       const rs = this.stations.map((st) => st.rect);
       this.keepClear = { x0: Math.min(...rs.map((r) => r.x0)) - 2.2 * T, y0: Math.min(...rs.map((r) => r.y0)) - 2.6 * T, x1: Math.max(...rs.map((r) => r.x1)) + 2.2 * T, y1: Math.max(...rs.map((r) => r.y1)) + 2.2 * T };
     }
-    this.layoutFurniture();
+    if (plan) this.buildPlan(plan, accent);
+    else this.layoutFurniture();
     // Name sign over the back wall.
     this.add
       .text(W / 2, -16, this.building.name ?? s.label, { fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#11131f', strokeThickness: 5, resolution: 3 })
@@ -177,7 +210,9 @@ export class InteriorScene extends Phaser.Scene {
 
     // The shopkeeper, by the right-hand end of the back wall.
     const cfg = this.app.cfg;
-    if (s.keeper) {
+    if (plan) {
+      // (The planned room has its own staff.)
+    } else if (s.keeper) {
       // Behind (north of) the middle counter, or in the middle of an empty room.
       const mid = this.stations[Math.floor((this.stations.length - 1) / 2)];
       const kx = mid ? mid.x : W / 2, ky = mid ? mid.rect.y0 - 6 : cyMid;
@@ -193,12 +228,14 @@ export class InteriorScene extends Phaser.Scene {
 
     // 🚶 Customers: in at the door, to the counter (the shopkeeper / till), a word, and out.
     if (s.keeper || this.stations.length) {
-      this.walkers = new Walkers(this, cfg.character, this.app.items, 3);
+      this.walkers = new Walkers(this, cfg.character, this.app.items, plan && W > 30 * T ? 5 : 3);
       const kopi = this.extraIts.some((i) => i.type === 'kitchen');
       const lines = kopi ? COUNTER_LINES.kopitiam : COUNTER_LINES.shop;
       const inDoor = { bottom: [dr.pos, H + T * 0.6], top: [dr.pos, 2 * T - T * 0.4], left: [-T * 0.6, dr.pos], right: [W + T * 0.6, dr.pos] }[dr.side];
       const inside = { bottom: [dr.pos, H - T * 1.2], top: [dr.pos, 2 * T + T * 1.2], left: [T * 1.2, dr.pos], right: [W - T * 1.2, dr.pos] }[dr.side];
-      const counters = this.stations.length ? this.stations.map((st) => ({ x: st.x + (Math.random() - 0.5) * T, y: st.y + T * 0.4 })) : [{ x: W / 2, y: cyMid + T }];
+      const counters = plan?.spots.length
+        ? [...plan.spots.map((p) => ({ x: p.x * T, y: p.y * T })), ...this.stations.map((st) => ({ x: st.x, y: st.y + T * 0.4 }))]
+        : this.stations.length ? this.stations.map((st) => ({ x: st.x + (Math.random() - 0.5) * T, y: st.y + T * 0.4 })) : [{ x: W / 2, y: cyMid + T }];
       const visit = () => {
         const c = counters[Math.floor(Math.random() * counters.length)];
         const say = lines[Math.floor(Math.random() * lines.length)];
@@ -238,6 +275,8 @@ export class InteriorScene extends Phaser.Scene {
       if (this.roomKey && this.textures.exists(this.roomKey)) this.textures.remove(this.roomKey); // (furniture textures are shared, kept)
       this.me?.destroy();
       this.keeper?.destroy();
+      for (const n of this.npcs) n.destroy();
+      this.npcs = [];
       this.walkers?.destroy();
       this.walkers = null;
       for (const a of this.others.values()) a.destroy();
@@ -302,6 +341,113 @@ export class InteriorScene extends Phaser.Scene {
           if (nearWalk(x, y, 1.6 * T)) continue;
           place(smallList[k++ % smallList.length], x, y);
         }
+    }
+  }
+
+  /** 🏬 The plan for a designed room (from the shared planner: the tests walk every one of them). */
+  private makePlan(its: Interactable[], sizes: Array<[number, number]>): Plan {
+    const s = this.style;
+    const content = this.app.cfg.interiors.content;
+    const crateIt = its.find((i) => i.type === 'crate' && i.crate);
+    const pool = crateIt?.crate ? this.app.crates.get(crateIt.crate)?.pool ?? [] : [];
+    const door = { side: this.door.side, pos: this.door.pos / T };
+    if (s.plan === 'mall') this.lots = mallLots(content, this.building.id, mallLotCount(s.w, s.h, door.side, !!s.grocery));
+    return planInterior({
+      kind: s.plan!, grocery: s.grocery, buildingId: this.building.id, w: s.w, h: s.h, door,
+      stations: its.map((it, i) => ({ id: it.id, w: sizes[i][0], h: sizes[i][1] })), content,
+      crate: s.plan === 'capsule' && crateIt?.crate ? { id: crateIt.crate, itemNames: pool.map((id) => this.app.items.get(id)?.name ?? id) } : undefined,
+      keeper: s.keeper, greeting: s.greeting,
+    });
+  }
+
+  /** Draws the plan's props (baked: identical ones share a picture), their labels, and the staff. */
+  private buildPlan(plan: Plan, accent: number) {
+    const cfg = this.app.cfg;
+    const promptOf = (p: PlanProp): string => {
+      const a = p.act!;
+      if (a.kind === 'food') return `${p.label ?? '🍽️'}: order`;
+      if (a.kind === 'potions') return `${a.title}: potions for 💎`;
+      if (a.kind === 'directory') return '🗺️ Mall directory';
+      if (a.kind === 'odds') return a.title;
+      if (a.kind === 'info') return `🔎 ${a.title}`;
+      return p.label ?? '🔎 Look';
+    };
+    for (const p of plan.props) {
+      const cx = p.x * T, cy = p.y * T, w = p.w * T, h = p.h * T;
+      const key = `pp_${p.kind}_${p.w.toFixed(1)}x${p.h.toFixed(1)}_${p.color ?? ''}_${p.face ?? ''}_${accent}`;
+      bakedPiece(this, key, { w: w + 4 * T, h: h + 5 * T, padL: w / 2 + 2 * T, padT: h / 2 + 3 * T }, cx, cy, (g, x, y) => drawProp(g, p, x, y, accent)).setDepth(p.solid ? AVATAR_DEPTH + cy + h / 2 : -2);
+      const rect = { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 };
+      if (p.solid) this.blockers.push(rect);
+      if (p.label) {
+        const big = p.kind === 'lot';
+        this.add
+          .text(cx, cy - h / 2 - (p.kind === 'board' || p.kind === 'notice' || p.kind === 'poster' || p.kind === 'directory' || p.kind === 'banner' ? 0.35 * T : 2), p.label, {
+            fontFamily: 'system-ui, sans-serif', fontSize: big ? '13px' : '11px', fontStyle: 'bold', color: big ? '#ffffff' : '#11131f',
+            backgroundColor: big ? p.color ?? '#495057' : 'rgba(255,255,255,0.88)', padding: { x: big ? 6 : 4, y: 2 }, resolution: 2,
+          })
+          .setOrigin(0.5, 1)
+          .setDepth(big ? 999_000 : AVATAR_DEPTH + cy + h / 2 + 1);
+      }
+      if (p.act) this.spots.push({ rect, prompt: promptOf(p), act: p.act });
+    }
+    // The staff: shared crowd faces (memory), each standing at their post.
+    let first = true;
+    for (const n of plan.npcs) {
+      let seed = 0;
+      for (const ch of this.building.id + n.name) seed = (seed * 31 + ch.charCodeAt(0)) | 0;
+      const av = new Avatar(this, cfg.character, this.app.items, { name: n.name, level: 1, appearance: crowdLook(cfg.character, Math.abs(seed)), x: n.x * T, y: n.y * T, isSelf: false, npc: true });
+      av.setState(n.dir, false);
+      this.npcs.push(av);
+      const x = n.x * T, y = n.y * T;
+      this.blockers.push({ x0: x - 12, y0: y - 10, x1: x + 12, y1: y + 4 });
+      if (n.role === 'balloon') bakedPiece(this, 'pp_balloons', { w: 70, h: 70, padL: 35, padT: 62 }, x + 14, y - 14, (g, bx, by) => drawBalloons(g, bx, by, 4)).setDepth(AVATAR_DEPTH + y + 2);
+      const prompt = n.act?.kind === 'balloon' ? `🎈 ${n.name}: a free balloon` : n.act?.kind === 'sample' ? `🍢 ${n.name}: free sample` : `💬 Talk to ${n.name}`;
+      this.spots.push({ rect: { x0: x - 14, y0: y - 30, x1: x + 14, y1: y + 6 }, prompt, act: n.act ?? { kind: 'say', lines: n.lines }, npc: av });
+      if (n.role === 'keeper' && first) {
+        first = false;
+        this.time.delayedCall(350, () => av.say(n.lines[0], 4500));
+      }
+    }
+  }
+
+  /** E at a usable prop or person in a designed room. */
+  private useSpot(sp: Spot) {
+    const a = sp.act;
+    const line = (lines: string[]) => lines[Math.floor(Math.random() * lines.length)];
+    sfx.click();
+    switch (a.kind) {
+      case 'info':
+        return openInfo(a.title, a.lines);
+      case 'food': {
+        const lot = this.app.cfg.interiors.content.lots.find((l) => l.id === a.lot);
+        return lot && openFood(this.app, lot);
+      }
+      case 'potions':
+        return openPotionShop(this.app, a.title);
+      case 'directory':
+        return openDirectory(this.building.name ?? 'Mall', this.lots);
+      case 'odds':
+        return openCratePrizes(this.app, a.crate, a.title);
+      case 'say':
+        return sp.npc?.say(line(a.lines), 3200);
+      case 'balloon': {
+        sp.npc?.say(line(this.app.cfg.interiors.content.mall.balloonLines), 3000);
+        if (this.balloon) return toast('🎈 You already have a balloon. Hold on to it!', 'info');
+        this.balloon = true;
+        // Your balloon, floating over your shoulder while you're in here.
+        const key = 'pp_balloon1';
+        const img = bakedPiece(this, key, { w: 30, h: 46, padL: 15, padT: 42 }, 0, 0, (g, bx, by) => drawBalloons(g, bx, by, 1));
+        img.setPosition(this.me.container.x + 8, this.me.container.y - 20).setDepth(999_000 - 2);
+        this.events.on(Phaser.Scenes.Events.UPDATE, () => img.setPosition(this.me.container.x + 8 - 15, this.me.container.y - 20 - 42));
+        return toast('🎈 A balloon! It\'s yours while you\'re here.', 'good');
+      }
+      case 'sample':
+        sp.npc?.say(line(this.app.cfg.interiors.content.grocery.sampleLines), 3000);
+        return this.app.socket?.timeout(5000).emit('mall:sample', (err, res) => {
+          if (err || !res.ok) return void toast(err ? 'No response.' : res.ok ? '' : res.error, 'info');
+          sfx.coin();
+          toast(res.text, 'good');
+        });
     }
   }
 
@@ -381,6 +527,7 @@ export class InteriorScene extends Phaser.Scene {
     const now = performance.now();
     this.me.tick(now);
     this.keeper?.tick(now);
+    for (const n of this.npcs) n.tick(now);
     this.walkers?.update(now);
     for (const a of this.others.values()) a.tick(now);
 
@@ -396,10 +543,22 @@ export class InteriorScene extends Phaser.Scene {
         best = st;
       }
     }
-    if (best !== this.near) {
+    let spot: Spot | null = null;
+    for (const sp of this.spots) {
+      const r = sp.rect;
+      const d = Math.hypot(Math.max(r.x0 - this.pos.x, 0, this.pos.x - r.x1), Math.max(r.y0 - this.pos.y, 0, this.pos.y - r.y1));
+      if (d < bd) {
+        bd = d;
+        spot = sp;
+        best = null;
+      }
+    }
+    if (best !== this.near || spot !== this.nearSpot) {
       this.near = best;
+      this.nearSpot = spot;
       const crate = best?.it.crate ? this.app.crates.get(best.it.crate) : undefined;
       if (best) this.app.hud?.setPrompt(crate ? `${best.it.name} (${formatMoney(crate.priceSen)})` : best.it.name, this.app.touch);
+      else if (spot) this.app.hud?.setPrompt(spot.prompt, this.app.touch);
       else this.app.hud?.setPrompt('🚪 Walk out through the doorway to leave', this.app.touch, { walk: true });
     }
     this.othersAcc += delta;
@@ -411,6 +570,7 @@ export class InteriorScene extends Phaser.Scene {
 
   /** E / the interact button: use the station we're at. (You leave by walking out.) */
   interact() {
+    if (!this.near && this.nearSpot) return this.useSpot(this.nearSpot);
     if (!this.near) return;
     const use = this.extra.get(this.near.it.id);
     if (use) use();

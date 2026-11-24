@@ -321,6 +321,21 @@ export class ProgressionSystem {
     return { removed: iid, cosmeticsChanged };
   }
 
+  /** 🍔 A timed buff from something that isn't a potion (mall food): the same again adds time, at the
+   *  stronger of the two, up to the potion stacking limit. */
+  addBuff(p: OnlinePlayer, item: string, kind: BuffKind, mult: number, durationSec: number) {
+    const now = this.clock();
+    const durMs = Math.round(durationSec * 1000 * this.mods(p).potionDuration);
+    const capMs = this.cfg.economy.potionMaxStackMin * 60_000;
+    p.prog.buffs = p.prog.buffs.filter((b) => b.until > now);
+    const existing = p.prog.buffs.find((b) => b.item === item);
+    if (existing) {
+      existing.until = Math.min(now + capMs, existing.until + durMs);
+      existing.mult = Math.max(existing.mult, mult);
+    } else p.prog.buffs.push({ item, kind, mult, until: now + durMs });
+    this.check(p);
+  }
+
   equipTitle(p: OnlinePlayer, id: string | null) {
     if (id !== null && !p.prog.titles.includes(id)) throw new GameError("You haven't earned that title yet.");
     if (p.prog.title === id) return;

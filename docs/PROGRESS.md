@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.46.0)_
+_Last updated: 2026-11-24 (v1.47.0)_
 
-**Now at v1.46.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.47.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 484 unit tests (2026-11-24, v1.46.0) |
+| `npm test` (Vitest) | ✅ 495 unit tests (2026-11-24, v1.47.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -56,6 +56,28 @@ rounds below. The §19 content list is met, including 74 achievements.
 
 ---
 
+## 🏬 Designed interiors and potion shops (2026-11-24, your request, v1.47.0)
+- **Planner:** `shared/src/world/interiorPlans.ts` `planInterior` (pure): plans in a door-facing frame (u along the
+  door wall, v from the far wall) and turns it to the room, so any door side works. Plans: `pawn`, `capsule`,
+  `mall` (+ `grocery` wing), `market`. Returns stations, props (kind, rect, label, colour, `act`, `solid`,
+  `face`), staff (NPCs) and walk-to spots. `mallLots` picks a mall's lots by its id (potion shop, 2 food, 2
+  drinks always). `interiorPlans.test.ts` walks every plan × door side × size from the door (BFS) and checks
+  every usable thing is reachable, nothing overlaps or sticks out.
+- **Config:** `interiors.json` styles get `plan` / `grocery` (new `capsule` and `mall_grocery` styles; byBuilding:
+  w1275938588 capsule shop, w366614398 Piramid Mall). `content`: lots (menus with RM, XP and small buffs),
+  pawn / capsule / mall / grocery texts, the sample (15 XP, 10 min).
+- **Client:** `client/src/world/propArt.ts` (baked prop art), `InteriorScene.makePlan / buildPlan / useSpot`
+  (stations from the plan; props with labels; staff from shared crowd faces; E on props and people),
+  `client/src/ui/interiorPanels.ts` (info, food menu, potion shop via `shard:buy`, directory, crate prizes),
+  `ui/buffName.ts` (food buffs show the dish).
+- **Server:** `mall:eat` (inside a mall, lot in that mall, RM, XP, `Progression.addBuff` food buff) and
+  `mall:sample` (inside a supermarket, cooldown, XP) in `economyHandlers.ts`.
+- **Checked on screen** (test server, software GPU, 1366×768): pawn shop, capsule shop, The Strand, Piramid
+  Mall, Gergasi: 43–58 FPS, up to ~110 objects and 44 labels in the biggest room. Emoji labels need an emoji font
+  (fine in normal browsers).
+
+---
+
 ## 🧪 Potion quality, bonus potions, chef caps by rarity (2026-11-24, your requests, v1.46.0)
 - `potionPower` (`shared/src/items/grades.ts`, `grades.json` → `buffs.potion` power 0.25 / duration 0.1):
   used by `Progression.useItem` (timed buffs: mult + time; Perfect Cook Token: charges). Same potion again
@@ -65,7 +87,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 - Your call on chefs: `chefStats` / `cashierStats` use hard caps × `buffs.rarityCapMult` (mythic 1.15, divine
   1.3, secret 1.45; 1 up to legendary). Striva + Chef Academy +100%: Sambal Sultan 200/300/200 (as before),
   Grandmaster Teh 230/345/230. The stall's gear + chef flavour cap uses the chef's rarity too.
-- Still to do from this request: the public-building interiors and potion shops (in progress).
+- The interiors and potion shops followed in v1.47.0.
 
 ---
 
