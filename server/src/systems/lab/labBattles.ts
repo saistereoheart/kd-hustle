@@ -2,7 +2,7 @@
 // room; a lone player is a party of one), the round timer, and what happens at the end (Syiling,
 // falling back to your save point, running back a room). The rules are in shared/src/lab/battle.ts.
 import {
-  canSkill, classMods, wornBase, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
+  canSkill, labSkill, classMods, wornBase, rollWorldBoss, groupCoins, groupXp, labElement, labPotion, labSpell, labUltimate, resolveLabRound, rollBoss, rollGroup,
   type LabAction, type LabBattleEnd, type LabBattleView, type LabConfig, type LabEvent, type LabFighter,
 } from '@kh/shared';
 import type { OnlinePlayer } from '../../game/world';
@@ -120,8 +120,8 @@ export class LabBattles {
     const me = b.fighters.find((f) => f.id === pid(p));
     if (!me || me.out) throw new GameError("You're out of this fight.");
     if (action.kind === 'skill' && !canSkill(this.cfg, me)) {
-      const el = labElement(this.cfg, me.element);
-      throw new GameError(`Not enough 🔷 mana for ${el.icon} ${el.skill.name} (${el.skill.mana}). A mana potion helps.`);
+      const { el, skill } = labSkill(this.cfg, me.element, me.skillId);
+      throw new GameError(`Not enough 🔷 mana for ${el.icon} ${skill.name} (${skill.mana}). A mana potion helps.`);
     }
     if (action.kind === 'ultimate') {
       if (!labSpell(this.cfg, me.spell)) throw new GameError('No ultimate to cast.');
@@ -167,6 +167,7 @@ export class LabBattles {
     if (!b || !me) return;
     const s = this.lab.state(p);
     me.element = labElement(this.cfg, s.element).id;
+    me.skillId = this.lab.skillPick(s, me.element);
     me.spell = labUltimate(this.cfg, s.element, s.books).id;
     this.hooks.picked([...b.members.values()], this.viewOf(b));
   }
@@ -178,7 +179,7 @@ export class LabBattles {
     return {
       id: pid(p), side: 'party', name: p.name, move: '', hp: Math.max(1, this.lab.hp(p)), maxHp: st.hp, atk: st.atk, def: st.def, spd: st.spd, focus: st.focusStart, out: false, crit: st.crit, block: st.block,
       manaRegen: st.manaRegen,
-      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, gear: wornBase(this.cfg, s.gear, s.items),
+      mana: this.lab.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, skillId: this.lab.skillPick(s, labElement(this.cfg, s.element).id), gear: wornBase(this.cfg, s.gear, s.items),
       spell: labUltimate(this.cfg, s.element, s.books).id, skillUp: st.skillPower || undefined, spellUp: st.spellPower || undefined,
     };
   }

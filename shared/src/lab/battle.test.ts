@@ -33,6 +33,57 @@ function winRate(floor: number, mult: number, party = 1, n = 600) {
   return w / n;
 }
 
+describe('Labirin element skills (#29)', () => {
+  const caster = (element: string, skillId?: string): LabFighter => ({ ...hero('p1', 3), mana: 40, maxMana: 40, element, skillId });
+  const foe = (id: string, hp = 9999): LabFighter => ({ id, side: 'foe', name: id, move: 'bite', hp, maxHp: hp, atk: 1, def: 2, spd: 1, focus: 0, out: false });
+
+  it('every element has a free skill plus ones to learn; ids are unique; boss skills name a real boss', () => {
+    const ids = new Set<string>();
+    for (const e of cfg.elements) {
+      expect(e.more.length).toBeGreaterThanOrEqual(2);
+      for (const m of e.more) {
+        expect(ids.has(m.id)).toBe(false);
+        ids.add(m.id);
+        if (m.boss !== undefined) expect(m.boss).toBeLessThan(cfg.bosses.length);
+      }
+    }
+    // Each floor boss teaches exactly one skill.
+    const taught = cfg.elements.flatMap((e) => e.more.filter((m) => m.boss !== undefined).map((m) => m.boss));
+    expect([...taught].sort()).toEqual(cfg.bosses.map((_, i) => i));
+    expect(cfg.elements.some((e) => e.id === 'fizikal')).toBe(true);
+  });
+
+  it('uses the picked skill: its own mana cost; three kicks land three hits', () => {
+    const me = caster('fizikal', 'tendangan_berantai');
+    const res = resolveLabRound(cfg, [me, foe('m0')], { p1: { kind: 'skill', target: 'm0' } }, labRng(3));
+    expect(res.events.filter((e) => e.kind === 'hit' && e.actor === 'p1')).toHaveLength(3);
+    expect(me.mana).toBe(40 - 9 + cfg.player.mana.perRound);
+  });
+
+  it('a picked skill that is not of the element falls back to the free one', () => {
+    const me = caster('api', 'tendangan_berantai');
+    const res = resolveLabRound(cfg, [me, foe('m0')], { p1: { kind: 'skill', target: 'm0' } }, labRng(3));
+    expect(res.events.filter((e) => e.kind === 'hit' && e.actor === 'p1')).toHaveLength(1);
+    expect(me.mana).toBe(40 - 11 + cfg.player.mana.perRound);
+  });
+
+  it('Kabus Penawar heals every standing friend, then splashes', () => {
+    const me = caster('air', 'kabus_penawar');
+    const friend = { ...hero('p2'), hp: 10 };
+    me.hp = 10;
+    resolveLabRound(cfg, [me, friend, foe('m0')], { p1: { kind: 'skill', target: 'm0' }, p2: { kind: 'guard' } }, labRng(5));
+    expect(friend.hp).toBeGreaterThan(10);
+  });
+
+  it('a multi-hit moves on to the next monster when its target falls', () => {
+    const me = caster('fizikal', 'tendangan_berantai');
+    const a = foe('m0', 1), b = foe('m1');
+    resolveLabRound(cfg, [me, a, b], { p1: { kind: 'skill', target: 'm0' } }, labRng(9));
+    expect(a.out).toBe(true);
+    expect(b.hp).toBeLessThan(b.maxHp);
+  });
+});
+
 describe('Labirin battles', () => {
   it('a gearless player clears floor 1 almost always, but not floor 4', () => {
     expect(winRate(0, 1)).toBeGreaterThan(0.95);

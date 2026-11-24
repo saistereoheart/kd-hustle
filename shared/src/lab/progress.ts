@@ -7,6 +7,10 @@ import type { LabFighter } from './battle';
 export type LabSkillDef = LabConfig['skills'][number];
 export type LabSpellDef = LabConfig['spells']['list'][number];
 export type LabElementDef = LabConfig['elements'][number];
+/** An extra 💥 skill of an element (learned). */
+export type LabMoveDef = LabElementDef['more'][number];
+/** A 💥 skill with its id: an element's free one has the element's id. */
+export type LabElemSkill = LabElementDef['skill'] & { id: string; price?: number; minFloor?: number; boss?: number };
 
 /** XP to go from `level` to the next. */
 export function labXpNeed(cfg: LabConfig, level: number): number {
@@ -50,6 +54,28 @@ export function labSpell(cfg: LabConfig, id: string | undefined): LabSpellDef | 
 /** 🔥 An element (an unknown or missing id: the first one, the default). */
 export function labElement(cfg: LabConfig, id: string | undefined): LabElementDef {
   return cfg.elements.find((e) => e.id === id) ?? cfg.elements[0];
+}
+
+/** 💥 Every skill of an element: its free one first (id = the element's id), then the ones to learn. */
+export function labSkillsOf(e: LabElementDef): LabElemSkill[] {
+  return [{ ...e.skill, id: e.id }, ...e.more];
+}
+
+/** An extra skill by id, and its element. */
+export function labMove(cfg: LabConfig, id: string | undefined): { el: LabElementDef; move: LabMoveDef } | undefined {
+  if (!id) return undefined;
+  for (const el of cfg.elements) {
+    const move = el.more.find((m) => m.id === id);
+    if (move) return { el, move };
+  }
+  return undefined;
+}
+
+/** 💥 The skill a fighter uses: `pick` if it's one of the element's (and theirs), else the element's free one. */
+export function labSkill(cfg: LabConfig, element: string | undefined, pick?: string): { el: LabElementDef; skill: LabElemSkill } {
+  const el = labElement(cfg, element);
+  const m = pick ? el.more.find((x) => x.id === pick) : undefined;
+  return { el, skill: m ?? { ...el.skill, id: el.id } };
 }
 
 /** An element's free basic ultimate, shaped like a spell book. */

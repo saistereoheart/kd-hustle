@@ -137,6 +137,13 @@ describe('Labirin damage tiers (feedback #26)', () => {
       expect(e.ultimate.power ?? 0).toBeGreaterThan(e.skill.power ?? 1);
       const book = cfg.spells.list.find((b) => b.element === e.id)!;
       expect((book.power ?? 0) + (book.heal ?? 0)).toBeGreaterThan((e.ultimate.power ?? 0) * 0.6 + (e.ultimate.heal ?? 0));
+      // #29's extra skills: a damage skill (no heal / stone wall) still out-hits a plain attack, and stays under the ultimate.
+      for (const m of e.more) {
+        if (m.heal || m.shield) continue;
+        const total = (m.power ?? 1) * (m.hits ?? 1);
+        expect(total).toBeGreaterThan(1);
+        expect(m.power ?? 1).toBeLessThan(e.ultimate.power ?? 0);
+      }
     }
   });
 });

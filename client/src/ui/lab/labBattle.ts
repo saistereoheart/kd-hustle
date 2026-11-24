@@ -7,7 +7,7 @@
 // effects behind the cards (./battle3d, loaded only now and freed after). The 2D game pauses while
 // it draws, and if a device can't keep 30 FPS it falls back to the flat cards by itself.
 import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, LabRoomView } from '@kh/shared';
-import { labElement, labGear, labSpell, wornBase } from '@kh/shared';
+import { labElement, labGear, labSkill, labSkillsOf, labSpell, wornBase } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { starName } from '../stars';
@@ -426,7 +426,7 @@ export class LabBattleUi {
       b.addEventListener('click', () => this.pick(kind));
       return b;
     };
-    const elem = labElement(this.app.cfg.lab, me?.element);
+    const { el: elem, skill: sk } = labSkill(this.app.cfg.lab, me?.element, me?.skillId);
     const usable = this.usablePotions();
     const items = el('button', { class: 'btn', type: 'button', 'data-act': 'items', title: usable.length ? 'Use a potion (it takes your turn)' : 'No potions that work in a fight. Tok Peraih sells them.' }, '🧪 Items') as HTMLButtonElement;
     items.disabled = !can || !usable.length;
@@ -435,11 +435,11 @@ export class LabBattleUi {
       sfx.click();
       this.renderActions();
     });
-    // 💥 Your element's skill, and ⇄ to switch element (it doesn't take your turn).
-    const skill = btn(`${elem.icon} ${elem.skill.name}`, 'skill', (me?.mana ?? 0) >= elem.skill.mana, `${elem.skill.desc} Costs ${elem.skill.mana} 🔷 mana (you have ${me?.mana ?? 0}).`);
-    skill.append(el('small', { class: 'lb-cost' }, `🔷${elem.skill.mana}`));
+    // 💥 Your picked skill, and ⇄ to switch skill / element (it doesn't take your turn).
+    const skill = btn(`${elem.icon} ${sk.name}`, 'skill', (me?.mana ?? 0) >= sk.mana, `${sk.desc} Costs ${sk.mana} 🔷 mana (you have ${me?.mana ?? 0}).`);
+    skill.append(el('small', { class: 'lb-cost' }, `🔷${sk.mana}`));
     skill.style.setProperty('--elem', elem.color);
-    const swap = el('button', { class: 'btn lb-swap', type: 'button', 'data-act': 'swap', title: 'Switch element (Q). Free: it does not use your turn.' }, '⇄') as HTMLButtonElement;
+    const swap = el('button', { class: 'btn lb-swap', type: 'button', 'data-act': 'swap', title: 'Switch skill / element (Q). Free: it does not use your turn.' }, '⇄') as HTMLButtonElement;
     swap.disabled = off || !me || me.out;
     swap.addEventListener('click', () => {
       this.elementsOpen = true;
@@ -475,19 +475,23 @@ export class LabBattleUi {
     return ([...this.actions.querySelectorAll('button')] as HTMLButtonElement[]).filter((b) => b.dataset.act !== 'swap');
   }
 
-  /** 🔥 Pick an element: its 💥 skill (and 📜 ultimate) from your next pick. Free: no turn used. */
+  /** 🔥 Pick a 💥 skill you know (its element's 📜 ultimate comes with it) from your next pick. Free: no turn used. */
   private renderElements() {
     const me = this.me()!;
     const lc = this.app.cfg.lab;
     const books = this.app.labHud?.self?.books ?? [];
-    const list = lc.elements.map((x) => {
-      const on = x.id === labElement(lc, me.element).id;
+    const moves = this.app.labHud?.self?.moves ?? [];
+    const cur = labSkill(lc, me.element, me.skillId);
+    const list = lc.elements.flatMap((x) => {
       const ult = lc.spells.list.find((b) => b.element === x.id && books.includes(b.id));
-      const b = el('button', { class: `btn lb-item lb-elem${on ? ' on' : ''}`, type: 'button', 'data-element': x.id, title: `${x.skill.desc}\n📜 ${ult ? `${ult.move} (${ult.name})` : x.ultimate.move}` },
-        `${x.icon} ${x.skill.name}`, el('small', {}, `🔷${x.skill.mana}${on ? ' · equipped' : ''}`)) as HTMLButtonElement;
-      b.style.setProperty('--elem', x.color);
-      b.addEventListener('click', () => this.pickElement(x.id));
-      return b;
+      return labSkillsOf(x).filter((sk) => sk.id === x.id || moves.includes(sk.id)).map((sk) => {
+        const on = x.id === cur.el.id && sk.id === cur.skill.id;
+        const b = el('button', { class: `btn lb-item lb-elem${on ? ' on' : ''}`, type: 'button', 'data-element': x.id, 'data-skill-pick': sk.id, title: `${sk.desc}\n📜 ${ult ? `${ult.move} (${ult.name})` : x.ultimate.move}` },
+          `${x.icon} ${sk.name}`, el('small', {}, `🔷${sk.mana}${on ? ' · equipped' : ''}`)) as HTMLButtonElement;
+        b.style.setProperty('--elem', x.color);
+        b.addEventListener('click', () => this.pickElement(x.id, sk.id));
+        return b;
+      });
     });
     const back = el('button', { class: 'btn', type: 'button', 'data-act': 'items-back' }, '↩ Back');
     back.addEventListener('click', () => {
@@ -499,17 +503,18 @@ export class LabBattleUi {
     back.append(el('kbd', { class: 'lb-key end' }, 'Esc'));
   }
 
-  private pickElement(id: string) {
+  private pickElement(id: string, skill: string) {
     this.elementsOpen = false;
     sfx.click();
     const me = this.me();
-    if (me?.element === id) return this.renderActions();
-    this.app.socket?.timeout(5000).emit('lab:element', { id }, (err, res) => {
+    if (me && labSkill(this.app.cfg.lab, me.element, me.skillId).skill.id === skill && labElement(this.app.cfg.lab, me.element).id === id) return this.renderActions();
+    this.app.socket?.timeout(5000).emit('lab:element', { id, skill }, (err, res) => {
       if (err || !res.ok) return void labSay(err ? 'No response.' : res.ok ? '' : res.error, 'bad');
       this.app.labHud?.updateSelf(res.self);
       const f = this.me();
       if (f) {
         f.element = res.self.element;
+        f.skillId = res.self.skill === res.self.element ? undefined : res.self.skill;
         f.spell = res.self.ultimate;
       }
       labSay(res.text, 'good', 2500);

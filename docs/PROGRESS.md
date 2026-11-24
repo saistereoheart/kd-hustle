@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.41.2)_
+_Last updated: 2026-11-24 (v1.42.0)_
 
-**Now at v1.41.2, on GitHub: https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.42.0 (local commit; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.2) |
+| `npm test` (Vitest) | ✅ 472 unit tests (2026-11-24, v1.42.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -32,6 +32,8 @@ rounds below. The §19 content list is met, including 74 achievements.
 5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). v1.35.0 adds look-alikes in the
    game's character style with parody names (Kuki Emas, Wonnie Bertuah, in the Telur Teman egg), on top of
    v1.9.4's Arnab Bintang and Rubah Superstar. Tell them, then close it: `npm run admin -- feedback-done 9`.
+   **Also done and waiting for you to close (2026-11-24):** #16, #19–#27, and this round #29, #30, #31 (#28 after
+   nytra sends a new F3 reading). Close each with `npm run admin -- feedback-done <id>`.
 6. ~~Review and push~~ Pushed to GitHub on 2026-11-24. Later rounds are committed locally and pushed when you say so.
 
 **Open on the code side (small, optional):**
@@ -51,6 +53,30 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 💥 Inbox round: #31 fix, more skills (#29), boss-taught skills (#30), #28 checked (2026-11-24, your request, v1.42.0)
+- **#31 (nytra: "bad request" scrapping an A-tier multi-variant Uncle Zul):** an item with all three variants is
+  stored as `shiny+golden+rainbow` (20 characters), and the sell/scrap and hotbar messages allowed 16. Now 40.
+  `shared/src/protocol/messages.test.ts` tries every variant mix.
+- **#29 (Wendygosh: more skills per element, and physical):** `labyrinth.json` elements get `more` (extra
+  skills: `price`, `minFloor`, or `boss`), plus a 👊 `fizikal` element and its book `kitab_silat`. New
+  effect `hits` (several hits, DEF on each) and party `heal` on a skill (`resolveLabRound`). The pick is saved
+  per element (`LabSave.moves` / `picks`; `LabFighter.skillId`; `lab:element` takes `skill`;
+  `labSkill()` in `shared/src/lab/progress.ts`). The bag tab is now 🔥 Elements & skills; ⇄ in a fight lists
+  every skill you know.
+- **#30 (Wendygosh: buy skills from defeated bosses):** each floor boss teaches one skill (`boss: <floor>`),
+  sold by Tok Peraih only once `LabSave.bosses` has that floor.
+- **Balance:** a scratch sim (4,000 casts per skill on floor-4 groups and a lone floor-4 boss, real resolver)
+  put the old skills at 3.6–4.4 damage per mana; the new damage skills are 3.3–4.4 after three tweaks
+  (Tumbukan Padu 6→7 mana, Jerat Akar ×1.5→1.7, Mantera Guruh ×1.05→1.15). Kabus Penawar and Tembok Batu
+  trade damage for a heal / a 60% wall.
+- **#28 (nytra: lag, Chrome at 3.3 GB, "run it off the server"):** the F3 picture in the report shows 906
+  pictures = 301 MB. On today's build (v1.40.1's memory round) the same 1920×957 screen measures ~99 MB of
+  pictures and a 55–98 MB JS heap. The game can't be drawn on the server (every device still has to draw its
+  own screen), but the server already decides everything. Ask nytra for a new F3 reading after a refresh.
+- Unverified on screen: the new Elements & skills tab, the ⇄ list with many skills, the 👊 hit effect.
 
 ---
 

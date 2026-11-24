@@ -72,6 +72,9 @@ export interface LabSelf {
   /** 🔥 The element whose 💥 skill is equipped, and your 📜 ultimate (a book id, or `ult_<element>`). */
   element: string;
   ultimate: string;
+  /** 💥 Extra element skills learned, and the skill picked now (an extra one's id, or the element's id). */
+  moves: string[];
+  skill: string;
   /** 🐲 World boss fights left this week. */
   wbLeft: number;
   /** 💎 Diamonds, 🎁 dropped gear (equip as `#uid`), 🎭 the class worn and every class you own. */
@@ -172,8 +175,8 @@ export const LAB_C2S = {
   labSkill: z.object({ id: z.string().max(32) }),
   /** 📜 Use a spell book you own (switches to its element; null: nothing). */
   labBook: z.object({ id: z.string().max(32).nullable() }),
-  /** 🔥 Equip an element's 💥 skill (any time, even mid-fight). */
-  labElement: z.object({ id: z.string().max(16) }),
+  /** 🔥 Equip an element (and optionally which of its 💥 skills: its own id = the free one). Any time, even mid-fight. */
+  labElement: z.object({ id: z.string().max(16), skill: z.string().max(32).optional() }),
   /** 🛒 At the merchant: buy gear (n = 1) or potions. */
   labBuy: z.object({ id: z.string().max(32), n: z.number().int().min(1).max(20).default(1) }),
   /** ⚔️ Wear a piece you own (or take a slot off: id null). Not in a fight. */

@@ -304,6 +304,44 @@ describe('Labirin: the tavern and the brush', () => {
     expect(s.lab.self(s.p).element).toBe('api');
   });
 
+  it('💥 element skills (#29, #30): the merchant teaches some by floor, beaten bosses teach their own; pick one per element', () => {
+    const s = setup();
+    s.lab.enter(s.p, 'entrance');
+    const st = s.lab.state(s.p);
+    const f = s.lab.floor(0);
+    // The free skill until you learn another.
+    expect(s.lab.self(s.p)).toMatchObject({ element: 'api', skill: 'api', moves: [] });
+    // Not away from the merchant.
+    st.coins = 50_000;
+    expect(() => s.lab.buy(s.p, 'tendangan_berantai')).toThrow(/entrance hall/);
+    walkTo(s, roomLayout(lc, f, f.rooms[f.start]).spot.merchant);
+    // A floor-gated one, and a boss-taught one (locked until that boss is beaten).
+    expect(() => s.lab.buy(s.p, 'tendangan_berantai')).toThrow(/floor 2/);
+    expect(() => s.lab.buy(s.p, 'gigitan_raja')).toThrow(/beat it first/);
+    st.deepest = 1;
+    st.bosses = [0];
+    const before = st.coins;
+    expect(s.lab.buy(s.p, 'gigitan_raja')).toMatch(/learned and equipped/);
+    expect(st.coins).toBe(before - 400);
+    expect(s.lab.self(s.p)).toMatchObject({ element: 'fizikal', skill: 'gigitan_raja', moves: ['gigitan_raja'] });
+    expect(() => s.lab.buy(s.p, 'gigitan_raja')).toThrow(/already know/);
+    s.lab.buy(s.p, 'tendangan_berantai');
+    // Pick per element: back to the free one, then the learned one again; the other element keeps its own pick.
+    expect(s.lab.setElement(s.p, 'fizikal', 'fizikal')).toMatch(/Tumbukan Padu/);
+    expect(s.lab.self(s.p).skill).toBe('fizikal');
+    expect(s.lab.setElement(s.p, 'fizikal', 'tendangan_berantai')).toMatch(/Tendangan Berantai/);
+    expect(s.lab.setElement(s.p, 'api')).toMatch(/Percikan Api/);
+    expect(s.lab.self(s.p).skill).toBe('api');
+    expect(s.lab.setElement(s.p, 'fizikal')).toMatch(/Tendangan Berantai/);
+    // Only your own skills, and only that element's.
+    expect(() => s.lab.setElement(s.p, 'api', 'lidah_api')).toThrow(/haven't learned/);
+    expect(() => s.lab.setElement(s.p, 'api', 'tendangan_berantai')).toThrow(/isn't one of/);
+    // Kept across a reload.
+    s.lab.save(s.p);
+    s.lab.forget(s.p.id);
+    expect(s.lab.self(s.p)).toMatchObject({ element: 'fizikal', skill: 'tendangan_berantai' });
+  });
+
   it('🔷 mana: full at first, comes back slowly, potions refill it, resting fills it', () => {
     const s = setup();
     s.lab.enter(s.p, 'entrance');

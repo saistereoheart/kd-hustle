@@ -2,6 +2,26 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.42.0 (2026-11-24): 💥 more Labirin skills, 👊 Fizikal, bosses teach their own
+- **Every element has more skills (report #29).** Besides each element's free skill, you can now learn more and
+  pick the one you want in 🎒 Bag → 🔥 Elements & skills (or ⇄ in a fight, which doesn't use your turn).
+  Each has its own pros and cons, for example:
+  - 🔥 **Lidah Api:** a cheaper fire hit that burns for longer;
+  - 💧 **Kabus Penawar:** heals every friend (+12% HP) with a light splash;
+  - ⚡ **Panahan Petir:** an aimed bolt that ignores 30% of DEF;
+  - 🌪️ **Pisau Angin:** a wind blade that strikes first;
+  - 🪨 **Tembok Batu:** a stone wall (60% less damage that round).
+- **👊 Fizikal, a new physical element:** Tumbukan Padu (a cheap, solid punch), Tendangan Berantai (three quick
+  kicks), its own ultimate Amukan Pendekar, and a new spell book, **Kitab Silat Purba** (from floor 4).
+- **Beaten bosses teach their own skill (report #30).** Each of the 8 floor bosses teaches one skill once
+  you've beaten it, for Syiling at Tok Peraih, for example Raja Tikus Lumut's Gigitan Raja, Raksasa Bara's
+  Tinju Bara and Naga Purba's Pusaran Naga. Before that the skill shows 🔒 Beat <boss>.
+- **Balanced** against the existing skills with the real battle code: damage skills deal about the same per mana
+  point; the heal and wall skills trade damage for safety. Learned skills are yours for good.
+- **Fix (report #31): scrapping or selling an item with all three variants** (Shiny + Golden + Rainbow, for
+  example an A-tier Uncle Zul cook) said "bad request". Its name was too long for the check. All 8 variant
+  mixes now work, for selling, scrapping and the hotbar.
+
 ## 1.41.2 (2026-11-24): 🧭 tab rows stay where you scrolled them
 - **Fix: the tab row kept jumping back to the start**, mostly right after you picked a tab. Each row now remembers
   its own position (by its tabs' labels) and comes back there after the screen redraws. Smooth scrolling is only

@@ -1,7 +1,7 @@
 // 🗝️ Labirin Purba: your bag down there. 🛒 the merchant's wares (at Tok Peraih: the entrance hall and
 // every rest chamber), ⚔️ your gear (wear what you own), 🔥 elements (your 💥 skill and 📜 ultimate),
 // 📖 skills, 📜 spell books and 🧪 your potions (drink a heal or mana, or 🧵 go home). Prices are in Syiling Purba: carried coins go first, then banked. The server checks all of it.
-import { LAB_SLOTS, branchPoints, gearLine, itemMult, itemName, itemScrap, labGear, labGearList, labStats, treeBlock, wornBonus, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
+import { LAB_SLOTS, branchPoints, gearLine, itemMult, itemName, itemScrap, labGear, labGearList, labSkillsOf, labStats, treeBlock, wornBonus, type LabElemSkill, type LabGearItem, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
 import { closePanel, openPanel, tabs } from '../panel';
@@ -17,7 +17,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
   const shop = start === 'shop';
   const panel = openPanel(shop ? `🛒 ${lc.merchant.name}` : '🎒 Labirin bag', { wide: true, testId: 'lab-bag' });
   const names: Tab[] = shop ? ['shop', 'books', 'potions', 'classes', 'gear', 'elements', 'skills'] : ['gear', 'classes', 'elements', 'skills', 'books', 'potions'];
-  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '🌳 Level & tree', books: '📜 Spell books', elements: '🔥 Elements', classes: '🎭 Classes' };
+  const titles: Record<Tab, string> = { shop: '🛒 Gear for sale', gear: '⚔️ Your gear', potions: '🧪 Potions', skills: '🌳 Level & tree', books: '📜 Spell books', elements: '🔥 Elements & skills', classes: '🎭 Classes' };
   let tab: Tab = names.includes(start) ? start : names[0];
   let self: LabSelf | null = null;
   let busy = false;
@@ -110,10 +110,10 @@ export function openLabBag(app: App, start: Tab = 'gear') {
     if (msg) sock?.emit(ev, msg, ack);
     else sock?.emit(ev, ack);
   };
-  const setElement = (id: string) => {
+  const setElement = (id: string, skill?: string) => {
     if (busy) return;
     busy = true;
-    app.socket?.timeout(6000).emit('lab:element', { id }, (err, res) => {
+    app.socket?.timeout(6000).emit('lab:element', { id, skill }, (err, res) => {
       if (err || !res.ok) return fail(err, res);
       sfx.click();
       done(res.self, res.text);
@@ -223,26 +223,68 @@ export function openLabBag(app: App, start: Tab = 'gear') {
       return;
     }
     if (tab === 'elements') {
-      const rows = lc.elements.map((x) => {
-        const on = s.element === x.id;
+      // Each element: its 📜 ultimate, then every 💥 skill it has (the free one, ones the merchant teaches,
+      // ones only a beaten floor boss teaches). Pick one; it's your Skill button in a fight.
+      const skillBtn = (x: (typeof lc.elements)[number], sk: LabElemSkill) => {
+        const owned = sk.id === x.id || s.moves.includes(sk.id);
+        const on = s.element === x.id && s.skill === sk.id;
+        const b = el('button', { class: 'btn small', type: 'button', 'data-skill-pick': sk.id }) as HTMLButtonElement;
+        if (owned) {
+          b.textContent = on ? '✓ Equipped' : 'Equip';
+          if (!on) b.classList.add('primary');
+          b.disabled = busy || on;
+          b.addEventListener('click', () => setElement(x.id, sk.id));
+          return b;
+        }
+        const price = sk.price ?? 0;
+        if (sk.boss !== undefined) {
+          const boss = lc.bosses[Math.min(sk.boss, lc.bosses.length - 1)];
+          if (!s.bosses.includes(sk.boss)) {
+            b.textContent = `🔒 Beat ${boss.icon} ${boss.name}`;
+            b.disabled = true;
+            b.title = `The boss of floor ${sk.boss + 1} teaches it once you've beaten it`;
+            return b;
+          }
+          b.title = `${boss.icon} ${boss.name} (beaten) teaches it through ${lc.merchant.name}`;
+        } else if (s.deepest < (sk.minFloor ?? 0)) {
+          b.textContent = `🔒 Floor ${(sk.minFloor ?? 0) + 1}`;
+          b.disabled = true;
+          b.title = `Taught once you've reached floor ${(sk.minFloor ?? 0) + 1}`;
+          return b;
+        }
+        if (!shop) {
+          b.replaceChildren(`At ${lc.merchant.name} · `, coinIcon(), ` ${price}`);
+          b.disabled = true;
+          return b;
+        }
+        b.replaceChildren('Learn ', coinIcon(), ` ${price}`);
+        b.classList.add('primary');
+        b.disabled = busy || money(s) < price;
+        if (money(s) < price) b.title = `You have ${money(s)}`;
+        b.addEventListener('click', () => buy(sk.id));
+        return b;
+      };
+      const groups = lc.elements.map((x) => {
         const book = lc.spells.list.find((b) => b.element === x.id && s.books.includes(b.id));
         const ult = book ? `📜 ${book.move} (${book.name}): ${book.desc}` : `📜 ${x.ultimate.move}: ${x.ultimate.desc}`;
-        const b = el('button', { class: `btn small${on ? '' : ' primary'}`, type: 'button', 'data-element': x.id }, on ? '✓ Equipped' : 'Equip') as HTMLButtonElement;
-        b.disabled = busy || on;
-        b.addEventListener('click', () => setElement(x.id));
-        const row = el('div', { class: `lab-bag-row lab-book${on ? ' worn' : ''}` },
-          el('span', { class: 'lab-bag-icon' }, x.icon),
-          el('span', { class: 'lab-bag-info' },
-            el('b', {}, `${x.skill.name} `, el('span', { class: 'muted' }, `🔷 ${x.skill.mana} mana`)),
-            el('small', { class: 'muted' }, x.skill.desc),
-            el('small', { class: 'muted' }, ult)),
-          b);
-        row.style.setProperty('--book', x.color);
-        return row;
+        const rows = labSkillsOf(x).map((sk) => {
+          const owned = sk.id === x.id || s.moves.includes(sk.id);
+          const on = s.element === x.id && s.skill === sk.id;
+          const tag = sk.id === x.id ? 'free' : sk.boss !== undefined ? `👹 ${lc.bosses[Math.min(sk.boss, lc.bosses.length - 1)].name}` : '';
+          const row = el('div', { class: `lab-bag-row lab-book${on ? ' worn' : ''}${owned ? '' : ' locked'}` },
+            el('span', { class: 'lab-bag-icon' }, x.icon),
+            el('span', { class: 'lab-bag-info' },
+              el('b', {}, `${sk.name} `, el('span', { class: 'muted' }, `🔷 ${sk.mana} mana${tag ? ` · ${tag}` : ''}`)),
+              el('small', { class: 'muted' }, sk.desc)),
+            skillBtn(x, sk));
+          row.style.setProperty('--book', x.color);
+          return row;
+        });
+        return el('div', { class: 'lab-bag-group' }, el('h5', {}, `${x.icon} ${x.name}${s.element === x.id ? ' · equipped' : ''}`), el('small', { class: 'muted' }, ult), ...rows);
       });
       content.replaceChildren(
-        el('p', { class: 'muted small' }, `Equip one element: its 💥 skill is your Skill button in a fight (it costs 🔷 mana) and its 📜 ultimate comes with it (a spell book of that element makes the ultimate stronger). Switch any time, even mid-fight with ⇄. Mana: +${lc.player.mana.perRound} a round in a fight, slowly back outside, faster by the campfire; resting fills it.`),
-        el('div', { class: 'lab-bag-grid' }, ...rows),
+        el('p', { class: 'muted small' }, `Equip one element and one of its 💥 skills: that skill is your Skill button in a fight (it costs 🔷 mana) and the element's 📜 ultimate comes with it (a spell book of that element makes the ultimate stronger). ${lc.merchant.name} teaches more skills as you go deeper, and each floor boss you beat teaches one of its own (for Syiling). Switch any time, even mid-fight with ⇄. Mana: +${lc.player.mana.perRound} a round in a fight, slowly back outside, faster by the campfire; resting fills it.`),
+        el('div', { class: 'lab-bag-grid' }, ...groups),
       );
       return;
     }
@@ -307,7 +349,7 @@ export function openLabBag(app: App, start: Tab = 'gear') {
         if (owned) {
           btn.textContent = worn ? '✓ In use' : elem ? `Use (${elem.icon} ${elem.name})` : 'Owned';
           btn.disabled = busy || worn || !elem;
-          btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button.' : elem ? `Equip ${elem.icon} ${elem.skill.name}: this book then powers your ultimate` : '';
+          btn.title = worn ? 'Its ultimate is on your 📜 Ultimate button.' : elem ? `Equip ${elem.icon} ${elem.name}: this book then powers your ultimate` : '';
           btn.addEventListener('click', () => wearBook(sp.id));
         } else if (sp.dropOnly) {
           btn.textContent = '🐲 World boss drop';

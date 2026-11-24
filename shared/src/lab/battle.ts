@@ -3,7 +3,7 @@
 // pick their own. Guards and items first, then everyone acts, fastest first. Pure: the server owns it.
 import type { LabConfig } from './config';
 import { labPotion, type LabGearBonus } from './gear';
-import { labElement, labSpell } from './progress';
+import { labElement, labSkill, labSpell } from './progress';
 
 export type LabSide = 'party' | 'foe';
 
@@ -44,6 +44,8 @@ export interface LabFighter {
   /** 🔷 Mana back each round (the skill tree raises it; default `player.mana.perRound`). */
   manaRegen?: number;
   element?: string;
+  /** Players: which of the element's 💥 skills is picked (an extra one's id; missing: its free one). */
+  skillId?: string;
   /** Players: ⚔️ the Labirin gear they wear (slot → gear id), so everyone sees who holds what. */
   gear?: Partial<Record<'weapon' | 'shield' | 'armour' | 'charm', string>>;
   /** 🔥 Burning: `dmg` at the end of each of the next `left` rounds. */
@@ -203,7 +205,7 @@ export function foeAction(cfg: LabConfig, me: LabFighter, fighters: LabFighter[]
 /** 💥 Can this party fighter pay for their equipped element's skill? (No mana kept: the old focus rule.) */
 export function canSkill(cfg: LabConfig, f: LabFighter): boolean {
   if (f.side !== 'party' || f.mana === undefined) return f.focus >= cfg.player.skillCost;
-  return f.mana >= labElement(cfg, f.element).skill.mana;
+  return f.mana >= labSkill(cfg, f.element, f.skillId).skill.mana;
 }
 
 /**
@@ -227,7 +229,11 @@ export function resolveLabRound(
     picks.set(f.id, f.side === 'party' ? (actions[f.id] ?? { kind: 'attack' }) : foeAction(cfg, f, fighters, rand));
   }
   /** A player's element skill this round (if they picked 💥 and use mana). */
-  const skillOf = (f: LabFighter) => (f.side === 'party' && f.mana !== undefined && picks.get(f.id)?.kind === 'skill' ? labElement(cfg, f.element) : undefined);
+  const skillOf = (f: LabFighter) => {
+    if (f.side !== 'party' || f.mana === undefined || picks.get(f.id)?.kind !== 'skill') return undefined;
+    const { el, skill } = labSkill(cfg, f.element, f.skillId);
+    return { ...el, skill };
+  };
   // Guards first (they protect for the whole round), then by speed (a little random on ties).
   const guarding = new Set<string>();
   /** 🪨 Turned to stone this round: id → share of damage taken off. */
@@ -391,9 +397,20 @@ export function resolveLabRound(
       const power = (sk.power ?? 1) * (1 + (f.skillUp ?? 0));
       const crit = Math.min(0.9, (f.crit ?? pc.crit) + (sk.crit ?? 0));
       const targets = sk.all ? foes : [sk.random ? foes[Math.floor(rand() * foes.length)] : (foes.find((x) => x.id === a.target) ?? foes[0])];
-      if (sk.all) events.push({ kind: 'cast', actor: f.id, element: el.id, color: el.color, mana: f.mana, text: `${f.name} uses ${el.icon} ${sk.name}!` });
+      const hits = Math.max(1, sk.hits ?? 1);
+      if (sk.all || hits > 1 || sk.heal) events.push({ kind: 'cast', actor: f.id, element: el.id, color: el.color, mana: f.mana, text: `${f.name} uses ${el.icon} ${sk.name}!` });
+      // 💧 A healing skill: every standing friend first.
+      if (sk.heal) {
+        for (const t of alive(fighters, f.side)) {
+          const before = t.hp;
+          t.hp = Math.min(t.maxHp, Math.round(t.hp + t.maxHp * sk.heal * (1 + (f.skillUp ?? 0))));
+          if (t.hp > before) events.push({ kind: 'item', actor: f.id, target: t.id, element: el.id, color: el.color, aoe: true, hp: t.hp, text: `${el.icon} ${t.name} +${t.hp - before} HP` });
+        }
+      }
       let dealt = 0;
-      for (const t of targets) {
+      for (const t0 of targets) for (let k = 0; k < hits; k++) {
+        const t = t0.out ? (sk.all ? undefined : alive(fighters, f.side === 'party' ? 'foe' : 'party')[0]) : t0;
+        if (!t) continue;
         const r = damage(cfg, f.atk * (f.buff ?? 1), t.def * (1 - (sk.pierce ?? 0)), power, rand, crit);
         let dmg = cut(t, r.dmg);
         const blocked = !!t.block && rand() < t.block;
@@ -403,7 +420,7 @@ export function resolveLabRound(
         const tail = `${r.crit ? ' (critical!)' : ''}${blocked ? ' (blocked!)' : ''}`;
         events.push({
           kind: 'hit', actor: f.id, target: t.id, dmg, crit: r.crit, skill: true, blocked, hp: t.hp, element: el.id, color: el.color, aoe: sk.all || undefined, mana: f.mana,
-          text: sk.all ? `${el.icon} ${t.name} −${dmg}${tail}` : `${f.name} uses ${el.icon} ${sk.name}! ${t.name} −${dmg}${tail}`,
+          text: sk.all || hits > 1 || sk.heal ? `${el.icon} ${t.name} −${dmg}${tail}` : `${f.name} uses ${el.icon} ${sk.name}! ${t.name} −${dmg}${tail}`,
         });
         ignite(t, dmg, sk.burn, sk.burnRounds);
         faint(t);

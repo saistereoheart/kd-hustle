@@ -15,6 +15,24 @@ const labEffect = {
   crit: z.number().min(0).max(0.5).optional(),
 };
 
+/** A 💥 skill (an element's free one, or one of its extra variants). */
+const labSkillFields = {
+  name: z.string(), desc: z.string(),
+  /** 🔷 Mana it costs. */
+  mana: z.number().int().min(0),
+  ...labEffect,
+  /** Hits every monster (instead of one). */
+  all: z.boolean().optional(),
+  /** Acts before everyone else this round / after everyone else. */
+  first: z.boolean().optional(), last: z.boolean().optional(),
+  /** Hits a random monster (you can't aim it). */
+  random: z.boolean().optional(),
+  /** You take this share less damage for the whole round (it starts at once, like 🛡️ Guard). */
+  shield: z.number().min(0).max(0.9).optional(),
+  /** 👊 Hits this many times (each at `power`; DEF counts on every hit, so armour blunts it). */
+  hits: z.number().int().min(1).max(4).optional(),
+};
+
 export const labConfigSchema = z.object({
   name: z.string(),
   /** Floors, top to bottom. Each one's layout comes from its own seed: never change a seed (it
@@ -229,22 +247,16 @@ export const labConfigSchema = z.object({
    *  with a stronger one). Pros and cons differ; none is best at everything. */
   elements: z.array(z.object({
     id: z.string(), name: z.string(), icon: z.string(), color: z.string(),
-    skill: z.object({
-      name: z.string(), desc: z.string(),
-      /** 🔷 Mana it costs. */
-      mana: z.number().int().min(0),
-      ...labEffect,
-      /** Hits every monster (instead of one). */
-      all: z.boolean().optional(),
-      /** Acts before everyone else this round / after everyone else. */
-      first: z.boolean().optional(), last: z.boolean().optional(),
-      /** Hits a random monster (you can't aim it). */
-      random: z.boolean().optional(),
-      /** You take this share less damage for the whole round (it starts at once, like 🛡️ Guard). */
-      shield: z.number().min(0).max(0.9).optional(),
-    }),
+    skill: z.object(labSkillFields),
     ultimate: z.object({ move: z.string(), desc: z.string(), ...labEffect }),
-  })).min(1).default([{ id: 'api', name: 'Api', icon: '🔥', color: '#ff922b', skill: { name: 'Percikan Api', desc: 'A burst of fire.', mana: 8, power: 1.5 }, ultimate: { move: 'Bara Api', desc: 'Embers on every monster.', power: 0.75 } }]),
+    /** 💥 More skills for this element (feedback #29): learn them, then pick one in 🔥 Elements. Sold by the
+     *  merchant once you've reached `minFloor` (0-based), or (`boss`: a floor, feedback #30) only once
+     *  you've beaten that floor's boss: it teaches you, for Syiling. Yours for good. */
+    more: z.array(z.object({
+      id: z.string(), ...labSkillFields,
+      price: z.number().int().min(0), minFloor: z.number().int().min(0).default(0), boss: z.number().int().min(0).optional(),
+    })).default([]),
+  })).min(1).default([{ id: 'api', name: 'Api', icon: '🔥', color: '#ff922b', skill: { name: 'Percikan Api', desc: 'A burst of fire.', mana: 8, power: 1.5 }, ultimate: { move: 'Bara Api', desc: 'Embers on every monster.', power: 0.75 }, more: [] }]),
   /** 🐲 The world boss (feedback #21): a party of at least `minParty` together in the entrance hall can call
    *  it, `perWeek` times a week each (the week starts on Monday). HP grows with every player past `minParty`.
    *  Winning pays Syiling + XP to everyone, and each player rolls the rare mythic drops. */

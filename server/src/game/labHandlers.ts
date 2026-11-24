@@ -220,8 +220,8 @@ export function createLabHandlers(io: AnyIO, world: World, lab: LabSystem, socke
       partyChanged(parties.of(me.id));
       return {};
     });
-    handle(socket, 'lab:element', LAB_C2S.labElement, ({ id }) => {
-      const text = lab.setElement(me, id);
+    handle(socket, 'lab:element', LAB_C2S.labElement, ({ id, skill }) => {
+      const text = lab.setElement(me, id, skill);
       battles.restyle(me);
       return { self: lab.self(me), text };
     });

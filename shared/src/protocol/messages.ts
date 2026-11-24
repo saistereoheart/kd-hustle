@@ -149,7 +149,8 @@ export const C2S = {
   crateRoll: z.object({ crateId: z.string().max(32), count: z.union([z.literal(1), z.literal(5), z.literal(10)]), remote: z.boolean().optional() }),
   equip: z.object({ iid: z.number().int().positive() }),
   unequip: z.object({ slot: z.enum(EQUIP_SLOTS) }),
-  stack: z.object({ itemId: z.string().max(40), variant: z.string().max(16), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
+  /** `variant` can hold all three ("shiny+golden+rainbow", 20 characters): keep room. */
+  stack: z.object({ itemId: z.string().max(40), variant: z.string().max(40), grade: z.string().max(2).optional(), count: z.number().int().min(1).max(10000) }),
   /** Merge N copies of an item at one tier into one at the next tier. */
   invMerge: z.object({ iids: z.array(z.number().int().positive()).min(2).max(10) }),
   /** ⚒️ Merge all: every full set of the chosen items, tier by tier, up to tier `upTo`. */
@@ -189,7 +190,7 @@ export const C2S = {
     ref: z
       .discriminatedUnion('kind', [
         z.object({ kind: z.literal('vehicle'), id: z.string().max(24) }),
-        z.object({ kind: z.literal('item'), itemId: z.string().max(40), variant: z.string().max(16) }),
+        z.object({ kind: z.literal('item'), itemId: z.string().max(40), variant: z.string().max(40) }),
       ])
       .nullable(),
   }),
@@ -824,7 +825,7 @@ export interface ClientToServerEvents {
   /** 🐲 Call the world boss: your whole party (at least `worldBoss.minParty`) together in the entrance hall. */
   'lab:worldBoss': (ack: Ack<SimpleResult>) => void;
   /** 🔥 Equip an element's 💥 skill (any time; in a fight it counts from your next pick). */
-  'lab:element': (msg: { id: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
+  'lab:element': (msg: { id: string; skill?: string }, ack: Ack<Result<{ self: LabSelf; text: string }>>) => void;
   /** 🎲 The tavern's once-a-day roll: maybe a spell book, else a free drink. */
   'lab:roll': (ack: Ack<Result<{ self: LabSelf; text: string; book?: string }>>) => void;
   /** 🛒 Buy from the merchant (gear: n = 1). Spends carried Syiling first, then banked. */

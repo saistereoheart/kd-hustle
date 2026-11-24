@@ -3,7 +3,7 @@
 // on every machine. The server checks every step: a door must be next to you (and open), a chest
 // must be in your room and not opened yet today, and so on.
 import {
-  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labFloor, labGear, labLevel, labPointsFree, labPotion, labStats, labUltimate, treeBlock, rollSpellBook, roomLayout, seenAdd,
+  LAB_OPPOSITE, dayKey, weekKey, classMods, itemName, itemScrap, resolveWorn, rollClass, rollLoot, wornBonus, type LabItem, labElement, labMove, labSkill, labFloor, labGear, labLevel, labPointsFree, labPotion, labStats, labUltimate, treeBlock, rollSpellBook, roomLayout, seenAdd,
   type LabConfig, type LabDir, type LabFloor, type LabRoom, type LabRoomView, type LabSelf, type LabSlot, type LabUse,
 } from '@kh/shared';
 import type { Repos } from '../../db/repos';
@@ -72,6 +72,9 @@ export interface LabSave {
   classes?: string[];
   /** 🌳 Skill-tree version (1: the tree; older saves had their skill points given back once). */
   treeV?: number;
+  /** 💥 Extra element skills learned (feedback #29/#30), and the one picked for each element. */
+  moves?: string[];
+  picks?: Record<string, string>;
 }
 
 export function emptyLab(): LabSave {
@@ -222,6 +225,22 @@ export class LabSystem {
       s.books.push(book.id);
       this.save(p);
       return `🛒 ${book.icon} ${book.name} · ${this.bookLine(book.element)}`;
+    }
+    const mv = labMove(this.cfg, id);
+    if (mv) {
+      const { el, move } = mv;
+      if ((s.moves ?? []).includes(move.id)) throw new GameError(`You already know ${move.name}.`);
+      if (move.boss !== undefined) {
+        const boss = this.cfg.bosses[Math.min(move.boss, this.cfg.bosses.length - 1)];
+        if (!s.bosses.includes(move.boss)) throw new GameError(`Only ${boss.icon} ${boss.name} (floor ${move.boss + 1}) can teach ${move.name}: beat it first.`);
+      } else if (s.deepest < move.minFloor) throw new GameError(`${move.name} is taught once you've reached floor ${move.minFloor + 1}.`);
+      this.pay(s, move.price);
+      s.moves = [...(s.moves ?? []), move.id];
+      // Learned: it's your skill now (switch back in 🔥 Elements whenever you like).
+      s.element = el.id;
+      s.picks = { ...(s.picks ?? {}), [el.id]: move.id };
+      this.save(p);
+      return `📖 ${el.icon} ${move.name} learned and equipped (🔷 ${move.mana} mana)`;
     }
     const pot = labPotion(this.cfg, id);
     if (!pot) throw new GameError("The merchant doesn't sell that.");
@@ -634,19 +653,35 @@ export class LabSystem {
   }
 
   /** 🔥 Equip an element's 💥 skill (any time, even in a fight: it counts from your next pick). */
-  setElement(p: OnlinePlayer, id: string): string {
+  setElement(p: OnlinePlayer, id: string, skill?: string): string {
     const e = this.cfg.elements.find((x) => x.id === id);
     if (!e) throw new GameError('No such element.');
     const s = this.state(p);
+    if (skill !== undefined) {
+      // The element's free skill (its own id), or an extra one you've learned.
+      if (skill !== e.id) {
+        const m = e.more.find((x) => x.id === skill);
+        if (!m) throw new GameError("That isn't one of this element's skills.");
+        if (!(s.moves ?? []).includes(m.id)) throw new GameError(`You haven't learned ${m.name} yet.`);
+      }
+      s.picks = { ...(s.picks ?? {}), [e.id]: skill };
+    }
     s.element = e.id;
     this.save(p);
-    return `${e.icon} ${e.skill.name} equipped · 📜 ${labUltimate(this.cfg, e.id, s.books).move}`;
+    const sk = labSkill(this.cfg, e.id, this.skillPick(s, e.id)).skill;
+    return `${e.icon} ${sk.name} equipped · 📜 ${labUltimate(this.cfg, e.id, s.books).move}`;
+  }
+
+  /** 💥 The skill picked for an element (only if it's one you've learned; else its free one). */
+  skillPick(s: LabSave, element = s.element): string | undefined {
+    const id = element ? s.picks?.[element] : undefined;
+    return id && (s.moves ?? []).includes(id) ? id : undefined;
   }
 
   /** What a newly bought book does for you. */
   private bookLine(element: string | undefined): string {
     const e = this.cfg.elements.find((x) => x.id === element);
-    return e ? `powers up the ${e.icon} ${e.name} ultimate (equip ${e.icon} ${e.skill.name} to use it)` : 'yours for good';
+    return e ? `powers up the ${e.icon} ${e.name} ultimate (equip ${e.icon} ${e.name} to use it)` : 'yours for good';
   }
 
   /** 🎲 The tavern's once-a-day roll: a spell book you don't have yet, or a free drink. */
@@ -744,6 +779,7 @@ export class LabSystem {
       })(),
       skills: { ...s.skills }, books: [...s.books], rolled: s.rollDay === dayKey(this.clock()),
       mana: this.mana(p), maxMana: st.mana, element: labElement(this.cfg, s.element).id, wbLeft: this.wbLeft(p),
+      moves: [...(s.moves ?? [])], skill: labSkill(this.cfg, s.element, this.skillPick(s, labElement(this.cfg, s.element).id)).skill.id,
       diamonds: s.diamonds ?? 0, items: (s.items ?? []).map((x) => ({ ...x })), cls: s.cls ?? this.cfg.classes[0]?.id ?? '', classes: this.ownedClasses(s),
       ...(() => {
         const u = labUltimate(this.cfg, s.element, s.books);

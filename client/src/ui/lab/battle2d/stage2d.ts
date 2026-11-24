@@ -883,6 +883,12 @@ export class Battle2D {
       this.fx.push({ kind: 'ring', x: B.home.x, y: B.home.y, r: h * 1.1 * big, ang: 0, t: 0, dur: 0.5, color: '#c08a5a' });
       col('#a47148', 0.8, 0.45);
       this.shake(5 * big, 18);
+    } else if (element === 'fizikal') {
+      // 👊 A punch: shock rings from the point of impact, dust kicked up, a hard jolt.
+      for (let j = 0; j < (big > 1 ? 3 : 1); j++) this.fx.push({ kind: 'ring', x: cx, y: cy, r: h * (0.5 + j * 0.35) * big, ang: 0, t: 0, dur: 0.3 + j * 0.08, color: j % 2 ? '#ffffff' : color });
+      this.burst(B.home.x, B.home.y, n(16), '#cbb89a', 3 * big, -3, 10, 0.6, px);
+      this.burst(cx, cy, n(10), '#ffffff', 5 * big, -1, 4, 0.3, px);
+      this.shake(6 * big, 16);
     }
   }
 

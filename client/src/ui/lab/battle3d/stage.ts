@@ -592,6 +592,11 @@ export class Battle3D {
       this.flashes.ring(ground, 0xc08a5a, 3.5 * s, 0.5);
       column(0xa47148, 22);
       this.shake(0.2 * big);
+    } else if (element === 'fizikal') {
+      // 👊 A punch: shock rings, dust off the ground, a jolt.
+      for (let j = 0; j < (big > 1 ? 3 : 1); j++) this.flashes.ring(at, j % 2 ? 0xffffff : color, (1.2 + j * 0.8) * s, 0.3 + j * 0.08);
+      this.sparks.burst(ground, n(16), 0xcbb89a, 3 * big, { up: 3 * big, gravity: 10, life: 0.6, spread: 0.8 * big });
+      this.shake(0.25 * big);
     }
   }
 

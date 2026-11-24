@@ -1,7 +1,7 @@
 // 🗝️ Labirin Purba: your loadout, down the left of the screen. The four gear slots (weapon, shield,
 // armour, charm): what you wear, in its tier's colour, with its name and stats; an empty slot shows
 // the dashed outline of what goes there. Tap one to open your bag. (Plus the tavern drink, if any.)
-import { LAB_SLOTS, gearLine, itemName, labElement, labSpell, resolveWorn, type LabSelf, type LabSlot } from '@kh/shared';
+import { LAB_SLOTS, gearLine, itemName, labSkill, labSpell, resolveWorn, type LabSelf, type LabSlot } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
 import { openLabBag } from './labBag';
@@ -72,11 +72,11 @@ export class LabLoadout {
       ? el('div', { class: 'lab-slot drink on', title: `${d.name}: ${d.desc}` }, el('span', { class: 'lab-slot-icon emoji' }, d.icon), el('span', { class: 'lab-slot-text' }, el('b', {}, d.name), el('small', {}, `${s.drink.left} fight${s.drink.left === 1 ? '' : 's'} left`)))
       : null;
     // 🔥 Your element (its 💥 skill and 📜 ultimate), and 📈 your Labirin level with free skill points.
-    const elem = labElement(cfg, s.element);
+    const { el: elem, skill: sk } = labSkill(cfg, s.element, s.skill);
     const sp = labSpell(cfg, s.ultimate) ?? labSpell(cfg, `ult_${elem.id}`);
-    const book = el('button', { class: 'lab-slot on', type: 'button', 'data-slot': 'element', title: `${elem.icon} ${elem.skill.name} (🔷 ${elem.skill.mana}): ${elem.skill.desc}\n📜 ${sp?.move ?? ''}: ${sp?.desc ?? ''}`, style: `--tier:${elem.color}` },
+    const book = el('button', { class: 'lab-slot on', type: 'button', 'data-slot': 'element', title: `${elem.icon} ${sk.name} (🔷 ${sk.mana}): ${sk.desc}\n📜 ${sp?.move ?? ''}: ${sp?.desc ?? ''}`, style: `--tier:${elem.color}` },
       el('span', { class: 'lab-slot-icon emoji' }, elem.icon),
-      el('span', { class: 'lab-slot-text' }, el('b', {}, elem.skill.name), el('small', {}, `📜 ${sp?.move ?? 'Ultimate'}${s.book ? ' ★' : ''}`)));
+      el('span', { class: 'lab-slot-text' }, el('b', {}, sk.name), el('small', {}, `📜 ${sp?.move ?? 'Ultimate'}${s.book ? ' ★' : ''}`)));
     book.addEventListener('click', () => openLabBag(this.app, 'elements'));
     const lv = el('button', { class: `lab-slot lab-slot-lv${s.points ? ' on' : ''}`, type: 'button', 'data-slot': 'skills', title: `Labirin level ${s.level}${s.xpNeed ? ` (${s.xpInto}/${s.xpNeed} XP)` : ''}. ${s.points ? `${s.points} skill point${s.points === 1 ? '' : 's'} to spend!` : 'Win fights for XP.'}` },
       el('span', { class: 'lab-slot-icon emoji' }, '📖'),
