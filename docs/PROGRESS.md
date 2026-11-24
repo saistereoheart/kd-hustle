@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.42.0)_
+_Last updated: 2026-11-24 (v1.42.1)_
 
-**Now at v1.42.0 (local commit; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.42.1 (local commits; v1.41.2 is on GitHub): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -53,6 +53,13 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## ⏭ Reroll Skip on the Roll button (2026-11-24, your request, v1.42.1)
+- Tier / variant rerolls (`client/src/ui/forge.ts`, `openRerollWindow`): while the reel spins the same button
+  reads ⏭ Skip and lands it at once (`skipNow`); "Rolling…" (disabled) only while waiting for the server.
+  Unverified on screen.
 
 ---
 

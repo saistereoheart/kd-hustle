@@ -2,6 +2,10 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.42.1 (2026-11-24): ⏭ skip the reroll reel from the Roll button
+- **Tier and variant rerolls:** while the reel spins, the 🎲 Roll button turns into **⏭ Skip**, in the same spot.
+  Click once to roll, again to land it at once, again to roll: no moving the mouse between them.
+
 ## 1.42.0 (2026-11-24): 💥 more Labirin skills, 👊 Fizikal, bosses teach their own
 - **Every element has more skills (report #29).** Besides each element's free skill, you can now learn more and
   pick the one you want in 🎒 Bag → 🔥 Elements & skills (or ⇄ in a fight, which doesn't use your turn).

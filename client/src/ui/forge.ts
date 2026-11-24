@@ -153,6 +153,8 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
   const rar = app.cfg.rarities;
   const panel = openPanel(what === 'grade' ? '🎲 Tier reroll' : '🎲 Variant reroll', { wide: true, testId: 'reroll-panel' });
   let spinning = false;
+  /** While the reel spins: lands it at once (the Roll button turns into ⏭ Skip, same spot). */
+  let skipNow: (() => void) | null = null;
   const strip = el('div', { class: 'reroll-strip' });
   const reel = el('div', { class: 'reroll-reel' }, strip, el('div', { class: 'reroll-marker' }));
   const info = el('div', { class: 'reroll-info' });
@@ -209,8 +211,14 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
       el('div', { class: 'muted small' }, fails + 1 >= pc.soft ? `🟡 Soft pity ON: +${Math.round((fails + 2 - pc.soft) * pc.softStep * 100)}% sure-upgrade chance this roll` : `🟡 Soft pity in ${soft} (from miss ${pc.soft}, +${Math.round(pc.softStep * 100)}% per miss)`),
       el('div', { class: 'muted small' }, hard <= 1 ? '🔴 Hard pity: the next reroll is a sure upgrade!' : `🔴 Hard pity in ${hard} (a sure upgrade at ${pc.hard} misses)`),
     );
+    if (spinning) {
+      // Same button, same place: a second click skips the spin.
+      btn.replaceChildren(skipNow ? '⏭ Skip' : 'Rolling…', el('small', {}, 'land it now'));
+      (btn as HTMLButtonElement).disabled = !skipNow;
+      return;
+    }
     btn.replaceChildren(top ? (what === 'grade' ? 'Top tier already' : 'Has every variant') : `🎲 Roll`, top ? '' : el('small', {}, `${cost} 💎 · you have ${app.store.shards}`));
-    (btn as HTMLButtonElement).disabled = spinning || top || app.store.shards < cost;
+    (btn as HTMLButtonElement).disabled = top || app.store.shards < cost;
   };
 
   const spin = (landing: string, improved: boolean, done: () => void) => {
@@ -230,10 +238,22 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
         strip.style.transform = `translateX(${-target}px)`;
       }),
     );
+    let landed = false;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      skipNow = null;
+      strip.style.transition = 'none';
+      strip.style.transform = `translateX(${-target}px)`;
+      strip.children[at]?.classList.add(improved ? 'win' : 'lose');
+      done();
+    };
+    skipNow = land;
     // Ticks as cells pass the marker.
     let last = -1;
     const t0 = performance.now();
     const tick = () => {
+      if (landed) return;
       const m = new DOMMatrix(getComputedStyle(strip).transform);
       const i = Math.floor((-m.m41 + viewW / 2) / cw);
       if (i !== last) {
@@ -241,16 +261,13 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
         sfx.tick();
       }
       if (performance.now() - t0 < 4300) requestAnimationFrame(tick);
-      else {
-        strip.children[at]?.classList.add(improved ? 'win' : 'lose');
-        done();
-      }
+      else land();
     };
     requestAnimationFrame(tick);
   };
 
   btn.addEventListener('click', () => {
-    if (spinning) return;
+    if (spinning) return void skipNow?.();
     spinning = true;
     render();
     app.socket?.timeout(6000).emit('inv:reroll', { iid, what }, (err, res) => {
