@@ -2,6 +2,19 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.45.0 (2026-11-24): 🌈 STRIVA, and rarer always means stronger
+- **STRIVA** is the name for an item at Tier S with all three variants (Shiny + Golden + Rainbow). Instead of
+  "S" and "Shiny + Golden + Rainbow" it now shows one word, **STRIVA**, in flowing rainbow colours: on item
+  cards, in the bag (details and the worn lists), the Item Index, the roll reveal, the forge and decorate.
+- **Fix: a Striva Grandmaster Teh (mythic) had the same stats as a Striva Sambal Sultan (legendary).** Both
+  went past the stat caps, and the caps cut every stat to the same number. The same happened to legendary and
+  mythic cashiers, and to divine and secret gear. Caps are now soft: a stat counts in full up to 75% of its
+  cap, then keeps rising more and more slowly towards the cap (never past it). So a rarer piece at the same
+  tier and variants always shows more. Striva Grandmaster Teh: 🔥 +199% speed, 😋 +284% flavour, 😊 +196%
+  charm; Striva Sambal Sultan: +120% / +287% / +144% (it's the flavour specialist).
+- Stats already below 75% of a cap don't change. Ones above it are a little lower than before (at most about
+  9% of the cap).
+
 ## 1.44.1 (2026-11-24): 📖 "x/y found" counts again
 - **Fix: a crate's "Items (x/y found)" (at the machine and in 📱 Quick Rolls) stopped counting.** Buying
   furniture (in the store or on IKEJA Online) or taking a kopitiam's starter tables and chairs wiped the

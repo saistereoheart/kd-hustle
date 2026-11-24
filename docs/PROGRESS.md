@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.44.1)_
+_Last updated: 2026-11-24 (v1.45.0)_
 
-**Now at v1.44.1, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.45.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 476 unit tests (2026-11-24, v1.44.0) |
+| `npm test` (Vitest) | ✅ 482 unit tests (2026-11-24, v1.45.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -53,6 +53,22 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🌈 STRIVA + soft caps (2026-11-24, your request, v1.45.0)
+- **STRIVA** = top tier + every special variant (`isStriva` in `shared/src/items/grades.ts`). Client
+  `client/src/ui/striva.ts` (`striva()`, `strivaTag()`, CSS `.striva` flowing rainbow text, `.item-striva` card
+  badge). Used by `itemCard` (replaces the tier badge and the variant strip), the bag details and worn lists,
+  the Item Index tooltip, the roll reveal, the forge and decorate.
+- **Soft caps** (`softCap`, `grades.json` → `buffs.softCapKnee` 0.75): chef, cashier and gear totals count in
+  full to 75% of the cap, then ease towards it. Before, `Math.min(cap, …)` made every piece past a cap equal
+  (Striva Grandmaster Teh = Striva Sambal Sultan; Striva legendary = mythic cashiers; divine = secret gear).
+  `shared/src/items/softcap.test.ts`: at D, B Shiny, A Golden + Rainbow and Striva, every rarity's chef /
+  cashier total beats the rarity below; each Striva gear rarity beats the one below for every stat.
+- Note: Sambal Sultan is a flavour specialist (profile), so its flavour stays a touch above Grandmaster Teh's
+  (287% vs 284% at Striva; true at every tier). Teh wins on speed and charm and overall. Say if a mythic should
+  beat a legendary in every single stat instead.
 
 ---
 

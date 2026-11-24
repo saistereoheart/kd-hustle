@@ -60,6 +60,7 @@
     },
     "gradeBuff": { "D": 1, "C": 1.25, "B": 1.5, "A": 2, "S": 3 },
     "variantBonus": { "normal": 0, "shiny": 0.25, "golden": 0.6, "rainbow": 1 },
+    "softCapKnee": 0.75,
     "caps": { "luck": 4, "xp": 3, "jobPay": 3, "passive": 2, "dishPrice": 3, "chefSpeed": 2, "chefFlavour": 3, "chefCharm": 2, "tips": 3, "patience": 2 },
     "chefByRarity": {
       "common": 0.05,

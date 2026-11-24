@@ -5,6 +5,7 @@
 //  - Reroll: spend shards for a better tier, or another variant (they stack). A CS:GO-style reel
 //    shows the roll; your luck boosts the odds, and soft / hard pity guarantee an upgrade in the end.
 // The server decides everything; the reel just lands on what it rolled.
+import { striva, strivaTag } from './striva';
 import { gradeDef, gradeIndex, nextGrade, variantLabel, variantParts, type InventoryItem, type ItemDef, type RerollPity, gradeRerollOdds, variantRerollOdds } from '@kh/shared';
 import type { App } from '../app';
 import { el, keepUiState, rebuildNow, toast } from './dom';
@@ -15,6 +16,7 @@ import { openBulkWindow } from './bulkWindow';
 const VARIANT_COLOR: Record<string, string> = { normal: '#868e96', shiny: '#74c0fc', golden: '#fcc419', rainbow: 'linear-gradient(90deg,#ff6b6b,#ffd43b,#51cf66,#4dabf7,#cc5de8)' };
 
 function itemLine(app: App, it: InventoryItem): string {
+  if (striva(it.grade, it.variant)) return '🌈 STRIVA';
   const v = variantLabel(app.cfg.rarities.variants, it.variant);
   return `${gradeDef(app.cfg.grades, it.grade).name}${v ? ` · ${v}` : ''}`;
 }
@@ -199,7 +201,7 @@ export function openRerollWindow(app: App, iid: number, what: 'grade' | 'variant
       el('img', { src: iconUrl(def, it.variant, 96), alt: def.name }),
       el('div', {},
         el('b', {}, def.name),
-        el('div', {}, itemLine(app, it)),
+        el('div', {}, striva(it.grade, it.variant) ? strivaTag() : itemLine(app, it)),
         el('div', { class: 'muted small' }, what === 'grade' ? 'Lands higher than your tier: you get it. Lower: nothing changes.' : 'Lands on a variant you don\'t have: it\'s added (variants stack and multiply).'),
         el('div', { class: 'muted small' }, `Odds (luck ×${app.mods().luck.toFixed(2)}): ${outcomes().map((o) => `${o.label} ${(o.p * 100).toFixed(o.p < 0.01 ? 2 : 1)}%`).join(' · ')}`)),
     );

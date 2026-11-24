@@ -1,4 +1,5 @@
 // 🎒 Bag: inventory (equip cosmetics) + the Item Index / Collection Book.
+import { striva, strivaTag } from './striva';
 import { improveBest, variantLabel, CASHIER_STAT_INFO, CASHIER_STATS, cashierStats, CHEF_STAT_INFO, CHEF_STATS, chefStats, EQUIP_SLOTS, formatMoney, gearBuff, gradeDef, gradeIndex, gradeMult, isCollectible, itemValueSen, nextGrade, pawnPriceSen, type EquipSlot } from '@kh/shared';
 
 const STAT_NAME: Record<string, string> = { luck: 'luck', xp: 'XP', jobPay: 'job pay', passive: 'passive income', dishPrice: 'stall prices' };
@@ -97,7 +98,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         'button',
         { class: `worn-row${selected === key ? ' selected' : ''}`, type: 'button', 'data-slot': slot, 'data-item': def.id },
         el('img', { src: iconUrl(def, inst.variant, 44), alt: '' }),
-        el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, SLOT_LABEL[slot]), name, el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
+        el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, SLOT_LABEL[slot]), name, striva(inst.grade, inst.variant) ? strivaTag() : el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
         off,
       );
       row.addEventListener('click', () => {
@@ -123,7 +124,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
           'button',
           { class: `worn-row placed${selected === key ? ' selected' : ''}`, type: 'button', 'data-placed': String(inst.iid), 'data-item': def.id },
           el('img', { src: iconUrl(def, inst.variant, 44), alt: '' }),
-          el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, placed.get(inst.iid)!.label), name, el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
+          el('span', { class: 'worn-info' }, el('span', { class: 'worn-slot' }, placed.get(inst.iid)!.label), name, striva(inst.grade, inst.variant) ? strivaTag() : el('span', { class: 'muted small' }, `Tier ${inst.grade ?? 'D'}${inst.variant !== 'normal' ? ` · ${variantLabel(rar.variants, inst.variant)}` : ''}`)),
         );
         row.addEventListener('click', () => {
           if (tab !== 0) return;
@@ -253,7 +254,9 @@ export function openInventoryPanel(app: App, startTab = 0) {
           'div',
           {},
           nameEl,
-          el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${variantLabel(rar.variants, s.variant)}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
+          striva(s.grade, s.variant)
+            ? el('div', { class: 'muted' }, `${tier.name} · `, strivaTag(), ` (×${gradeMult(gcfg, s.grade)} · ${variantLabel(rar.variants, s.variant)})${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`)
+            : el('div', { class: 'muted' }, `${tier.name} · Tier ${s.grade} (×${gradeMult(gcfg, s.grade)})${s.variant !== 'normal' ? ` · ${variantLabel(rar.variants, s.variant)}` : ''}${s.serial ? ` · #${s.serial} of ${def.limit}` : ''} · ${def.type}`),
           def.desc ? el('p', {}, def.desc) : null,
           def.type === 'cashier'
             ? el('div', { class: 'item-buff' }, `As kopitiam cashier: ${CASHIER_STATS.map((k) => { const v = cashierStats(gcfg, { id: def.id, rarity: def.rarity, grade: s.grade, variant: s.variant }, app.mods().cashier?.boost ?? app.mods().chef?.boost ?? 0)[k]; return `${CASHIER_STAT_INFO[k].icon} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}% ${CASHIER_STAT_INFO[k].name.toLowerCase()}`; }).join(' · ')}`)
@@ -331,7 +334,7 @@ export function openInventoryPanel(app: App, startTab = 0) {
         if (b && gd) {
           card.style.setProperty('--best', gd.color);
           card.classList.add('has-best', `best-g${gradeIndex(gcfgIdx, b.grade)}`);
-          card.title = `${def.name} · best: ${gd.name}${b.variant !== 'normal' ? ` · ${variantLabel(rar.variants, b.variant)}` : ''}`;
+          card.title = `${def.name} · best: ${striva(b.grade, b.variant) ? 'STRIVA' : `${gd.name}${b.variant !== 'normal' ? ` · ${variantLabel(rar.variants, b.variant)}` : ''}`}`;
         }
         g.append(card);
       }

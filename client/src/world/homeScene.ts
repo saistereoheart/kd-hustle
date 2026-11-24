@@ -14,6 +14,7 @@ import type { App } from '../app';
 import { drawPlaced, furniturePiece } from '../items/furnitureArt';
 import { el, toast, uiRoot } from '../ui/dom';
 import { starName } from '../ui/stars';
+import { striva, strivaTag } from '../ui/striva';
 import { iconUrl } from '../ui/panel';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
@@ -940,8 +941,9 @@ export class HomeScene extends Phaser.Scene {
       const def = this.app.items.get(c.item);
       const fp = furniturePiece(c.item);
       const vn = vName(c.variant);
-      const name = `${c.grade !== 'D' ? `Tier ${c.grade} ` : ''}${vn ? `${vn} ` : ''}${def?.name ?? c.item}${c.q > 1 ? ` ✨×${c.q.toFixed(2)}` : ''}`;
-      const b = el('button', { class: `deco-piece${this.hand && c.iids.includes(this.hand.iid) ? ' active' : ''}${vn ? ' variant' : ''}`, type: 'button', 'data-piece': c.item, 'data-variant': c.variant, title: name }, el('img', { src: def ? iconUrl(def, c.variant, 48) : '', alt: '' }), el('span', {}, `${name}${c.iids.length > 1 ? ` ×${c.iids.length}` : ''}`), el('small', { class: 'muted' }, fp ? `${fp.w}×${fp.h} m${fp.wall ? ' · wall' : fp.floor ? ' · floor' : ''}` : ''));
+      const top = striva(c.grade, c.variant);
+      const name = `${top ? '' : `${c.grade !== 'D' ? `Tier ${c.grade} ` : ''}${vn ? `${vn} ` : ''}`}${def?.name ?? c.item}${c.q > 1 ? ` ✨×${c.q.toFixed(2)}` : ''}`;
+      const b = el('button', { class: `deco-piece${this.hand && c.iids.includes(this.hand.iid) ? ' active' : ''}${vn ? ' variant' : ''}`, type: 'button', 'data-piece': c.item, 'data-variant': c.variant, title: name }, el('img', { src: def ? iconUrl(def, c.variant, 48) : '', alt: '' }), el('span', {}, top ? strivaTag() : '', top ? ' ' : '', `${name}${c.iids.length > 1 ? ` ×${c.iids.length}` : ''}`), el('small', { class: 'muted' }, fp ? `${fp.w}×${fp.h} m${fp.wall ? ' · wall' : fp.floor ? ' · floor' : ''}` : ''));
       b.addEventListener('click', () => {
         this.hand = { iid: c.iids[0], item: c.item, rot: 0, manual: false };
         this.hover ??= { x: Math.floor(this.W / 2), y: Math.floor(this.H / 2) };

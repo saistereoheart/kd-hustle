@@ -1,4 +1,5 @@
 // Shared UI bits: a modal panel shell with optional tabs, and item cards.
+import { striva, strivaTag } from './striva';
 import { topVariant, variantParts, formatMoney, type ItemDef, type RaritiesConfig } from '@kh/shared';
 import { drawItemIcon } from '../items/itemArt';
 import { el, resumeUi, uiRoot } from './dom';
@@ -181,10 +182,10 @@ export function itemCard(
     el('div', { class: 'item-name' }, opts.silhouette ? '???' : def.name),
     opts.caption ? el('div', { class: 'item-caption' }, opts.caption) : null,
     opts.count && opts.count > 1 ? el('span', { class: 'item-count' }, `×${opts.count}`) : null,
-    variant !== 'normal' && !opts.silhouette ? el('span', { class: 'item-variant' }, variantParts(variant).join(' + ')) : null,
+    variant !== 'normal' && !opts.silhouette && !striva(opts.grade, variant) ? el('span', { class: 'item-variant' }, variantParts(variant).join(' + ')) : null,
     opts.serial ? el('span', { class: 'item-serial' }, `#${opts.serial}`) : null,
     opts.equipped ? el('span', { class: 'item-equipped' }, '✓ worn') : null,
-    opts.grade && !opts.silhouette ? el('span', { class: `item-grade g-${opts.grade}`, title: `Tier ${opts.grade}` }, opts.grade) : null,
+    opts.grade && !opts.silhouette ? (striva(opts.grade, variant) ? strivaTag('item-striva') : el('span', { class: `item-grade g-${opts.grade}`, title: `Tier ${opts.grade}` }, opts.grade)) : null,
   );
   if (opts.gradeColor) card.querySelector<HTMLElement>('.item-grade')?.style.setProperty('--grade', opts.gradeColor);
   card.style.setProperty('--tier', tier?.color ?? '#adb5bd');

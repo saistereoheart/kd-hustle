@@ -25,6 +25,10 @@ export const gradesConfigSchema = z.object({
     variantBonus: z.record(z.string(), z.number().min(0)).default({ normal: 0, shiny: 0.25, golden: 0.6, rainbow: 1 }),
     /** The most each stat can get from gear, chefs and cashiers together (1 = +100%; luck: ×(1 + cap)). */
     caps: z.record(z.string(), z.number().min(0)).default({}),
+    /** Caps are soft: up to this share of a cap a stat counts in full; above it, it keeps growing more and
+     *  more slowly towards the cap (never past it). So a stronger piece always shows more: before, every
+     *  piece past a cap stopped dead at the same number (a Striva legendary chef = a Striva mythic). */
+    softCapKnee: z.number().min(0).max(1).default(0.75),
     /** Each chef's strengths: how much of their buff goes to each stall stat (missing = even). */
     /** Cashiers (kopitiam): their base buff by rarity, split by profile into Tips and Patience. */
     cashierByRarity: z.record(z.string(), z.number().nonnegative()).default({}),
@@ -96,6 +100,24 @@ export function buffCap(cfg: GradesConfig, stat: string): number {
   return cfg.buffs.caps[stat] ?? Infinity;
 }
 
+/** A value under its soft cap: in full up to knee × cap, then easing towards the cap (always rising). */
+export function softCap(cfg: GradesConfig, stat: string, v: number): number {
+  const cap = buffCap(cfg, stat);
+  if (!Number.isFinite(cap) || v <= 0) return v;
+  const knee = cap * cfg.buffs.softCapKnee;
+  if (v <= knee) return v;
+  const room = cap - knee;
+  return room > 0 ? knee + room * (1 - Math.exp(-(v - knee) / room)) : cap;
+}
+
+/** 🌈 STRIVA: the top tier with every special variant (S + Shiny + Golden + Rainbow). */
+export function isStriva(cfg: GradesConfig, variants: ReadonlyArray<{ id: string; oneIn: number }>, grade: string | undefined, variant: string | undefined): boolean {
+  if (!grade || grade !== cfg.grades[cfg.grades.length - 1]?.id) return false;
+  const have = variantParts(variant);
+  const special = variants.filter((v) => v.oneIn > 1);
+  return special.length > 0 && special.every((v) => have.includes(v.id));
+}
+
 export function gearBuff(cfg: GradesConfig, item: { type: string; rarity: string; grade?: string; variant: string }): { stat: GearStat; value: number } | null {
   const stat = cfg.buffs.bySlot[item.type];
   if (!stat) return null;
@@ -121,9 +143,9 @@ export function chefStats(cfg: GradesConfig, chef: { id: string; rarity: string;
   const base = (cfg.buffs.chefByRarity[chef.rarity] ?? 0) * buffMult(cfg, chef.grade, chef.variant) * (1 + boost);
   const prof = cfg.buffs.chefProfiles[chef.id] ?? EVEN_PROFILE;
   return {
-    speed: Math.min(buffCap(cfg, 'chefSpeed'), base * prof.speed),
-    flavour: Math.min(buffCap(cfg, 'chefFlavour'), base * prof.flavour),
-    charm: Math.min(buffCap(cfg, 'chefCharm'), base * prof.charm),
+    speed: softCap(cfg, 'chefSpeed', base * prof.speed),
+    flavour: softCap(cfg, 'chefFlavour', base * prof.flavour),
+    charm: softCap(cfg, 'chefCharm', base * prof.charm),
   };
 }
 
@@ -139,7 +161,7 @@ export const CASHIER_STAT_INFO: Record<CashierStat, { icon: string; name: string
 export function cashierStats(cfg: GradesConfig, c: { id: string; rarity: string; grade?: string; variant: string }, boost = 0): CashierStats {
   const base = (cfg.buffs.cashierByRarity[c.rarity] ?? 0) * buffMult(cfg, c.grade, c.variant) * (1 + boost);
   const prof = cfg.buffs.cashierProfiles[c.id] ?? { tips: 1, patience: 0.5 };
-  return { tips: Math.min(buffCap(cfg, 'tips'), base * prof.tips), patience: Math.min(buffCap(cfg, 'patience'), base * prof.patience) };
+  return { tips: softCap(cfg, 'tips', base * prof.tips), patience: softCap(cfg, 'patience', base * prof.patience) };
 }
 
 /** All equipped items' buffs added up per stat (the head chef / cashier are handled separately). */
@@ -151,7 +173,7 @@ export function gearBonuses(cfg: GradesConfig, items: ReadonlyArray<{ type: stri
     if (b) out[b.stat] = (out[b.stat] ?? 0) + b.value;
   }
   // Each stat's cap (gear can't take one stat to the moon).
-  for (const k of Object.keys(out) as GearStat[]) out[k] = Math.min(buffCap(cfg, k), out[k]!);
+  for (const k of Object.keys(out) as GearStat[]) out[k] = softCap(cfg, k, out[k]!);
   return out;
 }
 

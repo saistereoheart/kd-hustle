@@ -1,4 +1,5 @@
 // App controller: boot → (auth) → socket → (character creator) → town.
+import { setStrivaConfig } from './ui/striva';
 import { ventureSpots, type Poi, type VentureSpot } from '@kh/shared';
 import Phaser from 'phaser';
 import {
@@ -172,6 +173,7 @@ export class App {
     this.map = buildMap(this.cfg.map, this.cfg.terrain);
     this.listings = buildListings(this.map, this.cfg.properties);
     setFurnitureCatalog(this.cfg.furniture);
+    setStrivaConfig(this.cfg);
     setPetCharacterConfig(this.cfg.character);
     // (The world boss looks like a monster too: kind 'world'.)
     const wb = this.cfg.lab.worldBoss;

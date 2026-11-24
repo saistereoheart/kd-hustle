@@ -1,5 +1,6 @@
 // The roll experience (spec §7.5). The result is already decided by the server; this just
 // makes it feel amazing. ×1 → CS:GO-style reel; ×5/×10 → a grid of cards that flip over.
+import { striva, strivaTag } from './striva';
 import { variantLabel, crateOdds, formatOneIn, gradeDef, type CrateDef, type GradesConfig, type ItemDef, type RaritiesConfig, type RollResult } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { itemCard } from './panel';
@@ -71,8 +72,9 @@ function revealFx(o: RevealOpts, host: HTMLElement, best: RollResult) {
 function resultLine(o: RevealOpts, r: RollResult) {
   const def = o.items.get(r.itemId)!;
   const tier = o.rar.tiers[tierIndex(o.rar, r.tier)];
-  const variant = r.variant !== 'normal' ? `${variantLabel(o.rar.variants, r.variant)} ` : '';
-  const title = el('div', { class: 'reveal-title' }, el('span', { class: 'reveal-tier' }, tier.name.toUpperCase()), ` ${variant}${def.name}${r.serial ? ` #${r.serial}` : ''}`);
+  const top = striva(r.grade, r.variant);
+  const variant = r.variant !== 'normal' && !top ? `${variantLabel(o.rar.variants, r.variant)} ` : '';
+  const title = el('div', { class: 'reveal-title' }, el('span', { class: 'reveal-tier' }, tier.name.toUpperCase()), ' ', top ? strivaTag() : '', `${top ? ' ' : ''}${variant}${def.name}${r.serial ? ` #${r.serial}` : ''}`);
   title.style.setProperty('--tier', tier.color);
   return el(
     'div',

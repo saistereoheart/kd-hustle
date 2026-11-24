@@ -49,11 +49,13 @@ describe('gear buffs', () => {
     expect(b.luck).toBeCloseTo(0.01);
     expect(b.xp).toBeCloseTo(0.04 * 1.25 * 1.25);
   });
-  it('each stat is capped', () => {
+  it('each stat is (softly) capped: far past it you get almost the cap, never more', () => {
     const many = Array.from({ length: 8 }, () => ({ type: 'hat', rarity: 'secret', grade: 'S', variant: 'shiny+golden+rainbow' }));
-    expect(gearBonuses(cfg, many).luck).toBe(cfg.buffs.caps.luck);
+    expect(gearBonuses(cfg, many).luck).toBeCloseTo(cfg.buffs.caps.luck, 3);
+    expect(gearBonuses(cfg, many).luck).toBeLessThanOrEqual(cfg.buffs.caps.luck);
     const kira = cashierStats(cfg, { id: 'cashier_kira_laju', rarity: 'mythic', grade: 'S', variant: 'shiny+golden+rainbow' }, 1);
-    expect(kira.tips).toBe(cfg.buffs.caps.tips);
+    expect(kira.tips).toBeCloseTo(cfg.buffs.caps.tips, 3);
+    expect(kira.tips).toBeLessThanOrEqual(cfg.buffs.caps.tips);
   });
 
   it('chefs use their own, stronger table', () => {
