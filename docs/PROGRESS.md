@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.41.1)_
+_Last updated: 2026-11-24 (v1.41.2)_
 
-**Now at v1.41.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.41.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.1) |
+| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.2) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -60,6 +60,11 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Tab rows that scroll sideways** (Business, Skills, Bank, Market, Butik, Boards, Ventures, the character
   creator): no scrollbar; ‹ and › arrows at the ends, shown only when there's more that way; a tap scrolls
   most of a row (`client/src/ui/tabStrip.ts`, `tabStrip()`).
+- **v1.41.2 fix (your report: the tab row kept jumping back, mostly after picking a tab):** the arrows' shown /
+  hidden classes were on the row itself, and the scroll restore after a re-render finds boxes by their classes,
+  so it lost the row; smooth scrolling also animated it back from the start. Now the state sits on the arrows,
+  smooth scrolling is only for arrow taps, and each row remembers its own position (by its tabs' labels).
+  Checked: › then Upgrades, store updates and 6 s of live updates, then Menu: the row stays put.
 - **Every scroll area:** no track and no arrow buttons, only a thin bar showing where you are (global CSS).
   Not visible in headless screenshots, so check it on your screen.
 

@@ -1930,7 +1930,7 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
 
 /* ---- Tab rows that scroll sideways: no scrollbar, ‹ › arrows at the ends (ui/tabStrip.ts) ---- */
-.tab-strip { scrollbar-width: none; scroll-behavior: smooth; }
+.tab-strip { scrollbar-width: none; }
 .tab-strip::-webkit-scrollbar { display: none; }
 .tab-strip > .tab-arrow {
   display: none; position: sticky; z-index: 2; flex: 0 0 auto; align-self: stretch;
@@ -1940,7 +1940,7 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 }
 .tab-strip > .tab-arrow.left { order: -1; left: 0; }
 .tab-strip > .tab-arrow.right { order: 9999; right: 0; }
-.tab-strip.more-left > .tab-arrow.left, .tab-strip.more-right > .tab-arrow.right { display: block; }
+.tab-strip > .tab-arrow.show { display: block; }
 .tab-strip > .tab-arrow:hover { color: var(--accent); }
 
 /* ---- Your stall: status on top, the orders scroll in the middle, the buttons stay at the bottom ---- */
