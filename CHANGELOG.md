@@ -2,6 +2,11 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.47.1 (2026-11-24): 🎲 roll, skip, roll again without moving the mouse
+- **The crate reveal's buttons stay in one place:** [Nice!] [Skip ⏭], and the right one turns into 🎲 Roll again
+  right where it is. It sits exactly where the Roll button you clicked was, so click Roll, then keep clicking the
+  same spot: skip, roll again, skip, roll again. ×5 / ×10 rolls work the same (Flip all ⏭). Stop auto sits above.
+
 ## 1.47.0 (2026-11-24): 🏬 real-life shop and mall interiors, potion shops
 - **Kedai Pajak Untung** is laid out like a real pawn shop: Ah Seng behind the counter and its grille (the safe
   and "KAMI BELI EMAS" behind him), glass cases of jewellery, watches, phones and odds and ends down both walls,

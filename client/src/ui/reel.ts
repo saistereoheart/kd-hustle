@@ -25,6 +25,53 @@ export interface RevealOpts {
   /** Called the moment a result is shown (the reel lands, or its card flips): your server-wide
    *  banner / takeover for a big roll goes off right then. */
   onReveal?: (r: RollResult) => void;
+  /** Where the Roll button you clicked is (screen px, its centre): Skip and Roll again sit right there,
+   *  so you can keep clicking without moving the mouse. Missing: bottom middle of the screen. */
+  anchor?: { x: number; y: number };
+}
+
+/**
+ * The reveal's two buttons, always in the same place: [Nice!] [Skip ⏭ → 🎲 Roll again]. The right one is
+ * centred where your Roll button was and only changes its label, so click, click, click works.
+ */
+interface RevealBar {
+  set(slot: 'left' | 'right', label: string, action: string, fn: () => void, primary?: boolean): void;
+  hide(slot: 'left' | 'right'): void;
+  /** Where the bar's top is (px), for the Stop auto button above it. */
+  top: number;
+  left: number;
+}
+const SLOT_W = 150, SLOT_GAP = 10;
+function revealBar(o: RevealOpts, host: HTMLElement): RevealBar {
+  const mk = () => el('button', { class: 'btn reveal-slot', type: 'button' }) as HTMLButtonElement;
+  const b = { left: mk(), right: mk() };
+  const fns: Record<'left' | 'right', () => void> = { left: () => {}, right: () => {} };
+  b.left.addEventListener('click', () => fns.left());
+  b.right.addEventListener('click', () => fns.right());
+  const bar = el('div', { class: 'reveal-bar', 'data-testid': 'reveal-bar' }, b.left, b.right);
+  const BW = SLOT_W * 2 + SLOT_GAP;
+  const a = o.anchor;
+  const x = Math.max(8, Math.min(innerWidth - BW - 8, a ? a.x - SLOT_W / 2 - SLOT_W - SLOT_GAP : (innerWidth - BW) / 2));
+  const y = Math.max(8, Math.min(innerHeight - 56, a ? a.y - 22 : innerHeight - 140));
+  bar.style.left = `${x}px`;
+  bar.style.top = `${y}px`;
+  host.append(bar);
+  return {
+    top: y,
+    left: x,
+    set(slot, label, action, fn, primary = false) {
+      const btn = b[slot];
+      btn.textContent = label;
+      btn.dataset.action = action;
+      btn.classList.toggle('primary', primary);
+      btn.style.visibility = '';
+      fns[slot] = fn;
+    },
+    hide(slot) {
+      b[slot].style.visibility = 'hidden';
+      fns[slot] = () => {};
+    },
+  };
 }
 
 const tierIndex = (rar: RaritiesConfig, id: string) => rar.tiers.findIndex((t) => t.id === id);
@@ -91,9 +138,7 @@ function resultLine(o: RevealOpts, r: RollResult) {
   );
 }
 
-function buttons(o: RevealOpts, host: HTMLElement, best: RollResult) {
-  const again = el('button', { class: 'btn primary', type: 'button', 'data-action': 'roll-again' }, 'Roll again');
-  const ok = el('button', { class: 'btn', type: 'button', 'data-action': 'reveal-ok' }, 'Nice!');
+function buttons(o: RevealOpts, host: HTMLElement, best: RollResult, bar: RevealBar) {
   let timer = 0;
   let closed = false;
   const finish = (a: boolean) => {
@@ -103,24 +148,24 @@ function buttons(o: RevealOpts, host: HTMLElement, best: RollResult) {
     host.remove();
     o.onDone(a);
   };
-  again.addEventListener('click', () => finish(true));
-  ok.addEventListener('click', () => finish(false));
-  const row = el('div', { class: 'reveal-actions' }, ok, again);
+  bar.set('left', 'Nice!', 'reveal-ok', () => finish(false));
+  bar.set('right', '🎲 Roll again', 'roll-again', () => finish(true), true);
   if (o.auto?.isOn()) {
     // Auto-Roll: keep going by itself; linger longer on good pulls so they can be enjoyed.
-    const stop = el('button', { class: 'btn danger', type: 'button', 'data-action': 'auto-stop' }, '⏹ Stop auto');
+    const stop = el('button', { class: 'btn danger reveal-stop', type: 'button', 'data-action': 'auto-stop' }, '⏹ Stop auto');
+    stop.style.left = `${bar.left}px`;
+    stop.style.top = `${Math.max(8, bar.top - 52)}px`;
     stop.addEventListener('click', () => {
       o.auto?.stop();
       clearTimeout(timer);
       stop.remove();
     });
-    row.append(stop);
+    host.append(stop);
     const ti = tierIndex(o.rar, best.tier);
     timer = window.setTimeout(() => {
       if (o.auto?.isOn()) finish(true);
     }, ti >= 4 ? 3500 : ti >= 3 ? 1800 : 800);
   }
-  return row;
 }
 
 export function playReveal(o: RevealOpts) {
@@ -158,10 +203,11 @@ function reel(o: RevealOpts) {
   }
   const strip = el('div', { class: 'reel-strip' }, ...cards);
   const marker = el('div', { class: 'reel-marker' });
-  const skip = el('button', { class: 'btn reel-skip', type: 'button', 'data-action': 'skip' }, 'Skip ⏭');
-  const stage = el('div', { class: 'reel-stage' }, el('div', { class: 'reel-window' }, strip, marker), skip);
+  const stage = el('div', { class: 'reel-stage' }, el('div', { class: 'reel-window' }, strip, marker));
   const host = el('div', { class: 'reveal-overlay', 'data-testid': 'reveal' }, stage);
   uiRoot().append(host);
+  const bar = revealBar(o, host);
+  bar.hide('left');
   sfx.whoosh();
 
   const cardW = cards[0].getBoundingClientRect().width + 8;
@@ -178,11 +224,11 @@ function reel(o: RevealOpts) {
     if (done) return;
     done = true;
     strip.style.transform = `translateX(${-target}px)`;
-    skip.remove();
     cards[WIN].classList.add('winner');
     revealFx(o, host, result);
     o.onReveal?.(result);
-    stage.append(resultLine(o, result), buttons(o, host, result));
+    stage.append(resultLine(o, result));
+    buttons(o, host, result, bar);
   };
   const frame = (now: number) => {
     if (done) return;
@@ -199,7 +245,7 @@ function reel(o: RevealOpts) {
     else requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
-  skip.addEventListener('click', finish);
+  bar.set('right', 'Skip ⏭', 'skip', finish);
 }
 
 // ------------------------------------------------------------------ ×5 / ×10: flip grid
@@ -216,10 +262,11 @@ function grid(o: RevealOpts) {
     return { card, r };
   });
   gridEl.append(...flippers.map((f) => f.card));
-  const skip = el('button', { class: 'btn reel-skip', type: 'button', 'data-action': 'skip' }, 'Flip all ⏭');
-  const stage = el('div', { class: 'reel-stage' }, el('h3', { class: 'grid-title' }, `${o.crate.name} ×${o.results.length}`), gridEl, skip);
+  const stage = el('div', { class: 'reel-stage' }, el('h3', { class: 'grid-title' }, `${o.crate.name} ×${o.results.length}`), gridEl);
   host.append(stage);
   uiRoot().append(host);
+  const bar = revealBar(o, host);
+  bar.hide('left');
   sfx.whoosh();
 
   let i = 0;
@@ -253,9 +300,9 @@ function grid(o: RevealOpts) {
       f.card.classList.add('flipped');
       o.onReveal?.(f.r);
     }
-    skip.remove();
     revealFx(o, host, best);
-    stage.append(resultLine(o, best), buttons(o, host, best));
+    stage.append(resultLine(o, best));
+    buttons(o, host, best, bar);
   };
   const step = () => {
     if (done) return;
@@ -267,5 +314,5 @@ function grid(o: RevealOpts) {
     timer = window.setTimeout(step, (tierIndex(o.rar, f.r.tier) >= 3 ? 650 : 230) / sp);
   };
   timer = window.setTimeout(step, 400 / Math.max(1, o.speed ?? 1));
-  skip.addEventListener('click', end);
+  bar.set('right', 'Flip all ⏭', 'skip', end);
 }
