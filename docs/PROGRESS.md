@@ -4,7 +4,7 @@
 
 _Last updated: 2026-11-24 (v1.41.2)_
 
-**Now at v1.41.2 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.41.2, on GitHub: https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -32,7 +32,7 @@ rounds below. The §19 content list is met, including 74 achievements.
 5. **Reply to 🐞 report #9** (OnigiriCute wants Jungkook / WonYoung as Teman). v1.35.0 adds look-alikes in the
    game's character style with parody names (Kuki Emas, Wonnie Bertuah, in the Telur Teman egg), on top of
    v1.9.4's Arnab Bintang and Rubah Superstar. Tell them, then close it: `npm run admin -- feedback-done 9`.
-6. **Review and push** the local commits when you're happy with them.
+6. ~~Review and push~~ Pushed to GitHub on 2026-11-24. Later rounds are committed locally and pushed when you say so.
 
 **Open on the code side (small, optional):**
 7. Re-run the full Playwright suite (`npm run e2e`). It hasn't been run since the shop / vehicle changes.
@@ -48,7 +48,8 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **The game you're playing isn't touched while I work.** It runs the built copy (`node server/dist/index.js`, port
   3003). Changes reach it when you run `npm run build`, stop the server (Ctrl+C saves everyone) and `npm start`.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
-- **Commits are local only** (not pushed).
+- **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
+- **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
 
 ---

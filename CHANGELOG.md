@@ -1,5 +1,42 @@
 # Changelog
 
+Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
+
+## 1.41.2 (2026-11-24): 🧭 tab rows stay where you scrolled them
+- **Fix: the tab row kept jumping back to the start**, mostly right after you picked a tab. Each row now remembers
+  its own position (by its tabs' labels) and comes back there after the screen redraws. Smooth scrolling is only
+  for the ‹ › arrows, so nothing slides back on its own.
+
+## 1.41.1 (2026-11-24): 🍢 stall buttons stay at the bottom, ‹ › tab arrows, slim scrollbars
+- **Your stall window uses its full height:** the status is at the top and the orders scroll in the middle.
+  **Cook the next order**, **Close the stall** and **Stock, staff, upgrades** stay at the bottom, however many
+  orders are waiting.
+- **Tab rows that scroll sideways** (Business, Skills, Bank, Market, Butik, Boards, Ventures, the character
+  creator) have no scrollbar now. A **‹** and **›** arrow sits at each end, shown only when there's more that way.
+  A tap scrolls most of the row.
+- **Every scroll area:** no track and no arrow buttons, only a thin bar that shows where you are.
+
+## 1.41.0 (2026-11-24): ⭐ rebirth stars by every name
+- **Players who have been reborn show ⭐ by their name everywhere:**
+  - nameplates (town, homes, shops, the Labirin), chat, roll banners and the minimap;
+  - the Players and Boards apps, Pasar Online and Butik sellers, trades and blackjack seats;
+  - home owner signs, shop signs and door prompts, and stall, food truck and kopitiam labels;
+  - the Labirin party list and fight cards, visits, and your profile.
+- One ⭐ for each rebirth up to 5, then ⭐×n. A new rebirth shows up for everyone at once.
+- **Checked: rebirth income is right.** Each rebirth doubles cash income (2 stars = ×4). The stall feels slower
+  just after a rebirth because the stall, recipes, skills and gear start over.
+
+## 1.40.1 (2026-11-24): 🧠 runs on a PC with ~500 MB free
+- **The browser uses about 30% less memory:** ~590–615 MB, was ~800–850 MB (measured at 1366×768).
+  - FOR SALE and owner signs are made only when they come near the screen.
+  - Characters keep only their walk, stand and ride pictures. Each emote is drawn the first time it's used.
+  - Passers-by, stall customers and cooks share a small pool of faces.
+  - The lofi music is generated at a lower sample rate (it sounds the same).
+- **Settings → Memory → Very low (PC with ~500 MB free):** a lighter map, less drawn ahead, a smaller canvas and
+  fewer crowd faces.
+- **The server uses about half as much:** `start.cmd` (double-click on Windows) runs the server straight from
+  Node, about 135 MB. The old `npm start` chain was about 257 MB. `npm start` is leaner too.
+
 ## 1.40.0 (2026-11-23): 🌀 the abyss keeps its own you
 - **The Labirin is its own world.** Down there your town hotbar, money, XP and wealth stage are put away. You
   get an **abyss hotbar** instead: your Labirin potions on keys 1–9 with how many you carry; tap or press to
@@ -822,3 +859,20 @@ is met. The full round-by-round log is in `docs/PROGRESS.md`.
   Settings → Ambient sounds.
 - **Fixes:** after a rebirth, open quests counted from the old stat totals.
 - The server prints its version on startup.
+
+## Before 1.0.0: building the game, phase by phase (2026-11-17 to 2026-11-20)
+
+The game was built one phase of `docs/GAME_SPEC.md` §20 at a time, with feedback rounds in between.
+
+| Date | Phase | What came in |
+|---|---|---|
+| 2026-11-17 | **Phase 1: foundation** | Monorepo, accounts (bcrypt, session tokens), the chibi character creator, the first town map, multiplayer movement, chat and emotes, saving and backups |
+| 2026-11-17 | **Phase 1.5: real map** | Kota Damansara from OpenStreetMap at real scale (2 m per tile), character and map art polish, emotes v2 |
+| 2026-11-17 | **Phase 2: money and gacha** | Money in sen, starter jobs, crates with visible odds and pity, the bag. 2.1–2.3: zoomable map, exact building collision, the hotbar, bicycle and motorbike, the 3-stage car wash, Ronda rides, elevated decks |
+| 2026-11-17 | **Phase 3: progression** | XP and levels, wealth stages, titles, skills, potions, daily quests, the HustlePhone, the balance simulator |
+| 2026-11-18 | **Phase 4: food stalls** | Pasar malam stalls with cooking mini-games, the day/night clock |
+| 2026-11-18 | **Phase 5: property and Airbnb** | Properties to rent out or run as an Airbnb, decorating. 5.1–5.8: stall and staff levels, teh tarik custom orders, job boards, item tiers (D..S), merging and shard rerolls, chef gacha and head chefs, claiming homes, stall reputation |
+| 2026-11-18 | **Phase 6: businesses** | Idle businesses (Ventures) and the retail shop, Bank Kota and Ah Long loans, offline income, the Butik |
+| 2026-11-19 | **Phase 7: casino and social** | The Lucky Strand Casino, the shared radio, trading, gifting, leaderboards, server events and the Durian Crate, PvP coinflip, Pasar Online (fixed price and auctions) |
+| 2026-11-19 | **Phase 8: endgame and content** | The higher crates and 56 new items, rebirth and the Rebirth Shop, admin commands and the debug overlay, more titles, businesses and property types, three new recipes, 46 new furniture pieces, kopitiams in real shoplots, the Forge, starter jobs 3 and 4, graphics settings, the in-game bug report button, Gua Gelap, Teman pets, Motor Kota cars and superbikes, 70 achievements and weekly quests, ambient sound |
+| 2026-11-20 | **1.0.0** | First complete version (see above) |

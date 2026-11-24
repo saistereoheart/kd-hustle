@@ -5,8 +5,10 @@ Hustle from RM 300 to billions with 2–5 friends on the same WiFi: roll crates 
 pasar malam stall, buy and decorate Airbnbs, run businesses, take loans (maybe from Ah Long…), race superbikes,
 send your Teman into a cave, and flex on everyone.
 
-**Version 1.0.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built. What changed, round by round, is
-in [`docs/PROGRESS.md`](docs/PROGRESS.md) and [`CHANGELOG.md`](CHANGELOG.md).
+**GitHub:** https://github.com/saistereoheart/kd-hustle
+
+**Version 1.41.2.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built (1.0.0), plus many rounds of
+player feedback since. See [Version history](#version-history) below and the full [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's in the game
 - **The town:** a real-scale Kota Damansara from **OpenStreetMap** (2 m per tile): The Strand, Dataran Sunway,
@@ -52,6 +54,8 @@ All money is virtual. There are no real-money purchases.
 
 ## Run it
 ```bash
+git clone https://github.com/saistereoheart/kd-hustle.git
+cd kd-hustle
 npm install
 npm run build
 npm start          # production: the server also serves the game
@@ -156,6 +160,34 @@ File names like `Artist - Title.mp3` show as "Title · Artist". MP3, OGG, M4A, W
 while the server runs and type `/music rescan` in chat (admin). Use music you're allowed to share, e.g. FreePD.com
 (public domain), OpenGameArt.org (CC0), Pixabay Music, Incompetech (CC-BY: credit the artist). Set `MUSIC_DIR` to
 use another folder.
+
+## Version history
+Highlights from the first build to now. Every change, version by version, is in [`CHANGELOG.md`](CHANGELOG.md).
+The detailed working log (decisions, measurements, test notes) is in [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+| Version | Date | Highlights |
+|---|---|---|
+| Phase 1 | 2026-11-17 | First build: accounts, the chibi character creator, the town, multiplayer movement, chat and emotes, saving and backups |
+| Phase 1.5 | 2026-11-17 | Real-scale Kota Damansara from OpenStreetMap (2 m per tile) |
+| Phase 2 | 2026-11-17 | Money, starter jobs, crates with visible odds and pity; the hotbar, bicycle, motorbike and car wash |
+| Phase 3 | 2026-11-17 | XP, levels, wealth stages, titles, skills, potions, quests, the HustlePhone |
+| Phase 4 | 2026-11-18 | Pasar malam stalls with cooking mini-games, day and night |
+| Phase 5 | 2026-11-18 | Property and Airbnb, decorating; item tiers, merging, chef gacha, claiming homes |
+| Phase 6 | 2026-11-18 | Ventures (idle businesses), the retail shop, Bank Kota and Ah Long loans, offline income, the Butik |
+| Phase 7 | 2026-11-19 | The casino, shared radio, trading, gifting, leaderboards, server events, PvP coinflip, Pasar Online |
+| Phase 8 | 2026-11-19 | Higher crates, rebirth and the Rebirth Shop, admin tools, kopitiams, the Forge, Gua Gelap, Teman pets, Motor Kota |
+| **1.0.0** | 2026-11-20 | **First complete version:** every spec phase built; 74 achievements, weekly quests, a real gearbox and engine sounds, ambience |
+| 1.1–1.3 | 2026-11-20 | Park your ride and give people a lift; engine sound for other riders; steady frame rate on integrated graphics |
+| 1.4–1.9 | 2026-11-20 | Premium stall dishes, your lead Teman follows you, Ventures in real shoplots that you furnish, walk-in customers, luck that multiplies across sources |
+| 1.10–1.15 | 2026-11-21 | 🗝️ **Labirin Purba:** a walkable labyrinth, fights, a merchant with gear and potions, parties, floor bosses |
+| 1.16–1.17 | 2026-11-22 | Real engines for the kapcai and the Ronda, a simpler phone with Tips, a memory budget |
+| 1.18–1.29 | 2026-11-22 | Labirin 3D and pixel-art fights, cave music, a tavern, Labirin levels and spell books, signs, crates and secrets |
+| 1.30–1.33 | 2026-11-22 | IKEJA Online furniture app, visiting other players' places, sitting on chairs, a seamless cave floor |
+| 1.34–1.39 | 2026-11-23 | Labirin elements and mana, damage tiers, 32 new monsters, a world boss, classes, diamonds and gear drops |
+| 1.40.0 | 2026-11-23 | The abyss rework: Labirin levels grow your base stats, a skill tree, its own hotbar |
+| 1.40.1 | 2026-11-24 | Runs on a PC with ~500 MB free: ~30% less browser memory, a Very low setting, a lean `start.cmd` server |
+| 1.41.0 | 2026-11-24 | ⭐ Rebirth stars by every player name |
+| 1.41.x | 2026-11-24 | Stall buttons pinned at the bottom, ‹ › arrows on tab rows, slim scrollbars |
 
 ## Map data
 Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the ODbL.
