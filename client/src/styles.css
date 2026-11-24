@@ -2002,3 +2002,6 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 }
 .item-card .item-striva { background-image: linear-gradient(90deg, #ff6b6b, #ffa94d, #ffd43b, #69db7c, #4dabf7, #9775fa, #f783ac, #ff6b6b); }
 @media (prefers-reduced-motion: reduce) { .striva { animation: none; } }
+
+/* 🧪 A bonus potion with a roll (ui/reel.ts). */
+.reveal-bonus { margin-top: 6px; font-weight: 800; color: #b2f2bb; text-shadow: 0 1px 0 #000; animation: lab-loot-pop 0.45s cubic-bezier(.2, 1.5, .4, 1) both; }

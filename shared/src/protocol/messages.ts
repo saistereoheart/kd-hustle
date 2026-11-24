@@ -247,6 +247,8 @@ export interface RollResult {
   oneIn: number;
   pity: boolean;
   isNew: boolean;
+  /** 🧪 A bonus potion that came with this roll (already in your bag). */
+  bonus?: { iid: number; itemId: string; grade: string; variant: string };
 }
 
 export type JobState =

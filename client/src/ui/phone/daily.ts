@@ -1,5 +1,6 @@
 // HustlePhone → Daily: the 7-day login streak (spec §15). Claim once per day; miss a day and
 // the streak starts again at day 1. Day 7 gives a free crate roll.
+import { rollItems } from '../rollItems';
 import { formatMoney, type InventoryItem, type Reward } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
@@ -53,7 +54,7 @@ export function renderDaily({ app, rerender }: PhoneCtx): HTMLElement[] {
         // Day 7: a free crate roll, played with the normal reel.
         const crate = app.crates.get(res.roll.crateId);
         const now = Date.now();
-        const items: InventoryItem[] = res.roll.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, grade: r.grade, serial: r.serial, obtainedAt: now }));
+        const items: InventoryItem[] = rollItems(res.roll.results);
         app.store.addItems(items);
         if (crate) {
           closePanel();

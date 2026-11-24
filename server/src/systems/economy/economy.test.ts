@@ -40,13 +40,35 @@ function setup(walletSen = 30000, seed = 1) {
 }
 
 describe('crate rolls', () => {
+  it('🧪 now and then a bonus potion comes with a roll: in the bag, with a tier, and the item odds unchanged', () => {
+    const { p, gacha } = setup(100_000_000, 7);
+    let bonuses = 0;
+    for (let i = 0; i < 40; i++) {
+      const batch = gacha.roll(p, 'luckybag', 10);
+      for (const r of batch.results) {
+        expect(cfg.crateById.get('luckybag')!.pool).toContain(r.itemId); // the main item is still from the pool
+        if (!r.bonus) continue;
+        bonuses++;
+        expect(cfg.itemById.get(r.bonus.itemId)?.effect).toBeTruthy();
+        expect(p.inventory.some((i) => i.iid === r.bonus!.iid && i.grade === r.bonus!.grade)).toBe(true);
+      }
+    }
+    // ~8% of 400 rolls.
+    expect(bonuses).toBeGreaterThan(10);
+    expect(bonuses).toBeLessThan(70);
+    // No bonus where the crate has none.
+    p.shards = 1_000_000;
+    for (const r of gacha.roll(p, 'chefs', 10).results) expect(r.bonus).toBeUndefined();
+  });
+
   it('charges exactly price × count, grants items and logs everything', () => {
     const { p, gacha, repos, txSum } = setup(30000);
     const batch = gacha.roll(p, 'capsule', 10);
     expect(batch.results).toHaveLength(10);
     expect(p.walletSen).toBe(30000 - 2000 * 10 + (batch.pageReward?.sen ?? 0));
-    expect(p.inventory).toHaveLength(10);
-    expect(repos.inventory.list(p.id)).toHaveLength(10);
+    const got = 10 + batch.results.filter((r) => r.bonus).length; // (+ any 🧪 bonus potions)
+    expect(p.inventory).toHaveLength(got);
+    expect(repos.inventory.list(p.id)).toHaveLength(got);
     expect(repos.econ.load(p.id).walletSen).toBe(p.walletSen);
     expect(30000 + txSum()).toBe(p.walletSen); // the economy log adds up
     expect(Number.isSafeInteger(p.walletSen)).toBe(true);

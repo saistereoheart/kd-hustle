@@ -81,6 +81,9 @@ export const cratesConfigSchema = z.object({
       requires: z.object({ stage: z.number().int().positive().optional(), level: z.number().int().positive().optional() }).default({}),
       /** A limited crate: only rollable while this server event runs. Its pool reuses other crates' items. */
       event: z.string().optional(),
+      /** 🧪 A bonus potion now and then, on top of the item (the item odds don't change): `chance` per roll,
+       *  then which potion by weight. It rolls a tier like any item. */
+      potions: z.object({ chance: z.number().min(0).max(1), items: z.record(z.string(), z.number().positive()) }).optional(),
     }),
   ),
 });
@@ -273,6 +276,11 @@ export function validateEconomyConfigs(r: RaritiesConfig, items: ItemsConfig, cr
   if (itemIds.size !== items.items.length) errors.push('duplicate item ids');
   for (const i of items.items) if (!tierIds.has(i.rarity)) errors.push(`item ${i.id}: unknown rarity ${i.rarity}`);
   for (const c of crates.crates) {
+    for (const id of Object.keys(c.potions?.items ?? {})) {
+      const d = itemIds.get(id);
+      if (!d) errors.push(`crate ${c.id}: unknown bonus potion ${id}`);
+      else if (!d.effect) errors.push(`crate ${c.id}: bonus ${id} isn't a potion`);
+    }
     for (const id of c.pool) {
       if (!itemIds.has(id)) errors.push(`crate ${c.id}: unknown item ${id}`);
       if (c.event) continue; // event crates reuse items from their home crates

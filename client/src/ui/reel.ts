@@ -69,6 +69,12 @@ function revealFx(o: RevealOpts, host: HTMLElement, best: RollResult) {
   }
 }
 
+/** 🧪 Bonus potions that came with these rolls. */
+function bonusLine(o: RevealOpts, results: RollResult[]) {
+  const got = results.filter((r) => r.bonus).map((r) => `${o.items.get(r.bonus!.itemId)?.name ?? r.bonus!.itemId}${r.bonus!.grade !== 'D' ? ` (Tier ${r.bonus!.grade})` : ''}`);
+  return got.length ? el('div', { class: 'reveal-bonus' }, `🧪 Bonus potion${got.length > 1 ? 's' : ''}: ${got.join(', ')}`) : null;
+}
+
 function resultLine(o: RevealOpts, r: RollResult) {
   const def = o.items.get(r.itemId)!;
   const tier = o.rar.tiers[tierIndex(o.rar, r.tier)];
@@ -81,6 +87,7 @@ function resultLine(o: RevealOpts, r: RollResult) {
     { class: 'reveal-info' },
     title,
     el('div', { class: 'reveal-sub' }, `${formatOneIn(r.oneIn)}${r.pity ? ' · pity!' : ''}`, r.isNew ? el('span', { class: 'new-badge' }, 'NEW!') : null),
+    bonusLine(o, o.results),
   );
 }
 

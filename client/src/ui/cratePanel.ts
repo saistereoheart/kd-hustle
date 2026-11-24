@@ -4,6 +4,7 @@ import type { App } from '../app';
 import { el, toast, keepUiState } from './dom';
 import { itemCard, openPanel } from './panel';
 import { playReveal } from './reel';
+import { rollItems } from './rollItems';
 import { sfx } from './sound';
 import { revealAnnouncer } from './announce';
 
@@ -104,9 +105,7 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
       st.walletSen = res.walletSen;
       if (shardPrice) st.shards = Math.max(0, st.shards - shardPrice * count);
       st.pity = { ...st.pity, [crateId]: res.pity };
-      const now = Date.now();
-      const items: InventoryItem[] = res.results.map((r) => ({ iid: r.iid, itemId: r.itemId, variant: r.variant, grade: r.grade, serial: r.serial, obtainedAt: now }));
-      st.addItems(items);
+      st.addItems(rollItems(res.results));
       if (res.pageReward) st.pages.add(res.pageReward.crateId);
       panel.root.classList.add('hidden');
       const mods = app.mods();

@@ -1,7 +1,7 @@
 // Server-side crate rolls. The client only says "roll crate X, N times"; everything else (odds,
 // luck, pity, variants, limited serials, payment) happens here with crypto-grade randomness.
 import crypto from 'node:crypto';
-import { formatOneIn, nextPity, rollCrate, rollGrade, type RandInt, type RollResult } from '@kh/shared';
+import { formatOneIn, nextPity, rollCrate, rollGrade, type RandInt, type RollResult, type CrateDef } from '@kh/shared';
 import type { ServerConfig } from '../../config/loadConfig';
 import type { Repos } from '../../db/repos';
 import type { OnlinePlayer } from '../../game/world';
@@ -43,6 +43,26 @@ export class Gacha {
    * title), variant chance (Shiny Sense) and the crate's pity thresholds (Pity Pact).
    * `free` rolls (the login streak's free crate) don't charge anything.
    */
+  /** 🧪 The crate's bonus potion for one roll, or nothing (call inside econ.run). */
+  private bonusPotion(p: OnlinePlayer, crate: CrateDef): RollResult['bonus'] {
+    const bp = crate.potions;
+    if (!bp || this.rand(1_000_000) >= Math.round(bp.chance * 1_000_000)) return undefined;
+    const list = Object.entries(bp.items);
+    const total = list.reduce((a, [, w]) => a + w, 0);
+    let r = (this.rand(1_000_000) / 1_000_000) * total;
+    let id = list[list.length - 1][0];
+    for (const [k, w] of list) {
+      if (r < w) {
+        id = k;
+        break;
+      }
+      r -= w;
+    }
+    const grade = rollGrade(this.cfg.prog.grades, this.rand);
+    const { item } = this.econ.grant(p, id, 'normal', null, grade);
+    return { iid: item.iid, itemId: id, grade, variant: 'normal' };
+  }
+
   roll(p: OnlinePlayer, crateId: string, count: number, mods: RollMods = {}): RollBatch {
     const base = this.cfg.crateById.get(crateId);
     if (!base) throw new GameError('Unknown crate.');
@@ -76,7 +96,9 @@ export class Gacha {
         const { item, isNew } = this.econ.grant(p, o.itemId, o.variant, serial, grade);
         this.repos.rolls.log(p.id, crate.id, o.itemId, o.tier, o.variant, serial);
         pity = nextPity(this.cfg.rarities, pity, o.tierIndex);
-        results.push({ iid: item.iid, itemId: o.itemId, tier: o.tier, variant: o.variant, grade, serial, oneIn: o.oneIn, pity: o.pity, isNew });
+        // 🧪 Now and then a bonus potion comes with it (the item odds above don't change).
+        const bonus = this.bonusPotion(p, crate);
+        results.push({ iid: item.iid, itemId: o.itemId, tier: o.tier, variant: o.variant, grade, serial, oneIn: o.oneIn, pity: o.pity, isNew, ...(bonus ? { bonus } : {}) });
       }
       p.pity = { ...p.pity, [crate.id]: pity };
 
