@@ -1,5 +1,5 @@
 // Bakes a character into a spritesheet canvas, drawn at 2× for sharp phones.
-// Frame layout:
+// Frame numbers (a texture holds some of them; see BASE_FRAMES and renderFrames):
 //   0-5   front: idle0 idle1 walk0..3      6-11 back      12-17 side (faces left)
 //   18+   emotes (front view), 4 frames each, in EMOTE_ORDER
 //   then  riding: front, back, side (hands forward on the handlebar / holding the rider)
@@ -130,14 +130,26 @@ export function poseForFrame(i: number): Pose {
   return EMOTE_POSES[EMOTE_ORDER[e]]?.[(i - 18) % 4] ?? { view: 'front' };
 }
 
-export function renderSheet(a: Appearance, cfg: CharacterConfig, worn?: WornCosmetics): HTMLCanvasElement {
+/** The frames everyone needs (standing, walking, riding). Emotes are drawn on first use: they
+ *  were two thirds of a 4.6 MB sheet that most characters (passers-by) never play. */
+export const BASE_FRAMES: number[] = [...Array.from({ length: 18 }, (_, i) => i), RIDE_BASE, RIDE_BASE + 1, RIDE_BASE + 2];
+
+/** Where frame `j` of a strip sits in the canvas from renderFrames (its j-th frame). */
+export function frameCell(j: number): [number, number] {
+  return [(j % COLS) * FRAME_PX_W, Math.floor(j / COLS) * FRAME_PX_H];
+}
+
+/** Bakes the given frames (numbers as in the layout above) into a canvas, COLS a row, in that order. */
+export function renderFrames(a: Appearance, cfg: CharacterConfig, worn: WornCosmetics | undefined, frames: number[]): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = COLS * FRAME_PX_W;
-  canvas.height = Math.ceil(FRAME_COUNT / COLS) * FRAME_PX_H;
+  canvas.width = Math.min(COLS, frames.length) * FRAME_PX_W;
+  canvas.height = Math.ceil(frames.length / COLS) * FRAME_PX_H;
   const ctx = canvas.getContext('2d')!;
-  for (let i = 0; i < FRAME_COUNT; i++) {
+  for (let j = 0; j < frames.length; j++) {
+    const i = frames[j];
+    const [cx, cy] = frameCell(j);
     ctx.save();
-    ctx.translate((i % COLS) * FRAME_PX_W, Math.floor(i / COLS) * FRAME_PX_H);
+    ctx.translate(cx, cy);
     ctx.scale(RES, RES);
     ctx.beginPath();
     ctx.rect(0, 0, FRAME_W, FRAME_H);

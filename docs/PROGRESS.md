@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-23 (v1.40.0)_
+_Last updated: 2026-11-24 (v1.40.1)_
 
-**Now at v1.40.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.40.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 462 unit tests (2026-11-23, v1.40.0) |
+| `npm test` (Vitest) | ✅ 462 unit tests (2026-11-24, v1.40.1) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -50,6 +50,40 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 🧠 Running in ~500 MB free memory (2026-11-24, your request, v1.40.1)
+Measured with Chromium (software GPU, 1366×768, no other players) and the built server on a copy of the real DB.
+Chromium alone (blank WebGL page) is ~200 MB in this setup.
+
+| | Before | After (Low, default) | After (Very low) |
+|---|---|---|---|
+| Browser total (all processes) | ~800–850 MB | ~590–615 MB | ~575–605 MB |
+| Character pictures | 84 MB | 28 MB | 30 MB (fewer faces, see below) |
+| Hidden text-label canvases | 685 (31 MB + GPU copies + ~20 MB font caches) | 151 (7 MB) | 151 |
+| Server (`npm start` chain) | npm 59 + cross-env 22 + node 157–176 = **~257 MB** | `start.cmd`: node **~135–138 MB** | |
+
+What changed:
+- **FOR SALE / owner signs (537 of them)** are made only when they come near the screen and destroyed when
+  far away (`Culler.addLazy`). Before, each one was a hidden canvas + a GPU picture all session.
+- **Character pictures:** walking, standing and riding only (`BASE_FRAMES`, 1.5 MB); each emote's 4 frames are
+  drawn on first use as `<sheet>:emo_<id>` (`ensureEmote`), swept away with the sheet. Was 4.6 MB a look.
+- **Crowd faces:** passers-by, stall customers and cooks share a pool of looks (`client/src/character/crowd.ts`:
+  6 / 10 / 24 by memory setting). Named NPCs keep their faces, except in Very low.
+- **Lofi music:** 16 kHz and 24 bars a piece (it goes through a 2.4 kHz low-pass anyway): ~10 MB, was ~19 MB.
+- **Settings → Memory → "Very low (PC with ~500 MB free)":** map at 1 texel per pixel, 20 MB chunk budget,
+  less drawn ahead, canvas capped at ~1.1 M pixels, 6 crowd faces.
+- **Server:** `start.cmd` (double-click) runs `node --max-semi-space-size=2 server/dist/index.js` directly:
+  no npm or cross-env processes (~80 MB), and Node's young generation capped (it reserves ~64 MB on big-RAM
+  PCs). `npm start` uses the same flag without cross-env. `NODE_ENV` defaults to production when run from `dist`.
+  `KH_CLIENT_DIST` lets a test server serve a client built elsewhere. Probe: `test-results/memlow.cjs` (MEM=tiny).
+
+Honest limit: with a software GPU the browser's floor is ~200 MB before the game. On a real graphics card the
+pictures move to video memory, so the RAM cost is lower than the table. A browser with other tabs open costs more.
+
+**Decisions:** map tree layers stay full-size (cropping them is a bigger refactor for a few MB); character
+pictures stay at 2× (lower would blur on phones).
 
 ---
 

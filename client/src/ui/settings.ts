@@ -14,7 +14,7 @@ export interface Prefs {
   /** Rendering sharpness: auto (phones ≤ 2×), high (up to 3×), saver (1.25×, for battery / old phones). */
   quality: 'auto' | 'high' | 'saver';
   /** 🧠 Memory use: low (the default: fewer, slightly softer map pictures, for 8 GB PCs and phones) or normal. */
-  memory: 'low' | 'normal';
+  memory: 'tiny' | 'low' | 'normal';
   /** ⚔️ Labirin fights: pixel art (like the dungeon; the default), 3D models, or the flat cards (fastest). */
   fightView: 'pixel' | '3d' | 'cards';
   /** Coin sounds when money comes in or you pay. */
@@ -157,7 +157,7 @@ export function openSettings(opts: {
   });
 
   const memory = el('select', { 'aria-label': 'Memory use' },
-    ...([['low', 'Low (8 GB PCs, phones)'], ['normal', 'Normal (sharper map)']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.memory === v }, label)));
+    ...([['tiny', 'Very low (PC with ~500 MB free)'], ['low', 'Low (8 GB PCs, phones)'], ['normal', 'Normal (sharper map)']] as const).map(([v, label]) => el('option', { value: v, selected: prefs.memory === v }, label)));
   memory.addEventListener('change', () => {
     prefs.memory = memory.value as Prefs['memory'];
     savePrefs(prefs);

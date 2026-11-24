@@ -3,7 +3,8 @@
 // night, and the day/night tint over the whole town.
 import { loadPrefs } from '../ui/settings';
 import Phaser from 'phaser';
-import { darkness, formatMoneyExact, gameTime, randomAppearance, setBoxes, stallFootprint, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
+import { darkness, formatMoneyExact, gameTime, setBoxes, stallFootprint, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
+import { crowdLook } from '../character/crowd';
 import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
@@ -32,17 +33,6 @@ interface PlotView {
   lights: Array<{ img: Phaser.GameObjects.Image; k: number; phase: number }>;
 }
 
-/** Small deterministic PRNG so every screen draws the same customer. */
-function seeded(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const hashColor = (s: string) => {
   let h = 0;
@@ -161,7 +151,7 @@ export class StallLayer {
         const [dx, dy] = (STAFF_SPOTS[plot.tier] ?? STAFF_SPOTS[1])[list.length];
         const seed = (s!.owner * 7919 + list.length * 104729) >>> 0;
         const avatar = new Avatar(this.scene, this.app.cfg.character, this.app.items, {
-          name: 'Cook', level: 1, appearance: randomAppearance(this.app.cfg.character, seeded(seed)), x: plot.x * T + dx, y: plot.y * T + dy, isSelf: false, npc: true, particles: false,
+          name: 'Cook', level: 1, appearance: crowdLook(this.app.cfg.character, seed), x: plot.x * T + dx, y: plot.y * T + dy, isSelf: false, npc: true, particles: false,
         });
         avatar.setState('down', false);
         const icon = this.scene.add
@@ -213,7 +203,7 @@ export class StallLayer {
   private popSum = 0;
 
   private spawn(c: StallCustomer, plot: Plot, tx: number, ty: number): Customer {
-    const a = randomAppearance(this.app.cfg.character, seeded(c.seed));
+    const a = crowdLook(this.app.cfg.character, c.seed);
     const sx = tx + plot.queueStep[0] * this.T * 6 + this.T * 2;
     const sy = ty + plot.queueStep[1] * this.T * 6 + this.T * 2;
     const avatar = new Avatar(this.scene, this.app.cfg.character, this.app.items, { name: '', level: 1, appearance: a, x: sx, y: sy, isSelf: false, npc: true, particles: false });

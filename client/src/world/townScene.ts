@@ -23,7 +23,7 @@ import { MapView } from './mapRenderer';
 import { StallLayer } from './stallLayer';
 import { ParkedLayer } from './parkedLayer';
 import { NpcLayer } from './npcLayer';
-import { Culler } from './culler';
+import { Culler, type LazyItem } from './culler';
 import { Collectors } from './collectors';
 import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
@@ -1369,7 +1369,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
   private culler = new Culler();
   /** What the home signs last showed: they're only redrawn when ownership changes. */
   private homeSignsKey = '';
-  private homeSigns = new Map<string, Phaser.GameObjects.Text>();
+  private homeSigns = new Map<string, LazyItem<Phaser.GameObjects.Text>>();
 
   /** 🏷️ FOR SALE / 🏠 owner signs at every home building's door (refreshed when owners change).
    *  Shoplots get none (their lofts' sale shows in the door prompt only), except 🏠 YOUR HOME. */
@@ -1398,31 +1398,42 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       const shoplot = shoplots.has(bid);
       const text = mine ? '🏠 YOUR HOME' : free === units.length ? (units.length > 1 ? `🏷️ FOR SALE · ${free} units` : '🏷️ FOR SALE') : free ? `🏷️ ${free} FOR SALE` : `🏠 ${owners[0]?.ownerName ?? ''}`;
       const color = mine ? '#8ce99a' : free ? '#ffe066' : '#a5d8ff';
-      let t = this.homeSigns.get(bid);
-      if (!t) {
+      const look = { text, color: mine ? '#ffffff' : color, mine };
+      this.homeSignLook.set(bid, look);
+      let sign = this.homeSigns.get(bid);
+      if (!sign) {
         const u = units[0];
-        t = this.add
-          .text(u.x * T, u.y * T - 30, text, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '900', color, backgroundColor: 'rgba(17,19,31,0.75)', padding: { x: 6, y: 3 }, resolution: 2 })
-          .setOrigin(0.5, 1)
-          .setDepth(998_000);
-        this.homeSigns.set(bid, t);
-        this.culler.add(t, u.x * T, u.y * T - 30, 120);
+        const x = u.x * T, y = u.y * T - 30;
+        // Made only near the screen (see Culler.addLazy): 500+ of these, each its own canvas.
+        sign = this.culler.addLazy(() => {
+          const t = this.add.text(x, y, '', { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '900', resolution: 2 }).setOrigin(0.5, 1);
+          this.styleHomeSign(t, this.homeSignLook.get(bid)!);
+          return t;
+        }, x, y, 120);
+        this.homeSigns.set(bid, sign);
       }
-      // Restyling a Text re-renders it, so only when it changed.
-      if (t.text !== text) t.setText(text);
-      // Yours stands out: a bigger green sign, drawn above the FOR SALE signs around it.
-      const look = mine ? 'mine' : 'other';
-      if (t.getData('look') !== look) {
-        t.setData('look', look);
-        t.setFontSize(mine ? 16 : 12);
-        t.setBackgroundColor(mine ? 'rgba(43,138,62,0.95)' : 'rgba(17,19,31,0.75)');
-        t.setPadding(mine ? 9 : 6, mine ? 5 : 3);
-        t.setDepth(mine ? 998_600 : 998_000);
+      const enabled = !(kopi.has(bid) || (shoplot && !mine));
+      if (sign.enabled !== enabled) {
+        sign.enabled = enabled;
+        this.culler.recheck();
       }
-      const want = mine ? '#ffffff' : color;
-      if (t.style.color !== want) t.setColor(want);
-      t.setAlpha(kopi.has(bid) || (shoplot && !mine) ? 0 : 1);
+      if (sign.obj) this.styleHomeSign(sign.obj, look);
     }
+  }
+  private homeSignLook = new Map<string, { text: string; color: string; mine: boolean }>();
+  private styleHomeSign(t: Phaser.GameObjects.Text, look: { text: string; color: string; mine: boolean }) {
+    // Restyling a Text re-renders it, so only when it changed.
+    if (t.text !== look.text) t.setText(look.text);
+    // Yours stands out: a bigger green sign, drawn above the FOR SALE signs around it.
+    const kind = look.mine ? 'mine' : 'other';
+    if (t.getData('look') !== kind) {
+      t.setData('look', kind);
+      t.setFontSize(look.mine ? 16 : 12);
+      t.setBackgroundColor(look.mine ? 'rgba(43,138,62,0.95)' : 'rgba(17,19,31,0.75)');
+      t.setPadding(look.mine ? 9 : 6, look.mine ? 5 : 3);
+      t.setDepth(look.mine ? 998_600 : 998_000);
+    }
+    if (t.style.color !== look.color) t.setColor(look.color);
   }
 
   private updateMarker(target: { x: number; y: number } | null) {

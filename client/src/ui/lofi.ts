@@ -27,9 +27,11 @@ const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];
 
 const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
 
-/** Bars in one recorded piece (~107 s at 72 BPM); two pieces alternate. */
-const BARS = 32;
-const SAMPLE_RATE = 22050;
+/** Bars in one recorded piece (~80 s at 72 BPM); two pieces alternate. */
+const BARS = 24;
+/** Everything goes through a 2.4 kHz low-pass, so 16 kHz loses nothing you'd hear. Each piece
+ *  is ~5 MB of memory for as long as the page is open (it was ~9.4 MB at 22 kHz and 32 bars). */
+const SAMPLE_RATE = 16000;
 
 /** Let the game draw a frame (setting up a piece is a lot of work; slow phones would freeze). */
 const breather = () => new Promise<void>((r) => setTimeout(r, 0));

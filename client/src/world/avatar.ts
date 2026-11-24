@@ -1,7 +1,7 @@
 // A character in the world: baked spritesheet + nameplate + speech bubble + emotes.
 import Phaser from 'phaser';
 import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
-import { EMOTE_FRAMES, FRAME_COUNT, FRAME_PX_H, FRAME_PX_W, COLS, idleFrames, ORIGIN_Y, RES, renderSheet, rideFrames, walkFrames } from '../character/sheet';
+import { BASE_FRAMES, EMOTE_FRAMES, FRAME_PX_H, FRAME_PX_W, frameCell, idleFrames, ORIGIN_Y, RES, renderFrames, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import type { SeatInfo, VehicleLook } from '@kh/shared';
 import { hasDriver, riderOffset, vehicleFit, vehicleOriginY, vehicleTexturePrefix } from '../items/vehicleArt';
@@ -29,22 +29,35 @@ export function wornFrom(cos: Cosmetics, items: Map<string, ItemDef>): WornCosme
 
 const VIEW_OF: Record<Direction, View> = { down: 'front', up: 'back', left: 'side', right: 'side' };
 
+/** What each character texture was drawn from: its emotes are drawn from it on first use. */
+const looks = new Map<string, { a: Appearance; cfg: CharacterConfig; worn: WornCosmetics }>();
+
+/** Bakes `frames` into a texture named `key` (frames keep their numbers). */
+function bakeFrames(scene: Phaser.Scene, key: string, look: { a: Appearance; cfg: CharacterConfig; worn: WornCosmetics }, frames: number[], head = false) {
+  const canvas = renderFrames(look.a, look.cfg, look.worn, frames);
+  const tex = addCanvasTexture(scene, key, canvas)!;
+  frames.forEach((f, j) => {
+    const [x, y] = frameCell(j);
+    tex.add(f, 0, x, y, FRAME_PX_W, FRAME_PX_H);
+  });
+  // With WebGL the picture is on the graphics card now (a lost context reloads the page), so the
+  // copy in memory is only needed for the head badge: make that now and let the copy go.
+  if (scene.sys.renderer.type === Phaser.WEBGL) {
+    if (head) headTexture(scene, key);
+    canvas.width = canvas.height = 0;
+  }
+}
+
 /** Creates (once) the texture + animations for an appearance. Returns the texture key. */
 export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: CharacterConfig, worn: WornCosmetics = {}): string {
   const wornKey = [worn.hat, worn.face, worn.back].map((w) => (w ? `${w.shape}.${w.paint.c1}.${w.paint.variant}` : '-')).join('|');
   const key = `char_${appearanceKey(a)}_${appearanceKey({ wornKey } as unknown as Appearance)}`;
   if (scene.textures.exists(key)) return key;
-  const sheet = renderSheet(a, cfg, worn);
-  const tex = addCanvasTexture(scene, key, sheet)!;
-  for (let i = 0; i < FRAME_COUNT; i++) {
-    tex.add(i, 0, (i % COLS) * FRAME_PX_W, Math.floor(i / COLS) * FRAME_PX_H, FRAME_PX_W, FRAME_PX_H);
-  }
-  // With WebGL the sheet is on the graphics card now (a lost context reloads the page), so the
-  // ~4.6 MB copy in memory is only needed for the head badge: make that now and let the copy go.
-  if (scene.sys.renderer.type === Phaser.WEBGL) {
-    headTexture(scene, key);
-    sheet.width = sheet.height = 0;
-  }
+  // Forget looks whose pictures were swept away (perf/memory.ts), so this stays small.
+  if (looks.size > 48) for (const k of [...looks.keys()]) if (!scene.textures.exists(k)) looks.delete(k);
+  const look = { a, cfg, worn };
+  looks.set(key, look);
+  bakeFrames(scene, key, look, BASE_FRAMES, true);
   const mk = (name: string, frames: number[], frameRate: number, repeat = -1) =>
     scene.anims.create({ key: `${key}:${name}`, frames: frames.map((f) => ({ key, frame: f })), frameRate, repeat });
   for (const view of ['front', 'back', 'side'] as View[]) {
@@ -52,9 +65,23 @@ export function ensureCharacterTexture(scene: Phaser.Scene, a: Appearance, cfg: 
     mk(`walk_${view}`, walkFrames(view), 9);
     mk(`ride_${view}`, rideFrames(view), 1);
   }
-  const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sitside: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
-  for (const [id, frames] of Object.entries(EMOTE_FRAMES)) mk(`emote_${id}`, frames, EMOTE_FPS[id] ?? 5);
   return key;
+}
+
+const EMOTE_FPS: Record<string, number> = { manifest: 3, dance: 6, cry: 4, sit: 1.5, sitside: 1.5, sleep: 1.5, clap: 8, cheer: 6, wave: 6, laugh: 7, flex: 4, salam: 3 };
+
+/** An emote's 4 frames, drawn the first time someone with this look plays it (its own small
+ *  texture, `<sheet>:emo_<id>`, swept away together with the sheet). Returns the animation key. */
+export function ensureEmote(scene: Phaser.Scene, texKey: string, id: string): string {
+  const anim = `${texKey}:emote_${id}`;
+  if (scene.anims.exists(anim)) return anim;
+  const look = looks.get(texKey);
+  const frames = EMOTE_FRAMES[id];
+  if (!look || !frames) return anim;
+  const key = `${texKey}:emo_${id}`;
+  if (!scene.textures.exists(key)) bakeFrames(scene, key, look, frames);
+  scene.anims.create({ key: anim, frames: frames.map((f) => ({ key, frame: f })), frameRate: EMOTE_FPS[id] ?? 5, repeat: -1 });
+  return anim;
 }
 
 /** The Ronda rider (an NPC drawn with the normal character renderer): green jersey and cap, shades. */
@@ -513,7 +540,7 @@ export class Avatar {
       return;
     }
     let key: string;
-    if (this.emoteUntil && !this.vehicle) key = `${this.texKey}:emote_${this.emoteId}`;
+    if (this.emoteUntil && !this.vehicle) key = ensureEmote(this.scene, this.texKey, this.emoteId);
     // On a bike: the riding pose (hands on the handlebar, or holding on to the Ronda rider).
     else if (this.vehicle) key = `${this.texKey}:ride_${this.diag && !this.driver ? 'side' : VIEW_OF[this.dir]}`;
     else key = `${this.texKey}:${this.moving ? 'walk' : 'idle'}_${VIEW_OF[this.dir]}`;

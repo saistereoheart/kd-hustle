@@ -46,7 +46,9 @@ function renderDpr(): number {
   const q = loadPrefs().quality;
   const cap = q === 'saver' ? 1 : q === 'high' ? 3 : isTouchDevice() ? 2 : 3;
   const dpr = Math.min(cap, window.devicePixelRatio || 1);
-  const budget = Math.sqrt((q === 'high' ? 8_300_000 : 3_700_000) / Math.max(1, innerWidth * innerHeight));
+  // (Memory "Very low" caps the canvas too: the screen picture and its copies live on the graphics card.)
+  const pixels = Math.min(q === 'high' ? 8_300_000 : 3_700_000, memoryBudget().maxPixels);
+  const budget = Math.sqrt(pixels / Math.max(1, innerWidth * innerHeight));
   const full = q === 'high' ? Math.max(1, Math.min(dpr, budget)) : Math.min(Math.max(1, dpr), budget);
   return Math.max(0.5, full * governor.scale);
 }
@@ -84,7 +86,7 @@ import { setPetCharacterConfig } from './items/petArt';
 import { setMonsterLooks } from './ui/lab/monsterLooks';
 import type { ShopView } from '@kh/shared';
 import { staffName, type ShopCtx } from './world/shopFloor';
-import { startMemoryWatch } from './perf/memory';
+import { memoryBudget, startMemoryWatch } from './perf/memory';
 
 export class App {
   cfg!: PublicConfig;

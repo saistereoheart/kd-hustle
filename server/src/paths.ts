@@ -12,7 +12,8 @@ export function getPaths() {
     sharedConfig: path.join(ROOT, 'shared', 'config'),
     mapDir: path.join(ROOT, 'shared', 'map'),
     clientRoot: path.join(ROOT, 'client'),
-    clientDist: path.join(ROOT, 'client', 'dist'),
+    // (Tests can serve a client built somewhere else, so a running game's build is left alone.)
+    clientDist: path.resolve(ROOT, process.env.KH_CLIENT_DIST || 'client/dist'),
     dataDir: path.resolve(ROOT, process.env.KH_DATA_DIR || 'server/data'),
     // A test server with its own data dir backs up inside it, never into the real backups (whose
     // rotation would then delete real ones).

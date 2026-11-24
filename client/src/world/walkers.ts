@@ -2,7 +2,8 @@
 // asked) and disappears at the end (into a shop's door, or out of one). Purely for show: the
 // customers that matter are the server's (kopitiam orders) or just numbers (Ventures).
 import type Phaser from 'phaser';
-import { randomAppearance, type CharacterConfig, type ItemDef } from '@kh/shared';
+import type { CharacterConfig, ItemDef } from '@kh/shared';
+import { crowdLook } from '../character/crowd';
 import { Avatar } from './avatar';
 
 interface Step {
@@ -28,17 +29,6 @@ interface Walker {
   onLeave: ((av: Avatar) => void) | null;
 }
 
-function seeded(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export class Walkers {
   private list: Walker[] = [];
   private last = 0;
@@ -61,7 +51,7 @@ export class Walkers {
   walk(from: { x: number; y: number }, steps: Step[], seed = Math.floor(Math.random() * 1e9), done?: () => void): boolean {
     if (this.list.length >= this.max || !steps.length) return false;
     const av = new Avatar(this.scene, this.character, this.items, {
-      name: '', level: 1, appearance: randomAppearance(this.character, seeded(seed)), x: from.x, y: from.y, isSelf: false, npc: true, particles: false,
+      name: '', level: 1, appearance: crowdLook(this.character, seed), x: from.x, y: from.y, isSelf: false, npc: true, particles: false,
     });
     av.container.setAlpha(0);
     this.scene.tweens.add({ targets: av.container, alpha: 1, duration: 300 });

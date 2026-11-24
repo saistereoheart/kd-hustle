@@ -58,6 +58,10 @@ npm start          # production: the server also serves the game
 # or, while developing:
 npm run dev        # server + client with hot reload on one port
 ```
+**Low on memory?** On Windows, double-click `start.cmd` instead of `npm start` (same server, ~80 MB less: no npm
+process in between). On any OS: `node --max-semi-space-size=2 server/dist/index.js`. In the game, Settings →
+Memory → *Very low* is for a PC with only ~500 MB free.
+
 The server prints the address to open, e.g. `Players join at: http://192.168.1.23:3000`. Open it on any phone or
 laptop on the same WiFi. If port 3000 is busy, the server picks the next free port and prints it. To force a port,
 copy `.env.example` to `.env` and set `PORT`.

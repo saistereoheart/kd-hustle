@@ -2,7 +2,10 @@
 //
 // A web page can't set a hard limit on its own memory, so the game keeps itself inside a budget:
 //  - Settings → Memory: "Low" (the default) keeps fewer, slightly softer map pictures; "Normal" is
-//    the old, sharper map that uses about twice as much.
+//    the old, sharper map that uses about twice as much; "Very low" is for a PC with ~500 MB free.
+//  - Signs over buildings are only made when they come near the screen (each text label is its own
+//    canvas plus a picture on the graphics card, even while hidden: 500+ FOR SALE signs cost ~80 MB).
+//  - A character picture holds walking, standing and riding; each emote is drawn on first use.
 //  - Pictures that nobody on screen uses any more (a character's old outfit sheet, ~4.6 MB each,
 //    and the vehicle pictures for an old paint job) are removed after a minute. Before, every
 //    outfit change by any player made a new sheet that stayed for the rest of the session.
@@ -23,13 +26,21 @@ export interface MemoryBudget {
   textureMB: number;
   /** JS memory (MB, where the browser tells us) that means something is leaking: reload. */
   heapMB: number;
+  /** How many different faces the passers-by, customers and cooks share (each look is one picture). */
+  crowdLooks: number;
+  /** The most canvas pixels the game draws (the screen picture lives on the graphics card). */
+  maxPixels: number;
 }
 
-const LOW: MemoryBudget = { chunkMB: 48, maxChunkRes: 1.25, prefetch: 0.6, textureMB: 320, heapMB: 1100 };
-const NORMAL: MemoryBudget = { chunkMB: 112, maxChunkRes: 2.5, prefetch: 1.1, textureMB: 700, heapMB: 2000 };
+// "Very low" is for a PC with only ~500 MB free: the map at one texel per world pixel, fewer chunks
+// drawn ahead of you, the crowd sharing 6 faces and the canvas capped near 1366 × 768 pixels.
+const TINY: MemoryBudget = { chunkMB: 20, maxChunkRes: 1, prefetch: 0.35, textureMB: 140, heapMB: 600, crowdLooks: 6, maxPixels: 1_100_000 };
+const LOW: MemoryBudget = { chunkMB: 48, maxChunkRes: 1.25, prefetch: 0.6, textureMB: 320, heapMB: 1100, crowdLooks: 10, maxPixels: 3_700_000 };
+const NORMAL: MemoryBudget = { chunkMB: 112, maxChunkRes: 2.5, prefetch: 1.1, textureMB: 700, heapMB: 2000, crowdLooks: 24, maxPixels: 3_700_000 };
 
 export function memoryBudget(): MemoryBudget {
-  return loadPrefs().memory === 'normal' ? NORMAL : LOW;
+  const m = loadPrefs().memory;
+  return m === 'normal' ? NORMAL : m === 'tiny' ? TINY : LOW;
 }
 
 // ------------------------------------------------------------------ pictures that can go

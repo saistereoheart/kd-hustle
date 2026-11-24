@@ -4,6 +4,8 @@ import Phaser from 'phaser';
 import { buildNpcRoutes, npcPose, randomAppearance, seededRandom, type NpcRoute } from '@kh/shared';
 import type { App } from '../app';
 import { Avatar } from './avatar';
+import { crowdLook } from '../character/crowd';
+import { loadPrefs } from '../ui/settings';
 
 interface Npc {
   route: NpcRoute;
@@ -24,7 +26,8 @@ export class NpcLayer {
   constructor(private scene: Phaser.Scene, private app: App) {
     const cfg = app.cfg;
     for (const route of buildNpcRoutes(app.map, cfg.npcs)) {
-      const look = randomAppearance(cfg.character, seededRandom(424242 + route.id * 101));
+      // (Memory "Very low": they share the crowd's few faces too; each face is ~1.5 MB of pictures.)
+      const look = loadPrefs().memory === 'tiny' ? crowdLook(cfg.character, route.id) : randomAppearance(cfg.character, seededRandom(424242 + route.id * 101));
       const avatar = new Avatar(scene, cfg.character, app.items, { name: route.name, level: 1, appearance: look, x: 0, y: 0, isSelf: false, npc: true });
       const tag = scene.add
         .text(0, 0, route.name, { fontFamily: 'system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#c5f6fa', stroke: '#11131f', strokeThickness: 3, resolution: 2 })

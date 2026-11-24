@@ -5,6 +5,7 @@
 // server's (kopitiam orders, Venture income). Everyone walking in sees this, the owner too.
 import Phaser from 'phaser';
 import { randomAppearance, starterShopSets, type Placed } from '@kh/shared';
+import { crowdLook } from '../character/crowd';
 import type { App } from '../app';
 import { furniturePiece } from '../items/furnitureArt';
 import { loadPrefs } from '../ui/settings';
@@ -222,7 +223,7 @@ export class ShopFloor {
     for (let i = 0; i < n; i++) {
       const x = stoves[Math.floor((i + 0.5) * (stoves.length / n))] ?? stoves[0];
       const av = new Avatar(this.scene, this.app.cfg.character, this.app.items, {
-        name: '', level: 1, appearance: randomAppearance(this.app.cfg.character, r), x, y: this.my(-SERVICE_ROWS * C + C * 1.55), isSelf: false, npc: true, particles,
+        name: '', level: 1, appearance: crowdLook(this.app.cfg.character, Math.floor(r() * 1e9)), x, y: this.my(-SERVICE_ROWS * C + C * 1.55), isSelf: false, npc: true, particles,
       });
       av.setState(this.back, false);
       this.cooks.push({ av, stoves, target: x, until: performance.now() + 2000 + i * 1500 });
