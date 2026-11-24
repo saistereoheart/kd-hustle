@@ -2,6 +2,7 @@
 import { formatMoney, gradeDef, type VisitPrefs } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { starName } from '../stars';
 import { itemCard } from '../panel';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
@@ -62,7 +63,7 @@ export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
       });
       grid.append(c);
     }
-    return [back, el('h4', { class: 'phone-section' }, `🎁 Pick an item for ${to.name}`), grid];
+    return [back, el('h4', { class: 'phone-section' }, `🎁 Pick an item for ${starName(to.name)}`), grid];
   }
   if (!list.length) return [el('p', { class: 'muted' }, 'Nobody else is online right now.')];
   return list.map((p) => {
@@ -104,7 +105,7 @@ export function renderPlayers({ app, rerender }: PhoneCtx): HTMLElement[] {
       'div',
       { class: 'job-card', 'data-player': String(p.id) },
       el('div', { class: 'job-icon' }, '👤'),
-      el('div', { class: 'job-info' }, el('h4', {}, p.name, el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, flip, money, item, visit, gate)),
+      el('div', { class: 'job-info' }, el('h4', {}, starName(p.name), el('span', { class: 'lv-badge' }, `Lv ${p.level}`)), el('div', { class: 'biz-actions' }, trade, flip, money, item, visit, gate)),
     );
   });
 }

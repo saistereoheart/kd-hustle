@@ -2,6 +2,7 @@
 // from, active potions and lifetime stats.
 import { formatMoney, levelInfo } from '@kh/shared';
 import { el } from '../dom';
+import { starName } from '../stars';
 import type { PhoneCtx } from './phone';
 
 const STAT_LABELS: Array<[string, string, 'n' | 'money' | 'min']> = [
@@ -61,7 +62,7 @@ export function renderProfile({ app }: PhoneCtx): HTMLElement[] {
   }
 
   return [
-    el('div', { class: 'profile-head' }, el('span', { class: 'lv-badge big' }, `Lv ${pr.level}`), el('div', {}, el('div', { class: 'profile-name' }, app.lastInit?.you.name ?? ''), el('div', { class: 'muted small' }, info.maxed ? 'Max level!' : `${info.into.toLocaleString('en-US')} / ${info.need.toLocaleString('en-US')} XP to Level ${pr.level + 1}`))),
+    el('div', { class: 'profile-head' }, el('span', { class: 'lv-badge big' }, `Lv ${pr.level}`), el('div', {}, el('div', { class: 'profile-name' }, starName(app.lastInit?.you.name)), el('div', { class: 'muted small' }, info.maxed ? 'Max level!' : `${info.into.toLocaleString('en-US')} / ${info.need.toLocaleString('en-US')} XP to Level ${pr.level + 1}`))),
     xpBar,
     el('h4', { class: 'phone-section' }, `💰 Net worth ${formatMoney(snap.netWorthSen)}`),
     el('p', { class: 'muted small' }, 'Cash + what your items would sell for at the pawn shop. Your wealth stage never goes back down.'),

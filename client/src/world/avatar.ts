@@ -1,6 +1,6 @@
 // A character in the world: baked spritesheet + nameplate + speech bubble + emotes.
 import Phaser from 'phaser';
-import { hasVariant, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
+import { hasVariant, rebirthStars, topVariant, appearanceKey, type Appearance, type CharacterConfig, type Cosmetics, type Direction, type ItemDef } from '@kh/shared';
 import { BASE_FRAMES, EMOTE_FRAMES, FRAME_PX_H, FRAME_PX_W, frameCell, idleFrames, ORIGIN_Y, RES, renderFrames, rideFrames, walkFrames } from '../character/sheet';
 import type { View, WornCosmetics } from '../character/draw';
 import type { SeatInfo, VehicleLook } from '@kh/shared';
@@ -9,6 +9,7 @@ import { is3dVehicle, isCarId } from '../items/carArt';
 import { addCanvasTexture } from './canvasTexture';
 import { drawPetStyled } from '../items/petArt';
 import { holdTexture } from '../perf/memory';
+import { starsOf } from '../ui/stars';
 
 /** Characters draw at AVATAR_DEPTH + feet y: above the ground (≈ -1000) and building labels
  *  (-900), below floating labels (999 000) and tree canopies (1 000 000), anywhere on the map. */
@@ -182,6 +183,8 @@ export class Avatar {
       this.badge.setVisible(false);
     }
     this.layoutNameplate();
+    // ⭐ A reborn player's stars, in every scene (town, homes, shops, the Labirin).
+    if (!opts.npc && starsOf(opts.name)) this.setRebirths(starsOf(opts.name));
     this.cosmetics = opts.cosmetics ?? {};
     this.setAppearance(opts.appearance);
     this.applyCosmeticExtras();
@@ -384,8 +387,7 @@ export class Avatar {
   /** Rebirth stars before the name: ⭐ (1), ⭐⭐ … up to 5, then ⭐×n. */
   setRebirths(n: number) {
     if (!this.baseName) this.baseName = this.nameText.text;
-    const stars = n <= 0 ? '' : n <= 5 ? '⭐'.repeat(n) + ' ' : `⭐×${n} `;
-    const text = stars + this.baseName;
+    const text = rebirthStars(n) + this.baseName;
     if (this.nameText.text !== text) {
       this.nameText.setText(text);
       this.layoutNameplate();

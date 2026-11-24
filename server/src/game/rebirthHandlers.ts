@@ -45,6 +45,17 @@ export function createRebirth(d: RebirthDeps) {
     return s;
   };
   const save = (p: OnlinePlayer) => d.repos.playerData.save(p.id, 'rebirth', of(p));
+  /** Everyone's rebirth count by name, online or not (⭐ by names everywhere: chat, signs, lists). */
+  let stars: Map<string, number> | null = null;
+  const starMap = (): Map<string, number> => {
+    if (stars) return stars;
+    stars = new Map();
+    for (const r of d.repos.playerData.all<Partial<RebirthState>>('rebirth')) {
+      const name = d.repos.accounts.byId(r.id)?.username;
+      if (name && (r.data.count ?? 0) > 0) stars.set(name, r.data.count!);
+    }
+    return stars;
+  };
 
   function view(p: OnlinePlayer): RebirthView {
     const s = of(p);
@@ -64,6 +75,8 @@ export function createRebirth(d: RebirthDeps) {
     const start = d.cfg.economy.startingWalletSen;
     d.resetSelf(p, start); // cash, items, Index, shards, skills, titles, jobs, stage → fresh; XP stays
     d.io.to(p.scene).emit('player:updated', { id: p.id, rebirths: s.count, title: null });
+    starMap().set(p.name, s.count);
+    d.io.emit('rebirth:stars', { name: p.name, count: s.count }); // every name label shows it
     const mult = rebirthCashMult(rc, s.count);
     d.announce(`⭐ ${p.name} was reborn! Rebirth #${s.count}: everything they earn now pays ×${mult}. A new life starts with ${formatMoney(start)}.`);
     return { count: s.count, mult };
@@ -82,6 +95,8 @@ export function createRebirth(d: RebirthDeps) {
       p.rebirths = of(p).count;
     },
     unload: (p: OnlinePlayer) => cache.delete(p.id),
+    /** For the init payload: name → rebirths, for everyone reborn at least once. */
+    stars: (): Record<string, number> => Object.fromEntries(starMap()),
     mods: (p: { id: number }) => rebirthMods(rc, of(p)),
     /** Offline income cap and rate. */
     offlineFor: (_p: OnlinePlayer) => d.cfg.economy.offline,

@@ -604,6 +604,8 @@ export interface InitPayload {
   parked: ParkedPublic[];
   /** Shoplots taken by Ventures. */
   shoplots: ShoplotPublic[];
+  /** ⭐ Rebirths by player name (only those reborn at least once): stars go by their name everywhere. */
+  stars?: Record<string, number>;
 }
 
 /** Compact snapshot row: [id, x, y, dirIndex, moving(0|1)], plus [rpm, eng] while driving a showroom vehicle. */
@@ -954,6 +956,8 @@ export interface ServerToClientEvents {
   event: (p: { event: ActiveEvent | null }) => void;
   /** Your rebirth state (count, cash multiplier). */
   'rebirth:self': (p: { view: RebirthView }) => void;
+  /** Someone was reborn: their stars by every name label. */
+  'rebirth:stars': (p: { name: string; count: number }) => void;
   /** Admins: a new 🐞 report arrived (`open` = unread reports). */
   'feedback:new': (p: { open: number }) => void;
   /** Pasar Online listings changed. */

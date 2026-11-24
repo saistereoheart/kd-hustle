@@ -10,6 +10,7 @@ import type { Appearance, LabBattleEnd, LabBattleView, LabEvent, LabFighter, Lab
 import { labElement, labGear, labSpell, wornBase } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay } from '../dom';
+import { starName } from '../stars';
 import { loadPrefs, savePrefs } from '../settings';
 import { sfx } from '../sound';
 import { statBar } from './statBar';
@@ -361,7 +362,7 @@ export class LabBattleUi {
       'div',
       { class: `lb-card ${f.side}${f.boss ? ' boss' : ''}${f.out ? ' out' : ''}${f.id === this.target ? ' aimed' : ''}${f.id === this.meId ? ' me' : ''}`, 'data-fighter': f.id },
       art,
-      el('div', { class: 'lb-info' }, el('b', {}, f.name, burning, ready), bar, mana, pips, stats),
+      el('div', { class: 'lb-info' }, el('b', {}, f.side === 'party' ? starName(f.name) : f.name, burning, ready), bar, mana, pips, stats),
     );
     if (f.side === 'foe' && !f.out) {
       c.addEventListener('click', () => {

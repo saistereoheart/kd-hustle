@@ -3,6 +3,7 @@
 import { formatMoney, gradeDef, gradeMult, itemValueSen, minNextBid, type MarketListing } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { starName } from '../stars';
 import { itemCard } from '../panel';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
@@ -67,7 +68,7 @@ function listingCard(app: App, l: MarketListing, rerender: () => void): HTMLElem
     el('div', { class: 'job-info' },
       el('h4', {}, def.name, el('span', { class: 'lv-badge' }, l.kind === 'fixed' ? 'Buy now' : `🔨 ${left(app, l.endsAt)}`)),
       el('div', { class: 'small' }, price),
-      el('div', { class: 'muted small' }, `${l.seller === me ? 'Your listing' : `by ${l.sellerName}`} · worth about ${formatMoney(value)}`),
+      el('div', { class: 'muted small' }, `${l.seller === me ? 'Your listing' : `by ${starName(l.sellerName)}`} · worth about ${formatMoney(value)}`),
       history.has(l.itemId) ? el('div', { class: 'muted small' }, history.get(l.itemId)!) : null,
       el('div', { class: 'biz-actions' }, ...btns)),
   );

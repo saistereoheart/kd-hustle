@@ -2,15 +2,15 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.40.1)_
+_Last updated: 2026-11-24 (v1.41.0)_
 
-**Now at v1.40.1 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.41.0 (local commits, not pushed). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | ✅ clean (shared, server, client, scripts) |
-| `npm test` (Vitest) | ✅ 462 unit tests (2026-11-24, v1.40.1) |
+| `npm test` (Vitest) | ✅ 464 unit tests (2026-11-24, v1.41.0) |
 | `npm run e2e` (Playwright: desktop + phone) | ⚠️ last full run 2026-11-19 (phases 1–4). Since then: targeted screenshot checks only |
 | `npm run sim` / `npm run sim:stall` | ✅ (2026-11-19) |
 | Real phone on the LAN | ⏳ needs you |
@@ -50,6 +50,22 @@ rounds below. The §19 content list is met, including 74 achievements.
   The browser tests run their own throwaway server on port 3101 with a database under `test-results/`.
 - **Commits are local only** (not pushed).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## ⭐ Rebirth stars by every name + the ×4 check (2026-11-24, your request, v1.41.0)
+- **Your ×4 is right; nothing changed.** Stall prices and tips are `base × (1 + bonuses) × 2^rebirths`
+  (`computeMods` → `stall.dishPrice`). With your real stall (tier 1, level 6, nasi lemak mastery 19), a perfect
+  nasi lemak works out to RM 70 at ×1, RM 140 at ×2 and **RM 281 at ×4**. Your perfect nasi lemak since rebirth #2
+  averaged RM 300 in the ledger (combo and tips add a bit). It feels low next to before because the rebirth
+  reset the stall, recipes, skills and gear, and the big numbers before came from upgrades and food bloggers.
+- **Stars everywhere a player's name shows:** nameplates in every scene (town, homes, shops, interiors, the
+  Labirin), chat, roll banners, the minimap, the Players and Boards apps, Pasar Online / Butik sellers, home
+  owner signs, other players' shop signs and door prompts, stall / food truck / kopitiam labels, the stall
+  panel, trades, blackjack seats, the Labirin party list, HUD and fight cards, visits, your profile.
+- How: the server sends everyone's rebirth count by name in `init` (`stars`) and broadcasts
+  `rebirth:stars` when someone is reborn; the client keeps them in `client/src/ui/stars.ts` (`starName`).
+  Text: shared `rebirthStars` (⭐ per rebirth up to 5, then ⭐×n).
 
 ---
 

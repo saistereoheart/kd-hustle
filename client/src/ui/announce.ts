@@ -4,6 +4,7 @@ import type { Announcement, RaritiesConfig, RollResult } from '@kh/shared';
 import { el, uiRoot } from './dom';
 import { loadPrefs } from './settings';
 import { sfx } from './sound';
+import { starName, starsOf } from './stars';
 
 let bannerBox: HTMLElement | null = null;
 
@@ -20,6 +21,8 @@ export function showAnnouncement(a: Announcement, rar: RaritiesConfig) {
   const box = bannerBox;
   const old = [...box.children].find((b) => (b as HTMLElement).dataset.who === who) as HTMLElement | undefined;
   old?.remove();
+  // ⭐ A reborn player's stars by their name.
+  if (a.playerName && starsOf(a.playerName) && !a.text.includes(starName(a.playerName))) a = { ...a, text: a.text.replace(a.playerName, starName(a.playerName)) };
   const banner = el('div', { class: `announce tier-${a.tier}`, 'data-testid': 'announce', 'data-who': who }, a.text);
   banner.style.setProperty('--tier', tier?.color ?? '#fcc419');
   box.prepend(banner);

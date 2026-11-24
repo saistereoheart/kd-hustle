@@ -3,6 +3,7 @@
 import { formatMoney, formatMoneyExact, gameTime, menuRecipes, rushHour, stallOpenNow, stockCount, tierDef, type DishState, type ServeResult } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast, uiRoot, keepUiState } from '../dom';
+import { starName } from '../stars';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 import { playDish, type CookStock } from './cook';
@@ -75,7 +76,7 @@ export function openStallPanel(app: App, plotId: string) {
     }
     if (!mine()) {
       panel.body.replaceChildren(
-        el('h4', {}, `${s.ownerName}'s ${tier.name}`),
+        el('h4', {}, `${starName(s.ownerName)}'s ${tier.name}`),
         el('p', {}, s.open ? `🟢 Open · ${s.queue.length} in the queue · ${stars(s.rep, app.cfg.stalls.reputation.max)}` : '🔴 Closed right now.'),
         el('p', { class: 'hint' }, "Buying food from friends' stalls arrives with trading in Phase 7."),
       );

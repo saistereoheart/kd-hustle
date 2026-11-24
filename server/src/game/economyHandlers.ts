@@ -1142,6 +1142,8 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       social.snapshot(p); // leaderboards keep you while you're offline
     },
     stallsPublic: () => stalls.all(),
+    /** ⭐ Everyone's rebirths by name (for the stars by names everywhere). */
+    rebirthStars: () => rebirth.stars(),
     shoplotsPublic: () => shoplots.public(),
     /** The clock jumped (night skipped): stalls open/close for the new hour right away. */
     clockJumped: () => stalls.tick(),

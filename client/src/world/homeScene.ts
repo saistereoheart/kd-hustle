@@ -13,6 +13,7 @@ import {
 import type { App } from '../app';
 import { drawPlaced, furniturePiece } from '../items/furnitureArt';
 import { el, toast, uiRoot } from '../ui/dom';
+import { starName } from '../ui/stars';
 import { iconUrl } from '../ui/panel';
 import { loadPrefs } from '../ui/settings';
 import { sfx } from '../ui/sound';
@@ -879,7 +880,7 @@ export class HomeScene extends Phaser.Scene {
     if (this.visit) {
       const v = this.visit;
       this.ui.replaceChildren(
-        el('span', { class: 'shop-stars' }, `★ ${v.stars.toFixed(1)} · ${v.ownerName}`),
+        el('span', { class: 'shop-stars' }, `★ ${v.stars.toFixed(1)} · ${starName(v.ownerName)}`),
         btn('🚪 Leave', () => this.leave(), 'btn', { 'data-testid': 'home-exit' }),
       );
       return;

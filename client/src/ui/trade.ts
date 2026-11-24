@@ -4,6 +4,7 @@
 import { formatMoney, gradeDef, gradeMult, itemValueSen, type InventoryItem, type TradeSide, type TradeView } from '@kh/shared';
 import type { App } from '../app';
 import { el, toast, uiRoot } from './dom';
+import { starName } from './stars';
 import { itemCard } from './panel';
 import { sfx } from './sound';
 
@@ -38,7 +39,7 @@ function sideEl(app: App, s: TradeSide, mine: boolean, onRemove?: (iid: number) 
   return el(
     'div',
     { class: `trade-side${s.locked ? ' locked' : ''}`, 'data-side': mine ? 'me' : 'them' },
-    el('h4', {}, mine ? 'You give' : `${s.name} gives`, el('span', { class: `lv-badge${s.locked ? ' good' : ''}` }, s.confirmed ? '✅ confirmed' : s.locked ? '🔒 locked' : 'editing')),
+    el('h4', {}, mine ? 'You give' : `${starName(s.name)} gives`, el('span', { class: `lv-badge${s.locked ? ' good' : ''}` }, s.confirmed ? '✅ confirmed' : s.locked ? '🔒 locked' : 'editing')),
     el('div', { class: 'item-grid small' }, ...s.items.map((i) => card(app, i, mine && onRemove ? () => onRemove(i.iid) : undefined))),
     s.sen ? el('div', { class: 'trade-money' }, `💵 ${formatMoney(s.sen)}`) : null,
     !s.items.length && !s.sen ? el('p', { class: 'muted small' }, 'Nothing yet.') : null,
@@ -85,7 +86,7 @@ export function showTrade(app: App, t: TradeView | null) {
     if (!pickGrid.childElementCount) pickGrid.append(el('p', { class: 'muted small' }, 'Nothing else to add (worn items can\'t be traded).'));
   }
   box.append(
-    el('div', { class: 'panel-head' }, el('h3', {}, `🤝 Trade with ${t.them.name}`)),
+    el('div', { class: 'panel-head' }, el('h3', {}, `🤝 Trade with ${starName(t.them.name)}`)),
     el(
       'div',
       { class: 'panel-body' },

@@ -24,6 +24,7 @@ import { StallLayer } from './stallLayer';
 import { ParkedLayer } from './parkedLayer';
 import { NpcLayer } from './npcLayer';
 import { Culler, type LazyItem } from './culler';
+import { starName, starsOf } from '../ui/stars';
 import { Collectors } from './collectors';
 import { introReveal } from '../ui/intro';
 import { ensureGlowTexture, GLOW_TEXTURE } from './lightLayer';
@@ -928,11 +929,11 @@ export class TownScene extends Phaser.Scene {
       this.app.guide?.update(this.pos.x, this.pos.y, screen);
       this.app.pointers?.update(cam.worldView, this.pos);
       this.app.minimap?.update([
-        { x: this.pos.x, y: this.pos.y, name: this.initData.you.name, self: true },
+        { x: this.pos.x, y: this.pos.y, name: starName(this.initData.you.name), self: true },
         ...(target ? [{ x: target.x * map.tileSize, y: target.y * map.tileSize, name: '🎯', target: true }] : []),
         ...(this.beacon ? [{ x: this.beacon.root.x, y: this.beacon.root.y, name: '🧺', target: true }] : []),
         ...(mine ? [{ x: mine.x * map.tileSize, y: mine.y * map.tileSize, name: 'Your stall', stall: true }] : []),
-        ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.pub.interior ? `🚪 ${r.name}` : r.name })),
+        ...[...this.remotes.values()].map((r) => ({ x: r.avatar.x, y: r.avatar.y, name: r.pub.interior ? `🚪 ${starName(r.name)}` : starName(r.name) })),
       ]);
       this.districtAcc += 150;
       if (this.districtAcc >= 600) {
@@ -1346,7 +1347,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
   private otherShopSigns: Phaser.GameObjects.Text[] = [];
   private syncOtherShopSigns() {
     const others = this.app.store.shoplots.filter((s) => s.ownerId !== this.selfId);
-    const key = others.map((s) => `${s.building}:${s.ref}:${s.ownerName}`).join('|');
+    const key = others.map((s) => `${s.building}:${s.ref}:${s.ownerName}:${starsOf(s.ownerName)}`).join('|');
     if (key === this.otherShopKey) return;
     this.otherShopKey = key;
     for (const t of this.otherShopSigns) t.destroy();
@@ -1358,7 +1359,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       if (!spot || !def) continue;
       const x = spot.x * T, y = spot.y * T - 52; // above the lofts' FOR SALE sign
       const t = this.add
-        .text(x, y, `${def.icon} ${s.ownerName}'s ${def.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '800', color: '#ffffff', backgroundColor: 'rgba(17,19,31,0.78)', padding: { x: 7, y: 3 }, resolution: 2 })
+        .text(x, y, `${def.icon} ${starName(s.ownerName)}'s ${def.name}`, { fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: '800', color: '#ffffff', backgroundColor: 'rgba(17,19,31,0.78)', padding: { x: 7, y: 3 }, resolution: 2 })
         .setOrigin(0.5, 1)
         .setDepth(998_600);
       this.culler.add(t, x, y, 140);
@@ -1378,7 +1379,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
     const me = this.selfId;
     // Called on every store change: skip unless the owners changed.
     let key = `${me}`;
-    for (const [id, o] of this.app.store.props) key += `|${id}:${o.owner}:${o.ownerName}`;
+    for (const [id, o] of this.app.store.props) key += `|${id}:${o.owner}:${o.ownerName}:${starsOf(o.ownerName)}`;
     // A shoplot with a kopitiam downstairs shows the kopitiam's signboard, not the loft sign.
     const kopi = new Set<string>();
     for (const s of this.app.store.stalls.values()) {
@@ -1396,7 +1397,7 @@ ${formatMoney(crate.priceSen)}` : ''}`, {
       const free = owners.filter((o) => !o).length;
       const mine = owners.some((o) => o?.owner === me);
       const shoplot = shoplots.has(bid);
-      const text = mine ? '🏠 YOUR HOME' : free === units.length ? (units.length > 1 ? `🏷️ FOR SALE · ${free} units` : '🏷️ FOR SALE') : free ? `🏷️ ${free} FOR SALE` : `🏠 ${owners[0]?.ownerName ?? ''}`;
+      const text = mine ? '🏠 YOUR HOME' : free === units.length ? (units.length > 1 ? `🏷️ FOR SALE · ${free} units` : '🏷️ FOR SALE') : free ? `🏷️ ${free} FOR SALE` : `🏠 ${starName(owners[0]?.ownerName)}`;
       const color = mine ? '#8ce99a' : free ? '#ffe066' : '#a5d8ff';
       const look = { text, color: mine ? '#ffffff' : color, mine };
       this.homeSignLook.set(bid, look);

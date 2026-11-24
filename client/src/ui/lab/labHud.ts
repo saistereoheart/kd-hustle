@@ -3,6 +3,7 @@
 import { labFloor, seenHas, type LabFloor, type LabRoomView } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
+import { starName } from '../stars';
 import { openLabBag } from './labBag';
 import { openLabParty } from './labParty';
 import { LabLoadout } from './labLoadout';
@@ -106,7 +107,7 @@ export class LabHud {
     const rows = others.map((m) => {
       const where = !m.online ? 'offline' : !m.inside ? 'in town' : m.floor !== here?.floor ? `B${(m.floor ?? 0) + 1}` : m.room === here?.room ? 'here' : '';
       const head = el('div', { class: 'lph-head' },
-        el('b', {}, `${party!.leader === m.id ? '👑 ' : ''}${m.name}`),
+        el('b', {}, `${party!.leader === m.id ? '👑 ' : ''}${starName(m.name)}`),
         m.fighting ? el('span', { class: 'lph-tag fight', title: 'Fighting' }, '⚔️') : null,
         where ? el('span', { class: 'lph-tag' }, where) : null,
         m.carried !== undefined ? el('span', { class: 'lph-coins', title: 'Carried Syiling (banked when they rest or leave)' }, coinIcon(), ` ${m.carried}`) : null);

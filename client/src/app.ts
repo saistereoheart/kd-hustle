@@ -87,6 +87,7 @@ import { setMonsterLooks } from './ui/lab/monsterLooks';
 import type { ShopView } from '@kh/shared';
 import { staffName, type ShopCtx } from './world/shopFloor';
 import { memoryBudget, startMemoryWatch } from './perf/memory';
+import { setAllStars, setStars, starName } from './ui/stars';
 
 export class App {
   cfg!: PublicConfig;
@@ -576,6 +577,10 @@ export class App {
       this.store.rebirth = view;
       this.store.emit();
     });
+    socket.on('rebirth:stars', ({ name, count }) => {
+      setStars(name, count);
+      this.store.emit(); // lists and signs redraw with the new stars
+    });
     socket.on('props', ({ props }) => this.store.setProps(props));
     socket.on('props:self', ({ props }) => {
       // Shop floors are businesses: kept out of the homes lists (Homes app, home limit, signs).
@@ -717,6 +722,7 @@ export class App {
     });
     const resume = !!this.town && !p.needsCharacter && this.lastInit?.you.id === p.you.id && document.body.dataset.state === 'town';
     this.lastInit = p;
+    setAllStars(p.stars);
     if (p.you.appearance) rememberLook(p.you.appearance);
     // A ride ends if we were disconnected (the server drops us off where we were).
     this.rideHud?.destroy();
@@ -895,14 +901,14 @@ export class App {
     const kopi = this.kopitiamIn(b);
     if (kopi) {
       if (kopi.s.owner === me) return { text: '🏪 Your kopitiam', button: '🍳 Go in your kopitiam' };
-      return { text: `🏪 Kopitiam ${kopi.s.ownerName}${kopi.s.open ? '' : ' (tutup)'}`, button: `☕ Visit ${kopi.s.ownerName}'s kopitiam` };
+      return { text: `🏪 Kopitiam ${starName(kopi.s.ownerName)}${kopi.s.open ? '' : ' (tutup)'}`, button: `☕ Visit ${starName(kopi.s.ownerName)}'s kopitiam` };
     }
     const lot = this.store.shoplots.find((s) => s.building === b.id);
     if (!lot) return null;
     const t = this.cfg.businesses.types.find((x) => x.id === lot.ref);
     const icon = t?.icon ?? '🏪', name = t?.name ?? 'shop';
     if (lot.ownerId === me) return { text: `${icon} Your ${name}`, button: `${icon} Go in your ${name}` };
-    return { text: `${icon} ${lot.ownerName}'s ${name}`, button: `${icon} Visit ${lot.ownerName}'s shop` };
+    return { text: `${icon} ${starName(lot.ownerName)}'s ${name}`, button: `${icon} Visit ${starName(lot.ownerName)}'s shop` };
   }
 
   doorPrompt(b: BuiltBuilding): string {
@@ -1133,7 +1139,7 @@ export class App {
       if (!res.places.length) return void toast(`${name} has no places to visit yet.`);
       if (res.places.length === 1) return this.visitPlace(res.places[0].unit);
       const types = this.cfg.properties.types;
-      const panel = openPanel(`🏠 Visit ${res.ownerName || name}`, { testId: 'visit-pick' });
+      const panel = openPanel(`🏠 Visit ${starName(res.ownerName || name)}`, { testId: 'visit-pick' });
       panel.body.append(
         el('p', { class: 'muted small' }, 'Pick a place to look round. You come back out where you are now.'),
         ...res.places.map((pl) => {

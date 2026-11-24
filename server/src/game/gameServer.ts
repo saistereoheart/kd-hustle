@@ -110,6 +110,7 @@ export function attachGame(io: GameIO, deps: GameDeps) {
     props: economy.propsPublic(),
     parked: economy.parkedPublic(p.scene),
     shoplots: economy.shoplotsPublic(),
+    stars: economy.rebirthStars(),
   });
 
   io.on('connection', (socket: GameSocket) => {

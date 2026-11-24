@@ -29,6 +29,12 @@ export interface RebirthView {
 
 export const emptyRebirth = (): RebirthState => ({ count: 0 });
 
+/** The stars before a reborn player's name: '⭐ ' (1), '⭐⭐ ' … up to 5, then '⭐×6 '; '' if never. */
+export function rebirthStars(count: number | null | undefined): string {
+  const n = Math.floor(count ?? 0);
+  return n <= 0 ? '' : n <= 5 ? `${'⭐'.repeat(n)} ` : `⭐×${n} `;
+}
+
 /** Cash multiplier after `count` rebirths. */
 export function rebirthCashMult(cfg: RebirthConfig, count: number): number {
   return Math.pow(cfg.cashMultPerRebirth, Math.max(0, count));

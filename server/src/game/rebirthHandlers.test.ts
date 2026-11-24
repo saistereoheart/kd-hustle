@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { rebirthCashMult } from '@kh/shared';
+import { rebirthCashMult, rebirthStars } from '@kh/shared';
 import { loadConfig } from '../config/loadConfig';
 import { openDatabase } from '../db/db';
 import { createRepos } from '../db/repos';
@@ -22,7 +22,8 @@ function setup() {
   let reset = 0;
   let blocker: string | null = null;
   const said: string[] = [];
-  const io = { to: () => ({ emit: () => {} }) } as unknown as GameIO;
+  const broadcast: Array<[string, unknown]> = [];
+  const io = { to: () => ({ emit: () => {} }), emit: (ev: string, d: unknown) => void broadcast.push([ev, d]) } as unknown as GameIO;
   const rb = createRebirth({
     cfg, repos, io, socketOf: () => undefined,
     blocker: () => blocker,
@@ -34,7 +35,7 @@ function setup() {
     },
     announce: (t) => said.push(t),
   });
-  return { p, rb, repos, wiped: () => wiped, reset: () => reset, said, block: (b: string | null) => (blocker = b) };
+  return { p, rb, repos, broadcast, wiped: () => wiped, reset: () => reset, said, block: (b: string | null) => (blocker = b) };
 }
 
 /** Run a registered handler like the socket would. */
@@ -50,6 +51,25 @@ function handlers(rb: ReturnType<typeof createRebirth>, p: OnlinePlayer) {
 }
 
 describe('rebirth', () => {
+  it('stars by the name: one per rebirth up to 5, then ⭐×n', () => {
+    expect(rebirthStars(0)).toBe('');
+    expect(rebirthStars(2)).toBe('⭐⭐ ');
+    expect(rebirthStars(5)).toBe('⭐⭐⭐⭐⭐ ');
+    expect(rebirthStars(7)).toBe('⭐×7 ');
+  });
+
+  it('everyone gets the stars: in the list for init, and sent out on a rebirth', () => {
+    const old = setup();
+    old.repos.playerData.save(old.p.id, 'rebirth', { count: 3 }); // saved before this server started
+    expect(old.rb.stars()).toEqual({ tansri: 3 });
+    const s = setup();
+    expect(s.rb.stars()).toEqual({});
+    const h = handlers(s.rb, s.p);
+    h.get('rebirth:do')!({ confirm: 'REBIRTH' });
+    expect(s.rb.stars()).toEqual({ tansri: 1 });
+    expect(s.broadcast).toContainEqual(['rebirth:stars', { name: 'tansri', count: 1 }]);
+  });
+
   it('the cash multiplier doubles per rebirth', () => {
     expect(rebirthCashMult(rc, 0)).toBe(1);
     expect(rebirthCashMult(rc, 1)).toBe(2);

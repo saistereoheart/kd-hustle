@@ -1,5 +1,6 @@
 import type { ChatMsg } from '@kh/shared';
 import { el, toast, uiRoot } from './dom';
+import { starName } from './stars';
 
 /** Global chat box. Lines fade after a while; opening the chat shows the full history. */
 export class Chat {
@@ -65,7 +66,7 @@ export class Chat {
     this.seen.add(m.id);
     const line = m.system
       ? el('div', { class: 'chat-line system' }, m.text)
-      : el('div', { class: 'chat-line' }, el('b', {}, `${m.fromName}: `), m.text);
+      : el('div', { class: 'chat-line' }, el('b', {}, `${starName(m.fromName)}: `), m.text);
     this.log.append(line);
     while (this.log.children.length > 60) this.log.firstElementChild?.remove();
     setTimeout(() => line.classList.add('faded'), 15_000);

@@ -5,6 +5,7 @@ import { loadPrefs } from '../ui/settings';
 import Phaser from 'phaser';
 import { darkness, formatMoneyExact, gameTime, setBoxes, stallFootprint, type BuiltMap, type StallCustomer, type StallPublic } from '@kh/shared';
 import { crowdLook } from '../character/crowd';
+import { starName, starsOf } from '../ui/stars';
 import type { App } from '../app';
 import { AVATAR_DEPTH, Avatar } from './avatar';
 import { ensureGlowTexture, GLOW_TEXTURE, LightLayer } from './lightLayer';
@@ -85,7 +86,7 @@ export class StallLayer {
       const s = this.app.store.stalls.get(plot.id);
       // Solid while there's a stall on the plot (the server uses the same boxes).
       setBoxes([this.app.map.collision, this.app.map.driveCollision], `stall:${plot.id}`, s ? stallFootprint(plot, this.T) : []);
-      const key = s ? `${s.owner}|${s.tier}|${s.open}|${s.ownerName}` : 'free';
+      const key = s ? `${s.owner}|${s.tier}|${s.open}|${s.ownerName}|${starsOf(s.ownerName)}` : 'free';
       const v = this.views.get(plot.id);
       if (v?.key === key) continue;
       if (v) for (const o of v.objs) o.destroy();
@@ -282,7 +283,7 @@ export class StallLayer {
           glow(x, y - 40, 40, 40, 1, 0xfff4d6, LIGHT_DEPTH + 1);
           glow(x + 4, y + 2, 230, 130, 1);
         }
-        label(`⛺ ${s.ownerName}'s stall${s.open ? '' : ' · tutup'}`, -82);
+        label(`⛺ ${starName(s.ownerName)}'s stall${s.open ? '' : ' · tutup'}`, -82);
       }
     } else if (plot.tier === 2) {
       const g = sc.add.graphics().setDepth(AVATAR_DEPTH + y - 40);
@@ -308,7 +309,7 @@ export class StallLayer {
           glow(x - 15, y - 7, 90, 44, 0.8, 0xfff3bf, LIGHT_DEPTH + 1);
           glow(x - 10, y + 44, 220, 110, 1);
         }
-        label(`🚚 ${s.ownerName}'s food truck${s.open ? '' : ' · closed'}`, -42);
+        label(`🚚 ${starName(s.ownerName)}'s food truck${s.open ? '' : ' · closed'}`, -42);
       }
     } else if (s) {
       // Kopitiam: a signboard above the shop door and a few plastic tables outside.
@@ -322,7 +323,7 @@ export class StallLayer {
       objs.push(top);
       top.fillStyle(0x2b8a3e, 1).fillRoundedRect(x - 70, y - 64, 140, 24, 5);
       top.fillStyle(0xffffff, 0.2).fillRoundedRect(x - 70, y - 64, 140, 6, { tl: 5, tr: 5, bl: 0, br: 0 });
-      label(`🏪 Kopitiam ${s.ownerName}${s.open ? '' : ' · tutup'}`, -42, '#ffffff');
+      label(`🏪 Kopitiam ${starName(s.ownerName)}${s.open ? '' : ' · tutup'}`, -42, '#ffffff');
       if (s.open) {
         glow(x, y - 52, 170, 50, 0.7, 0xd3f9d8, LIGHT_DEPTH + 1); // the lit signboard
         glow(x, y + 30, 260, 120, 1);

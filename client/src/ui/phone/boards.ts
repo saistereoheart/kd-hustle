@@ -2,6 +2,7 @@
 import { formatMoney, LEADERBOARDS, type BoardEntry, type BoardId } from '@kh/shared';
 import type { App } from '../../app';
 import { el } from '../dom';
+import { starName } from '../stars';
 import type { PhoneCtx } from './phone';
 
 let board: BoardId = 'netWorth';
@@ -44,7 +45,7 @@ export function renderBoards({ app, rerender }: PhoneCtx): HTMLElement[] {
     ...sorted.map((e, i) =>
       el('div', { class: `board-row${e.player === me ? ' mine' : ''}`, 'data-rank': String(i + 1) },
         el('span', { class: 'board-rank' }, medal(i)),
-        el('span', { class: 'board-name' }, e.name, e.online ? el('span', { class: 'board-online', title: 'online' }, ' ●') : null),
+        el('span', { class: 'board-name' }, starName(e.name), e.online ? el('span', { class: 'board-online', title: 'online' }, ' ●') : null),
         el('b', {}, fmt(board, e)))),
     el('p', { class: 'hint' }, 'Offline players show their numbers from their last visit.'),
   ];

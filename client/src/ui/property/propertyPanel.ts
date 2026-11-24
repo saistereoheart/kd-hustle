@@ -2,6 +2,7 @@
 import { formatMoney, type BuiltBuilding } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast, keepUiState } from '../dom';
+import { starName } from '../stars';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 
@@ -22,7 +23,7 @@ export function openPropertyPanel(app: App, b: BuiltBuilding) {
           app.enterHome(u.id);
         });
       } else if (owner) {
-        action = el('span', { class: 'muted' }, `Owned by ${owner.ownerName}${owner.mode === 'airbnb' ? ` · Airbnb ${owner.stars.toFixed(1)}★` : ''}`);
+        action = el('span', { class: 'muted' }, `Owned by ${starName(owner.ownerName)}${owner.mode === 'airbnb' ? ` · Airbnb ${owner.stars.toFixed(1)}★` : ''}`);
       } else {
         const req = t.requires.stage && app.store.progress.stage < t.requires.stage ? `Needs stage ${t.requires.stage}` : null;
         // Your first home is free (up to a price cap); there's a limit on how many you can own.

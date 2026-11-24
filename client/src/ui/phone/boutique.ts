@@ -4,6 +4,7 @@
 import { formatMoney, gradeDef, gradeMult, itemValueSen, type Listing } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { starName } from '../stars';
 import { itemCard } from '../panel';
 import { sfx } from '../sound';
 import type { PhoneCtx } from './phone';
@@ -47,7 +48,7 @@ function listingCard(app: App, l: Listing, mine: boolean): HTMLElement | null {
       'div',
       { class: 'job-info' },
       el('h4', {}, def.name),
-      el('div', { class: 'muted small' }, `${mine ? 'On display' : `From ${l.sellerName}'s butik`} · worth about ${formatMoney(value)}`),
+      el('div', { class: 'muted small' }, `${mine ? 'On display' : `From ${starName(l.sellerName)}'s butik`} · worth about ${formatMoney(value)}`),
       el('div', { class: 'biz-actions' }, btn),
     ),
   );

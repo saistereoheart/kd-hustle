@@ -3,6 +3,7 @@
 import { formatMoney, handValue, type BlackjackView, type BjHand } from '@kh/shared';
 import type { App } from '../../app';
 import { el, toast } from '../dom';
+import { starName } from '../stars';
 import { openPanel } from '../panel';
 import { sfx } from '../sound';
 import { betPicker, cardEl, ok, secsLeft, sessionLine, watchTable } from './common';
@@ -51,7 +52,7 @@ export function openBlackjack(app: App) {
     status.textContent =
       v.phase === 'waiting' ? (mySeat >= 0 ? 'Place a bet to start the hand.' : 'Take a seat to play.')
       : v.phase === 'betting' ? `Bets close in ${secsLeft(app, v.endsAt)}`
-      : v.phase === 'playing' ? (turnMine ? `Your turn! ${secsLeft(app, v.endsAt)}` : `${v.seats[v.turn!.seat]?.name}'s turn · ${secsLeft(app, v.endsAt)}`)
+      : v.phase === 'playing' ? (turnMine ? `Your turn! ${secsLeft(app, v.endsAt)}` : `${starName(v.seats[v.turn!.seat]?.name)}'s turn · ${secsLeft(app, v.endsAt)}`)
       : 'Hand over.';
     seats.replaceChildren(
       ...v.seats.map((s, i) => {
@@ -63,7 +64,7 @@ export function openBlackjack(app: App) {
         return el(
           'div',
           { class: `bj-seat${s.player === me ? ' mine' : ''}${v.turn?.seat === i ? ' turn' : ''}`, 'data-seat': String(i) },
-          el('div', { class: 'bj-name' }, s.name, s.bet && !s.hands.length ? el('span', { class: 'muted small' }, ` · bet ${formatMoney(s.bet)}`) : null),
+          el('div', { class: 'bj-name' }, starName(s.name), s.bet && !s.hands.length ? el('span', { class: 'muted small' }, ` · bet ${formatMoney(s.bet)}`) : null),
           ...s.hands.map((h, hi) => handEl(h, v.turn?.seat === i && v.turn.hand === hi)),
         );
       }),

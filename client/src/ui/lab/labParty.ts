@@ -4,6 +4,7 @@
 import type { LabPartyView } from '@kh/shared';
 import type { App } from '../../app';
 import { el, labSay, uiRoot } from '../dom';
+import { starName } from '../stars';
 import { closePanel, openPanel } from '../panel';
 import { sfx } from '../sound';
 
@@ -39,7 +40,7 @@ export function openLabParty(app: App) {
       parts.push(el('h5', {}, `Your party (${party.members.length}/${party.max})`));
       for (const m of party.members) {
         const row = el('div', { class: 'lab-party-row' },
-          el('b', {}, `${m.id === party.leader ? '👑 ' : ''}${m.name}${m.id === me ? ' (you)' : ''}`),
+          el('b', {}, `${m.id === party.leader ? '👑 ' : ''}${starName(m.name)}${m.id === me ? ' (you)' : ''}`),
           el('span', { class: 'muted small' }, ` Lv ${m.level} · ${whereIs(app, m)}`));
         if (leader && m.id !== me) {
           const kick = el('button', { class: 'btn small', type: 'button', 'data-kick': String(m.id) }, 'Remove');
@@ -90,7 +91,7 @@ export function openLabParty(app: App) {
         sfx.click();
         labSay(`📨 Invited ${o.name}.`, 'good');
       }));
-      parts.push(el('div', { class: 'lab-party-row' }, el('b', {}, o.name), el('span', { class: 'muted small' }, ` Lv ${o.level}${o.inParty ? ' · in a party' : ''}`), b));
+      parts.push(el('div', { class: 'lab-party-row' }, el('b', {}, starName(o.name)), el('span', { class: 'muted small' }, ` Lv ${o.level}${o.inParty ? ' · in a party' : ''}`), b));
     }
     body.replaceChildren(...parts);
   };
