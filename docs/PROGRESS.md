@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.47.1)_
+_Last updated: 2026-11-24 (v1.47.2)_
 
-**Now at v1.47.1, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.47.2, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -60,7 +60,9 @@ rounds below. The §19 content list is met, including 74 achievements.
 - `client/src/ui/reel.ts` `revealBar`: a fixed bar of two 150 px slots; the right slot is centred on the clicked
   Roll button (`RevealOpts.anchor`, kept per count by `cratePanel` while the panel is hidden) and changes
   Skip ⏭ / Flip all ⏭ → 🎲 Roll again in place; Nice! appears on the left at the end. Same `data-action` names.
-  Unverified on screen.
+- v1.47.2 (your report: it covered the cards): the bar is back in the stage under the cards, after a
+  `.reveal-result` slot of fixed height; both slots fixed at 150 px (`.btn.primary` was 100% wide). Probe
+  `test-results/revealbar.cjs`: Skip and Roll again at the same pixel, ×1 and ×10, 1366×768 and 390×844.
 
 ---
 

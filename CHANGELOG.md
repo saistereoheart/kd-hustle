@@ -2,6 +2,11 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.47.2 (2026-11-24): 🎲 reveal buttons under the cards, still in one spot
+- The buttons are back under the cards (they covered the top of them in 1.47.1), with the result's space kept
+  above them so they never move: [Nice!] [Skip ⏭ → 🎲 Roll again], the same spot to the pixel (checked ×1 and ×10,
+  on a PC and a phone). Stop auto hangs below.
+
 ## 1.47.1 (2026-11-24): 🎲 roll, skip, roll again without moving the mouse
 - **The crate reveal's buttons stay in one place:** [Nice!] [Skip ⏭], and the right one turns into 🎲 Roll again
   right where it is. It sits exactly where the Roll button you clicked was, so click Roll, then keep clicking the

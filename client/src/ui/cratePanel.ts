@@ -88,14 +88,11 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
     panel.body.replaceChildren(head, ...(lock ? [el('div', { class: 'crate-lock', 'data-testid': 'crate-lock' }, `🔒 ${lock}`)] : []), actions, el('h4', {}, `Items (${crate.pool.filter((id) => st.index.has(id)).length}/${crate.pool.length} found)`), pool);
   };
 
-  /** Where each Roll button is on screen (kept from when it was last visible). */
-  const anchors = new Map<number, { x: number; y: number }>();
   const roll = (count: 1 | 5 | 10) => {
     if (busy || !app.socket?.connected) return;
     busy = true;
     render();
-    const rb = panel.body.querySelector<HTMLElement>(`[data-roll="${count}"]`)?.getBoundingClientRect();
-    if (rb && rb.width > 0) anchors.set(count, { x: rb.left + rb.width / 2, y: rb.top + rb.height / 2 });
+
     sfx.click();
     app.socket.timeout(8000).emit('crate:roll', { crateId, count, ...(remote ? { remote: true } : {}) }, (err, res) => {
       busy = false;
@@ -121,7 +118,6 @@ export function openCratePanel(app: App, crateId: string, opts: { remote?: boole
         results: res.results,
         luck: mods.luck,
         speed: mods.rollSpeed,
-        anchor: anchors.get(count),
         auto: auto ? { isOn: () => auto && canAfford(count) && !lockReason(), stop: () => (auto = false) } : undefined,
         shake: (i) => app.town?.shake(i),
         onReveal: revealAnnouncer(app, res.announce),

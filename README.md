@@ -7,7 +7,7 @@ send your Teman into a cave, and flex on everyone.
 
 **GitHub:** https://github.com/saistereoheart/kd-hustle
 
-**Version 1.47.1.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built (1.0.0), plus many rounds of
+**Version 1.47.2.** Every phase of [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md) is built (1.0.0), plus many rounds of
 player feedback since. See [Version history](#version-history) below and the full [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's in the game

@@ -2015,8 +2015,10 @@ body[data-lab] .hud .hud-money, body[data-lab] .hud .xp-bar, body[data-lab] .hud
 .dir-row { padding: 3px 0; }
 .dir-sale { color: #ff8787; font-weight: 700; }
 
-/* 🎲 The reveal's buttons stay put (ui/reel.ts revealBar): [Nice!] [Skip → Roll again], the right one where
-   your Roll button was, so you can keep clicking without moving the mouse. */
-.reveal-bar { position: fixed; z-index: 30; display: flex; gap: 10px; }
-.reveal-slot { width: 150px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-.reveal-stop { position: fixed; z-index: 30; width: 150px; }
+/* 🎲 The reveal's buttons stay put (ui/reel.ts revealBar): under the cards, after a result slot whose height is
+   reserved, so [Nice!] [Skip ⏭ → Roll again] never move: keep clicking the same spot. */
+.reveal-result { height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+.reveal-bar { position: relative; display: flex; gap: 10px; justify-content: center; }
+.reveal-bar .reveal-slot, .reveal-bar .reveal-slot.primary { width: 150px; min-width: 150px; max-width: 150px; flex: 0 0 150px; margin: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.reveal-stop { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 150px; }
+body.portrait .reveal-result { height: 112px; }
