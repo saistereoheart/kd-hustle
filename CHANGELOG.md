@@ -2,6 +2,12 @@
 
 Every version from the first build to now. Newest first; the phases before 1.0.0 are at the bottom.
 
+## 1.44.1 (2026-11-24): 📖 "x/y found" counts again
+- **Fix: a crate's "Items (x/y found)" (at the machine and in 📱 Quick Rolls) stopped counting.** Buying
+  furniture (in the store or on IKEJA Online) or taking a kopitiam's starter tables and chairs wiped the
+  game's list of items you've found, until you reloaded. After that only items rolled since then counted,
+  so every crate showed far too few found. The list now only ever grows; nothing was lost on the server.
+
 ## 1.44.0 (2026-11-24): 💰 Labirin rewards you can't miss; found gear in its slot
 - **Everything you get in the Labirin pops up big** in the middle of the screen: the Syiling counting up with
   coins bursting out, the XP, and each thing as a card in its tier's colour (💎 diamonds, 🎁 dropped gear with

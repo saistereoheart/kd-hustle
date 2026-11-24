@@ -615,7 +615,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
       const sets = propSys.starterFor(me, unit);
       const items = econ.run(me, () => sets.map((pl) => econ.grant(me, pl.item, 'normal', null).item));
       const layout = propSys.addStarter(me, unit, sets.map((pl, i) => ({ ...pl, iid: items[i].iid })));
-      socketOf(me)?.emit('inv:added', { items, index: [] });
+      socketOf(me)?.emit('inv:added', { items, index: [...me.index] });
       return { layout };
     });
     handle(socket, 'visits:get', null, () => ({ prefs: loadVisits(repos, me.id) }));
@@ -704,7 +704,7 @@ export function attachEconomy(io: GameIO, deps: { cfg: ServerConfig; repos: Repo
         return Array.from({ length: qty }, () => econ.grant(me, item, 'normal', null).item);
       });
       pushWallet(me, -cost, 'furniture');
-      socketOf(me)?.emit('inv:added', { items, index: [] });
+      socketOf(me)?.emit('inv:added', { items, index: [...me.index] });
       me.prog.stats.furnitureBought = (me.prog.stats.furnitureBought ?? 0) + qty;
       prog.check(me);
       return { items, feeSen };

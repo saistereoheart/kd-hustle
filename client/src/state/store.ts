@@ -178,8 +178,10 @@ export class Store {
     const have = new Set(this.inventory.map((i) => i.iid));
     for (const i of items) if (!have.has(i.iid)) this.inventory.push(i);
     this.noteSeen(items);
-    if (index) this.index = new Set(index);
-    else for (const i of items) this.index.add(i.itemId);
+    // The Item Index only grows: add the server's list (and these items) to what we know, never replace it
+    // (an empty or partial list once wiped every crate's "x/y found" after buying furniture).
+    for (const id of index ?? []) this.index.add(id);
+    for (const i of items) this.index.add(i.itemId);
     this.emit();
   }
 

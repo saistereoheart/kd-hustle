@@ -2,9 +2,9 @@
 
 ## Status
 
-_Last updated: 2026-11-24 (v1.44.0)_
+_Last updated: 2026-11-24 (v1.44.1)_
 
-**Now at v1.44.0, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
+**Now at v1.44.1, on GitHub (every change is committed and pushed; you build and `npm start`): https://github.com/saistereoheart/kd-hustle (first pushed 2026-11-24). Every phase of the spec (§20) is done** (v1.0.0), plus the feedback
 rounds below. The §19 content list is met, including 74 achievements.
 
 | Check | Result |
@@ -53,6 +53,15 @@ rounds below. The §19 content list is met, including 74 achievements.
 - **Commits are local until you say push.** The repo is public: https://github.com/saistereoheart/kd-hustle.
 - **Starting the server on Windows:** double-click `start.cmd` (its own window; Ctrl+C there saves and stops).
 - **One database change in v1.12.0:** migration 16 adds `best_grade` / `best_variant` to `collection_index` (the Item Index's best ever). It runs by itself at startup.
+
+---
+
+## 📖 Fix: crate "x/y found" not counting (2026-11-24, your report, v1.44.1)
+- Cause: `furniture:buy` (store and IKEJA Online) and `shop:starter` sent `inv:added` with `index: []`, and
+  `Store.addItems` replaced the whole client index with it. Every crate's found count (machine and Quick
+  Rolls, the Item Index too) dropped to what was rolled after that, until a reload. Server data was fine.
+- Fix: those two send `[...me.index]`; `Store.addItems` only adds to the index (never replaces it). A
+  rebirth reloads the page, so the index still starts fresh then.
 
 ---
 
